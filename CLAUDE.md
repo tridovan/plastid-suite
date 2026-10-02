@@ -89,26 +89,49 @@ Changing any of these requires fresh measured evidence. Full provenance: PROJECT
 Banned outright: bare `except:` · `sys.exit` outside `cli.py` · hardcoded absolute paths ·
 hand-rolled FASTA/GenBank parsers (use BioPython) · `shell=True` for tool calls.
 
-## Coding style — pragmatic, boring on purpose
+## Coding practice — principles before mechanics
 
-Bias: code a tired maintainer can read in six months. Prefer the standard library and plain
-constructs; add a dependency or an abstraction only when the second real use appears.
+Python is not Java: most of SOLID collapses into fewer, simpler rules here. Defaults: KISS · YAGNI ·
+explicit over implicit · boring over clever. Prefer the standard library; add a dependency or an
+abstraction only when the second real use appears.
 
-- **Python 3.10+**; `from __future__ import annotations` in every module.
-- **Types on public functions** (`def gc_percent(sequence: str) -> float`); dataclasses for data.
-- **Names**: `snake_case` functions/variables, `PascalCase` classes, modules short and concrete.
-  Domain abbreviations already in use (LSC, IR, SSC, SSR, CDS) are fine; invent no new ones.
-- **Docstrings**: one line on what it does; add *why it exists* where non-obvious. Always document
-  units and coordinate conventions — that is where silent bugs live.
-- **Small pure functions**: pass data in, return data out — no hidden I/O, no globals, no cwd.
-- **Errors**: raise specific exceptions with actionable messages; never swallow one. `ValueError`
-  for bad input, a domain exception (`IRGateError`) for a domain failure.
-- **Comments explain why, not what**; delete commented-out code instead of keeping it.
-- **Formatting is not a debate**: `ruff format` decides; line length 100; imports absolute, sorted.
-- **Tests** are named after the behaviour ("gate flags diverged copies"), one behaviour per test,
-  arrange–act–assert. Always test the negative case — this project's bugs are silent ones.
-- **No speculative abstraction**: no base classes, factories, or config flags for a single use.
-- **Boring beats clever**: a plain loop that reads clearly wins over a one-liner nobody can parse.
+**Design principles, translated to this repo**
+
+- **One responsibility per unit** (SRP) — a module does one analysis, a function does one thing.
+  A function that parses *and* writes *and* prints is three functions.
+- **Extend by adding, not editing** (OCP) — a new analysis = a new file in `modules/` plus one
+  registry line. Never grow an existing module to cover a new job.
+- **Composition over inheritance** (LSP) — plain functions and frozen dataclasses; a class only
+  when state must travel together. A three-level hierarchy means the design is wrong.
+- **Small explicit contracts** (ISP) — `run(genome, params, ctx) -> Result`, nothing wider; a
+  module never receives parameters it ignores.
+- **Depend on the boundary, not the tool** (DIP) — core knows nothing about external programs;
+  `run_tool()` and `external/` are the only doors, and the layering test enforces this.
+- **DRY after the second real copy** — never before. Counterexample: CGAS, 14 copy-pasted glue
+  blocks and ~2,400 duplicated lines. Same logic in two modules → extract to the shared layer.
+- **KISS / YAGNI** — build what the current task needs. Snakemake, plugin entry points and report
+  i18n are all deliberately deferred for exactly this reason.
+- **Fail loud** ("errors should never pass silently" — Zen of Python) — a gate raises, a missing
+  tool is named, a disagreement is recorded. Nothing degrades into a warning nobody reads.
+- **Explicit over implicit** — no monkey-patching, no `sys.argv` mutation, no hidden cwd or globals
+  (each one is a measured CGAS failure mode).
+
+**Mechanics**
+
+- Python 3.10+; `from __future__ import annotations` everywhere. Types on public functions;
+  dataclasses for data; `pathlib` over string paths; context managers for resources; no mutable
+  default arguments.
+- Names: `snake_case` functions/variables, `PascalCase` classes, short concrete modules. Domain
+  abbreviations already in use (LSC, IR, SSC, SSR, CDS) are fine; invent no new ones.
+- Docstrings: one line on what it does, plus *why* where non-obvious. Always document units and
+  coordinate conventions — that is where silent bugs live.
+- Small pure functions: data in, data out — no hidden I/O, no globals, no cwd.
+- Errors: raise specific exceptions with actionable messages — `ValueError` for bad input, a domain
+  exception (`IRGateError`) for a domain failure. Never a bare `except:`.
+- Comments explain why, not what; delete commented-out code instead of keeping it.
+- Formatting is not a debate: `ruff format` decides (line length 100, imports absolute and sorted).
+- Tests are named after the behaviour ("gate flags diverged copies"), one behaviour per test, and
+  always cover the negative case — this project's bugs are silent ones.
 
 ## Testing discipline — test-driven development
 
