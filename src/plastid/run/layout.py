@@ -75,6 +75,14 @@ class RunLayout:
         now: datetime | None = None,
     ) -> RunLayout:
         stamp = (now or datetime.now()).strftime("%Y%m%d-%H%M%S")
-        return cls(
-            out_root=Path(out_root), dataset=slugify(dataset), run_id=f"{stamp}-{fingerprint[:8]}"
-        )
+        root = Path(out_root)
+        dataset_slug = slugify(dataset)
+        base = f"{stamp}-{fingerprint[:8]}"
+        run_id = base
+        suffix = 2
+        while (root / dataset_slug / run_id).exists():
+            # Two runs inside the same second must still get their own directory —
+            # one run = one folder, always (PROJECT.md §2).
+            run_id = f"{base}-{suffix}"
+            suffix += 1
+        return cls(out_root=root, dataset=dataset_slug, run_id=run_id)

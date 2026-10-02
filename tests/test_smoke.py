@@ -23,6 +23,7 @@ def test_cli_no_args_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
     assert "usage: plastid" in capsys.readouterr().out
 
 
-def test_cli_run_stub_not_implemented(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["run"]) == 1
-    assert "not implemented" in capsys.readouterr().out
+def test_cli_run_requires_its_arguments() -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["run"])  # argparse usage error
+    assert exit_info.value.code == 2

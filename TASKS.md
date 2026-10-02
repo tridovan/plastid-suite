@@ -35,15 +35,6 @@ checksums; deleting one output file and re-running restores it byte-identically.
 
 **Done when:** the golden `genome_stats` report renders with every number resolving to a table cell.
 
-### P1-08 · Module registry + `genome_stats` end-to-end · M1.8 · Claude · [ ]
-
-- [ ] `modules/registry.py` — decorator registry with explicit imports (entry points deferred)
-- [ ] `modules/genome_stats.py` — pure `run(genome, params, ctx) -> Result`
-- [ ] CLI `plastid run --module genome_stats …` (argparse, `main(argv) -> int`, exit codes 0/1/2/3)
-
-**Done when:** one command produces a complete run dir (`00_run_info` + tables + report) and the run
-report lists tool name · version · parameters.
-
 ### P1-09 · MISA vendored + `ssr` module (tier B) · M1.9 · Claude · [ ]
 
 - [ ] download the IPK zip, verify md5 `cf9d3579…`, vendor `misa.pl` + `misa.ini` + `SOURCE.json`
@@ -82,6 +73,8 @@ report lists tool name · version · parameters.
 | P1-02 | Core model + GenBank reader + vendored golden data | M1.2 | 2026-10-02 |
 | P1-03 | IR detection + gate + coordinate normalization | M1.3 | 2026-10-02 |
 | P1-04 | Result schema + exporters (refs resolve or raise; byte-identical exports) | M1.4 | 2026-10-02 |
+| P1-07 | Report engine + citations + defaults (templates reference cells only) | M1.7 | 2026-10-02 |
+| P1-08 | Module registry + `genome_stats` end-to-end + CLI `plastid run` | M1.8 | 2026-10-02 |
 
 ## Housekeeping
 

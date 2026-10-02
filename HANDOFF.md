@@ -6,12 +6,14 @@
 
 ## Resume point
 
-**Phase 1 — in progress.** P1-01 · P1-02 · P1-03 · P1-04 DONE. `make check` green (48 fast + 7 golden).
+**Phase 1 — in progress.** P1-01…P1-05 · P1-07 · P1-08 DONE. `make check` green (71 fast + 11 golden).
 
-**Next action: `P1-05`** — run layer: layout · manifest · `run_tool()` · cache
-(checklist + Done-when in `TASKS.md`).
+**Next action: `P1-06`** (tier-B tool probe) then **`P1-09`** (vendor MISA + `ssr` module) — the
+tier-B SSR golden number 37 = mono 31 · di 4 · tri 2 is checkable on this machine (perl 5.38.2 ✓,
+network to IPK ✓).
 
-**Blocked on:** §10.8 · §10.9 (Reference Panel → blocks P1-10) · D-01 (doc fixes). No blocker for P1-05.
+**Blocked on:** §10.8 · §10.9 (Reference Panel → blocks P1-10) · P1-12 (your call: local vs remote
+for heavy steps) · D-01 (doc fixes).
 
 **Branches (all local, none pushed):** `main` = init commit · `feat/phase-1` = P1-01 ·
 `feat/p1-02-core-model` = P1-02 + P1-03 · `feat/p1-04-result-schema` = P1-04.

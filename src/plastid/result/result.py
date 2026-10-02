@@ -80,8 +80,6 @@ class Table:
         names = {column.name for column in self.columns}
         if self.key is not None and self.key not in names:
             raise ValueError(f"table {self.id!r}: key column {self.key!r} is not in its columns")
-        if self.key is None and len(self.rows) > 1:
-            raise ValueError(f"table {self.id!r} has several rows — declare a key column")
         for row in self.rows:
             unknown = set(row) - names
             if unknown:
@@ -90,6 +88,11 @@ class Table:
     def _locate(self, ref: str) -> tuple[dict[str, Any], Column]:
         """Resolve ``column`` or ``rowkey.column`` to (row, column)."""
         if self.key is None:
+            if len(self.rows) > 1:
+                raise ResultRefError(
+                    f"{self.id}: {len(self.rows)} rows and no key column — "
+                    f"a single value cannot be addressed"
+                )
             if "." in ref:
                 raise ResultRefError(
                     f"{self.id}: single-row table takes a bare column, got {ref!r}"

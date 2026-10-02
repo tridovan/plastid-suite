@@ -73,8 +73,13 @@ tells you which file belongs to which job.
   `cached` with unchanged checksums
 - [ ] **M1.6 Golden tests tier A + `make golden`** — one command, every §6 tier-A number asserted;
   tier B prints a skip reason per missing tool
-- [ ] **M1.7 Report engine + citation registry + defaults** — every `{{…}}` resolves; no bare digits
-  outside references; every report ends "Draft — needs human review"
+- [x] **M1.7 Report engine + citation registry + defaults** (2026-10-02) — `{{…}}` resolves through
+  `Result.format()` or raises; shipped templates carry zero bare digits (scan test); the draft
+  banner is appended by the engine; citations come from `data/citations.yaml`
+- [x] **M1.8 Module registry + first module end-to-end** (2026-10-02) — decorator registry;
+  `genome_stats` produces `01_genome_stats/` (3 tables + result.json + report.md); CLI `plastid run`
+  writes `manifest.json` + `00_run_info/run_info.md`; a failed gate exits 2 and still leaves a
+  traceable run directory
 - [ ] **M1.8 Module registry + first module (`genome_stats`) end-to-end** — run dir complete:
   `00_run_info/` + tables + report
 - [ ] **M1.9 MISA vendored + `ssr` module (tier B)** — md5-pinned; SSR 37 = 31 / 4 / 2 with perl;
