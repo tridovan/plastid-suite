@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plastid-suite"
+version = "0.1.0"
+description = "Toolkit for plastid and mitochondrial genome analysis (academic, non-commercial)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "PlastidToolSuite contributors" }]
+# license: decided in Phase 9 — see ROADMAP.md M9.3 (PGA GPL-3.0, Vmatch academic-only, MISA unclear)
+dependencies = [
+    "biopython>=1.83",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+plastid = "plastid.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/plastid"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "TID"]
+
+# Absolute imports only — the architecture test (tests/unit/test_architecture.py)
+# resolves every import against the layer map.
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "tier_b: requires external tools (MISA/cpstools/MAFFT); skipped with a printed reason when absent",
+]
