@@ -11,18 +11,17 @@
 
 ## Current focus
 
-**Phase 1 in progress.** P1-01 (scaffold) and P1-02 (core model + GenBank reader + vendored golden
-data) — **DONE**; `make check` green (22 passed, 1 skipped until P1-03).
+**Phase 1 in progress.** P1-01 (scaffold) · P1-02 (model + reader + data) · P1-03 (IR + gate +
+normalization) — **DONE**; `make check` green (**40 passed** fast, **7 passed** golden, no skips).
 
 **Open decisions** (need the team's call; details in ROADMAP.md → "Open decisions"):
 
-- **Coordinate system in reports (§10.6)** → blocks P1-03 · P1-04 — *next in line*
-- Reports generated from `Result` objects (§10.7) → blocks P1-04 · P1-07
+- Reports generated from `Result` objects (§10.7) → blocks P1-04 · P1-07 — *next in line*
 - Reference Panel: snapshot vs live NCBI (§10.8) + item (c) (§10.9) → blocks P1-10
 - Doc fixes: §12 install lines (cpstools channel · add mafft · add MISA download) → D-01
 
-**Next action: `P1-03`** — IR detection + gate + coordinate normalization; needs the §10.6 decision
-(do reports show GenBank coordinates or normalized ones?).
+**Next action: `P1-04`** — Result schema + exporters (needs the §10.7 decision: reports generated
+from `Result` objects with cell references, or written by hand?).
 
 ---
 
@@ -32,7 +31,7 @@ data) — **DONE**; `make check` green (22 passed, 1 skipped until P1-03).
 |---|---|---|---|---|---|
 | P1-01 | Repo skeleton + packaging: pyproject (hatchling), uv env, Makefile, CLI stub | M1.1 | DONE | Claude | `uv sync`; `plastid --version`; `make check` green |
 | P1-02 | Core model (Genome · Gene) + GenBank reader (BioPython) + vendored golden data | M1.2 | DONE | Claude | tier A tests read 153,724 bp · 37.8536 % · 86+38+8 · `gene` 133 · 112 names |
-| P1-03 | IR detection (annotation-first + de-novo port) + gate ≥ 99.9 % + normalization | M1.3 | TODO | Claude | IR 26,214 bp @ 100.00 %; the 2 known failure modes raise `IRGateError` |
+| P1-03 | IR detection (annotation-first + de-novo port) + gate ≥ 99.9 % + normalization | M1.3 | DONE | Claude | IR 26,214 bp @ 100.00 %; gate catches 2/2, 0 false alarms; §8.3 reproduced |
 | P1-04 | Result schema (`Table` · `Figure` · `Scope`) + exporters (csv · json · md) | M1.4 | TODO | Claude | cell refs resolve; two exports byte-identical |
 | P1-05 | Run layer: layout + manifest + `run_tool()` + content-hash cache | M1.5 | TODO | Claude | manifest validates; re-run `cached`, checksums unchanged |
 | P1-06 | Golden tests tier A + `make golden` | M1.6 | TODO | Claude | every §6 tier-A number asserted; tier B prints skip reason |
@@ -66,8 +65,13 @@ data) — **DONE**; `make check` green (22 passed, 1 skipped until P1-03).
   GenBank reader, vendored golden data (sha256-pinned); tier A asserts 153,724 bp · GC 37.8536 % ·
   86/38/8 · gene=133 · 112 unique · 21 repeated · truncated ycf1 · trans-spliced rps12.
   `make check`: 22 passed, 1 skipped (IR test → P1-03).
-- **Branches:** both local, not pushed. `main` = init commit; `feat/p1-02-core-model` is based on
-  `feat/phase-1`.
-- **Blocked:** §10.6 (blocks P1-03 · P1-04), §10.7 (P1-04 · P1-07), §10.8/§10.9 (P1-10), D-01.
-- **Next:** decide §10.6, then P1-03 (IR detection + gate + normalization) test-first — port the
-  validated probe code (`ir_probe_v2.py` detect_v2, `ir_gate.py` measure), do not rewrite.
+- **Did (cont.):** §10.6 decided (GenBank coords per genome · normalized for cross-genome figures ·
+  label every table · `rotation_offset` in run info) → recorded in PROJECT.md §3/§10 and ROADMAP.
+  **P1-03 green** — `core/ir.py` (annotation-first + validated de-novo port + gate) and
+  `core/normalize.py`; 20-genome sweep reproduces §8.3 (7/9, 2/2 caught, 0 false alarms). Recorded
+  in PROJECT.md §8.5: the validated detector is `ir_probe.py strict_best`, **not** `ir_probe_v2.detect_v2`
+  (which over-extends: 27,601 vs 26,217 bp on NC_086581); NC_063921 re-measured 98.87 %, not 53.65 %.
+- **Branches:** all local, not pushed. `main` = init commit; `feat/phase-1` (P1-01);
+  `feat/p1-02-core-model` (P1-02 + P1-03).
+- **Blocked:** §10.7 (blocks P1-04 · P1-07), §10.8/§10.9 (P1-10), D-01.
+- **Next:** decide §10.7, then P1-04 (Result schema + exporters) test-first.

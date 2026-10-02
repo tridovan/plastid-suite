@@ -44,6 +44,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 02/10 | **Bộ số vàng tách 2 tầng**: tầng A — thuần Python, không cần công cụ ngoài, luôn chạy; tầng B — cần MISA/cpstools/MAFFT, thiếu công cụ thì **skip kèm lý do**, không im lặng bỏ qua |
 | 02/10 | **Không dùng Snakemake** ở giai đoạn đầu (kế hoạch 22/9 mục 0.14 vốn chỉ là "cân nhắc"); chỉ xem lại khi pipeline vượt ~20 bước hoặc cần chạy lại từng phần |
 | 02/10 | **Reference Panel**: chốt định nghĩa 4 tầng taxonomy (nguyên văn kế hoạch 22/9, mục 0.7 chế độ B) + 2 chế độ A/B — ghi ở §13.1 |
+| 02/10 | **Hệ toạ độ** (§10.6): bảng theo từng genome ghi **toạ độ GenBank** (truy ngược về bản nộp NCBI); hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá**; **mọi bảng ghi rõ đang ở hệ nào**; `rotation_offset` lưu trong `00_run_info` |
 
 ## 4. Ai làm gì
 
@@ -279,6 +280,19 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 | Chạy thử Claude Code | tự gọi `make golden` → báo đúng 6/6 chỉ số của bộ số vàng; tự gọi `make test` → đọc đúng lý do các test bị skip |
 | Cảnh báo đã gặp | *"Ignoring 17 permissions … this workspace has not been trusted"* (đã đặt `projects["/root/work/plastid-suite"].hasTrustDialogAccepted = true`) · `[claude-code:unrecognized_model] deepseek-v4.1-flash` (vẫn gọi được; API 2,2 giây/lần) |
 
+### 8.5. Đo lại bằng implementation trong repo (02/10/2026 — P1-03)
+
+Chạy đúng 20 genome Iridaceae của §8.3 qua `core/ir.py` của bộ công cụ:
+
+| Việc | Kết quả đo |
+|---|---|
+| Detector de novo (port `strict_best` từ `ir_probe.py`) | khớp GenBank **7/9**, sai đúng 2 ca như §8.3: NC_063921 → không ra kết quả (**fail ồn ào**), NC_063920 → 22.998 bp (**im lặng** — lõi khớp chính xác) |
+| Cổng IR trên cặp chú giải | bắt **2/2** ca sai · **báo oan 0/7** ca lành — tái lập đúng §8.3 |
+| NC_085783.1 (không chú giải, bắt đầu trong IR) | de novo ra **21.148 bp @ 100,00 %**, cổng đạt; chuẩn hoá xoay được về đầu LSC |
+| **Phát hiện mới — `detect_v2` nở quá**: `ir_probe_v2.py` (mở rộng chịu mismatch) không phải bản đã kiểm chứng | NC_086581: ra **27.601 bp** trong khi GenBank và `strict_best` là **26.217 bp**. Nguyên nhân: nó nhận từng khối 100 bp theo *tỉ lệ giống của toàn vùng đã mở rộng*, nên vượt ranh giới IR mà không dừng. **Bản đã kiểm chứng là `strict_best` trong `ir_probe.py`** (đường chéo mirror K=20 + run khớp chính xác + cửa sổ hợp lệ 10–35 kb, ≥ 95 %) — đã port đúng bản này |
+| **Đo lại NC_063921** | với cách ghép cấu trúc C = a1 + b2 − 1: **98,87 %**, không phải 53,65 % như ghi ở §8.3. Kết luận cổng **không đổi** (98,87 < 99,9 ⇒ cắm cờ) |
+| Đối chiếu chéo annotation ↔ de novo | có: NC_063920 ghi nhận lệch **3.163 bp** (26.161 vs 22.998) — không im lặng; golden lệch 0 |
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
@@ -320,7 +334,7 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 3. Ai có máy Mac để kiểm.
 4. **Dữ liệu còn thiếu:** có lấy được reads Illumina thật của 1 mẫu không (để đo ngưỡng bộ nhớ — hiện mới có read mô phỏng).
 5. **Dữ liệu còn thiếu:** có lấy được **genome nhân** của mẫu không — NUPT/MTPT cần genome nhân để chạy (hiện chưa có).
-6. **Hệ toạ độ sau chuẩn hoá**: sau khi xoay điểm bắt đầu/chiều, report ghi toạ độ theo hệ gốc GenBank hay hệ đã chuẩn hoá? (đề xuất: lưu `rotation_offset` vào `00_run_info`, mọi bảng ghi rõ hệ đang dùng trong tiêu đề cột).
+6. ~~Hệ toạ độ sau chuẩn hoá~~ — **ĐÃ CHỐT 02/10**: bảng theo từng genome ghi **toạ độ GenBank**; hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá** (các vùng thẳng hàng nhau); mọi bảng ghi rõ hệ đang dùng; `rotation_offset` lưu trong `00_run_info`.
 7. **Cách sinh report**: sinh từ đối tượng `Result` (mỗi số trỏ về đúng một ô bảng gốc) hay viết tay? (đề xuất: sinh từ Result — thoả yêu cầu "kiểm thử truy vấn số" §13.5 bằng cấu trúc thay vì bằng kỷ luật).
 8. **Reference Panel**: dùng snapshot RefSeq ghim + checksum hay truy vấn NCBI sống? (đề xuất: snapshot, để tái lập được; tốc độ E-utilities không API key là 3 req/s).
 9. Mục **(c)** của Reference Panel còn thiếu — đoạn văn bản nguồn bị cụt.

@@ -60,8 +60,11 @@ tells you which file belongs to which job.
 - [x] **M1.2 Core model + GenBank reader + vendored golden data** (2026-10-02) — tier A tests read
   153,724 bp · GC 37.8536 % · 86 CDS + 38 tRNA + 8 rRNA · `gene`=133 · 112 unique names from the
   vendored fixture; truncated-ycf1 and trans-spliced-rps12 cases covered
-- [ ] **M1.3 IR detection + gate + normalization** — IR 26,214 bp @ 100.00 %; the 2 known silent-failure
-  modes are regression tests (bad base → gate error; K=c−1 → 1 bp candidate → gate error)
+- [x] **M1.3 IR detection + gate + normalization** (2026-10-02) — annotation IR 26,214 bp @ 100.00 %;
+  the ported de-novo detector reproduces §8.3 exactly (7/9, same two failures — one loud, one silent,
+  disagreement recorded in `denovo_length`); the gate catches 2/2 diverged genomes with 0 false alarms;
+  an off-by-one pairing constant collapses identity to ~29 % (regression); normalization reproduces
+  LSC 83,127 / IRa 26,214 / SSC 18,169 / IRb 26,214 and handles a genome starting inside an IR
 - [ ] **M1.4 Result schema + exporters** — cell references resolve; two exports byte-identical
 - [ ] **M1.5 Run layer** (layout · manifest · `run_tool()` · cache) — manifest validates; re-run says
   `cached` with unchanged checksums
@@ -199,7 +202,7 @@ across 3 environments (WSL · CI · Docker).
 
 | Decision | Blocks | Where |
 |---|---|---|
-| Coordinate system in reports (GenBank vs normalized) | M1.3 · M1.4 · every position table | PROJECT.md §10.6 |
+| ~~Coordinate system in reports~~ — decided 2026-10-02: GenBank coordinates for per-genome tables · normalized for cross-genome figures · system labelled on every table · `rotation_offset` in `00_run_info` | — | PROJECT.md §3 |
 | Reports generated from `Result` objects | M1.4 · M1.7 | PROJECT.md §10.7 |
 | Reference Panel: pinned snapshot vs live NCBI | M1.10 | PROJECT.md §10.8 |
 | Reference Panel item (c) — source text truncated | M1.10 | PROJECT.md §10.9 |
