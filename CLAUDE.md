@@ -1,8 +1,9 @@
 # CLAUDE.md — project briefing & working rules
 
 Injected into every session. Self-contained: reading this file alone should be enough to understand
-what the project is and the rules. For where work stands, read `ROADMAP.md` + `TASKS.md` (both small).
-`PROJECT.md` is the evidence archive — open it only when a task needs it (see Reading guide).
+what the project is and the rules. For where work stands, read `HANDOFF.md` (resume point) plus
+`ROADMAP.md` + `TASKS.md` (both small). `PROJECT.md` is the evidence archive — open it only when a
+task needs it (see Reading guide).
 
 ## What this is
 
@@ -22,9 +23,8 @@ Non-negotiable product requirements: every run emits a **tool + parameters repor
 **split by run/dataset** so results are traceable (never overwritten in place), and the minimum
 install (pip only) runs the pure-Python analyses without any external tools.
 
-**Current state: Phase 1 — framework, pre-implementation. No code yet** (repo holds docs only).
-Progress tracker: **`ROADMAP.md`** (milestone checklists). Exact resume point:
-**`TASKS.md` → Current focus**.
+**Current state: Phase 1 in progress.** Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
+checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
 
 ## Golden numbers — the contract
 
@@ -44,7 +44,8 @@ Changing any of these requires fresh measured evidence. Full provenance: PROJECT
 
 | File / section | Read when |
 |---|---|
-| `TASKS.md` (small) | Always — it opens with **Current focus** (resume point) + handoff log |
+| `HANDOFF.md` | First — the resume point, plus the last sessions' Did / Validation / Risks / Next |
+| `TASKS.md` | Always — active tasks as checklists; each ends with a measurable "Done when" |
 | `ROADMAP.md` | Always — phase milestones + progress checklist; source for specs/tasks |
 | PROJECT.md §3 | Before a design decision not already covered by ROADMAP/CLAUDE |
 | PROJECT.md §6 · §8 · §9 | Before touching numbers, tests, or claiming "we measured X" |
@@ -88,6 +89,27 @@ Changing any of these requires fresh measured evidence. Full provenance: PROJECT
 Banned outright: bare `except:` · `sys.exit` outside `cli.py` · hardcoded absolute paths ·
 hand-rolled FASTA/GenBank parsers (use BioPython) · `shell=True` for tool calls.
 
+## Coding style — pragmatic, boring on purpose
+
+Bias: code a tired maintainer can read in six months. Prefer the standard library and plain
+constructs; add a dependency or an abstraction only when the second real use appears.
+
+- **Python 3.10+**; `from __future__ import annotations` in every module.
+- **Types on public functions** (`def gc_percent(sequence: str) -> float`); dataclasses for data.
+- **Names**: `snake_case` functions/variables, `PascalCase` classes, modules short and concrete.
+  Domain abbreviations already in use (LSC, IR, SSC, SSR, CDS) are fine; invent no new ones.
+- **Docstrings**: one line on what it does; add *why it exists* where non-obvious. Always document
+  units and coordinate conventions — that is where silent bugs live.
+- **Small pure functions**: pass data in, return data out — no hidden I/O, no globals, no cwd.
+- **Errors**: raise specific exceptions with actionable messages; never swallow one. `ValueError`
+  for bad input, a domain exception (`IRGateError`) for a domain failure.
+- **Comments explain why, not what**; delete commented-out code instead of keeping it.
+- **Formatting is not a debate**: `ruff format` decides; line length 100; imports absolute, sorted.
+- **Tests** are named after the behaviour ("gate flags diverged copies"), one behaviour per test,
+  arrange–act–assert. Always test the negative case — this project's bugs are silent ones.
+- **No speculative abstraction**: no base classes, factories, or config flags for a single use.
+- **Boring beats clever**: a plain loop that reads clearly wins over a one-liner nobody can parse.
+
 ## Testing discipline — test-driven development
 
 The golden numbers are known **before** the code exists, so this project is a natural fit for
@@ -120,13 +142,13 @@ make check    # lint + test + golden
 
 ## Workflow for a task
 
-1. Pick a task in `TASKS.md`; set it `DOING`; keep **Current focus** current.
+1. Pick a task in `TASKS.md`; mark it `[~]`. It is done only when its **Done when** check passes.
 2. Non-trivial work (multi-file, new module, schema change): plan first and get approval before coding.
 3. Verify as you go — write the check first where the Testing discipline applies (below); every step
    has a measurable check (test / golden number). Never defer verification to the end.
 4. On completion: run `make check`; record new measured facts in PROJECT.md (§8 log, §9 errors);
    set the task `DONE`.
-5. Update `TASKS.md`: **Current focus** + append a handoff entry (Did / Blocked / Next).
+5. Tick the checkboxes in `TASKS.md`; append a `HANDOFF.md` entry.
 6. Commit only when the user asks.
 
 Approved designs that must outlive the session go into PROJECT.md (§3 decisions, §13 roadmap) or
@@ -134,9 +156,9 @@ Approved designs that must outlive the session go into PROJECT.md (§3 decisions
 
 ## Handoff (write this before context runs low)
 
-At the end of every session — or the moment you notice context filling up — update `TASKS.md`:
-**Current focus** (one short block: exact next action) and append a dated handoff entry:
-`Did: … / Blocked: … / Next: …`. Assume the next reader is a fresh agent with zero history.
+At the end of every session — or the moment you notice context filling up — update `HANDOFF.md`:
+refresh the **Resume point** and append a dated entry with **Did · Validation · Residual risks ·
+Blocked · Next**. Assume the next reader is a fresh agent with zero history.
 
 ## Commits
 

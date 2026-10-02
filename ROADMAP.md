@@ -1,7 +1,8 @@
 # ROADMAP.md — phases, milestones, progress
 
 > The file to read to know **where we are**. Milestones here are the source for specs/tasks.
-> Session set: `CLAUDE.md` (rules) · `ROADMAP.md` (this) · `TASKS.md` (current work + handoff).
+> Session set: `CLAUDE.md` (rules) · `HANDOFF.md` (resume point + session log) · `ROADMAP.md` (this)
+> · `TASKS.md` (active checklists with Done-when).
 > `PROJECT.md` is the evidence archive (golden numbers §6 · decisions §3 · tools §7 · measurements
 > §8–§9) — open it only when a phase needs it.
 > Legend: `[x]` done · `[ ]` not started · **BLOCKED** = waiting on data/people.
@@ -11,7 +12,7 @@
 1. A phase is done only when its **In-phase checks** pass and are recorded. Never defer checks.
    Where a check is a number, write it as a **failing test first** (CLAUDE.md → Testing discipline).
 2. When a phase starts: derive specs/tasks from its milestones → put them in `TASKS.md`.
-3. Tick a milestone here when its tasks are DONE (add date). Update `TASKS.md` → Current focus.
+3. Tick a milestone here when its tasks are DONE (add the date); refresh `HANDOFF.md`.
 4. New measured facts → PROJECT.md §8 (runs) / §9 (errors), per `CLAUDE.md`.
 
 ## Cross-phase rules (apply to every phase)
