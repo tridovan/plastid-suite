@@ -15,9 +15,12 @@ MISA (perl 5.38.2).
 shipped; its Done-when needs Phase 2 comparison tables), P1-12 (**your call**: local vs remote for
 heavy steps), D-03 (needs cô Trang's text).
 
-**Next action: Phase 2** (genome reading & statistics — see ROADMAP) once P1-12 is decided, or pick
-any Phase 2 module that does not depend on it. Every Phase 2 module slots into the frozen API
+**Next actions:** `P1-10` slices (b) live NCBI client behind an explicit refresh, and (c) CLI wiring
+(`plastid panel refresh | propose | pin`) — slice (a), the tier/proposal/pinning core, is done and
+green. After that: **Phase 2** (genome reading & statistics), which slots into the frozen API
 (`docs/API_v0.1.md`) — a new file in `modules/` + one registry line.
+
+**Still needs a human:** `P1-12` (local vs remote for heavy steps) · `D-03` (cô Trang's item (c)).
 
 **Branches (all local, none pushed):** `main` = init commit · `feat/phase-1` = P1-01 ·
 `feat/p1-02-core-model` = P1-02 + P1-03 · `feat/p1-04-result-schema` = P1-04.

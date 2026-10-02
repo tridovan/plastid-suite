@@ -89,11 +89,12 @@ tells you which file belongs to which job.
   §7.8 checksum and vendored with `SOURCE.json` (licence: not stated → flagged for M9.3); the module
   reproduces **SSR 37 = mono 31 · di 4 · tri 2, compound 3** on this machine; a missing perl raises a
   named `ToolError` → CLI exit 3
-- [ ] **M1.10 Reference Panel (4 tiers) + NCBI fetch/cache** — snapshot pinned + checksummed
-  (policy decision §10.8 first)
-- [~] **M1.11 Sample-group metadata** — loader + lookup shipped 2026-10-02 (`core/samples.py`, with
-  a duplicate-accession guard); the milestone's Done-when ("used by ≥ 1 comparison table") cannot be
-  met in Phase 1 — carried forward until the Phase 2/4 comparison modules exist
+- [ ] **M1.10 Reference Panel (4 tiers) + NCBI fetch/cache** — policy decided 2026-10-02 (§10.8):
+  propose from a dated RefSeq cache · the user picks the list · pin + checksum on confirmation ·
+  runs stay offline. Slices: (a) tier model + proposal + pinning with an injectable fetcher,
+  (b) the live NCBI client behind an explicit `refresh`, (c) CLI wiring
+- [x] **M1.11 Sample-group metadata** (2026-10-02) — loader + lookup shipped (`core/samples.py`,
+  duplicate-accession guard, tests); the "used by a comparison table" half moved to **M2.11**
 - [ ] **M1.12 Execution backend decision** (local vs remote) — **needs the team's call**; evidence:
   PROJECT.md §9.14 (8 GB machines leave 1.5–2.5 GB free per job)
 - [x] **M1.13 Hardening + API freeze v0.1** (2026-10-02) — README quickstart · `environment.yml` ·
@@ -119,6 +120,8 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
 - [ ] **M2.8 SSR** — by region and motif
 - [ ] **M2.9 Nucleotide diversity π** — per gene/intron/IGS, sliding window
 - [ ] **M2.10 Manuscript deliverable** — tables + figures + draft Results (Oldenlandia, Coleus)
+- [ ] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
+  (moved here from M1.11, whose loader shipped in Phase 1: `core/samples.py`)
 
 ## Phase 3 — Annotation  *(§13.3)*
 
@@ -223,8 +226,8 @@ across 3 environments (WSL · CI · Docker).
 |---|---|---|
 | ~~Coordinate system in reports~~ — decided 2026-10-02: GenBank coordinates for per-genome tables · normalized for cross-genome figures · system labelled on every table · `rotation_offset` in `00_run_info` | — | PROJECT.md §3 |
 | ~~Reports generated from `Result` objects~~ — decided 2026-10-02: reports reference table cells (`{{table.column}}`); an unresolvable reference raises | — | PROJECT.md §3 |
-| Reference Panel: pinned snapshot vs live NCBI | M1.10 | PROJECT.md §10.8 |
-| Reference Panel item (c) — source text truncated | M1.10 | PROJECT.md §10.9 |
+| ~~Reference Panel: pinned snapshot vs live NCBI~~ — decided 2026-10-02: propose from a dated RefSeq cache, pin + checksum on the user's confirmation, runs stay offline | — | PROJECT.md §3 |
+| Reference Panel item (c) — source text truncated | documentation only — does not block M1.10 | PROJECT.md §10.9 |
 
 ## Waiting on data / people
 

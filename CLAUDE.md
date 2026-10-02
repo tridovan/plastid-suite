@@ -91,6 +91,10 @@ hand-rolled FASTA/GenBank parsers (use BioPython) · `shell=True` for tool calls
 
 ## Coding practice — principles before mechanics
 
+**This is production code, written once — there is no MVP.** Every line ships as if it will be read,
+run and trusted for years: no throwaway stubs, no "fix it later" shortcuts, no placeholder that looks
+real but is not. Getting it right the first time is the default, not an aspiration.
+
 Python is not Java: most of SOLID collapses into fewer, simpler rules here. Defaults: KISS · YAGNI ·
 explicit over implicit · boring over clever. Prefer the standard library; add a dependency or an
 abstraction only when the second real use appears.

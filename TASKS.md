@@ -7,17 +7,19 @@
 
 ## Phase 1 — framework & shared data
 
-### P1-10 · Reference Panel (4 tiers) + NCBI fetch/cache · M1.10 · Claude · BLOCKED
+### P1-10 · Reference Panel (4 tiers) + NCBI fetch/cache · M1.10 · Claude · [~]
 
-**Blocked by:** §10.8 (pinned snapshot vs live NCBI) + §10.9 (item (c) missing).
+**Policy decided 02/10 (§10.8):** propose from a dated RefSeq cache · the user picks · pin + checksum
+on confirmation · runs stay offline. Item (c) (§10.9) is documentation only and does not block.
 
-- [ ] pinned snapshot + checksums; the engine only *proposes* — the user picks the final list
+- [x] (a) tier model + proposal (modes A/B) + pinning with an injectable fetcher — `core/panel.py`
+      + tests (offline; the fetcher is injected) — 2026-10-02
+- [ ] (b) live NCBI client (`esearch`/`efetch`, 3 req/s) behind an explicit refresh command
+- [ ] (c) CLI wiring: `plastid panel refresh | propose | pin`
 
-### P1-11 · Sample-group metadata · M1.11 · Claude · [~] partial
+**Done when:** a proposal lists candidates per tier from a cached RefSeq index; a pin writes the
+GenBank files + checksums; a second run works with the network off.
 
-- [x] `core/samples.py` — `SampleGroup` loader + lookup, duplicate-accession guard (2026-10-02)
-- [ ] used by ≥ 1 comparison table — **cannot be met in Phase 1**; the comparison modules arrive in
-      Phase 2. Carried forward with a note in ROADMAP M1.11.
 
 ### P1-12 · Execution backend decision · M1.12 · Dev + Claude · BLOCKED
 
@@ -37,6 +39,7 @@ Evidence to decide with: PROJECT.md §9.14 (8 GB machines: 1.5–2.5 GB free per
 | P1-07 | Report engine + citations + defaults (templates reference cells only) | M1.7 | 2026-10-02 |
 | P1-08 | Module registry + `genome_stats` end-to-end + CLI `plastid run` | M1.8 | 2026-10-02 |
 | P1-09 | MISA vendored (md5-pinned) + `ssr` module — tier B: **37 = 31 / 4 / 2** | M1.9 | 2026-10-02 |
+| P1-11 | Sample-group metadata (loader; comparison-table use moved to M2.11) | M1.11 | 2026-10-02 |
 | P1-13 | Hardening: README · environment.yml · Dockerfile skeleton · `docs/API_v0.1.md` | M1.13 | 2026-10-02 |
 | D-01 | PROJECT.md §12 fixed (mafft + perl added · cpstools → bioconda · MISA download + md5) | — | 2026-10-02 |
 | D-02 | PROJECT.md §7.9 — CGAS source review recorded (10 failure modes + what we do instead) | — | 2026-10-02 |
