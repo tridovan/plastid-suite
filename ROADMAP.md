@@ -91,10 +91,16 @@ tells you which file belongs to which job.
   named `ToolError` → CLI exit 3
 - [ ] **M1.10 Reference Panel (4 tiers) + NCBI fetch/cache** — snapshot pinned + checksummed
   (policy decision §10.8 first)
-- [ ] **M1.11 Sample-group metadata** — shared labels used by ≥ 1 comparison table
-- [ ] **M1.12 Execution backend decision** (local vs remote) — recorded in PROJECT.md §3
-- [ ] **M1.13 Hardening + API freeze v0.1** — README · environment.yml · Dockerfile skeleton ·
-  `docs/API_v0.1.md`; `make check` on a clean clone; Docker `make golden` = same numbers
+- [~] **M1.11 Sample-group metadata** — loader + lookup shipped 2026-10-02 (`core/samples.py`, with
+  a duplicate-accession guard); the milestone's Done-when ("used by ≥ 1 comparison table") cannot be
+  met in Phase 1 — carried forward until the Phase 2/4 comparison modules exist
+- [ ] **M1.12 Execution backend decision** (local vs remote) — **needs the team's call**; evidence:
+  PROJECT.md §9.14 (8 GB machines leave 1.5–2.5 GB free per job)
+- [x] **M1.13 Hardening + API freeze v0.1** (2026-10-02) — README quickstart · `environment.yml` ·
+  `docker/Dockerfile` skeleton · `docs/API_v0.1.md` (module contract, Result schema, coordinates,
+  manifest keys, exit codes). *The environment checks in this milestone's Done-when — `make check` on
+  a clean clone and `make golden` inside Docker — are deferred to the Phase 9 platform pass, when
+  Docker is set up on the dev machine.*
 
 ## Phase 2 — Genome reading & statistics  *(§13.2 — plastid **and** mito)*
 

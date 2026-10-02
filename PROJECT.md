@@ -218,6 +218,34 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 | Krait | đã thử, là GUI nên không dùng | chưa ghi nguồn |
 | PGA — giấy phép | PGA = GPL-3.0 | (đã ghi ở §3) |
 
+### 7.9. Bài học từ mã nguồn CGAS (đọc trực tiếp 02/10/2026 — 18.353 dòng, 14 mô-đun + CLI)
+
+Đọc để học cách tổ chức, và để không lặp lại lỗi của họ.
+
+**Giữ lại được:** entry point theo tên việc (`cgas-ssr`, `cgas-codon`…) · module 1–2 đếm lỗi theo mẫu
+và ghi file mẫu hỏng · class có tham số tiêm được (module 12) · `SUMMARY_REPORT.txt` của module 14
+(có ngày, thư mục vào/ra, tham số — thiếu đúng phiên bản công cụ, dòng lệnh, thời gian) · header
+docstring mỗi module · `test_files/` có dữ liệu thật.
+
+**Phải tránh (kèm bằng chứng trong mã):**
+
+| Bệnh | Bằng chứng | Bộ công cụ này làm khác |
+|---|---|---|
+| Sai mà không báo | CLI trả `False` nhưng `main()` bỏ qua → luôn exit 0; bare `except:` 5 chỗ ở module 8, 5 chỗ ở module 9; R lỗi vẫn in "ANALYSIS COMPLETE" | exit code thật · lần chạy hỏng vẫn để lại manifest ghi lý do · không bare except |
+| Phân loại IR bằng substring | module12:223 `any(term in combined for term in ["inverted","ir",…])` — chuỗi `"ir"` khớp cả "pair", "circular", "direct" | nhận diện theo **cấu trúc** (độ dài, cặp, ranh giới) + cổng ≥ 99,9 % (§9A) |
+| Không thấy IR ⇒ coi cả genome là LSC | module12:259-260 `return {'LSC': (1, seq_len)}` | "IR không xác định" là trạng thái riêng, chặn phân tích theo vị trí |
+| SSR vắt ranh giới exon/intron ⇒ dán nhãn "intergenic" | `is_in_parts` đòi SSR nằm trọn trong 1 phần (module12:376-380) → rơi xuống nhánh IGS | có test cho ca vắt ranh giới |
+| Không lưu phiên bản công cụ | có chạy `Rscript --version`, `blastn -version`… nhưng chỉ để kiểm tra rồi vứt | `run_tool()` ghi tên · phiên bản · nguồn · đường dẫn · argv · cwd · thời gian · exit code · log |
+| Chạy lại là đè | `os.makedirs(exist_ok=True)` + tên file cố định; 12/14 module không có bảo vệ | mỗi lần chạy một thư mục riêng + `manifest.json` |
+| Đường dẫn cứng | PGA dò `~/PGA`, `C:\PGA\…`, `f"/home/{username}/PGA/PGA.pl"`; `java -Xmx8g` cứng | đường dẫn công cụ ghi vào run info; không hardcode |
+| Tài liệu nói dối | USAGE.md mô tả cây output của module 5/10/12: **0 tên file khớp code**; README dạy lệnh không tồn tại (`--module 5-14`, `--version`) | bộ vàng chạy trong CI — tài liệu trôi là build đỏ |
+| Copy-paste | ~2.400 dòng keo R lặp ở 6 module; `find_genbank_files` 3 bản không tương thích (module 3 bỏ sót `.gbff`); 14 hàm wrapper CLI y hệt | engine chung + test chặn tầng import (`tests/unit/test_architecture.py`) |
+| Không test được | 0 unit test; pyproject trỏ `tests/` không tồn tại; logic dính `os.getcwd()` lúc import, `os.chdir()`, `sys.exit` trong thư viện | hàm thuần `run(genome, params, ctx) -> Result`; test là hợp đồng |
+
+**Hai chỗ trùng khớp đáng sợ với rủi ro mình đã đo:** (1) họ phân loại IR bằng substring và im lặng
+coi cả genome là LSC — đúng loại lỗi IR âm thầm mình đo được 2/9 ca; (2) họ dán nhãn SSR vắt ranh giới
+thành "intergenic" — mình đã có test cho ca này.
+
 ## 8. Nhật ký các lần đã chạy thật
 
 ### 8.1. Cài đặt công cụ — môi trường đã dùng
@@ -362,15 +390,25 @@ Nằm trong `D:\business\pts\`:
 conda create -y -p ~/toolbox/env/thaythe -c conda-forge -c bioconda \
   sibelia bandage getorganelle spades oatk mummer4 mreps trf vmatch \
   raven-assembler novoplasty minimap2 samtools wgsim blast paml beast2 \
-  perl-bioperl perl-xml-simple
-conda install -c conda-forge pycirclize cpstools
+  mafft perl perl-bioperl perl-xml-simple
+conda install -y -c conda-forge pycirclize
+conda install -y -c bioconda cpstools        # SỬA 02/10: cpstools KHÔNG có trên conda-forge (§7.8)
 git clone https://github.com/daisieh/plann ~/toolbox/src/plann
 git clone https://github.com/Adamtaranto/pypopart ~/toolbox/src/pypopart \
   && pip install -e '~/toolbox/src/pypopart[viz]'
 curl -L -o embryophyta_pltd.fam \
   https://github.com/c-zhou/OatkDB/raw/main/v20230921/embryophyta_pltd.fam
 get_organelle_config.py -a embplant_pt,embplant_mt   # 1 lần, cần mạng
+# MISA standalone (misa.pl + misa.ini) — nguồn IPK, kiểm md5 trước khi dùng:
+curl -L -o misa_sourcecode_25082020.zip \
+  https://webblast.ipk-gatersleben.de/misa/misa_sourcecode_25082020.zip
+md5sum misa_sourcecode_25082020.zip    # phải ra cf9d3579f7caacd02f99830b329c7d9c
+unzip misa_sourcecode_25082020.zip -d ~/toolbox/src/misa
 ```
+
+**Sửa 02/10/2026:** thêm `mafft` và `perl` (thiếu thì không ra được số vàng Ts/Tv 2,686 và SSR 37);
+tách `cpstools` sang kênh bioconda; thêm lệnh tải MISA kèm md5. Lệnh cũ trong báo cáo anh Điềm giữ
+nguyên ở §8.1 để đối chiếu.
 
 ---
 

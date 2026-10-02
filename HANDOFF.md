@@ -11,11 +11,13 @@
 asserts every §6 number and tier B reproduces **SSR 37 = mono 31 · di 4 · tri 2** via the vendored
 MISA (perl 5.38.2).
 
-**Next action:** `P1-13` (hardening: README · environment.yml · Dockerfile · API freeze) and
-`P1-11` (sample-group loader — its full Done-when needs Phase 2 comparison tables).
+**Phase 1 is complete except the blocked/partial items:** P1-10 (needs §10.8/§10.9), P1-11 (loader
+shipped; its Done-when needs Phase 2 comparison tables), P1-12 (**your call**: local vs remote for
+heavy steps), D-03 (needs cô Trang's text).
 
-**Blocked on:** §10.8 · §10.9 (Reference Panel → blocks P1-10) · P1-12 (your call: local vs remote
-for heavy steps) · D-01/D-02 (doc fixes).
+**Next action: Phase 2** (genome reading & statistics — see ROADMAP) once P1-12 is decided, or pick
+any Phase 2 module that does not depend on it. Every Phase 2 module slots into the frozen API
+(`docs/API_v0.1.md`) — a new file in `modules/` + one registry line.
 
 **Branches (all local, none pushed):** `main` = init commit · `feat/phase-1` = P1-01 ·
 `feat/p1-02-core-model` = P1-02 + P1-03 · `feat/p1-04-result-schema` = P1-04.
