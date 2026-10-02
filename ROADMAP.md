@@ -57,8 +57,9 @@ tells you which file belongs to which job.
 
 - [x] **M1.1 Skeleton & packaging** (2026-10-02) — `uv sync` installs; `plastid --version` works;
   `make check` green; import layering enforced by `tests/unit/test_architecture.py`
-- [ ] **M1.2 Core model + GenBank reader + vendored golden data** — unit test reads 153,724 bp ·
-  37.85 % · 86 CDS + 38 tRNA + 8 rRNA · `gene`=133 · 112 unique names from the fixture
+- [x] **M1.2 Core model + GenBank reader + vendored golden data** (2026-10-02) — tier A tests read
+  153,724 bp · GC 37.8536 % · 86 CDS + 38 tRNA + 8 rRNA · `gene`=133 · 112 unique names from the
+  vendored fixture; truncated-ycf1 and trans-spliced-rps12 cases covered
 - [ ] **M1.3 IR detection + gate + normalization** — IR 26,214 bp @ 100.00 %; the 2 known silent-failure
   modes are regression tests (bad base → gate error; K=c−1 → 1 bp candidate → gate error)
 - [ ] **M1.4 Result schema + exporters** — cell references resolve; two exports byte-identical
@@ -198,7 +199,7 @@ across 3 environments (WSL · CI · Docker).
 
 | Decision | Blocks | Where |
 |---|---|---|
-| Coordinate system in reports (GenBank vs normalized) | M1.2 · M1.3 · every position table | PROJECT.md §10.6 |
+| Coordinate system in reports (GenBank vs normalized) | M1.3 · M1.4 · every position table | PROJECT.md §10.6 |
 | Reports generated from `Result` objects | M1.4 · M1.7 | PROJECT.md §10.7 |
 | Reference Panel: pinned snapshot vs live NCBI | M1.10 | PROJECT.md §10.8 |
 | Reference Panel item (c) — source text truncated | M1.10 | PROJECT.md §10.9 |

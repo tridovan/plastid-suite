@@ -11,18 +11,18 @@
 
 ## Current focus
 
-**Phase 1 in progress.** P1-01 (scaffold) — **DONE**: `make check` green, `plastid --version` works,
-import layering enforced by a test.
+**Phase 1 in progress.** P1-01 (scaffold) and P1-02 (core model + GenBank reader + vendored golden
+data) — **DONE**; `make check` green (22 passed, 1 skipped until P1-03).
 
 **Open decisions** (need the team's call; details in ROADMAP.md → "Open decisions"):
 
-- **Coordinate system in reports (§10.6)** → blocks P1-02 · P1-03 — *next in line*
+- **Coordinate system in reports (§10.6)** → blocks P1-03 · P1-04 — *next in line*
 - Reports generated from `Result` objects (§10.7) → blocks P1-04 · P1-07
 - Reference Panel: snapshot vs live NCBI (§10.8) + item (c) (§10.9) → blocks P1-10
 - Doc fixes: §12 install lines (cpstools channel · add mafft · add MISA download) → D-01
 
-**Next action: `P1-02`** — pending the §10.6 decision, or an explicit go to start with the
-parser/counting part (which does not depend on it).
+**Next action: `P1-03`** — IR detection + gate + coordinate normalization; needs the §10.6 decision
+(do reports show GenBank coordinates or normalized ones?).
 
 ---
 
@@ -31,7 +31,7 @@ parser/counting part (which does not depend on it).
 | ID | Task | Milestone | Status | Owner | Done when |
 |---|---|---|---|---|---|
 | P1-01 | Repo skeleton + packaging: pyproject (hatchling), uv env, Makefile, CLI stub | M1.1 | DONE | Claude | `uv sync`; `plastid --version`; `make check` green |
-| P1-02 | Core model (Genome · Gene · Region) + GenBank reader (BioPython) + vendored golden data | M1.2 | TODO | Claude | unit test reads 153,724 bp · 37.85 % · 86+38+8 · `gene` 133 · 112 names |
+| P1-02 | Core model (Genome · Gene) + GenBank reader (BioPython) + vendored golden data | M1.2 | DONE | Claude | tier A tests read 153,724 bp · 37.8536 % · 86+38+8 · `gene` 133 · 112 names |
 | P1-03 | IR detection (annotation-first + de-novo port) + gate ≥ 99.9 % + normalization | M1.3 | TODO | Claude | IR 26,214 bp @ 100.00 %; the 2 known failure modes raise `IRGateError` |
 | P1-04 | Result schema (`Table` · `Figure` · `Scope`) + exporters (csv · json · md) | M1.4 | TODO | Claude | cell refs resolve; two exports byte-identical |
 | P1-05 | Run layer: layout + manifest + `run_tool()` + content-hash cache | M1.5 | TODO | Claude | manifest validates; re-run `cached`, checksums unchanged |
@@ -60,10 +60,14 @@ parser/counting part (which does not depend on it).
 
 - **Did:** session working set created (`CLAUDE.md` · `ROADMAP.md` · `TASKS.md`); git history squashed
   into one `init` commit and force-pushed to `origin/main` (amended to remove Claude attribution —
-  repo rule + memory); branch `feat/phase-1` created; **P1-01 scaffold built and green** —
-  pyproject/`uv.lock`, CLI stub (`plastid --version`, exit codes 0/1/2/3), package tree, import-layering
-  guard, Makefile, loud golden placeholder. `make check` passes.
-- **Blocked:** §10.6 coordinate-system decision (blocks P1-02), §10.7 (P1-04 · P1-07), §10.8/§10.9
-  (P1-10), D-01.
-- **Next:** decide §10.6 (or go ahead with P1-02's parser/counting part), then implement P1-02
-  test-first. Design note: thin-slice design was drafted earlier; not needed to proceed.
+  repo rule + memory); branches `feat/phase-1` (P1-01 scaffold) and `feat/p1-02-core-model`;
+  **P1-01 green** (pyproject/`uv.lock`, CLI stub, package tree, import-layering guard, Makefile);
+  **P1-02 green** — core model (0-based half-open internal / 1-based inclusive out), BioPython
+  GenBank reader, vendored golden data (sha256-pinned); tier A asserts 153,724 bp · GC 37.8536 % ·
+  86/38/8 · gene=133 · 112 unique · 21 repeated · truncated ycf1 · trans-spliced rps12.
+  `make check`: 22 passed, 1 skipped (IR test → P1-03).
+- **Branches:** both local, not pushed. `main` = init commit; `feat/p1-02-core-model` is based on
+  `feat/phase-1`.
+- **Blocked:** §10.6 (blocks P1-03 · P1-04), §10.7 (P1-04 · P1-07), §10.8/§10.9 (P1-10), D-01.
+- **Next:** decide §10.6, then P1-03 (IR detection + gate + normalization) test-first — port the
+  validated probe code (`ir_probe_v2.py` detect_v2, `ir_gate.py` measure), do not rewrite.
