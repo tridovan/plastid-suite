@@ -35,6 +35,9 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "TID"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["plastid"]
+
 # Absolute imports only — the architecture test (tests/unit/test_architecture.py)
 # resolves every import against the layer map.
 [tool.ruff.lint.flake8-tidy-imports]
