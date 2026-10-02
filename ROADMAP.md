@@ -69,8 +69,11 @@ tells you which file belongs to which job.
 - [x] **M1.4 Result schema + exporters** (2026-10-02) — `Scope` · `Column` · `Table` · `Result`;
   cell refs (`table.column`, `table[row].column`) resolve or raise `ResultRefError`; csv/json/md
   exports are byte-identical across runs and carry the scope label + coordinate frame
-- [ ] **M1.5 Run layer** (layout · manifest · `run_tool()` · cache) — manifest validates; re-run says
-  `cached` with unchanged checksums
+- [x] **M1.5 Run layer** (2026-10-02) — `<dataset>/<run_id>/` with `00_run_info` + logs; manifest
+  schema v1 + hand-written `validate()`; `run_tool()` is the only subprocess door and records
+  name/version/source/path/argv/cwd/rc/time/logs; content-hash cache restores files byte-identically
+- [x] **M1.6 Golden harness** (2026-10-02) — `make golden` runs the whole set in one command; the
+  tier-B probe names every missing tool and skips; `PTS_REQUIRE_TOOLS=1` turns skips into failures
 - [ ] **M1.6 Golden tests tier A + `make golden`** — one command, every §6 tier-A number asserted;
   tier B prints a skip reason per missing tool
 - [x] **M1.7 Report engine + citation registry + defaults** (2026-10-02) — `{{…}}` resolves through
@@ -82,8 +85,10 @@ tells you which file belongs to which job.
   traceable run directory
 - [ ] **M1.8 Module registry + first module (`genome_stats`) end-to-end** — run dir complete:
   `00_run_info/` + tables + report
-- [ ] **M1.9 MISA vendored + `ssr` module (tier B)** — md5-pinned; SSR 37 = 31 / 4 / 2 with perl;
-  missing tool ⇒ exit 3 naming it
+- [x] **M1.9 MISA vendored + `ssr` module (tier B)** (2026-10-02) — IPK zip verified against every
+  §7.8 checksum and vendored with `SOURCE.json` (licence: not stated → flagged for M9.3); the module
+  reproduces **SSR 37 = mono 31 · di 4 · tri 2, compound 3** on this machine; a missing perl raises a
+  named `ToolError` → CLI exit 3
 - [ ] **M1.10 Reference Panel (4 tiers) + NCBI fetch/cache** — snapshot pinned + checksummed
   (policy decision §10.8 first)
 - [ ] **M1.11 Sample-group metadata** — shared labels used by ≥ 1 comparison table

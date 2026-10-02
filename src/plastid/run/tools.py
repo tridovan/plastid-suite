@@ -43,6 +43,7 @@ class ToolRecord:
     stdout_file: str
     stderr_file: str
     stdout_tail: str
+    interpreter: str | None = None  # e.g. "perl 5.38.2" for script-based tools
 
 
 def which(name: str, extra: Sequence[Path] = ()) -> str | None:
@@ -106,11 +107,19 @@ def run_tool(
     pinned_version: str | None = None,
     timeout: int | None = None,
     expect: tuple[int, ...] = (0,),
+    cwd: str | Path | None = None,
+    tool_path: str | None = None,
+    interpreter: str | None = None,
 ) -> ToolRecord:
-    """Run one external tool, capture everything, raise :class:`ToolError` on a bad exit code."""
+    """Run one external tool, capture everything, raise :class:`ToolError` on a bad exit code.
+
+    ``cwd`` defaults to the run directory; ``tool_path`` records the tool's own path when the
+    executed binary is an interpreter (e.g. ``perl misa.pl``).
+    """
     log_dir = Path(log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
-    resolved = which(argv[0]) if not Path(argv[0]).is_absolute() else argv[0]
+    workdir = str(cwd) if cwd is not None else str(log_dir.parent.parent)
+    resolved = tool_path or (which(argv[0]) if not Path(argv[0]).is_absolute() else argv[0])
     version, version_source = tool_version(name, kind, resolved, pinned_version)
 
     started = datetime.now()
@@ -121,7 +130,7 @@ def run_tool(
         text=True,
         timeout=timeout,
         check=False,
-        cwd=str(log_dir.parent.parent),  # the run dir, never an arbitrary cwd
+        cwd=workdir,
     )
     duration = time.monotonic() - clock
 
@@ -142,7 +151,8 @@ def run_tool(
         version_source=version_source,
         path=resolved,
         argv=tuple(str(argument) for argument in argv),
-        cwd=str(log_dir.parent.parent),
+        cwd=workdir,
+        interpreter=interpreter,
         rc=result.returncode,
         started_at=started.isoformat(timespec="seconds"),
         duration_s=round(duration, 3),

@@ -6,6 +6,6 @@ The architecture test permits sibling imports only from this file.
 
 from __future__ import annotations
 
-from plastid.modules import genome_stats  # noqa: F401  (importing registers the module)
+from plastid.modules import genome_stats, ssr  # noqa: F401  (importing registers the modules)
 
-__all__ = ["genome_stats"]
+__all__ = ["genome_stats", "ssr"]

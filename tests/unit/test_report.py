@@ -119,14 +119,55 @@ def test_bare_digit_scan() -> None:
     assert find_bare_digits("The IR is 26214 bp.") == ["26214"]
 
 
+def _ssr_result() -> Result:
+    return Result(
+        module="ssr",
+        module_version="0.1.0",
+        tables={
+            "ssr_summary": Table(
+                id="ssr_summary",
+                title="SSR summary",
+                columns=(
+                    Column("accession", "Accession"),
+                    Column("tool", "Tool"),
+                    Column("total", "Total SSRs", dtype="int"),
+                    Column("mono", "Monomeric", dtype="int"),
+                    Column("di", "Dinucleotide", dtype="int"),
+                    Column("tri", "Trinucleotide", dtype="int"),
+                    Column("compound", "In compound formation", dtype="int"),
+                    Column("thresholds", "Unit/repeat thresholds"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "tool": "MISA 2.1",
+                        "total": 37,
+                        "mono": 31,
+                        "di": 4,
+                        "tri": 2,
+                        "compound": 3,
+                        "thresholds": "(1/10) (2/6) (3/5) (4/5) (5/5) (6/5)",
+                    },
+                ),
+                scope=Scope(label="whole plastome; MISA defaults"),
+            ),
+        },
+    )
+
+
+TEMPLATE_FIXTURES = {"genome_stats": _result, "ssr": _ssr_result}
+
+
 def test_shipped_templates_have_no_bare_digits_and_all_refs_resolve() -> None:
     templates = list_templates()
     assert templates, "no report templates found"
     for path in templates:
+        module_id = path.name.split(".")[0]
+        assert module_id in TEMPLATE_FIXTURES, f"no fixture Result for template {path.name}"
         template = load_template(path.name)
         assert find_bare_digits(template) == [], f"{path.name}: literal digits outside references"
         for ref in find_refs(template):
-            _result().value(ref)  # raises when the template and the table schema disagree
+            TEMPLATE_FIXTURES[module_id]().value(ref)  # schema vs template contract
 
 
 def test_citations_file_loads_and_formats() -> None:

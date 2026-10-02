@@ -37,6 +37,10 @@ class Interval:
     def length(self) -> int:
         return self.end - self.start
 
+    def overlaps(self, other: Interval) -> bool:
+        """True when the two half-open intervals share at least one base."""
+        return self.start < other.end and other.start < self.end
+
     def to_1based(self) -> tuple[int, int]:
         """Return GenBank-style inclusive coordinates."""
         return (self.start + 1, self.end)

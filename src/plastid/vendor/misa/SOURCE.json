@@ -1,0 +1,23 @@
+{
+  "name": "MISA",
+  "version": "2.1 (2020-08-25)",
+  "source": "https://webblast.ipk-gatersleben.de/misa/misa_sourcecode_25082020.zip",
+  "retrieved": "2026-10-02",
+  "zip": { "bytes": 4946, "md5": "cf9d3579f7caacd02f99830b329c7d9c" },
+  "files": {
+    "misa.pl": {
+      "bytes": 20148,
+      "md5": "cfebc1d1a36fddfd6e0d897c96babd12",
+      "sha256": "4712f29a0c57ff4aee1cc248cba20bcc879ef5d3b2ea6f5f1162cbc391c59abb"
+    },
+    "misa.ini": {
+      "bytes": 158,
+      "md5": "49a1c56048631647c0364532a6964cf9",
+      "sha256": "2dc25894c4d85314ae53eb7e615474285424c667e3b985d2ccde9b31edb4a6a2"
+    }
+  },
+  "authors": "Thomas Thiel & Sebastian Beier (IPK Gatersleben)",
+  "citation": "Beier S, Thiel T, Munch T, Scholz U, Mascher M. MISA-web: a web server for microsatellite prediction. Bioinformatics 33:2583-2585 (2017). doi:10.1093/bioinformatics/btx198",
+  "license": "NOT STATED - the zip ships no licence file and the IPK page only requests the citation. Flagged for the Phase 9 licence review (ROADMAP.md M9.3).",
+  "note": "misa.ini is shipped unmodified (GFF: true, thresholds 1-10 2-6 3-5 4-5 5-5 6-5) - the project uses MISA defaults, not tuned thresholds (PROJECT.md 10.2)."
+}
