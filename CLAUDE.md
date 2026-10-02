@@ -148,8 +148,7 @@ test-first work. Rules:
 3. **Negative tests are mandatory for gates and tools.** Bad IR ⇒ `IRGateError` + exit 2 · missing
    tool ⇒ skip with a printed reason (or exit 3 when required) · out-of-scope numbers ⇒ labelled.
    A gate that cannot fail loudly is not done.
-4. **Not test-first:** pure rendering (figures) and exploratory analysis. Test the data fed into a
-   figure, not the pixels; snapshot tests optional.
+4. **Not test-first:** figures and exploratory analysis — test the data fed in, not the pixels.
 5. **Never weaken or skip a test to make it pass.** If a golden number disagrees with the code, the
    code (or the measurement) is wrong until proven otherwise — stop, and record the discrepancy in
    PROJECT.md §9.
@@ -194,7 +193,6 @@ Commits are authored by the team only.
 - Don't run tests that hit the network — golden data is vendored in the repo.
 - Don't commit raw data dumps, credentials, or API keys.
 - Don't restructure PROJECT.md; append to §8/§9 and update the §3 decisions table.
-- Don't invent benchmark numbers or "expected" values; every threshold comes from §6 or a fresh run.
 
 ## Subagents
 
