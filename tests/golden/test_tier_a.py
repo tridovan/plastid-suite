@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import pytest
 
+from plastid.core.ir import detect_ir, enforce_ir_gate
 from plastid.core.model import Genome, count_genes
+from plastid.core.normalize import normalize
 from plastid.core.sequence import gc_percent
 
 
@@ -62,7 +64,20 @@ def test_golden_genome_identity(golden_genome: Genome) -> None:
     assert golden_genome.topology == "circular"
 
 
-@pytest.mark.skip(reason="IR + region assertions arrive in P1-03 (ROADMAP.md M1.3)")
-def test_ir_and_regions() -> None:
-    # IR 26,214 bp @ 100.00 % identical · LSC 83,127 · SSC 18,169.
-    raise AssertionError("IR detection not built yet")
+def test_ir_and_regions(golden_genome: Genome) -> None:
+    ir = detect_ir(golden_genome)
+    enforce_ir_gate(ir)
+    assert ir.length == 26_214
+    assert ir.identity == 1.0
+    assert ir.source == "annotation"
+    assert ir.denovo_delta == 0  # the independent de-novo scan agrees exactly
+
+    frame = normalize(golden_genome, ir)
+    assert frame.rotation_offset == 0  # the golden genome already starts at the LSC
+    assert [(region.name, region.length) for region in frame.regions] == [
+        ("LSC", 83_127),
+        ("IRa", 26_214),
+        ("SSC", 18_169),
+        ("IRb", 26_214),
+    ]
+    assert sum(region.length for region in frame.regions) == 153_724

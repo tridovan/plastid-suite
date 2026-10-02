@@ -90,6 +90,7 @@ class Genome:
     accession: str | None = None
     topology: str = "circular"
     genes: tuple[Gene, ...] = ()
+    repeat_regions: tuple[Interval, ...] = ()
 
     def __len__(self) -> int:
         return len(self.sequence)
