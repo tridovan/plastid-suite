@@ -87,8 +87,8 @@ class Table:
             if unknown:
                 raise ValueError(f"table {self.id!r}: row has unknown columns {sorted(unknown)}")
 
-    def value(self, ref: str) -> Any:
-        """Resolve ``column`` (single row) or ``rowkey.column`` (multi-row)."""
+    def _locate(self, ref: str) -> tuple[dict[str, Any], Column]:
+        """Resolve ``column`` or ``rowkey.column`` to (row, column)."""
         if self.key is None:
             if "." in ref:
                 raise ResultRefError(
@@ -101,7 +101,8 @@ class Table:
                 raise ResultRefError(
                     f"{self.id}: reference {ref!r} needs a row key — use {self.key}.column"
                 )
-        if column_name not in {column.name for column in self.columns}:
+        columns = {column.name: column for column in self.columns}
+        if column_name not in columns:
             raise ResultRefError(f"{self.id}: unknown column {column_name!r}")
 
         if row_key is None:
@@ -115,7 +116,17 @@ class Table:
             row = matches[0]
         if column_name not in row:
             raise ResultRefError(f"{self.id}[{row_key}]: column {column_name!r} has no value")
-        return row[column_name]
+        return row, columns[column_name]
+
+    def value(self, ref: str) -> Any:
+        """The raw value at a reference."""
+        row, column = self._locate(ref)
+        return row[column.name]
+
+    def format(self, ref: str) -> str:
+        """The display string at a reference — the same rendering the exporters use."""
+        row, column = self._locate(ref)
+        return column.format(row[column.name])
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,12 +144,21 @@ class Result:
             if table.id != table_id:
                 raise ValueError(f"tables[{table_id!r}].id is {table.id!r} — they must match")
 
-    def value(self, ref: str) -> Any:
-        """Resolve ``table.column`` or ``table[row].column`` across this result."""
+    def _table_for(self, ref: str) -> tuple[Table, str]:
         table_id, separator, rest = ref.partition(".")
         if not separator:
             raise ResultRefError(f"reference {ref!r} needs a table — use table.column")
         table = self.tables.get(table_id)
         if table is None:
             raise ResultRefError(f"unknown table {table_id!r} (have: {sorted(self.tables)})")
+        return table, rest
+
+    def value(self, ref: str) -> Any:
+        """Resolve ``table.column`` or ``table[row].column`` across this result."""
+        table, rest = self._table_for(ref)
         return table.value(rest)
+
+    def format(self, ref: str) -> str:
+        """The display string at a result-level reference."""
+        table, rest = self._table_for(ref)
+        return table.format(rest)
