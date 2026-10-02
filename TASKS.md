@@ -11,18 +11,18 @@
 
 ## Current focus
 
-**Status: pre-implementation.** Repo holds docs only (`PROJECT.md`, `CLAUDE.md`, `ROADMAP.md`,
-`TASKS.md`). No code yet.
+**Phase 1 in progress.** P1-01 (scaffold) — **DONE**: `make check` green, `plastid --version` works,
+import layering enforced by a test.
 
-**Open decisions** (need the team's call; details in ROADMAP.md → "Open decisions").
-They do **not** block `P1-01` — only later milestones:
+**Open decisions** (need the team's call; details in ROADMAP.md → "Open decisions"):
 
-- Coordinate system in reports (PROJECT.md §10.6) → blocks P1-02 · P1-03
-- Reports generated from `Result` objects (PROJECT.md §10.7) → blocks P1-04 · P1-07
+- **Coordinate system in reports (§10.6)** → blocks P1-02 · P1-03 — *next in line*
+- Reports generated from `Result` objects (§10.7) → blocks P1-04 · P1-07
 - Reference Panel: snapshot vs live NCBI (§10.8) + item (c) (§10.9) → blocks P1-10
 - Doc fixes: §12 install lines (cpstools channel · add mafft · add MISA download) → D-01
 
-**Next action: `P1-01` — scaffold. Unblocked, ready to start.**
+**Next action: `P1-02`** — pending the §10.6 decision, or an explicit go to start with the
+parser/counting part (which does not depend on it).
 
 ---
 
@@ -30,7 +30,7 @@ They do **not** block `P1-01` — only later milestones:
 
 | ID | Task | Milestone | Status | Owner | Done when |
 |---|---|---|---|---|---|
-| P1-01 | Repo skeleton + packaging: pyproject (hatchling), uv env, Makefile, CLI stub | M1.1 | TODO | Claude | `uv pip install -e '.[dev]'`; `plastid --version`; `make lint` |
+| P1-01 | Repo skeleton + packaging: pyproject (hatchling), uv env, Makefile, CLI stub | M1.1 | DONE | Claude | `uv sync`; `plastid --version`; `make check` green |
 | P1-02 | Core model (Genome · Gene · Region) + GenBank reader (BioPython) + vendored golden data | M1.2 | TODO | Claude | unit test reads 153,724 bp · 37.85 % · 86+38+8 · `gene` 133 · 112 names |
 | P1-03 | IR detection (annotation-first + de-novo port) + gate ≥ 99.9 % + normalization | M1.3 | TODO | Claude | IR 26,214 bp @ 100.00 %; the 2 known failure modes raise `IRGateError` |
 | P1-04 | Result schema (`Table` · `Figure` · `Scope`) + exporters (csv · json · md) | M1.4 | TODO | Claude | cell refs resolve; two exports byte-identical |
@@ -58,9 +58,12 @@ They do **not** block `P1-01` — only later milestones:
 
 ### 2026-10-02 · Claude · dev WSL
 
-- **Did:** created the session set — `CLAUDE.md` (self-contained briefing + rules), `ROADMAP.md`
-  (phases 1–9 with milestone checklists), `TASKS.md` (this file). Recorded the 02/10 decisions into
-  PROJECT.md (§3 · §10 · §13.1) earlier in the session. CGAS source review done (18,353 lines) —
-  lessons prepared for §7.9. Phase 1 thin-slice design drafted; **not approved, no code started**.
-- **Blocked:** the 4 decisions in Current focus + doc fix D-01.
-- **Next:** get those decisions, then start `P1-01`.
+- **Did:** session working set created (`CLAUDE.md` · `ROADMAP.md` · `TASKS.md`); git history squashed
+  into one `init` commit and force-pushed to `origin/main` (amended to remove Claude attribution —
+  repo rule + memory); branch `feat/phase-1` created; **P1-01 scaffold built and green** —
+  pyproject/`uv.lock`, CLI stub (`plastid --version`, exit codes 0/1/2/3), package tree, import-layering
+  guard, Makefile, loud golden placeholder. `make check` passes.
+- **Blocked:** §10.6 coordinate-system decision (blocks P1-02), §10.7 (P1-04 · P1-07), §10.8/§10.9
+  (P1-10), D-01.
+- **Next:** decide §10.6 (or go ahead with P1-02's parser/counting part), then implement P1-02
+  test-first. Design note: thin-slice design was drafted earlier; not needed to proceed.

@@ -55,7 +55,8 @@ tells you which file belongs to which job.
 
 **Milestones**
 
-- [ ] **M1.1 Skeleton & packaging** — `uv pip install -e '.[dev]'` works; `plastid --version`; `make lint`
+- [x] **M1.1 Skeleton & packaging** (2026-10-02) — `uv sync` installs; `plastid --version` works;
+  `make check` green; import layering enforced by `tests/unit/test_architecture.py`
 - [ ] **M1.2 Core model + GenBank reader + vendored golden data** — unit test reads 153,724 bp ·
   37.85 % · 86 CDS + 38 tRNA + 8 rRNA · `gene`=133 · 112 unique names from the fixture
 - [ ] **M1.3 IR detection + gate + normalization** — IR 26,214 bp @ 100.00 %; the 2 known silent-failure

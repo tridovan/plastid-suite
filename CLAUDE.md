@@ -141,11 +141,8 @@ At the end of every session — or the moment you notice context filling up — 
 ## Commits
 
 Conventional-commit style, English, no diacritics: `feat:` `fix:` `docs:` `test:` `chore:` `refactor:`.
-End every commit message with:
-
-```
-Co-Authored-By: Claude Code <noreply@anthropic.com>
-```
+Do **not** add any assistant attribution — no `Co-Authored-By: Claude …`, no "generated with" trailer.
+Commits are authored by the team only.
 
 ## Don't
 
