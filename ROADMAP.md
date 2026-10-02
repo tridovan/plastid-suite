@@ -66,7 +66,9 @@ tells you which file belongs to which job.
   disagreement recorded in `denovo_length`); the gate catches 2/2 diverged genomes with 0 false alarms;
   an off-by-one pairing constant collapses identity to ~29 % (regression); normalization reproduces
   LSC 83,127 / IRa 26,214 / SSC 18,169 / IRb 26,214 and handles a genome starting inside an IR
-- [ ] **M1.4 Result schema + exporters** — cell references resolve; two exports byte-identical
+- [x] **M1.4 Result schema + exporters** (2026-10-02) — `Scope` · `Column` · `Table` · `Result`;
+  cell refs (`table.column`, `table[row].column`) resolve or raise `ResultRefError`; csv/json/md
+  exports are byte-identical across runs and carry the scope label + coordinate frame
 - [ ] **M1.5 Run layer** (layout · manifest · `run_tool()` · cache) — manifest validates; re-run says
   `cached` with unchanged checksums
 - [ ] **M1.6 Golden tests tier A + `make golden`** — one command, every §6 tier-A number asserted;
@@ -204,7 +206,7 @@ across 3 environments (WSL · CI · Docker).
 | Decision | Blocks | Where |
 |---|---|---|
 | ~~Coordinate system in reports~~ — decided 2026-10-02: GenBank coordinates for per-genome tables · normalized for cross-genome figures · system labelled on every table · `rotation_offset` in `00_run_info` | — | PROJECT.md §3 |
-| Reports generated from `Result` objects | M1.4 · M1.7 | PROJECT.md §10.7 |
+| ~~Reports generated from `Result` objects~~ — decided 2026-10-02: reports reference table cells (`{{table.column}}`); an unresolvable reference raises | — | PROJECT.md §3 |
 | Reference Panel: pinned snapshot vs live NCBI | M1.10 | PROJECT.md §10.8 |
 | Reference Panel item (c) — source text truncated | M1.10 | PROJECT.md §10.9 |
 

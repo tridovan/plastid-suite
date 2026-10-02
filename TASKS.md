@@ -6,18 +6,6 @@
 
 ## Phase 1 — framework & shared data
 
-### P1-04 · Result schema + exporters · M1.4 · Claude · [ ]
-
-- [ ] `result/result.py` — `Scope` · `Column` · `Table` · `Result`; cell addressing
-      (`table[column]` for one-row tables, `table[row].column` for multi-row)
-- [ ] `result/export.py` — csv · json · markdown; deterministic (sorted keys, fixed float format)
-- [ ] tests first: ref resolution including a failing ref that raises; byte-identical re-export
-- [ ] every export carries its `Scope` label and coordinate frame in the header
-
-**Done when:** a `Result` round-trips through csv/json/md; two exports are byte-identical; a bad
-`{{ref}}` raises instead of printing blank.
-**Needs:** §10.7 decision (PROJECT.md §10.7).
-
 ### P1-05 · Run layer: layout · manifest · run_tool · cache · M1.5 · Claude · [ ]
 
 - [ ] `run/layout.py` — `<dataset>/<run_id>/`, `00_run_info/`, numbered module dirs;
@@ -93,6 +81,7 @@ report lists tool name · version · parameters.
 | P1-01 | Repo skeleton + packaging | M1.1 | 2026-10-02 |
 | P1-02 | Core model + GenBank reader + vendored golden data | M1.2 | 2026-10-02 |
 | P1-03 | IR detection + gate + coordinate normalization | M1.3 | 2026-10-02 |
+| P1-04 | Result schema + exporters (refs resolve or raise; byte-identical exports) | M1.4 | 2026-10-02 |
 
 ## Housekeeping
 

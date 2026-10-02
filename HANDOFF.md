@@ -6,16 +6,16 @@
 
 ## Resume point
 
-**Phase 1 — in progress.** P1-01 · P1-02 · P1-03 DONE. `make check` green (40 fast + 7 golden).
+**Phase 1 — in progress.** P1-01 · P1-02 · P1-03 · P1-04 DONE. `make check` green (48 fast + 7 golden).
 
-**Next action: `P1-04`** — Result schema + exporters (checklist + Done-when in `TASKS.md`).
+**Next action: `P1-05`** — run layer: layout · manifest · `run_tool()` · cache
+(checklist + Done-when in `TASKS.md`).
 
-**Blocked on:** the §10.7 decision — are reports generated from `Result` objects with cell
-references? (PROJECT.md §10.7). Other open decisions: §10.8 · §10.9 (Reference Panel → blocks
-P1-10) · D-01 (doc fixes).
+**Blocked on:** §10.8 · §10.9 (Reference Panel → blocks P1-10) · D-01 (doc fixes). No blocker for P1-05.
 
 **Branches (all local, none pushed):** `main` = init commit · `feat/phase-1` = P1-01 ·
-`feat/p1-02-core-model` = P1-02 + P1-03.
+`feat/p1-02-core-model` = P1-02 + P1-03 · `feat/p1-04-result-schema` = P1-04.
+Branches stack — consider merging the finished ones into `feat/phase-1` before it grows.
 
 ## Log
 
@@ -29,9 +29,14 @@ P1-10) · D-01 (doc fixes).
 - **Validation:** `make check` (40 fast + 7 golden, no skips); the 20-genome sweep reproduces
   PROJECT.md §8.3 — 7/9 vs GenBank, gate catches 2/2 diverged genomes with 0 false alarms; golden
   tier-A numbers asserted in tests. Recorded in PROJECT.md §8.5.
+- **Did (cont.):** §10.7 decided (reports resolve table cells; an unresolvable reference raises) →
+  PROJECT.md §3/§10. **P1-04 green** — `result/result.py` (`Scope` · `Column` · `Table` · `Result`,
+  refs `table.column` / `table[row].column`) and `result/export.py` (csv with provenance comments,
+  json with raw values, markdown); exports byte-identical across runs.
 - **Residual risks:** de-novo detection is still silently short on 1/9 known cases (NC_063920 →
   22,998 bp vs the true 26,161); the annotation cross-check *records* the 3,163 bp disagreement but
   the run does not fail on it — decide the policy later. The de-novo detector is unvalidated on
-  mitochondria.
-- **Blocked:** §10.7 (blocks P1-04 · P1-07) · §10.8/§10.9 (P1-10) · D-01.
-- **Next:** decide §10.7, then P1-04 test-first (write the failing checks before the schema).
+  mitochondria. `csv` exports carry provenance as `#` comments — readers must strip them (stdlib
+  `csv` cannot).
+- **Blocked:** §10.8/§10.9 (P1-10) · D-01. Nothing blocks P1-05.
+- **Next:** P1-05 test-first — run layout, manifest, `run_tool()` (the single subprocess door), cache.

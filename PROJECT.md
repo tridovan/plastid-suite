@@ -45,6 +45,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 02/10 | **Không dùng Snakemake** ở giai đoạn đầu (kế hoạch 22/9 mục 0.14 vốn chỉ là "cân nhắc"); chỉ xem lại khi pipeline vượt ~20 bước hoặc cần chạy lại từng phần |
 | 02/10 | **Reference Panel**: chốt định nghĩa 4 tầng taxonomy (nguyên văn kế hoạch 22/9, mục 0.7 chế độ B) + 2 chế độ A/B — ghi ở §13.1 |
 | 02/10 | **Hệ toạ độ** (§10.6): bảng theo từng genome ghi **toạ độ GenBank** (truy ngược về bản nộp NCBI); hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá**; **mọi bảng ghi rõ đang ở hệ nào**; `rotation_offset` lưu trong `00_run_info` |
+| 02/10 | **Report sinh từ `Result`** (§10.7): mọi số trong report trỏ về **đúng một ô bảng gốc**; template chỉ trỏ `{{bảng.cột}}` / `{{bảng[dòng].cột}}`, không gõ số; ref không giải được ⇒ **raise**, không in trống |
 
 ## 4. Ai làm gì
 
@@ -335,7 +336,7 @@ Chạy đúng 20 genome Iridaceae của §8.3 qua `core/ir.py` của bộ công 
 4. **Dữ liệu còn thiếu:** có lấy được reads Illumina thật của 1 mẫu không (để đo ngưỡng bộ nhớ — hiện mới có read mô phỏng).
 5. **Dữ liệu còn thiếu:** có lấy được **genome nhân** của mẫu không — NUPT/MTPT cần genome nhân để chạy (hiện chưa có).
 6. ~~Hệ toạ độ sau chuẩn hoá~~ — **ĐÃ CHỐT 02/10**: bảng theo từng genome ghi **toạ độ GenBank**; hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá** (các vùng thẳng hàng nhau); mọi bảng ghi rõ hệ đang dùng; `rotation_offset` lưu trong `00_run_info`.
-7. **Cách sinh report**: sinh từ đối tượng `Result` (mỗi số trỏ về đúng một ô bảng gốc) hay viết tay? (đề xuất: sinh từ Result — thoả yêu cầu "kiểm thử truy vấn số" §13.5 bằng cấu trúc thay vì bằng kỷ luật).
+7. ~~Cách sinh report~~ — **ĐÃ CHỐT 02/10**: sinh từ đối tượng `Result`. Mỗi số trong report trỏ về **đúng một ô** bảng gốc; template chỉ trỏ (`{{bảng.cột}}`, `{{bảng[dòng].cột}}`), không gõ số; ref không giải được ⇒ **raise**, không in trống. Yêu cầu "kiểm thử truy vấn số" (§13.5) được thoả bằng cấu trúc, không bằng kỷ luật.
 8. **Reference Panel**: dùng snapshot RefSeq ghim + checksum hay truy vấn NCBI sống? (đề xuất: snapshot, để tái lập được; tốc độ E-utilities không API key là 3 req/s).
 9. Mục **(c)** của Reference Panel còn thiếu — đoạn văn bản nguồn bị cụt.
 
