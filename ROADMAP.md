@@ -89,14 +89,17 @@ tells you which file belongs to which job.
   §7.8 checksum and vendored with `SOURCE.json` (licence: not stated → flagged for M9.3); the module
   reproduces **SSR 37 = mono 31 · di 4 · tri 2, compound 3** on this machine; a missing perl raises a
   named `ToolError` → CLI exit 3
-- [ ] **M1.10 Reference Panel (4 tiers) + NCBI fetch/cache** — policy decided 2026-10-02 (§10.8):
-  propose from a dated RefSeq cache · the user picks the list · pin + checksum on confirmation ·
-  runs stay offline. Slices: (a) tier model + proposal + pinning with an injectable fetcher,
-  (b) the live NCBI client behind an explicit `refresh`, (c) CLI wiring
+- [x] **M1.10 Reference Panel (4 tiers) + NCBI fetch/cache** (2026-10-03) — `core/panel.py`
+  (tiers · modes A/B · quality filter · pin with an injected fetcher) + `run/ncbi.py` (esearch ·
+  esummary · taxonomy efetch · 3 req/s) + `plastid panel refresh | propose | pin`. Verified live:
+  76 RefSeq genomes for Iridaceae (the §8.3 count, after fixing NCBI's `chloroplast[filter]` blind
+  spot — PROJECT.md §9.C-20), and a re-pinned NC_050833.1 whose sha256 matches the vendored golden
+  file byte-for-byte. Proposals and pins are offline; the network lives only in `refresh`.
 - [x] **M1.11 Sample-group metadata** (2026-10-02) — loader + lookup shipped (`core/samples.py`,
   duplicate-accession guard, tests); the "used by a comparison table" half moved to **M2.11**
-- [ ] **M1.12 Execution backend decision** (local vs remote) — **needs the team's call**; evidence:
-  PROJECT.md §9.14 (8 GB machines leave 1.5–2.5 GB free per job)
+- [x] **M1.12 Execution backend decision** (2026-10-03, dev decision) — local for phases 1–5 and 8;
+  remote for phase 6 (divergence time) and phase 7 (assembly), where PROJECT.md §9.14 measured that
+  an 8 GB machine leaves only 1.5–2.5 GB free per job. Recorded in PROJECT.md §3
 - [x] **M1.13 Hardening + API freeze v0.1** (2026-10-02) — README quickstart · `environment.yml` ·
   `docker/Dockerfile` skeleton · `docs/API_v0.1.md` (module contract, Result schema, coordinates,
   manifest keys, exit codes). *The environment checks in this milestone's Done-when — `make check` on

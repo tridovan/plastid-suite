@@ -180,6 +180,21 @@ make check    # lint + test + golden
 Approved designs that must outlive the session go into PROJECT.md (§3 decisions, §13 roadmap) or
 `docs/` — never rely on session-local plan files being readable later.
 
+## Who decides what — so the PI is never the bottleneck
+
+Default: **the dev decides**, with evidence, and records it in the repo. Bring a decision to the team
+only when it changes the science or is expensive to reverse.
+
+| Decision | Who decides | Recorded in |
+|---|---|---|
+| Architecture · formats · libraries · tool choice · local vs remote · test strategy | Dev (+ Claude) | PROJECT.md §3 or `docs/` |
+| What to analyse · scope of a scientific claim · what goes in a manuscript · taxonomy choices for a paper | PI (cô Trang) | PROJECT.md §3 |
+| Data and tool environments on the bioinformatician's machine | anh Điềm | TASKS.md → "Waiting on data" |
+| Big or irreversible work | dev approves the plan first | plan → TASKS.md |
+
+A blocked task must name the **specific** decision or dataset it waits for — "needs the team's call"
+is not an acceptable blocker. Cheap-to-reverse decisions are made now and corrected later, not queued.
+
 ## Handoff (write this before context runs low)
 
 At the end of every session — or the moment you notice context filling up — update `HANDOFF.md`:

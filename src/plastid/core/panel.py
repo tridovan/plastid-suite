@@ -18,6 +18,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 
+from plastid.core.model import count_genes
+
 __all__ = [
     "IndexSnapshot",
     "PanelCandidate",
@@ -86,6 +88,36 @@ class PinnedGenome:
     sha256: str
     md5: str
     bytes: int
+    length: int | None = None  # read back from the file — None when it failed to parse
+    cds: int | None = None
+    parse_error: str | None = None
+
+
+def entry_from_summary(summary: dict, lineage: str) -> PanelEntry:
+    """Build a PanelEntry from an NCBI esummary record plus its taxonomy lineage.
+
+    An NCBI lineage for a species ends "...; <order>; <family>; <genus>" — the last component
+    is the genus, the one before it the family, and the one before that the order.
+    """
+    parts = [part.strip() for part in lineage.split(";") if part.strip()]
+    genus = parts[-1] if parts else ""
+    family = parts[-2] if len(parts) >= 2 else ""
+    order = parts[-3] if len(parts) >= 3 else ""
+    organism = str(summary.get("organism", "")).strip()
+    accession = str(summary.get("accessionversion") or summary.get("caption") or "").strip()
+    if not accession:
+        raise ValueError(f"esummary record has no accession: {summary!r}")
+    return PanelEntry(
+        accession=accession,
+        organism=organism,
+        species=organism,
+        genus=genus or (organism.split(" ")[0] if organism else ""),
+        family=family,
+        order=order,
+        length=int(summary.get("slen") or 0),
+        annotated=True,  # RefSeq complete genomes are annotated; the user confirms the list
+        refseq=accession.startswith("NC_"),
+    )
 
 
 def tier_of(target: PanelEntry, entry: PanelEntry) -> int | None:
@@ -180,6 +212,17 @@ def pin(
         payload = text.encode("utf-8")
         path = directory / f"{entry.accession}.gb"
         path.write_bytes(payload)
+        length: int | None = None
+        cds: int | None = None
+        parse_error: str | None = None
+        try:  # verify the pin by reading it back with our own reader
+            from plastid.core.genbank import read_genbank
+
+            genome = read_genbank(path)
+            length = len(genome)
+            cds = count_genes(genome).cds
+        except Exception as error:  # noqa: BLE001 — recorded, not swallowed
+            parse_error = f"{type(error).__name__}: {error}"
         pinned.append(
             PinnedGenome(
                 accession=entry.accession,
@@ -187,6 +230,9 @@ def pin(
                 sha256=hashlib.sha256(payload).hexdigest(),
                 md5=hashlib.md5(payload).hexdigest(),
                 bytes=len(payload),
+                length=length,
+                cds=cds,
+                parse_error=parse_error,
             )
         )
     manifest = {

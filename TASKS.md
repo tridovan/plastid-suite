@@ -7,24 +7,7 @@
 
 ## Phase 1 — framework & shared data
 
-### P1-10 · Reference Panel (4 tiers) + NCBI fetch/cache · M1.10 · Claude · [~]
 
-**Policy decided 02/10 (§10.8):** propose from a dated RefSeq cache · the user picks · pin + checksum
-on confirmation · runs stay offline. Item (c) (§10.9) is documentation only and does not block.
-
-- [x] (a) tier model + proposal (modes A/B) + pinning with an injectable fetcher — `core/panel.py`
-      + tests (offline; the fetcher is injected) — 2026-10-02
-- [ ] (b) live NCBI client (`esearch`/`efetch`, 3 req/s) behind an explicit refresh command
-- [ ] (c) CLI wiring: `plastid panel refresh | propose | pin`
-
-**Done when:** a proposal lists candidates per tier from a cached RefSeq index; a pin writes the
-GenBank files + checksums; a second run works with the network off.
-
-
-### P1-12 · Execution backend decision · M1.12 · Dev + Claude · BLOCKED
-
-**Blocked by:** the team's call — run heavy steps locally or push to a remote server?
-Evidence to decide with: PROJECT.md §9.14 (8 GB machines: 1.5–2.5 GB free per job), §8.4.
 
 ## Done (Phase 1)
 
@@ -40,6 +23,8 @@ Evidence to decide with: PROJECT.md §9.14 (8 GB machines: 1.5–2.5 GB free per
 | P1-08 | Module registry + `genome_stats` end-to-end + CLI `plastid run` | M1.8 | 2026-10-02 |
 | P1-09 | MISA vendored (md5-pinned) + `ssr` module — tier B: **37 = 31 / 4 / 2** | M1.9 | 2026-10-02 |
 | P1-11 | Sample-group metadata (loader; comparison-table use moved to M2.11) | M1.11 | 2026-10-02 |
+| P1-10 | Reference Panel: tiers · proposal modes · pinning · NCBI client · CLI (verified live) | M1.10 | 2026-10-03 |
+| P1-12 | Execution backend: local for phases 1–5, 8; remote for 6–7 (dev decision) | M1.12 | 2026-10-03 |
 | P1-13 | Hardening: README · environment.yml · Dockerfile skeleton · `docs/API_v0.1.md` | M1.13 | 2026-10-02 |
 | D-01 | PROJECT.md §12 fixed (mafft + perl added · cpstools → bioconda · MISA download + md5) | — | 2026-10-02 |
 | D-02 | PROJECT.md §7.9 — CGAS source review recorded (10 failure modes + what we do instead) | — | 2026-10-02 |

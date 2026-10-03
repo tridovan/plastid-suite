@@ -24,6 +24,14 @@ from plastid import __version__
 from plastid.core.genbank import read_genbank
 from plastid.core.ir import IRDetectionError, IRGateError, detect_ir, enforce_ir_gate
 from plastid.core.normalize import normalize
+from plastid.core.panel import (
+    IndexSnapshot,
+    entry_from_summary,
+    load_index,
+    pin,
+    propose,
+    save_index,
+)
 from plastid.modules import registry
 from plastid.report.citations import load_citations
 from plastid.report.engine import load_template, render
@@ -31,6 +39,7 @@ from plastid.run.cache import Cache
 from plastid.run.context import RunContext
 from plastid.run.layout import RunLayout
 from plastid.run.manifest import build_manifest, write_manifest
+from plastid.run.ncbi import NcbiClient, NcbiError
 from plastid.run.runinfo import render_run_info
 from plastid.run.runner import execute_step
 from plastid.run.tools import ToolError
@@ -62,6 +71,23 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="KEY=VALUE",
         help="module parameter (repeatable)",
     )
+
+    panel = subparsers.add_parser("panel", help="Reference Panel: propose and pin genomes")
+    panel_actions = panel.add_subparsers(dest="panel_action", metavar="ACTION")
+    refresh = panel_actions.add_parser("refresh", help="rebuild the RefSeq index from NCBI")
+    refresh.add_argument("--taxon", required=True, help='e.g. "Iridaceae"')
+    refresh.add_argument("--out", default=".panel", help="index directory (default: .panel)")
+    refresh.add_argument("--retmax", type=int, default=200)
+    propose_parser = panel_actions.add_parser("propose", help="list candidates (no network)")
+    propose_parser.add_argument("--index", default=".panel/index.json")
+    propose_parser.add_argument("--target", required=True, help="accession of the target genome")
+    propose_parser.add_argument("--mode", choices=["A", "B"], default="B")
+    propose_parser.add_argument("--level", default="family")
+    propose_parser.add_argument("--per-tier", type=int, default=3)
+    pin_parser = panel_actions.add_parser("pin", help="download and checksum the chosen genomes")
+    pin_parser.add_argument("--index", default=".panel/index.json")
+    pin_parser.add_argument("--accessions", required=True, help="comma-separated accessions")
+    pin_parser.add_argument("--out", default=".panel/genomes")
     return parser
 
 
@@ -244,6 +270,115 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return _finish(manifest, layout, ctx, spec.version, EXIT_OK)
 
 
+def _cmd_panel(args: argparse.Namespace) -> int:
+    action = getattr(args, "panel_action", None)
+    if action == "refresh":
+        return _panel_refresh(args)
+    if action == "propose":
+        return _panel_propose(args)
+    if action == "pin":
+        return _panel_pin(args)
+    print("panel: choose an action — refresh | propose | pin", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _panel_refresh(args: argparse.Namespace) -> int:
+    client = NcbiClient()
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        ids = client.search_refseq_plastomes(args.taxon, retmax=args.retmax)
+        summaries = client.summaries(ids)
+        lineages = client.lineages([str(record.get("taxid", "")) for record in summaries])
+    except (NcbiError, OSError) as error:
+        print(f"NCBI: {error}", file=sys.stderr)
+        return EXIT_ERROR
+
+    entries = []
+    for summary in summaries:
+        lineage = lineages.get(str(summary.get("taxid", "")), "")
+        try:
+            entries.append(entry_from_summary(summary, lineage))
+        except ValueError as error:
+            print(f"skipped: {error}", file=sys.stderr)
+    snapshot = IndexSnapshot(
+        retrieved_at=datetime.now().isoformat(timespec="seconds"), entries=tuple(entries)
+    )
+    save_index(out_dir / "index.json", snapshot)
+    print(f"panel: {len(entries)} RefSeq genome(s) for {args.taxon} → {out_dir / 'index.json'}")
+    return EXIT_OK
+
+
+def _panel_propose(args: argparse.Namespace) -> int:
+    try:
+        snapshot = load_index(args.index)
+    except (OSError, KeyError) as error:
+        print(
+            f"cannot read {args.index}: {error} — run 'plastid panel refresh' first",
+            file=sys.stderr,
+        )
+        return EXIT_ERROR
+    try:
+        proposal = propose(
+            snapshot, args.target, mode=args.mode, level=args.level, per_tier=args.per_tier
+        )
+    except (ValueError, KeyError) as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_ERROR
+
+    print(
+        f"target: {proposal.target.accession} ({proposal.target.organism}) — mode {proposal.mode}"
+    )
+    for candidate in proposal.candidates:
+        entry = candidate.entry
+        print(
+            f"  tier {candidate.tier}  {candidate.tier_label:30}  {entry.accession:14}  "
+            f"{entry.organism:35}  {entry.length} bp"
+        )
+    for note in proposal.notes:
+        print(f"  note: {note}")
+    print("the engine only proposes — pick the final list, then run 'plastid panel pin'")
+    return EXIT_OK
+
+
+def _panel_pin(args: argparse.Namespace) -> int:
+    try:
+        snapshot = load_index(args.index)
+    except (OSError, KeyError) as error:
+        print(
+            f"cannot read {args.index}: {error} — run 'plastid panel refresh' first",
+            file=sys.stderr,
+        )
+        return EXIT_ERROR
+    wanted = [accession.strip() for accession in args.accessions.split(",") if accession.strip()]
+    by_accession = {entry.accession: entry for entry in snapshot.entries}
+    missing = [accession for accession in wanted if accession not in by_accession]
+    if missing:
+        print(f"not in the index: {missing} — refresh the panel first", file=sys.stderr)
+        return EXIT_ERROR
+
+    client = NcbiClient()
+    try:
+        pinned = pin(
+            (by_accession[accession] for accession in wanted),
+            client.fetch_genbank,
+            args.out,
+            retrieved_at=snapshot.retrieved_at,
+        )
+    except (NcbiError, OSError) as error:
+        print(f"NCBI: {error}", file=sys.stderr)
+        return EXIT_ERROR
+    for record in pinned:
+        detail = (
+            f"{record.length} bp, {record.cds} CDS"
+            if record.length is not None
+            else f"UNVERIFIED: {record.parse_error}"
+        )
+        digest = record.sha256[:12]
+        print(f"pinned {record.accession}: {record.bytes} bytes · sha256 {digest}… ({detail})")
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -258,6 +393,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "run":
         return _cmd_run(args)
+
+    if args.command == "panel":
+        return _cmd_panel(args)
 
     # Unreachable: argparse rejects unknown subcommands before this point.
     return EXIT_USAGE

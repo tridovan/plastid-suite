@@ -28,6 +28,25 @@ Branches stack — consider merging the finished ones into `feat/phase-1` before
 
 ## Log
 
+### 2026-10-03 · Claude · dev WSL
+
+- **Did:** finished Phase 1. P1-10 complete: `core/panel.py` (4 tiers, modes A/B, quality filter,
+  `pin()` with an injected fetcher that re-reads the file with our own reader) · `run/ncbi.py`
+  (esearch/esummary/taxonomy efetch, 3 req/s, injectable transport) · `plastid panel refresh |
+  propose | pin`. Closed P1-12 as a **dev decision** (local for phases 1–5/8, remote for 6–7) and
+  added the "Who decides what" rule to CLAUDE.md so engineering calls stop being queued for the PI.
+- **Validation:** `make check` (94 fast + 13 golden). Live NCBI run: 76 RefSeq genomes for
+  Iridaceae; a re-pinned NC_050833.1 whose **sha256 matches the vendored golden file byte-for-byte**
+  (`a946f23e…`), NC_024936.1 → `fd441727…`. Measured and recorded in PROJECT.md §9.C-20: NCBI's
+  `chloroplast[filter]` misses "plastid"-worded records (71 vs 76) — including our own comparison
+  genome.
+- **Residual risks:** the panel's tier model relies on NCBI lineage strings (genus = last component);
+  a record with an unusual lineage would land in the wrong tier — the user confirms the final list,
+  and `propose` prints the tier for every candidate. `pin()` records unparseable downloads as
+  `parse_error` rather than failing the batch — a caller must check it (the CLI prints UNVERIFIED).
+- **Blocked:** nothing. Waiting on people only: real reads + nuclear genome (Phase 6/7), item (c).
+- **Next:** Phase 2, starting with M2.1 (gene content & summary statistics).
+
 ### 2026-10-02 · Claude · dev WSL
 
 - **Did:** created the session set (CLAUDE.md · ROADMAP.md · TASKS.md · HANDOFF.md); squashed git

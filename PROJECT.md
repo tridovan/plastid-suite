@@ -47,6 +47,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 02/10 | **Hệ toạ độ** (§10.6): bảng theo từng genome ghi **toạ độ GenBank** (truy ngược về bản nộp NCBI); hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá**; **mọi bảng ghi rõ đang ở hệ nào**; `rotation_offset` lưu trong `00_run_info` |
 | 02/10 | **Report sinh từ `Result`** (§10.7): mọi số trong report trỏ về **đúng một ô bảng gốc**; template chỉ trỏ `{{bảng.cột}}` / `{{bảng[dòng].cột}}`, không gõ số; ref không giải được ⇒ **raise**, không in trống |
 | 02/10 | **Reference Panel** (§10.8): engine **gợi ý** qua cache RefSeq có ngày (làm mới được); khi người dùng chốt danh sách thì **tải về + ghim checksum**; chạy lại **không cần mạng**. Mục (c) điền sau, không chặn code |
+| 03/10 | **Backend (P1-12, dev quyết)**: giai đoạn 1–5 và 8 chạy **tại chỗ** trên máy phổ thông; giai đoạn 6 (thời gian phân kỳ) + 7 (lắp ráp) chạy **máy chủ từ xa** — máy 8 GB chỉ còn 1,5–2,5 GB trống mỗi việc (§9.14). Ghi lại theo luật phân quyết định trong CLAUDE.md |
 
 ## 4. Ai làm gì
 
@@ -347,6 +348,17 @@ Chạy đúng 20 genome Iridaceae của §8.3 qua `core/ir.py` của bộ công 
 13. **Ts/Tv phụ thuộc cách căn**: difflib 2,667 vs MAFFT 2,686.
 
 ### C. Môi trường & vận hành
+
+20. **`chloroplast[filter]` của NCBI bỏ sót bản ghi ghi "plastid"** (đo 03/10/2026, khi chạy
+    Reference Panel thật): `Iridaceae[Organism] AND refseq[filter] AND chloroplast[filter]` → **71**;
+    đổi sang `plastid[filter]` (hoặc `(chloroplast OR plastid)`) → **76**, khớp con số §8.3. Ca cụ thể:
+    **NC_024936.1** (*Iris gatesii* — chính genome so sánh của bộ số vàng) có title
+    *"Iris gatesii voucher T06-52 plastid, complete genome"*: khớp `refseq[filter]` và
+    `Iridaceae[Organism]` nhưng **không** khớp `chloroplast[filter]`. Bài học: lọc theo `[filter]`
+    của NCBI phải kiểm bằng số đếm, không tin tên filter.
+    *Xác nhận kèm (cùng lần chạy):* `plastid panel pin` tải lại NC_050833.1 từ NCBI ra sha256
+    `a946f23e…` — **khớp đúng byte** với dữ liệu vàng đang vendor trong repo; NC_024936.1 ra
+    `fd441727…` cũng khớp. Nguồn dữ liệu vàng được xác nhận lại end-to-end.
 
 14. **Máy 8 GB không đủ cho phần lắp ráp:** WSL2/Docker mặc định ~50 % RAM host → còn **1,5–2,5 GB mỗi việc**; 120.000 cặp read là hết RAM (phải hạ còn 20.000); flye cần ≥8 GB.
 15. **Dò công cụ theo PATH là không đủ**: `misa.pl` ở `~/toolbox/src/misa/`; `nucmer`/`repeat-match` phải activate env `mummer4`; `trf` không có.

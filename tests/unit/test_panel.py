@@ -128,18 +128,23 @@ def test_index_round_trip(tmp_path: Path) -> None:
     assert len(snapshot.entries) == len(_index().entries)
 
 
-def test_pin_writes_checksums_and_stays_offline(tmp_path: Path) -> None:
+def test_pin_writes_checksums_and_verifies_the_file(tmp_path: Path, data_dir: Path) -> None:
     calls: list[str] = []
+    golden = (data_dir / "NC_050833.1.gb").read_text(encoding="utf-8")
 
     def fake_fetch(accession: str) -> str:
         calls.append(accession)
-        return f"LOCUS       {accession}\nORIGIN\n//\n"
+        return golden
 
     entries = tuple(entry for entry in _index().entries if entry.accession.startswith("NC_222"))
     pinned = pin(entries, fake_fetch, tmp_path, timestamp="2026-10-02T18:00:00")
     assert calls == ["NC_222222.1"]
     assert pinned[0].sha256 and pinned[0].md5 and pinned[0].bytes > 0
     assert (tmp_path / "NC_222222.1.gb").is_file()
+    # the pin is verified by reading the file back with our own reader
+    assert pinned[0].parse_error is None
+    assert pinned[0].length == 153_724
+    assert pinned[0].cds == 86
 
     manifest = json.loads((tmp_path / "PINNED.json").read_text(encoding="utf-8"))
     assert manifest["pinned_at"] == "2026-10-02T18:00:00"
@@ -149,3 +154,10 @@ def test_pin_writes_checksums_and_stays_offline(tmp_path: Path) -> None:
     again = load_pinned(tmp_path)
     assert again == pinned
     assert calls == ["NC_222222.1"]
+
+
+def test_pin_records_a_parse_failure_instead_of_crashing(tmp_path: Path) -> None:
+    entries = tuple(entry for entry in _index().entries if entry.accession.startswith("NC_222"))
+    pinned = pin(entries, lambda accession: "this is not a GenBank file", tmp_path)
+    assert pinned[0].parse_error is not None  # loud in the data, never silent
+    assert pinned[0].length is None and pinned[0].cds is None
