@@ -13,28 +13,41 @@ stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLE
 (PROJECT.md §8.8, `docs/P2-10_manuscript_draft.md`) — the real samples are still what makes it the
 team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
-**Next action: nothing in Phase 2 is blocked on code — the next move is Phase 3** (annotation:
-PGA/GeSeq, gene-name normalisation, ORF checks, NCBI submission files), *or* collecting the five
-outstanding items below. Pick with the PI.
+**Phase 3 — STARTED, branch `feat/phase-3` (stacked on `feat/phase-2`, which is not yet merged to
+`main`).** The board is `TASKS.md`; nothing in it is done yet.
 
-Open sub-items inside Phase 2, in the order they matter:
+**Next action: P3-01 (ORF checks).** It is pure Python, fully verifiable on this machine, and it is
+the phase's core value. The measurement that shapes it is already made: **5 of the golden genome's
+86 CDS do not start with ATG** (rps19 GTG · rpl2 ACG ×2 · ndhD ATC), and across the whole dataset the
+starts are ATG 746 · GTG 11 · ACG 6 · CTG 5 · ATA 3 · TTG 2 · ATC 1 · ATT 1 — so a "must be ATG"
+rule would fail 3.7 % of real plastid CDS. Every CDS declares `/transl_table=11` and
+`/codon_start=1`; the reader currently ignores both.
+
+Then P3-02 (gene-name normalization, syntax half — the semantic half waits on the PI's ruling about
+`clpP1` · `pafI` · `pafII` · `pbf1`), then P3-03/04 (PGA, MITOS2 — neither tool is on this machine),
+then P3-05 (NCBI submission files).
+
+Open items carried over from Phase 2, in the order they matter:
 
 1. **P2-07/P2-08 real-data run.** Needs MAFFT **7.526** (§7.8 pins it; `apt` installs a different
    version and §9.B-13 records that the aligner changes Ts/Tv). `PTS_REQUIRE_TOOLS=1` on a machine
    that has it. π per **intron/IGS** is still missing from P2-08.
 2. **Nothing cross-checks the de-novo IR *length*** on an unannotated record — `PZ428230.1` passed
-   the gate on a 15,756 bp repeat while every congener is ~25.7 kb (PROJECT.md §9.A-8). A congener
-   length check is *not built*.
+   the gate on a 15,756 bp repeat while every congener is ~25.7 kb (PROJECT.md §9.A-8).
 3. **`--docx` on a machine without the extra** — verified by test (exit 3, named error), never yet
    run on a machine that genuinely lacks python-docx.
+4. **Three Phase-1 branches are labels on commits already in `main`** (`feat/phase-1`,
+   `feat/p1-02-core-model`, `feat/p1-04-result-schema`) — deletable, nothing is lost; the user has
+   not decided.
 
 **Before any P2-07/08 number is quoted:** the alignment must come from MAFFT 7.526, and §6's golden
 Ts/Tv (2.686) has the narrower scope *CDS only · 76 shared genes · IR excluded* — the module's
 default whole-alignment scope is a different number and must never be quoted as that one.
 
-**Waiting on people:** real Oldenlandia/Coleus samples → P2-10 (the stand-in set already contains
-both species, as *public records*, which is not the same as the team's specimens) · real Illumina
-reads + nuclear genome → Phase 6/7 · item (c) → docs.
+**Waiting on people:** a nomenclature ruling on four gene names → P3-02 · real Oldenlandia/Coleus
+samples → P2-10 (the stand-in set already contains both species, as *public records*, which is not
+the same as the team's specimens) · real Illumina reads + nuclear genome → Phase 6/7 · item (c) →
+docs.
 
 **Branches (all pushed to `origin`, 2026-10-03):** `main` = **Phase 1 complete** (fast-forwarded to
 the Phase-1 tip, no merge commit) · `feat/phase-1` · `feat/p1-02-core-model` · `feat/p1-04-result-schema`
@@ -49,6 +62,27 @@ Every commit on `feat/phase-2` was checked out and `make check`-verified individ
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 5 (Phase 2 closed, Phase 3 board)
+
+- **Did:** pushed `feat/phase-2`; opened branch `feat/phase-3` (stacked — Phase 2 is not merged to
+  `main` yet); cleared `TASKS.md` of Phase 2 and built the Phase 3 board from the milestones
+  (M3.1–M3.4) with the `make-tasks` skill: 5 tasks, each with a measurable Done-when.
+- **Validation:** the board's numbers are measured, not guessed — the whole dataset was swept for
+  start codons (`/transl_table=11` and `/codon_start=1` on all 1,099 CDS; starts ATG 746 · GTG 11 ·
+  ACG 6 · CTG 5 · ATA 3 · TTG 2 · ATC 1 · ATT 1) and for gene names the grouping file does not claim
+  (exactly four, all in the two manuscript-species records). `TASKS.md` is 108 lines.
+- **Corrected a wrong phase check:** ROADMAP's Phase 3 check read "gene recount uses the fixed
+  counting rule (**132**)". 132 is *Iris domestica*'s value, not a constant — P2-10 measured 131 and
+  133 for two other species. The *rule* is fixed; the *number* is not. Left uncorrected this is the
+  "133 genes" trap in a new costume.
+- **Residual risks:** P3-03/P3-04 (PGA, MITOS2) have no tool on this machine, so they can only be
+  implemented and `PTS_REQUIRE_TOOLS=1`-gated — the same honest position P2-07/P2-08 are in. The
+  semantic gene-name question is a real fork: four names in *C. amboinicus* carry modern names whose
+  relation to the older `ycf`-style names is a nomenclature call, not a code call.
+- **Blocked:** the nomenclature ruling (cô Trang) blocks only P3-02's semantic half; PGA/MITOS2
+  (anh Điềm's toolbox) block the measured halves of P3-03/P3-04.
+- **Next:** P3-01.
 
 ### 2026-10-03 · Claude · dev WSL · session 4 (P2-09, D2-04, P2-10)
 

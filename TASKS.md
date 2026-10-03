@@ -5,176 +5,98 @@
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**
 > How this file is produced: the `make-tasks` skill (`.claude/skills/make-tasks/SKILL.md`).
 
-## Phase 2 — Genome reading & statistics  *(PROJECT.md §13.2)*
+## Phase 3 — Annotation  *(PROJECT.md §13.3)*
 
-**Phase check (§13.2):** the golden numbers must come out of the module runs — 153,724 bp ·
-**132 = 86 CDS + 38 tRNA + 8 rRNA** · IR 26,214 bp (≥ 99.9 %) · LSC 83,127 / SSC 18,169 ·
-37 SSR (mono 31 · di 4 · tri 2). Any mismatch ⇒ stop and fix inside this phase.
-Applies to **both plastid and mitochondrion**.
+**Phase check (§13.3):** the run's output re-reads with **our own GenBank reader** (no format
+damage) · ORF checks pass · gene recount uses the fixed counting **rule**
+(**CDS + tRNA + rRNA, both IR copies** — *132 is the golden genome's value, not a constant*: P2-10
+measured **131** for *S. diffusum* and **133** for *C. amboinicus*, both correct).
+*De-novo assemblies get the extra "verify vs close relatives / reads across LSC–IR · SSC–IR" rule —
+Phase 7 only, skipped here.*
 
 ### Decisions to make before the tasks that need them
 
 | ID | Decision | Recommended default (evidence) | Who | Recorded in |
 |---|---|---|---|---|
-| D2-01 | **Multi-genome contract** — π, SNP and later Ka/Ks take more than one genome; `run(genome, params, ctx)` is frozen in API v0.1 | ✅ **DONE 03/10**: contract thứ hai `run(genomes, params, ctx)` chọn bằng `arity`, giữ nguyên v0.1 (không migrate module nào) | Dev | `docs/API_v0.2.md` + PROJECT.md §3 |
-| D2-02 | π window size / step | ✅ **DONE 03/10**: 600 bp window · 200 bp step, vào params + report | Dev | `data/defaults.yaml` |
-| D2-03 | Translation table for codon/amino-acid work | NCBI table 1 (standard) for plastids; the table used is recorded in run info | Dev | `data/defaults.yaml` |
-| D2-04 | Word/Excel writers | ✅ **DONE 03/10**: extra tuỳ chọn `docx = ["python-docx>=1.2"]`, import bên trong hàm ⇒ **bản cài tối thiểu vẫn thuần Python**. `openpyxl` **hoãn** tới khi có bảng Excel thật (Giai đoạn 5) — chưa có gì dùng thì khai báo chỉ là chỗ giữ chỗ | Dev | `pyproject.toml` + PROJECT.md §3 |
+| D3-01 | Which plastome annotator | **PGA** (GPL-3.0, Java, runs local) primary; **plann.pl** the offline fallback. Measured 03/10 on the dev machine: PGA **ABSENT**, plann **ABSENT**, `java` present | Dev | PROJECT.md §7.8 + §3 |
+| D3-02 | **Semantic gene-name aliases** — do `clpP1` · `pafI` · `pafII` · `pbf1` get renamed? | **Not a dev call.** All four are in *C. amboinicus* `PX923121.1` — a manuscript species — with `/product` reading "ATP-dependent Clp protease proteolytic subunit 1", "photosystem I assembly factor I", "…II", "photosystem biogenesis factor 1". A rename changes what a **submitted record** says ⇒ PI | PI (cô Trang) | PROJECT.md §3 |
+| D3-03 | Which translation table for reading frames | the record's own `/transl_table` — **all 1,099 CDS in the dataset declare 11** — falling back to `defaults.yaml` (1) when absent. Tables 1 and 11 share amino-acid assignments and differ only in initiation codons, so P2-03/P2-04 numbers are unaffected | Dev | `data/defaults.yaml` + PROJECT.md §3 |
+| D3-04 | `.sqn`: build it, or ship the modern path | emit **`.fsa` + `.tbl`** in pure Python (always); produce `.sqn` only when `table2asn` is present — measured **ABSENT** here. NCBI's web submission takes `.fsa` + `.tbl` directly | Dev | PROJECT.md §3 |
 
-### Pitfalls for this phase *(every line has bitten somewhere — PROJECT.md §9, §7.9)*
+### Pitfalls for this phase *(measured on this dataset — PROJECT.md §8, §9)*
 
 | Trap | Instead |
 |---|---|
-| Writing "132 genes" without the breakdown | always **132 = 86 CDS + 38 tRNA + 8 rRNA**; `gene` features = 133 is a diagnostic only |
-| "Fixing" the gene count by counting `gene` features | the truncated ycf1 has `gene` + `misc_feature`, no CDS — `count_genes()` is right |
-| Assuming one contiguous span per CDS | rps12 is trans-spliced (3 parts, mixed strands) — build from `parts` in biological order |
-| Trusting a `repeat_region` note as truth | IR comes from the gate-passing detection; the annotation is only a cross-check |
-| Positional work without the gate | call `ctx.require_ir()` first; a failing gate must stop the run, not warn |
-| Typing numbers into report templates | templates reference `{{table.column}}` only — the scan test enforces it |
-| Skipping a file and carrying on | record the failure in the Result/manifest and name the file; exit non-zero when required |
-| Hand-editing an output table | every table is regenerated from the module; if it cannot be, the module is wrong |
-| Changing a window/step/threshold "just to see" | params go into the manifest and the report — always |
+| "A CDS must start with ATG" | **5 of the golden's 86 do not** — rps19 GTG, rpl2 ACG ×2, ndhD ATC. Whole set: ATG 746 · GTG 11 · ACG 6 · CTG 5 · ATA 3 · TTG 2 · ATC 1 · ATT 1. A rule that fails 3.7 % of real plastid CDS is a false alarm, not a check |
+| Assuming translation table 1 because D2-03 says so | **every CDS here declares 11**; use the record's, and fail loud on a table whose amino acids we do not know |
+| Ignoring `/codon_start` | all 1,099 declare `1`; a `2` shifts the frame — refuse rather than translate a frame the record did not ask for |
+| "Fixing" a truncated gene | the golden's truncated ycf1 has `gene` + `misc_feature` and **no CDS** (§9.B-9). `count_genes()` is right; a repair is wrong |
+| Renaming a gene so it looks canonical | a rename changes a submitted record. Unmapped names are **listed for the PI**, with their `/product`, never guessed |
+| Trusting an annotator's output blindly | read it back with our own reader and require the model to round-trip; a file that does not re-read is not a result |
+| Writing a TBL from memory | the 5-column NCBI table has exact rules (partial flags `<` `>`, `join(...)`, `codon_start`, `transl_table` per feature) — check against a real submitted record |
+| Quoting "132 genes" for a new genome | 132 is *Iris domestica*'s. Write the breakdown: **132 = 86 + 38 + 8** for the golden, whatever the record actually has otherwise |
 
-### P2-01 · Gene content & summary statistics · M2.1 · [x] DONE
+### P3-01 · ORF checks — start · stop · internal codons · M3.3 · [ ]
 
-- [x] per-kind counts (CDS/tRNA/rRNA), GC, length summary — reuse `count_genes` and `gc_percent`
-- [x] run on both golden genomes and on the two diverged-IR genomes (the second must exit 2)
-**Done when:** one `plastid run` reproduces 153,724 bp · 132 = 86+38+8 · GC 37.85 % for NC_050833.1
-in the report and the CSV, with scope labels.
+- [ ] read the record's own `/transl_table` and `/codon_start` into the model (`Gene` gains both);
+      refuse a table we cannot translate and a `codon_start` that is not 1
+- [ ] classify every CDS: `ok` · `alternative_start` · `no_start` · `no_stop` · `internal_stop` ·
+      `not_multiple_of_three`; pseudogenes marked, not silently counted as failures
+- [ ] report genes **annotated without a CDS** as their own class — the truncated-ycf1 shape
+- [ ] never rewrite a CDS to make it pass
+**Done when:** on the golden genome all 86 CDS give 0 internal stops, 0 missing stops, every length
+divisible by three, and **exactly 5** classified `alternative_start` (rps19 GTG · rpl2 ACG ×2 ·
+ndhD ATC); the truncated ycf1 is reported as *annotated, not coding* rather than as a failure.
+**Pitfall:** the 3.7 % alternative-start rate above. **Needs:** D3-03.
 
-### P2-02 · Genome structure — boundaries · %GC per region · GC-skew · M2.3 · [x] DONE
+### P3-02 · Gene-name check & normalization · M3.2 · [ ]
 
-- [x] LSC/IRa/SSC/IRb boundaries and lengths (from the IR pair, normalized frame)
-- [x] %GC per region; cumulative GC-skew per region, plotted values tabulated
-      — `modules/structure.py`, tables `regions` + `gc_skew_windows` (window/step params);
-      measured on the golden genome: LSC 35,98 % / IR 43,05 % / SSC 31,45 % GC, skew
-      LSC −0,0274 · IRa +0,0346 · SSC −0,0618 · IRb −0,0346 (the two IR copies mirror exactly,
-      as reverse complements must); `PZ428230.1` investigated and excluded — PROJECT.md §8.6, §9.A-8
-**Done when:** LSC 83,127 · SSC 18,169 · IRa = IRb = 26,214 · regions tile the genome exactly
-(sum = 153,724) — the golden run asserts it.
-**Pitfall:** GC-skew sign convention ((G−C)/(G+C)) and the cumulative form must be stated in the
-column headers; a silent sign flip is this phase's classic quiet error.
+- [ ] **one** normalizer in `core/gene_names.py` — syntax only (case, tRNA anticodon `trnL(UAA)` →
+      `trnL-UAA`, `rrn16S` → `rrn16`, whitespace) — and nothing else in the codebase may rename a gene
+- [ ] `data/gene_aliases.yaml` for **semantic** aliases, each entry carrying the evidence it rests on;
+      it ships **empty of guesses**
+- [ ] a name with no mapping is **kept** and listed in the Result with its `/product`, so the PI can rule
+**Done when:** the normalizer is idempotent over all **156** distinct names in the dataset and leaves
+the golden's **112** names unchanged; on the panel exactly **4** names are reported as needing a
+decision (`clpP1` · `pafI` · `pafII` · `pbf1`, in the two *Coleus/Oldenlandia* records).
+**Needs:** D3-02 for the semantic half only — the syntax half does not wait.
 
-### P2-03 · Codon usage — RSCU · ENC · CAI · CBI · Fop · M2.4 · [x] DONE
+### P3-03 · Annotation — plastome (PGA) · M3.1 · [ ]
 
-- [x] CDS extraction: exons joined in biological order, strand-aware, pseudogenes excluded
-      — `coding_sequence()` reads each part on its **own** strand in annotation order; measured on
-      both golden rps12 copies: only this reading gives `ATG…TAA` (re-sorting → `AAT…TAT`,
-      all-forward → `ATA…ATT`). `cds_features()` is the one source of truth for the CDS set
-- [x] RSCU per codon + the family sums check (Σ RSCU per amino acid = family size)
-      — `core/codon.py` + `modules/codon_usage.py`; golden run: 86 CDS, 26.263 codons,
-      ENC 49,69 · CAI 0,5375 · CBI 0,2705 · Fop 0,5118 (reference = the CDS set itself, named in
-      the output), 0 internal stops, all 20 families `ok`; **D2-03 decided**: NCBI table 1
-**Done when:** the RSCU family sums check passes for every amino acid and the CDS set equals the
-86 counted CDS. **Needs:** D2-03 (translation table).
+- [ ] `external/pga.py` through `run_tool()`; path, version and argv land in the run info
+- [ ] the annotator's GenBank output is read back by **our own reader** and must round-trip
+- [ ] `modules/annotation.py`: the resulting gene set, its ORF status (P3-01) and its name mapping (P3-02)
+      go through the same pipeline as a downloaded record — no second code path
+**Done when:** on a machine with PGA, annotating a de-annotated golden FASTA reproduces the golden's
+gene counts by the fixed rule (86 CDS + 38 tRNA + 8 rRNA) and the output re-reads clean. Here:
+implemented and `PTS_REQUIRE_TOOLS=1`-gated, **no number claimed from a run that did not happen**.
+**Needs:** D3-01, and PGA on the machine.
 
-### P2-04 · Amino acid composition (+ GRAVY · aromaticity) · M2.5 · [x] DONE
+### P3-04 · Annotation — mitochondrion (MITOS2) · M3.1 · [ ]
 
-- [x] translate the same CDS set used by P2-03 (one source of truth for the CDS set)
-      — `cds_features()` in `core/model.py` is that one source, used by both modules;
-      golden run: 26.263 residues = the P2-03 codon total exactly, 86 terminal stops excluded,
-      GRAVY −0,1034 · aromaticity 0,1118 (Kyte–Doolittle · Lobry & Gautier, named in the output)
-**Done when:** recomputable from the codon table in P2-03 — same CDS set, same totals.
+- [ ] the mito path: no canonical IR, so nothing may call `ctx.require_ir()` on it — measured on both
+      stand-in mitogenomes, which raise `IRDetectionError` and are **right** to
+- [ ] `external/mitos.py` through `run_tool()`, output re-read by our reader
+**Done when:** on a mitogenome the gene-set table reports plant mito gene names and the run does not
+touch the IR gate; on a machine with MITOS2 the count reproduces the record's own annotation.
+**Needs:** MITOS2 on the machine.
 
-### P2-05 · Introns — count · length · position · M2.7 · [x] DONE
+### P3-05 · NCBI submission files — FASTA · TBL · SQN · M3.4 · [ ]
 
-- [x] per gene: number of introns, lengths, positions, phase; trans-spliced genes handled
-      — `modules/introns.py`: golden 17 introns in 12 genes · 12.547 bp · longest 1.055 bp ·
-      phase = preceding-exon bases mod 3. **Trans-splicing junctions are separated from introns**
-      by the region test (parts in different plastid regions) and cross-checked against the
-      record's own `/trans_splicing` qualifier: 2 junctions, both rps12, `agrees`.
-      Also hardened: `Table` now rejects a repeated key column (the IR gives several genes a
-      second copy — `rpl2.1.1` vs `rpl2.2.1` — and a repeated key resolved silently)
-**Done when:** the intron list cross-checks with the GenBank annotation part boundaries.
-
-### P2-06 · SSR by region and motif · M2.8 · [x] DONE
-
-- [x] summary tables by region (LSC/IRa/SSC/IRb) and by motif class, on top of the existing
-      per-SSR table from `modules/ssr.py` — `ssr_by_region` is computed **from the per-SSR rows**,
-      and the summary carries a `GFF vs statistics` reconciliation column.
-      **The reconciliation immediately caught a real silent bug**: MISA writes monomeric SSRs as
-      `monomeric_repeat` but every longer unit as `microsatellite` (class only inside the Note),
-      and a compound cluster as one `repeat_region` line — the parser read only the first
-      vocabulary, so **7 of 37 SSRs were being dropped silently** (30 rows). Fixed; the golden
-      run now reports 37 = mono 31 · di 4 · tri 2 and `agrees`; LSC 27 · SSC 10 · IR 0.
-      Regression tests in `tests/unit/test_misa.py` use **real MISA line shapes** — the old
-      fixture invented a `dinucleotide_repeat` type MISA never writes, which is why it passed
-**Done when:** tier-B run with MISA reports 37 SSRs split by region and motif; the counts reconcile
-with the per-SSR table. **Needs:** nothing — the tier-B harness already exists.
-
-### P2-07 · SNP / substitutions by position · M2.6 · [~] IMPLEMENTED — real-data run pending
-
-- [x] pairwise substitution table against a chosen reference, positions scope-labelled
-      — `modules/substitutions.py` (arity 2+): per-genome and per-region Ts/Tv against row 0,
-      gap columns skipped and counted, Ts/Tv blank when undefined. Maths in `core/align.py`,
-      unit-tested analytically.
-- [ ] **verify on real data — needs MAFFT 7.526, absent from this machine.** `apt` would install
-      a different version, and §7.8 pins 7.526, so no number was measured here rather than a
-      number measured with the wrong aligner. `PTS_REQUIRE_TOOLS=1` on a machine that has it.
-**Done when:** the table states its scope (whole plastome vs CDS-only, IR in/out) and the numbers
-reconcile with the alignment used. **Needs:** D2-01.
-
-### P2-08 · Nucleotide diversity π (sliding window) · M2.9 · [~] IMPLEMENTED — real-data run pending
-
-- [x] π per gene / intron / IGS + sliding window with region shading data
-      — `modules/diversity.py` (arity 2+): whole-alignment π, sliding windows (600/200, D2-02),
-      per normalized region and **per gene built from its exons** (an intron is not its gene).
-      Every π carries its usable-column count; gaps dropped, never scored.
-- [ ] **verify on real data — needs MAFFT 7.526** (see P2-07). Pending: π per **intron** and per
-      **IGS**, which need the inter-feature intervals mapped to columns.
-**Done when:** windows are reproducible from the alignments and the window/step are in the report.
-**Needs:** D2-01, D2-02.
-
-### P2-09 · Publication gene table (Word) · M2.2 · [x] DONE
-
-- [x] gene table export (Word) generated from the gene table, never hand-edited
-      — `modules/gene_table.py` + `data/gene_groups.yaml` + `result/docx_export.py` + `--docx`.
-      The table is the **categorised** one a paper prints, not a per-feature dump; the grouping
-      is data (gene → functional group), and it carries its own reconciliation against
-      `count_genes()` — CDS 86/86 · tRNA 38/38 · rRNA 8/8 · Total 132/132, all `agrees`
-      (a first run reported **0** on the Total row; the reconciliation column is what caught it).
-- [x] reproducible bytes: the `.docx` is rebuilt with fixed zip timestamps and pruned of the
-      template's 164-style catalogue (~800 kB → **13 kB**), so two builds of one run are the
-      same file — **verified through the cache too** (same sha256 on a cached re-run)
-- [x] rendered and **looked at** (LibreOffice → PDF → PNG): title, provenance grid, table
-      captions above, scope line, header row repeating per page, rows unsplit, numbers
-      right-aligned, bold totals row, `Page X of Y` footer
-**Done when:** regenerating the document from the module produces an identical file. ✅
-**Needs:** D2-04 (DONE).
-
-### P2-10 · Manuscript deliverable — Oldenlandia / Coleus · M2.10 · [~] DRAFT PRODUCED — real data pending
-
-- [x] **one command per species → one Word draft** — `-m` is now repeatable, so a run holds
-      several modules and writes `report/report.docx` (prose + tables + provenance, joined from
-      the modules' own documents so a cache hit cannot produce an empty one);
-      recipe: `docs/P2-10_manuscript_draft.md`
-- [x] draft produced for both species from the public stand-in set, labelled `standin-…`
-      throughout (header, footer, manifest): **131 = 86 + 37 + 8** (*S. diffusum* `PP078674.1`)
-      and **133 = 88 + 37 + 8** (*C. amboinicus* `PX923121.1`), IR gate PASS 100.00 % on both,
-      gene table reconciles `agrees` on both — PROJECT.md §8.8
-- [x] **the stand-in set turns out to contain both manuscript species**: `PP078674.1` is
-      *Scleromitrion diffusum* (the current name of *O. diffusa*) and `PX923121.1` is
-      *C. amboinicus*. Same species, **not** the team's specimen — the label stays
-- [ ] real datasets substituted, then re-run — numbers are never patched in
-- [ ] π and Ts/Tv sections (need MAFFT 7.526, absent here) · figures (Phase 5, M5.1)
-**Done when:** every number in the draft resolves to a cell in a run's tables (the queryable-number
-rule, §13.5). ✅ for the structure — **the real samples are still what makes it the team's draft**.
-**Needs:** the real datasets from anh Điềm/cô Trang.
-
-### P2-11 · Sample-group labels on comparison output · M2.11 · [x] DONE
-
-- [x] every comparison table/figure carries a shared group label from `core/samples.py`
-      — `plastid run --groups FILE` labels every input; the label travels in params (a module
-      never reads a file) and lands in the comparison table's `Group` column. An input with no
-      label stops the run (exit 1) rather than producing an unlabelled row.
-      End-to-end test with a stubbed aligner: `tests/test_smoke.py`
-**Done when:** at least one comparison output uses a group label end-to-end.
+- [ ] `.fsa` and the 5-column `.tbl`, in pure Python, from the *normalized* gene set
+- [ ] `.sqn` through `table2asn` when it exists; a named error and exit 3 when it does not
+- [ ] a first-pass check on the record: no duplicate locus tags, no feature past the sequence end,
+      `transl_table` on every CDS
+**Done when:** a golden record produces `.fsa` + `.tbl` whose features re-read into the same set as
+the source, and the TBL's partial/join syntax matches a real submitted record field for field.
+**Needs:** D3-04. **Blocked for the `.sqn` half by:** `table2asn` (absent here).
 
 ## Waiting on data / people
 
 | What | Who | Blocks |
 |---|---|---|
-| Oldenlandia / Coleus GenBank records (real data) | anh Điềm / cô Trang | P2-10 only — **bản công khai thay thế đã có** (D-04, PROJECT.md §8.6) nên P2-07/08/11 dev được ngay |
+| Nomenclature ruling on `clpP1` · `pafI` · `pafII` · `pbf1` (D3-02) | cô Trang | the semantic half of P3-02, and every submission file for *C. amboinicus* |
+| A machine with PGA and MITOS2 (or a run from anh Điềm's toolbox) | anh Điềm | the *measured* halves of P3-03, P3-04 |
 | Item (c) text for the Reference Panel notes | cô Trang | D-03 only (documentation) |
 
 ## Housekeeping
@@ -182,5 +104,5 @@ rule, §13.5). ✅ for the structure — **the real samples are still what makes
 | ID | Task | Status | Done when |
 |---|---|---|---|
 | D-03 | Fill Reference Panel item (c) in PROJECT.md §13.1 | BLOCKED | cô Trang provides the text |
-| D-04 | Public stand-in dataset — Oldenlandia / Coleus (CLAUDE.md §Data) | DONE | 13 records pinned with sha256; measured table recorded in PROJECT.md §8.6 |
-| D2-04 | Word writer as an optional extra | DONE | `pip install 'plastid-suite[docx]'`; the base install imports no third-party beyond biopython + PyYAML |
+| H-01 | MAFFT 7.526 on a machine that can run it | BLOCKED | P2-07/P2-08 real-data numbers (PROJECT.md §7.8 pins 7.526) |
+| H-02 | Three merged Phase-1 branches (`feat/phase-1`, `feat/p1-02-core-model`, `feat/p1-04-result-schema`) are labels on commits already in `main` | OPEN | deleted or deliberately kept — commits are reachable from `main` either way |

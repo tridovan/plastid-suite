@@ -131,9 +131,10 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
 
 **Goal:** annotate genomes we already have; prepare NCBI submissions.
 **In-phase checks:** the output re-reads with our own GenBank reader (no format damage) · ORF checks
-pass · gene recount uses the fixed counting rule (132). *De-novo assemblies (Phase 7 only) get the
-extra "verify vs close relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined"
-rule — skipped here.*
+pass · gene recount uses the fixed counting **rule** (CDS + tRNA + rRNA, both IR copies) — **132 is
+the golden genome's value, not a constant**: P2-10 measured 131 (*S. diffusum*) and 133
+(*C. amboinicus*), both correct. *De-novo assemblies (Phase 7 only) get the extra "verify vs close
+relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined" rule — skipped here.*
 
 - [ ] **M3.1 Annotation** — PGA (plastid) · MITOS2/GeSeq (mito)
 - [ ] **M3.2 Gene-name check & normalization** — one shared normalizer, no divergent copies
