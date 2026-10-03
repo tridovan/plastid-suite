@@ -35,8 +35,14 @@ length — `PZ428230.1` passed the gate on a 15,756 bp repeat while every congen
 **Waiting on people:** real Oldenlandia/Coleus samples → P2-10 only (stand-ins now unblock
 P2-07/08/11 development) · real Illumina reads + nuclear genome → Phase 6/7 · item (c) → docs.
 
-**Branches (all local, none pushed):** `main` = init · `feat/phase-1` · `feat/p1-02-core-model` ·
-`feat/p1-04-result-schema` (current). Stacked — consider merging finished ones into `feat/phase-1`.
+**Branches (all pushed to `origin`, 2026-10-03):** `main` = **Phase 1 complete** (fast-forwarded to
+the Phase-1 tip, no merge commit) · `feat/phase-1` · `feat/p1-02-core-model` · `feat/p1-04-result-schema`
+(the stacked Phase-1 branches, kept for reference; their commits are already in `main`) ·
+**`feat/phase-2` = current**, four commits on top of `main` — a PR from it to `main` shows exactly
+those four, which is why Phase 1 was fast-forwarded in first.
+
+Every commit on `feat/phase-2` was checked out and `make check`-verified individually, so
+`git bisect` is usable across the branch.
 
 **Data note:** `.panel/` is gitignored; re-fetch the stand-in set with the two `panel pin --groups`
 commands in PROJECT.md §8.6.
