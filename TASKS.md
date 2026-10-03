@@ -164,14 +164,17 @@ touch the IR gate; on a machine with PMGA the count reproduces the record's own 
 PROJECT.md §3 (P1-12, the backend rule): *a heavy step runs where it fits* — locally when the
 machine can, on a web service or a bigger server when it cannot. For PMGA that means:
 
-* **option 1 — container, local.** Here: `~/toolbox/src/pmga_dl/PMGA_tools/` (3.18 GB → **11 GB
-  unpacked**, 138,045 files, sha256 `81a23743…`), Apptainer 1.5.4 installed, and **the real
-  command line read from the container's own POD**: `mgavas -pid <id> -in <fasta> -db <1|2|4>
+* **option 1 — container, local.** *Not on this machine any more*: it was downloaded and unpacked
+  (3.18 GB → **11 GB**, 138,045 files, sha256 `81a23743…`), its command line was read out of it,
+  and it was deleted — the real C: drive had **42 GB free**, the WSL virtual disk does not give
+  space back, and this machine cannot comfortably run MAKER anyway. Re-download is one `curl`
+  (`docs/tools/pmga.md`). Apptainer 1.5.4 is installed, and **the real command line read from the
+  container's own POD**: `mgavas -pid <id> -in <fasta> -db <1|2|4>
   [-conf <file>] [-ref <genbank>] [-outdir <dir>]` (enter through `mgavas`/`mgavas.sh`, never
   `mgavas_m` alone — the wrapper sets the environment). It bundles MAKER, vmatch, ARAGORN,
   tRNAscan-SE, MISA, TRF, BLAST, EMBOSS, HMMER, circos and Deepred-mt. **Measured cost on this
-  machine: 11 GB of disk and a VM that balloons toward its 8 GB cap — it is not the route for a
-  4–8 GB laptop.** `external/pmga.py` is therefore a *later* convenience, not the unblocker.
+  machine: 14 GB of a C: drive with 42 GB free, and a VM that balloons toward its 8 GB cap — it is
+  not the route for a 4–8 GB laptop.** `external/pmga.py` is therefore a *later* convenience, not the unblocker.
 * **option 2 — the web service, pinned. DONE 03/10** (`plastid panel pin --file … --note …`,
   PROJECT.md §8.19): run `1kmpg.cn/pmga` once per species, save the GenBank, pin it — checksums,
   read-back and provenance recorded like any NCBI download. Every later run is offline and needs

@@ -19,7 +19,7 @@ tool D3-01 chose for the mito path, after MITOS2 was rejected — MITOS2's refer
 | Record | Figshare 27201798, "Source code of PMGA", published 2024-10-11, **GPL-3.0+** |
 | Download | `https://ndownloader.figshare.com/files/49723380` — **3,176,338,860 B (3.18 GB)**, sha256 `81a23743eb6786d9…` |
 | What it unpacks to | `PMGA_tools/` — a **Singularity container filesystem** (`.singularity.d`, `bin`, `lib`, `usr`, `apps`), not source code and not a `.sif` image |
-| Unpacked size | **more than 6 GB**, 148,650 entries |
+| Unpacked size | **11 GB**, 138,045 files |
 | Inside | a conda environment (`apps/miniconda3`, env `cpgavas2`), the pipeline's own scripts (`apps/mgavas`, 78,816 entries), and its reference data (`modules/mganno`, 64,833 files) |
 | Inner git | one commit, `464166cf…`, 2022-01-27 — the pipeline itself has no released version number |
 
@@ -84,11 +84,18 @@ run the container — and it is a small job then, because the command line is kn
 
 ## What is NOT yet measured — and what it needs
 
-**Nobody has run it here.** The container is downloaded and unpacked, its command line is read
-from the container itself, but `apptainer exec PMGA_tools/ …` was **refused by the permission
-classifier**: it is third-party code that the user has not named in this session, which is the
-same boundary that stopped PGA earlier (and was cleared then by naming it). Until it runs, these
-are open:
+**Nobody has run it here, and the container is no longer on the machine.** It was downloaded and
+unpacked (3.18 GB → 11 GB, 138,045 files), its command line was read out of it, and it was then
+**deleted**: measured the same day, the WSL virtual disk reports ~1 TB free while the real C:
+drive had **42 GB left (89 % full)**, and `ext4.vhdx` does not shrink when files are deleted
+inside the guest — WSL refuses its own sparse mode ("currently disabled due to potential data
+corruption"). Fourteen gigabytes was a third of what was actually free, for a tool this machine
+cannot comfortably run. Re-downloading it is one `curl` away (the URL and sha256 are above), so
+nothing is lost — and the whole point of route 2 below is that this machine never needs it.
+
+`apptainer exec PMGA_tools/ …` was also **refused by the permission classifier** at the time:
+third-party code the user had not named in-session, the same boundary that stopped PGA earlier.
+Until it runs somewhere, these stay open:
 
 * whether it runs at all on a 7 GB machine (and, in particular, whether its conda environment
   survives WSL2);

@@ -1054,6 +1054,16 @@ rồi **ghim file** — chạy được ngay, không cần container. Adapter `e
 
 ---
 
+
+**Đo được thêm, cùng ngày — dung lượng ĐĨA THẬT.** Container 3,18 GB giải nén ra 11 GB, và nó bị
+xoá ngay sau khi đọc xong CLI, vì: `df` **bên trong WSL báo còn ~905 GB — đó là trần đĩa ảo 1 TB,
+không phải dung lượng thật**. Ổ **C: thật chỉ còn 42 GB (đã dùng 89 %)**, và file `ext4.vhdx`
+(54 GB) **không co lại khi xoá file bên trong** — WSL từ chối chế độ sparse của chính nó
+("currently disabled due to potential data corruption"), nên dòng `sparseVhd=true` trong
+`.wslconfig` **không có tác dụng**; muốn lấy lại phải compact thủ công từ Windows. Bài học: mọi
+thứ tải/cài trong WSL đều nằm trong một file không tự nhỏ đi, nên **phải đo `df -h /mnt/c`**, và
+cân nhắc đường không-cần-cài (web service + `panel pin --file`) trước.
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
