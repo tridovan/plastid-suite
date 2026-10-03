@@ -51,7 +51,7 @@ the moment the four names were measured by locus (PROJECT.md §8.9–8.10). It i
 | 3 | **A decision on the mito annotator** (PMGA vs GeSeq vs MFannot/AGORA), knowing PMGA's dependency weight | dev + anh Điềm (environment) | P3-04 | make it at P3-04 with `docs/D3-01_annotator.md`'s reasoning applied to mito |
 | 4 | **The gene name to print in the manuscript and submit to NCBI** | cô Trang | the *wording* of the gene table only — the pipeline is unaffected | recommend `pafI (ycf3)`; see D3-06 |
 | 5 | **Item (c) text for the Reference Panel notes** | cô Trang | D-03 (docs) only | the §13.1 paragraph is truncated in the source |
-| 6 | **PGA needs a first run by a human** | anh Trí | P3-03 | `git clone https://github.com/quxiaojian/PGA` (GPL-3.0, Perl, 58★, active) into `~/toolbox/src/`, then `perl PGA.pl` once. Executing freshly-cloned third-party code was refused here by the permission classifier — correctly, since it was not a source named in the session. One manual run settles it |
+| 6 | ~~**PGA needs a first run by a human**~~ — **done 03/10**, and it did not reproduce the golden record (147 genes vs 132): the annotator is now Chloe (PROJECT.md §8.15–8.17) | anh Trí | P3-03 — closed | PGA is cloned and runs at `~/toolbox/src/PGA`; it stays reachable as `--set annotator=pga` for genomes Chloe does not cover |
 | 7 | **`table2asn` download** | anh Trí, or a run with a longer network window | the `.sqn` half of P3-05 only | `curl -C - -o ~/toolbox/bin/table2asn.gz https://ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/linux64.table2asn.gz` |
 
 ## Not blocked — the next session can start immediately
