@@ -114,5 +114,5 @@ the source, and the TBL's partial/join syntax matches a real submitted record fi
 |---|---|---|---|
 | D-03 | Fill Reference Panel item (c) in PROJECT.md §13.1 | BLOCKED | cô Trang provides the text |
 | H-01 | MAFFT 7.526 on a machine that can run it | BLOCKED | P2-07/P2-08 real-data numbers (PROJECT.md §7.8 pins 7.526) |
-| H-03 | **P2-10's `standin-coleus-amboinicus` label is wrong** — `PX923121.1` is the group's OWN record and the manuscript species (§8.10) | OPEN | the *C. amboinicus* draft re-run under an honest label (`own-record-…`), not `standin-…` |
+| H-03 | P2-10's *C. amboinicus* label | **DONE 03/10** | re-run as `own-record-coleus-amboinicus`; both draft labels now state what they are (`standin-` for someone else's record, `own-record-` for the group's) — `docs/P2-10_manuscript_draft.md` |
 | H-02 | Three merged Phase-1 branches (`feat/phase-1`, `feat/p1-02-core-model`, `feat/p1-04-result-schema`) are labels on commits already in `main` | OPEN | deleted or deliberately kept — commits are reachable from `main` either way |

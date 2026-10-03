@@ -438,7 +438,7 @@ Công thức ở `docs/P2-10_manuscript_draft.md`. Chạy thật **một lệnh 
 
 ```
 plastid run -m genome_stats -m structure -m gene_table -m codon_usage -m amino_acid \
-            -m introns -m ssr -i <genome>.gb --docx --dataset standin-<loài>
+            -m introns -m ssr -i <genome>.gb --docx --dataset <nhãn>
 ```
 
 **Phát hiện quan trọng — bộ "thay thế" chứa đúng hai loài bản thảo:**
@@ -446,9 +446,16 @@ plastid run -m genome_stats -m structure -m gene_table -m codon_usage -m amino_a
 - `PP078674.1` = ***Scleromitrion diffusum*** — **tên hiện hành của *Oldenlandia diffusa***
 - `PX923121.1` = ***Coleus amboinicus*** — **đúng loài thứ hai**
 
-Tức hai bản ghi này **không phải loài họ hàng** mà là bản công khai **của chính hai loài** —
-khác mẫu của nhóm, nhưng cùng loài. Vì vậy nhãn vẫn là `standin-…` và **vẫn không được** dùng như
-số của nhóm: cùng loài không có nghĩa cùng mẫu (kiểu gen, quần thể, chất lượng chú giải đều khác).
+Tức hai bản ghi này **không phải loài họ hàng** mà là bản công khai **của chính hai loài**.
+
+⚠️ **ĐÍNH CHÍNH (xem §8.10):** kết luận trên còn thiếu một nửa. `PX923121.1` **là bản ghi do nhóm
+mình nộp** (Vu,H.-T. = cô Trang), nên với *C. amboinicus* nhãn đúng là
+**`own-record-coleus-amboinicus`**, không phải `standin-…`. `PP078674.1` (*O. diffusa*) là của
+Shen,C. nên nhãn `standin-oldenlandia-diffusa` **vẫn đúng**. Bản chạy lại theo nhãn mới nằm ở
+`.runs/standin/own-record-coleus-amboinicus/`; các số trong bảng dưới không đổi (cùng một bản ghi).
+
+**Nhãn từng loài (đính chính §8.10):** *C. amboinicus* = **`own-record-coleus-amboinicus`** (bản ghi
+của nhóm) · *O. diffusa* = **`standin-oldenlandia-diffusa`** (bản ghi của Shen,C.).
 
 **Số đo được (mỗi số là một ô trong bảng của lần chạy, không gõ tay):**
 
