@@ -13,7 +13,7 @@ stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLE
 (PROJECT.md §8.8, `docs/P2-10_manuscript_draft.md`) — the real samples are still what makes it the
 team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
-**Phase 3 — COMPLETE (5/5), branch `feat/phase-3` (stacked on `feat/phase-2`, which is not yet
+**Phase 3 — code COMPLETE, one verification OPEN (4 full + P3-04's count check), branch `feat/phase-3` (stacked on `feat/phase-2`, which is not yet
 merged to `main`).** The board is `TASKS.md`; the one task that closed by *decision* rather than by
 code is P3-04's annotator (see below). **Next phase: Phase 4 — multi-genome comparison**
 (`ROADMAP.md`; M4.1–M4.6, of which M4.5 needs RNA data the team does not have yet).
@@ -68,7 +68,13 @@ code is P3-04's annotator (see below). **Next phase: Phase 4 — multi-genome co
   -e …`, which made PGA run with defaults — whose first act is `rm -rf gb` in the working directory
   (fixed: the probe never executes a Perl tool now). Also measured: 3 of the RefSeq Iris references
   use the **functional dialect** too, which strengthens D3-02. §8.15.
-- **P3-04 mito — DONE (03/10, late), with the annotator closed by decision.** The mito path works
+- **P3-04 mito — the mito path is DONE; the annotator's count check is OPEN, and both routes were
+  tried and measured (03/10).** Local: the container needs 11 GB + MAKER, this machine cannot.
+  Web: `www.1kmpg.cn/pmga/` is a redirect to `47.96.249.172:16084`, and that host **refuses
+  connections** on 16084/16081/16086 (`curl -v`, measured 03/10) — the authors' service is down.
+  Closing it later is a re-test, not a task: when that port answers, one web run +
+  `plastid panel pin --file` finishes it. (I first closed this task on the *decision* alone, before
+  running the web route; that was wrong and is corrected in the board.) The mito path works
   and is measured (`mito_genes`: `OX459128.1` → 51 = 31 CDS + 17 tRNA + 3 rRNA, no IR gate). The
   annotator itself is **PMGA on its web service, pinned** — because **this machine is not strong
   enough to run the annotator**: the container is 3.18 GB → 11 GB unpacked and drives MAKER, the

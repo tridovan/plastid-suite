@@ -145,7 +145,7 @@ longer executes a Perl tool at all (PROJECT.md §8.15, regression test in `tests
 curated reference set and, if the team wants PGA in the pipeline, the curation step that removes
 its duplicate calls.
 
-### P3-04 · Annotation — mitochondrion · M3.1 · [x] DONE 03/10 — **mito path done · annotator: web service + pin**
+### P3-04 · Annotation — mitochondrion · M3.1 · [~] **mito path DONE · count check OPEN (external service down)**
 
 - [x] **first, fix M3.1's tool**: MITOS2 is a **metazoan** annotator (reference set `refseq81m`) and
       cannot annotate a plant mitochondrion — its output would be wrong, not empty. **PMGA** is the
@@ -160,16 +160,25 @@ its duplicate calls.
       — see the note below; the count check it was meant to enable is met by the pinned route instead
 **Done when:** on a mitogenome the gene-set table reports plant mito gene names and the run does not
 touch the IR gate; on a machine with PMGA the count reproduces the record's own annotation.
-**Half met, half NOT YET — stated plainly (03/10):**
+**Half met, half OPEN — and the open half is now blocked by a measurement, not by a guess
+(03/10, after I wrongly closed this task):**
 * *the mito path* — **MET**: `OX459128.1` reports **51 = 31 CDS + 17 tRNA + 3 rRNA** with no IR
   gate (§8.14).
-* *the count against an annotator's own output* — **NOT MET, and not measurable here.** Recorded
-  honestly rather than ticked: the web service is reachable from this machine (HTTP 200,
-  ~11 s to `www.1kmpg.cn/pmga/`) but **nobody has run it** — it is an upload form, and the
-  `panel pin --file` step was tested with a *stand-in file* (an NCBI record copied to disk), not
-  with a PMGA output. So the route is built and its second step is tested; the first step has
-  never happened. Closing it needs **one web-service run** — see the entry below on whose data
-  that may be.
+* *the count against an annotator's own output* — **OPEN. Both routes were tried; both fail, for
+  different reasons, and only one of them is ours:**
+  * **local**: this machine is not strong enough (11 GB unpacked + MAKER vs an 8 GB WSL cap and
+    42 GB free on C:).
+  * **web**: **PMGA's application server refuses connections.** Measured with `curl -v` on
+    03/10: `www.1kmpg.cn/pmga/` answers HTTP 200 but is only a redirect to
+    `47.96.249.172:16084/home`, and that host answers **`Connection refused`** on **16084**,
+    **16081** and **16086** — the socket is refused in ~0.2–2 s, so nothing is listening. The
+    landing page at `www.1kmpg.cn/mgavas/` is likewise a frame pointing at `47.96.249.172:16081`.
+    The service is down (or firewalled), and has been since at least this measurement.
+  * **and for the team's own samples** there is a third gate: the genome leaves the lab, which is
+    cô Trang's call, not a dev one.
+  **So the check cannot be made today by either route.** It becomes a re-test, not a task:
+  `curl -sS -o /dev/null -w '%{http_code}\n' http://47.96.249.172:16084/home` — the moment that
+  answers, one web run + `panel pin --file` closes it.
 **Needs:** PMGA on the machine — **it is now here, downloaded and unpacked (03/10, `docs/tools/pmga.md`).**
 **WHOSE DATA MAY GO TO THE WEB SERVICE — a team decision, not a dev one (raised 03/10).**
 Option 2 sends a genome to a third-party server in order to get an annotation back. For a
@@ -179,7 +188,8 @@ same class of decision as what goes in a manuscript. Nothing here blocks the dev
 is built, and the run that verifies it can use a public genome.
 
 **DECISION (dev, 03/10, confirmed by anh Trí) — PMGA is a declared tool, not an adapter, because
-this machine is not strong enough to run the annotator.**
+this machine is not strong enough to run the annotator — with the count check left OPEN rather
+than closed on an untested route.**
 Measured: the container is 3.18 GB compressed → **11 GB unpacked, 138,045 files**; running it
 needs Apptainer and drives MAKER inside, and the machine's WSL VM is capped at 8 GB while the real
 C: drive had only 42 GB free. The container was downloaded, its real command line read out of it,

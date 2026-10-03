@@ -1047,10 +1047,18 @@ chứ không bị thay, vì ghim một file là ghim *vào* một panel đã có
 31 CDS + 17 tRNA + 3 rRNA · circular)` — khớp đúng số §8.14. Bản ghi không đọc được vẫn được ghim
 kèm `parse_error` (từ chối ghim sẽ để lại một con số mà không ai giữ nguồn).
 
-**Chưa chạy, nói thẳng (03/10):** dịch vụ web **tới được** từ máy này (`www.1kmpg.cn/pmga/` →
-HTTP 200, ~11 giây) nhưng **chưa ai chạy nó** — đó là form upload, và bước `panel pin --file` mới
-được test bằng **một file stand-in** (bản ghi NCBI copy ra đĩa), **không phải output PMGA thật**.
-Nghĩa là: đường đã dựng, bước thứ hai đã test, **bước thứ nhất chưa từng xảy ra**. Và một điểm
+**Chưa chạy, và đo ra thì KHÔNG chạy được — cả hai đường (03/10).** Tôi đã khép task này trên một
+đường chưa từng chạy; kiểm lại thì:
+* trang chủ `www.1kmpg.cn/pmga/` trả **HTTP 200 nhưng chỉ là redirect** sang
+  `47.96.249.172:16084/home`, và host đó **từ chối kết nối** (`Connection refused`, ~0,2–2 giây)
+  trên **cả ba cổng 16084 · 16081 · 16086** — tức không có gì đang lắng nghe; `www.1kmpg.cn/mgavas/`
+  cũng chỉ là frame trỏ vào `47.96.249.172:16081`;
+* nên **cả hai đường đều không chạy được hôm nay**: local vì máy yếu, web vì **service của tác giả
+  đang chết**. Phép kiểm số gen mito vì thế **vẫn mở**, và cách đóng nó là *chạy lại*, không phải
+  một task mới: `curl -sS -o /dev/null -w '%{http_code}' http://47.96.249.172:16084/home` — khi nào
+  có đáp án thì một lần chạy web + `panel pin --file` là xong.
+* bước `panel pin --file` thì **đã test**, nhưng bằng **một file stand-in** (bản ghi NCBI copy ra
+  đĩa), **không phải output PMGA thật** — hai chuyện khác nhau, không được gộp. Và một điểm
 không phải việc của dev: đẩy genome **chưa công bố** của nhóm lên server bên thứ ba là **quyết định
 của cô Trang** (dữ liệu rời khỏi lab) — chạy kiểm bằng genome công khai thì không vướng gì.
 
