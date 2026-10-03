@@ -41,70 +41,117 @@ Phase 7 only, skipped here.*
 | Writing a TBL from memory | the 5-column NCBI table has exact rules (partial flags `<` `>`, `join(...)`, `codon_start`, `transl_table` per feature) — check against a real submitted record |
 | Quoting "132 genes" for a new genome | 132 is *Iris domestica*'s. Write the breakdown: **132 = 86 + 38 + 8** for the golden, whatever the record actually has otherwise |
 
-### P3-01 · ORF checks — start · stop · internal codons · M3.3 · [ ]
+### P3-01 · ORF checks — start · stop · internal codons · M3.3 · [x] DONE 03/10
 
-- [ ] read the record's own `/transl_table` and `/codon_start` into the model (`Gene` gains both);
+- [x] read the record's own `/transl_table` and `/codon_start` into the model (`Gene` gains both);
       refuse a table we cannot translate and a `codon_start` that is not 1
-- [ ] classify every CDS: `ok` · `alternative_start` · `no_start` · `no_stop` · `internal_stop` ·
+- [x] classify every CDS: `ok` · `alternative_start` · `no_start` · `no_stop` · `internal_stop` ·
       `not_multiple_of_three`; pseudogenes marked, not silently counted as failures
-- [ ] report genes **annotated without a CDS** as their own class — the truncated-ycf1 shape
-- [ ] never rewrite a CDS to make it pass
+- [x] report genes **annotated without a CDS** as their own class — the truncated-ycf1 shape
+- [x] never rewrite a CDS to make it pass
 **Done when:** on the golden genome all 86 CDS give 0 internal stops, 0 missing stops, every length
 divisible by three, and **exactly 5** classified `alternative_start` (rps19 GTG · rpl2 ACG ×2 ·
 ndhD ATC); the truncated ycf1 is reported as *annotated, not coding* rather than as a failure.
 **Pitfall:** the 3.7 % alternative-start rate above. **Needs:** D3-03.
+**Measured (PROJECT.md §8.11):** the contract above, exactly; plus two rules the tests forced —
+**ACG** is accepted as a start but classed `non_canonical` (it is *not* in NCBI table 11's list,
+yet the published record uses it), and *annotated-not-coding* matches **name and position
+together** (the truncated ycf1 overlaps ndhF's first 21 bp, so either half alone goes silent).
 
-### P3-02 · Gene-name check & normalization · M3.2 · [ ]
+### P3-02 · Gene-name check & normalization · M3.2 · [x] DONE 03/10
 
-- [ ] **one** normalizer in `core/gene_names.py` — and nothing else in the codebase may rename a gene.
+- [x] **one** normalizer in `core/gene_names.py` — and nothing else in the codebase may rename a gene.
       It covers the measured dialects: tRNA `trnL(UAA)` → `trnL-UAA`, rRNA `rrn16S` → `rrn16`, case,
       whitespace — **plus a bare tRNA name resolved by sequence identity**, not by guessing
       (`trnK` ≡ `trnK-UUU`, `trnI` ≡ `trnI-GAU`, both 100.0 % on this dataset)
-- [ ] `data/gene_aliases.yaml` for **semantic** aliases — seeded with `pafI`·`pafII`·`pbf1`·`clpP1`
+- [x] `data/gene_aliases.yaml` for **semantic** aliases — seeded with `pafI`·`pafII`·`pbf1`·`clpP1`
       per D3-02, each entry carrying the evidence it rests on; it ships **empty of guesses**
-- [ ] `data/gene_groups.yaml` gains those four names in their functional groups (PSI assembly, PSII
+- [x] `data/gene_groups.yaml` gains those four names in their functional groups (PSI assembly, PSII
       biogenesis, protease) — today they land in *unclassified*, which is how this was found
-- [ ] a name with no mapping is **kept** and listed in the Result with its `/product`, never guessed
-- [ ] a mapped name keeps its **`source_name`**, so a reader can always trace back to the record
-**Done when:** the normalizer is idempotent over all **156** distinct names, leaves the golden's
-**112** unchanged, and on the panel resolves `pafI`·`pafII`·`pbf1`·`clpP1` **and** `trnK`·`trnI` —
-each while still reporting the name it arrived under; `gene_groups` reports **0 unclassified** on all
-11 records; any name with no mapping is reported rather than renamed.
+- [x] a name with no mapping is **kept** and listed in the Result with its `/product`, never guessed
+- [x] a mapped name keeps its **`source_name`**, so a reader can always trace back to the record
+**Done when:** the normalizer is idempotent over all **156** distinct names (panel ∪ golden) and
+never rewrites one — the golden's **112** names arrive unchanged and resolve to **112** distinct
+canonicals, none dropped and none merged — and on the panel it resolves `pafI`·`pafII`·`pbf1`·`clpP1`
+**and** `trnK`·`trnI` (`trnK-UUU` · `trnI-GAU`, 100 % sequence identity), each while still reporting
+the name it arrived under; `gene_groups` reports **0 unclassified** on all 11 records; any name with
+no mapping is reported rather than renamed.
 **Needs:** nothing — D3-02 is decided (PROJECT.md §8.10). Only the *printed wording* (D3-06) waits.
+**Measured (PROJECT.md §8.12):** the whole Done-when, on the 11-record panel — 155 arriving names →
+115 canonical, **0 unresolved**, both bare names resolved exactly as §8.10 measured. Two things this
+work changed rather than confirmed. (1) The earlier Done-when sentence — "leaves the golden's 112
+unchanged" — was written *before* D3-02 flipped in session 5: with `pafI` as the key, the golden's
+four loci **are** renamed, so the check above now states what the decision implies. (2) The CLI
+required `len(genomes) == arity`, refusing an 11-record panel for an `arity=2` module; API v0.2 says
+"**at least** arity" and the runner already agreed — the CLI did not. Fixed, with a regression test.
+**Wiring:** the normalizer feeds `gene_table`, `genome_stats`, `orf` and the new `gene_names` module.
+Modules whose gene column is a *per-record key* (introns, diversity, substitutions) still print the
+name the record arrived with — Phase 4 keys its comparisons on the canonical name and must wire them.
 
-### P3-03 · Annotation — plastome (PGA) · M3.1 · [ ]
+### P3-03 · Annotation — plastome (PGA) · M3.1 · [x] DONE 03/10 *(measured half still on a machine with PGA)*
 
-- [ ] `external/pga.py` through `run_tool()`; path, version and argv land in the run info
-- [ ] the annotator's GenBank output is read back by **our own reader** and must round-trip
-- [ ] `modules/annotation.py`: the resulting gene set, its ORF status (P3-01) and its name mapping (P3-02)
+- [x] `external/pga.py` through `run_tool()`; path, version and argv land in the run info
+- [x] the annotator's GenBank output is read back by **our own reader** and must round-trip
+- [x] `modules/annotation.py`: the resulting gene set, its ORF status (P3-01) and its name mapping (P3-02)
       go through the same pipeline as a downloaded record — no second code path
 **Done when:** on a machine with PGA, annotating a de-annotated golden FASTA reproduces the golden's
 gene counts by the fixed rule (86 CDS + 38 tRNA + 8 rRNA) and the output re-reads clean. Here:
 implemented and `PTS_REQUIRE_TOOLS=1`-gated, **no number claimed from a run that did not happen**.
 **Needs:** D3-01, and PGA on the machine.
+**Measured (PROJECT.md §8.13):** the two halves that do not need PGA. A missing `PGA.pl` is a named
+`ToolError` (clone instructions included) and exit 3. The path *from* "the annotator wrote a
+GenBank file" *to* the gene set runs against a **stub** in PGA's place — our argv, our read-back,
+our checks — and reproduces **132 = 86 + 38 + 8**, 0 ORF failures, 5 alternative starts, 4 aliased
+names. **That is a test of our wiring, not of PGA**: the golden's own annotation is what the stub
+copies, so it is not evidence that PGA annotates correctly. The gated test is the one that can
+say that, and it has not run here.
 
-### P3-04 · Annotation — mitochondrion · M3.1 · [ ]  ⚠ **the planned tool does not fit**
+### P3-04 · Annotation — mitochondrion · M3.1 · [ ] **BLOCKED — see the exact ask**
 
-- [ ] **first, fix M3.1's tool**: MITOS2 is a **metazoan** annotator (reference set `refseq81m`) and
+- [x] **first, fix M3.1's tool**: MITOS2 is a **metazoan** annotator (reference set `refseq81m`) and
       cannot annotate a plant mitochondrion — its output would be wrong, not empty. **PMGA** is the
       tool that fits (Li et al. 2025, benchmarked at 1 wrong gene vs GeSeq's 18), at the cost of a
       heavy environment. Decide before implementing — PROJECT.md §7.8b
+      → **DECIDED 03/10 (dev + user): PMGA.** Recorded in PROJECT.md §3.
 - [ ] the mito path: no canonical IR, so nothing may call `ctx.require_ir()` on it — measured on both
       stand-in mitogenomes, which raise `IRDetectionError` and are **right** to
-- [ ] `external/mitos.py` through `run_tool()`, output re-read by our reader
+- [ ] `external/pmga.py` through `run_tool()`, output re-read by our reader
 **Done when:** on a mitogenome the gene-set table reports plant mito gene names and the run does not
-touch the IR gate; on a machine with MITOS2 the count reproduces the record's own annotation.
-**Needs:** the tool decision above; PMGA (or the chosen tool) on the machine.
+touch the IR gate; on a machine with PMGA the count reproduces the record's own annotation.
+**Needs:** PMGA on the machine.
+**Why nothing was written this session — the honest reason.** PMGA is not on conda and has no git
+repository: the paper distributes it as a **singularity container** (Figshare 27201798) and a web
+server, and no command-line usage is published anywhere retrievable. An adapter written against an
+invented CLI would be a placeholder that looks real — the one thing CLAUDE.md bans — so the adapter
+waits for the container. **The exact ask:** pull the Figshare container, record its entry point and
+`--help` in `docs/`, and then `external/pmga.py` follows the same shape as `external/pga.py`.
+**Two measurements the next session needs** (PROJECT.md §8.13): the stand-in mitogenome
+`OX459128.1` carries **no `/gene` qualifier at all** — every name in our model is its `/product`
+text ("NADH dehydrogenase subunit 1"), so "plant mito gene names" needs a product→symbol vocabulary
+before it can be reported; and its CDS starts include `CCT` and `CGC`, which no translation table
+accepts — the ORF check will (correctly) flag them, and that is a finding about the record, not a
+bug to paper over.
 
-### P3-05 · NCBI submission files — FASTA · TBL · SQN · M3.4 · [ ]
+### P3-05 · NCBI submission files — FASTA · TBL · SQN · M3.4 · [~] (Python half DONE 03/10)
 
-- [ ] `.fsa` and the 5-column `.tbl`, in pure Python, from the *normalized* gene set
-- [ ] `.sqn` through `table2asn` when it exists; a named error and exit 3 when it does not
-- [ ] a first-pass check on the record: no duplicate locus tags, no feature past the sequence end,
+- [x] `.fsa` and the 5-column `.tbl`, in pure Python, from the *normalized* gene set
+- [x] `.sqn` through `table2asn` when it exists; a named error and exit 3 when it does not
+- [x] a first-pass check on the record: no duplicate locus tags, no feature past the sequence end,
       `transl_table` on every CDS
 **Done when:** a golden record produces `.fsa` + `.tbl` whose features re-read into the same set as
 the source, and the TBL's partial/join syntax matches a real submitted record field for field.
 **Needs:** D3-04. **Blocked for the `.sqn` half by:** `table2asn` (absent here).
+**Measured (PROJECT.md §8.13):** the round trip holds on the golden — **265/265** features
+(133 `gene` + 86 CDS + 38 tRNA + 8 rRNA) come back with the same kind, name, intervals (partials
+included), product and table, and 0 first-pass problems. The syntax rules were taken from NCBI's
+documentation, not memory — `join()` does not exist in this format (intervals **stack**), a
+minus-strand interval is **reversed**, and `<` goes in column 1 while `>` goes in column 2
+whatever the strand, both as **prefixes** (`>1050`, not `1050>`).
+**Two honest gaps, both named:** (1) the "matches a real submitted record field for field" clause
+was checked against NCBI's *documented* rules and their verbatim example rows, **not** against a
+real submitted `.tbl` — none was available here; (2) the `.sqn` half also needs a submitter
+template (`.sbt`), which only the team can supply (it names people and institutions), so the
+adapter takes `--set template=…` and refuses without it.
 
 ## Waiting on data / people
 
@@ -112,7 +159,9 @@ the source, and the TBL's partial/join syntax matches a real submitted record fi
 |---|---|---|
 | Which gene name the manuscript and the NCBI submission print (D3-06) | cô Trang | the *wording* of the gene table, not the pipeline |
 | A first run of PGA by hand (`~/toolbox/src/PGA`, GPL-3.0) | anh Trí | the *measured* half of P3-03 |
-| The mito annotator decision — MITOS2 cannot do plant mito; PMGA can, at a heavy dependency cost | dev + anh Điềm | P3-04 |
+| ~~The mito annotator decision~~ — **decided 03/10: PMGA** (PROJECT.md §3) | — | — |
+| The PMGA singularity container (Figshare 27201798), pulled and its entry point recorded | anh Điềm / anh Trí | P3-04 |
+| A submitter template (`.sbt`) for `table2asn` — names people and institutions | cô Trang | the `.sqn` half of P3-05 |
 | Whether `PX923121.1` is the specimen this manuscript reports | cô Trang | quoting *C. amboinicus* numbers as the manuscript's |
 | The team's own *O. diffusa* record | anh Điềm / cô Trang | the *O. diffusa* half of P2-10 (today: a stand-in) |
 | Item (c) text for the Reference Panel notes | cô Trang | D-03 only (documentation) |

@@ -13,9 +13,35 @@ stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLE
 (PROJECT.md §8.8, `docs/P2-10_manuscript_draft.md`) — the real samples are still what makes it the
 team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
-**Phase 3 — STARTED, branch `feat/phase-3` (stacked on `feat/phase-2`, which is not yet merged to
-`main`).** The board is `TASKS.md`; nothing in it is done yet. **Blockers were cleared first — read
-`docs/PHASE3_BLOCKERS.md` before touching anything.**
+**Phase 3 — five of six tasks closed, branch `feat/phase-3` (stacked on `feat/phase-2`, which is not
+yet merged to `main`).** The board is `TASKS.md`.
+
+- **P3-01 ORF checks — DONE.** `core/orf.py` + `modules/orf.py`; `Gene` now carries the record's own
+  `/transl_table` and `/codon_start`. Golden: 86 CDS, 81 `ok`, **5 `alternative_start`**
+  (rps19 GTG ×2 · rpl2 ACG ×2 · ndhD ATC), 0 failures; the truncated ycf1 is reported as
+  *annotated, not coding*. Two rules the tests forced: **ACG is a start but `non_canonical`** (not in
+  NCBI table 11 yet used by published records), and *annotated-not-coding* matches **name and
+  position together** (the truncated ycf1 overlaps ndhF's first 21 bp). PROJECT.md §8.11.
+- **P3-02 gene names — DONE.** One normalizer (`core/gene_names.py`) + `data/gene_aliases.yaml`
+  (4 loci, each with its evidence) + `modules/gene_names.py`. On the 11-record panel: 155 arriving
+  names → 115 canonical, **0 unresolved**, `trnK` → `trnK-UUU` and `trnI` → `trnI-GAU` by 100 %
+  sequence identity, 0 unclassified. Output prints **`canonical (synonym)`** everywhere. Also fixed
+  a real CLI bug: `arity ≥ 2` is "**at least**" (API v0.2) but the CLI demanded exactly. §8.12.
+- **P3-05 submission files — Python half DONE.** `.fsa` + 5-column `.tbl`, round-tripping
+  **265/265** golden features; `.sqn` is opt-in and needs both `table2asn` and a `.sbt` template.
+  The `.tbl` rules came from NCBI's docs, not memory (`join()` does not exist — intervals stack;
+  minus-strand intervals reverse; `<` in column 1, `>` in column 2, both as prefixes). §8.13.
+- **P3-03 PGA annotation — implemented, measured half pending.** Adapter + module + a stub test of
+  the wiring; the real run is `PTS_REQUIRE_TOOLS=1`-gated and skipped here (no PGA). §8.13.
+- **P3-04 mito — BLOCKED on the tool.** **PMGA decided** (not MITOS2, which is metazoan). PMGA ships
+  as a singularity container with no published CLI, so no adapter was written rather than invent one.
+  The exact ask is in `TASKS.md` → "Waiting on data / people".
+
+**Next action:** P3-04 waits on the PMGA container. Everything else in Phase 3 that can run on this
+machine has run — so the next session either pulls that container, or starts Phase 4 by wiring the
+remaining name-bearing modules (introns · diversity · substitutions) to the canonical name, since
+Phase 4 keys its comparisons on it. **Blockers: `docs/PHASE3_BLOCKERS.md`** (still the map of who
+owes what).
 
 Blocker state, short version:
 
@@ -88,6 +114,33 @@ Every commit on `feat/phase-2` was checked out and `make check`-verified individ
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 7 (Phase 3: P3-01 · P3-02 · P3-05 · P3-03)
+
+- **Did:** P3-01 (ORF checks), P3-02 (gene-name normalization + the whole printed form),
+  P3-05's Python half (`.fsa` + 5-column `.tbl`, artifacts through the Result/export/cache path),
+  P3-03 (PGA adapter + annotation module, gated). P3-04's tool decided (PMGA) but not implemented.
+- **Validation:** `make check` green — **276 fast + 30 golden + 1 skipped** (the PGA test, with a
+  named reason). Real CLI runs produced, for the golden genome: the ORF report (0 failures, 5
+  alternative starts), the 11-record panel name report (155 → 115, 0 unresolved, both bare tRNA
+  names resolved), and `submission.fsa` + `submission.tbl` (265/265 features round-trip, cache
+  restores them byte-identically).
+- **Six bugs found by the work, each now a regression test:** (1) a `gene` feature named `trnK`
+  spans the intron, so resolving bare names per *feature* compared an intron against a tRNA and
+  reported a false "unresolved" — resolution now runs from the tRNA feature only; (2) the CLI
+  refused more than `arity` genomes, contradicting API v0.2 and making an 11-record panel
+  impossible; (3) `annotated-not-coding` matched by position alone and `ndhF`'s CDS "covered" the
+  truncated ycf1; (4) the TBL writer put `>` after the number (`1050>`) where NCBI writes it as a
+  prefix (`>1050`); (5) a table key not present in its own columns (caught by the template fixture);
+  (6) `name_mappings` keyed on a column that did not exist.
+- **Residual risks:** PGA has never run here, so `external/pga.py`'s argv is from PGA's README and
+  unverified; the `.tbl`'s partial/qualifier layout is per NCBI's documentation and their verbatim
+  examples, not against a real submitted `.tbl`; the `.sqn` path has never run (no `table2asn`, no
+  `.sbt`); template prose cannot contain digits at all, so gene names with digits must come from
+  table cells.
+- **Blocked:** P3-04 on the PMGA container; P3-03's measured half on a machine with PGA; the `.sqn`
+  half on `table2asn` + a submitter template (`cô Trang`).
+- **Next:** see the Resume point.
 
 ### 2026-10-03 · Claude · dev WSL · session 6 (blocker clearance)
 

@@ -53,11 +53,15 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **Xuất Word (D2-04 + P2-09, dev quyết)**: `python-docx` là **extra tuỳ chọn** (`pip install 'plastid-suite[docx]'`), import **bên trong hàm** nên bản cài tối thiểu vẫn thuần Python; thiếu nó ⇒ `ExportDependencyError` + exit 3, không phải traceback ImportError. `openpyxl` **chưa thêm** — chưa có gì dùng (YAGNI); sẽ vào cùng extra khi làm Excel ở Giai đoạn 5 |
 | 03/10 | **Tài liệu Word phải tái lập được từng byte**: `python-docx` đóng dấu thời gian đồng hồ vào zip, nên gói được **dựng lại** với timestamp cố định (1980-01-01), entry sắp xếp, `create_system` ghim ⇒ cùng đầu vào ra cùng file. Đây là định nghĩa "Done when" của P2-09, không phải một lời hứa |
 | 03/10 | **Gói .docx được tỉa**: template của `python-docx` mang theo cả catalogue style của Word (164 style, ~350 kB) + `stylesWithEffects.xml` (438 kB) + thumbnail + `customXml`; bản xuất chỉ giữ style tài liệu **thực sự dùng** cùng tổ tiên và default của chúng, mọi quan hệ trỏ tới phần đã bỏ đều bị cắt. Đo được: ~800 kB → **13 kB**, có test cấu trúc canh |
-| 03/10 | **Tên gen: ánh xạ theo locus, giữ tên gốc (D3-02, dev quyết có bằng chứng)**: `pafI`·`pafII`·`pbf1`·`clpP1` trong `PX923121.1` là **cùng locus** với `ycf3`·`ycf4`·`psbN`·`clpP` — chứng minh bằng synteny + độ dài + `/product` trên 9 bản ghi (§8.9). Tên **chuẩn** giữ bản cổ điển (7/9 bản ghi + genome vàng); tên gốc đi kèm `source_name`, không bao giờ bị bỏ. Tên **in trong bản thảo** và **nộp NCBI** vẫn là quyết định của PI (D3-06) |
+| 03/10 | **[ĐÃ THAY — xem dòng dưới] Tên gen: ánh xạ theo locus, giữ tên gốc (D3-02, dev quyết có bằng chứng)**: `pafI`·`pafII`·`pbf1`·`clpP1` trong `PX923121.1` là **cùng locus** với `ycf3`·`ycf4`·`psbN`·`clpP` — chứng minh bằng synteny + độ dài + `/product` trên 9 bản ghi (§8.9). Tên **chuẩn** giữ bản cổ điển (7/9 bản ghi + genome vàng); tên gốc đi kèm `source_name`, không bao giờ bị bỏ. Tên **in trong bản thảo** và **nộp NCBI** vẫn là quyết định của PI (D3-06). *Chiều chuẩn hoá ở dòng này bị đảo ở dòng dưới, sau khi biết hai bản ghi là của nhóm (§8.10)* |
 | 03/10 | **Tên gen: khoá theo locus, in cả hai tên (D3-02, dev quyết có bằng chứng)**: bốn tên `pafI`·`pafII`·`pbf1`·`clpP1` là **cùng locus** với `ycf3`·`ycf4`·`psbN`·`clpP` (synteny + độ dài + `/product`, §8.9). **Khoá so sánh nội bộ = phương ngữ của nhóm** — vì `PX923121.1` là bản ghi **của nhóm** (Vu,H.-T. = cô Trang) và **đúng loài bản thảo**, và GeSeq sẽ sinh ra đúng bộ tên đó; tên cổ điển đi kèm `source_name`. **In ra thì in cả hai** (`pafI (ycf3)`) — cách các bảng gen công bố đang làm. `gene_groups.yaml` nhận thêm bốn tên vào đúng nhóm chức năng (§8.10) |
 | 03/10 | **Chú giải: công cụ offline là pipeline, GeSeq là bước kiểm tra một lần rồi ghim (D3-01, dev quyết)**: bộ công cụ **phải chạy offline và đóng gói bằng Docker**, mỗi lần chạy phải ghi **tên · phiên bản · đường dẫn · argv** — công cụ web không ghi được cái nào trong số đó, nên đây là **ràng buộc, không phải sở thích**. Chọn **PGA** (GPL-3.0, batch, ra GenBank; ba cái bẫy của nó — thư mục ra phải rỗng, tên file có dấu cách, multi-FASTA — repo này đã tránh sẵn), plann.pl dự phòng. GeSeq chạy tay **một lần cho mỗi loài bản thảo** rồi **ghim** (`panel pin`) ⇒ bước thủ công chỉ xảy ra một lần, các lần sau offline và tái lập được. Kiểm 03/10: GeSeq không có bản chạy rời | Dev | `docs/D3-01_annotator.md` |
 | 03/10 | **Đa genome (D2-01, dev quyết)**: giữ nguyên contract v0.1 `run(genome, params, ctx)`; thêm contract thứ hai `run(genomes, params, ctx)` chọn bằng `arity` khai báo lúc đăng ký — **không** nới rộng contract cũ, vì module một-genome sẽ phải nhận một dãy nó không dùng (seam 5). Runner cưỡng chế số genome trước khi chạy. Ghi ở `docs/API_v0.2.md` |
 | 03/10 | **π: cửa sổ 600 bp · bước 200 bp (D2-02)** — quy ước kiểu mVISTA; window/step vào params, manifest và report |
+| 03/10 | **ORF: đọc bảng mã của chính bản ghi, từ chối thay vì đoán (D3-03 + P3-01)**: `Gene` mang `/transl_table` và `/codon_start` của bản ghi; bảng mã ngoài {1, 11} ⇒ `OrfError` (hai bảng này chia sẻ toàn bộ axit amin, chỉ khác mã khởi đầu), `/codon_start` ≠ 1 ⇒ `OrfError` — dịch sai khung là kiểu "sai mà không báo". **ACG được nhận là mã khởi đầu nhưng xếp lớp riêng `non_canonical`**: nó *không* có trong danh sách của bảng 11, nhưng bản ghi đã công bố dùng nó cho rpl2/ndhD (RNA editing ACG→AUG); xếp vào `no_start` sẽ là báo động giả trên 2/86 CDS của genome vàng (§8.11) |
+| 03/10 | **Lớp "annotated, not coding" khớp cả TÊN lẫn VỊ TRÍ (P3-01)**: ycf1 cụt chồng lấn 21 bp với CDS của `ndhF`, nên khớp theo vị trí không thôi thì ndhF "phủ" nó, còn khớp theo tên không thôi thì CDS ycf1 thật ở chỗ khác "phủ" nó — mỗi cách hỏng một kiểu im lặng (§8.11) |
+| 03/10 | **File nộp NCBI: `.fsa` + `.tbl` thuần Python, luôn luôn; `.sqn` chỉ khi có `table2asn` *và* có template `.sbt` (D3-04, P3-05)**: web submission của NCBI nhận thẳng cặp `.fsa`+`.tbl`, nên bản cài tối thiểu vẫn nộp được. `.tbl` mang **tên gốc của bản ghi** (đổi tên là đổi nội dung nộp — D3-06 chỉ nói về *chữ in trong bản thảo*); toạ độ partial đi theo bản ghi, partial ở interval giữa ⇒ **từ chối**, không bỏ im lặng (§8.13) |
+| 03/10 | **Nối công cụ chú giải mito (P3-04) — PMGA**, không phải MITOS2 (annotator của động vật có vú, bộ tham chiếu `refseq81m`). PMGA phân phối dạng **singularity container** (Figshare 27201798) + web server, không có repo git và không có tài liệu CLI công khai ⇒ **chưa viết adapter**: viết theo CLI tự nghĩ ra sẽ là một placeholder trông như thật. Cần: kéo container, ghi entry point vào `docs/` |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
 
 ## 4. Ai làm gì
@@ -629,9 +633,149 @@ nằm ở một vị trí cố định trong bộ này. So trình tự là cách
   fail-loud, và chính nó đã chỉ ra vấn đề này.
 - **D3-01 (chọn công cụ) giờ có bằng chứng**: quy trình thật của nhóm là **GetOrganelle → GeSeq**.
 
----
+### 8.11. Kiểm tra ORF — P3-01 (03/10/2026)
 
-## 9. Lỗi đã gặp & số đo (tổng hợp)
+**Đã làm:** `core/orf.py` (phân loại) + `modules/orf.py` (báo cáo) + `Gene` nay mang `/transl_table`
+và `/codon_start` của chính bản ghi. Không có CDS nào bị viết lại để "cho qua".
+
+**Đo trên genome vàng (NC_050833.1) — đúng hợp đồng P3-01:**
+
+| Chỉ số | Số đo |
+|---|---|
+| CDS kiểm tra | **86** (khớp `count_genes().cds`, có bảng đối chiếu riêng) |
+| `ok` | **81** |
+| `alternative_start` | **5** = rps19 **GTG** ×2 · rpl2 **ACG** ×2 · ndhD **ATC** |
+| `no_start` · `no_stop` · `internal_stop` · `not_multiple_of_three` | **0 · 0 · 0 · 0** |
+| `gene` feature không có CDS nào cùng tên phủ | **1** — ycf1 cụt 108.448–109.347 (`pseudo`) |
+
+Mọi CDS khai `/transl_table=11` và `/codon_start=1`; module đọc đúng khai báo đó (D3-03).
+
+**Hai phát hiện mới, mỗi cái thành một luật:**
+
+1. **ACG không có trong danh sách mã khởi đầu của bảng 11 (NCBI)** — nhưng bản ghi đã công bố dùng nó:
+   đo trên panel được **4 ACG** (đều ở `ndhD`) cộng **2** ở genome vàng (`rpl2`); tài liệu cho thấy
+   ACG→AUG do RNA editing ở thực vật. Nếu xếp ACG vào `no_start` thì đúng hai CDS của genome vàng bị
+   báo động giả. Quyết định: ACG **được nhận là start** nhưng mang lớp riêng `non_canonical`
+   (khác `alternative` là codon có trong bảng) — vừa không báo động giả, vừa không im lặng.
+2. **ycf1 cụt chồng lấn 21 bp với CDS của `ndhF`** (109.327–109.347). Nên lớp "annotated, not coding"
+   phải khớp **cả tên lẫn vị trí**: khớp theo vị trí không thôi thì `ndhF` "phủ" nó và nó biến mất;
+   khớp theo tên không thôi thì CDS ycf1 thật ở chỗ khác (122.984–128.404) sẽ "phủ" nó. Cả hai cách
+   đều là im lặng — mỗi cách hỏng một kiểu.
+
+**Từ chối thay vì đoán:** bảng mã không nằm trong {1, 11} (hai bảng này chia sẻ toàn bộ axit amin,
+chỉ khác mã khởi đầu — D3-03) → `OrfError`; `/codon_start` ≠ 1 → `OrfError`. Dịch sai khung là kiểu
+"sai mà không báo", thà dừng.
+
+**Kiểm chứng:** `make check` xanh — **229 fast + 30 golden**; chạy thật `plastid run -m orf` trên
+genome vàng sinh đủ 5 bảng + report, 0 CDS lỗi.
+
+### 8.12. Chuẩn hoá tên gen — P3-02 (03/10/2026)
+
+**Đã làm:** `core/gene_names.py` (**một** chỗ duy nhất đổi tên gen) · `data/gene_aliases.yaml`
+(4 locus ngữ nghĩa, mỗi entry mang bằng chứng) · `modules/gene_names.py` (báo cáo trên nhiều bản
+ghi) · `gene_groups.yaml` nhận 4 tên mới · normalizer được nối vào `gene_table`, `genome_stats`,
+`orf`.
+
+**Ba loại khác biệt, xử lý và báo cáo riêng:**
+
+| Loại | Ví dụ | Nguồn tri thức |
+|---|---|---|
+| cú pháp | `trnL(UAA)` → `trnL-UAA` · `rrn16S` → `rrn16` | quy tắc, không cần dữ liệu ngoài |
+| ngữ nghĩa | `ycf3` → **`pafI`** (in ra `pafI (ycf3)`) | `gene_aliases.yaml` + D3-02 |
+| trình tự | `trnK` → `trnK-UUU` | so 100 % với bản sao có tên ở bản ghi khác |
+
+**Đo trên panel 11 bản ghi (chạy thật qua CLI):**
+
+| Chỉ số | Số đo |
+|---|---|
+| Gen được đếm | 1.048 |
+| Tên khác nhau *như bản ghi viết* | **155** |
+| Tên chuẩn khác nhau sau chuẩn hoá | **115** |
+| Viết khác cú pháp | 34 (30 tên ngoặc ở `NC_058328.1` + `rrn*S`) |
+| Một locus hai tên | 8 (4 locus × 2 chi) |
+| Giải bằng trình tự | **2** — `trnK` → `trnK-UUU`, `trnI` → `trnI-GAU` (đúng như §8.10 đo) |
+| Không giải được | **0** |
+| *Unclassified* (gene_groups) | **0** trên cả 11 bản ghi |
+
+Genome vàng: 112 tên đến **nguyên vẹn** (normalizer không viết lại tên nào) và cho **112** tên
+chuẩn — không mất, không gộp. Panel ∪ genome vàng = **156** tên (khớp board).
+
+**Ba việc sửa được trong lúc làm:**
+
+1. **Feature `gene` không mang trình tự.** Bản ghi `PX923121.1` có cả feature `gene` (trùm cả
+   intron) lẫn feature `tRNA` cùng tên `trnK`. Giải tên theo *từng feature* thì so intron với
+   tRNA → báo unresolved oan. Sửa: chỉ giải từ feature `tRNA`, rồi áp tên đã giải cho mọi feature
+   cùng tên. (Test panel bắt được, không phải review.)
+2. **CLI chặn panel.** `cli.py` so `len(genomes) != arity` — tài liệu API v0.2 ghi arity ≥ 2 là
+   "**at least**", runner cũng đã làm đúng, chỉ CLI sai. Hệ quả thật: module `arity=2` không chạy
+   được trên panel 11 bản ghi. Đã sửa + test hồi quy.
+3. **Dạng in ra:** mọi output in **`tên chuẩn (tên đồng nghĩa)`** — `pafI (ycf3)` — kể cả khi bản
+   ghi vốn đã dùng tên chuẩn, để người đọc không phân biệt được bản ghi nào dùng phương ngữ nào.
+   Tên gốc vẫn nằm trong `name_mappings` (cột `name`) và trong chính bản ghi.
+
+**Ràng buộc đã biết (chưa xử lý, cần team biết):** test quét template cấm **mọi** chữ số ngoài
+`{{…}}`, nên template không thể viết tên gen có số (`ycf3`, `rps19`) hay mã quyết định (`D3-02`).
+Hai template mới phải né bằng cách để dữ liệu trong bảng. Guard này vẫn giữ nguyên (không nới);
+nếu sau này prose cần tên gen, cách đúng là tham chiếu một ô bảng.
+
+**Kiểm chứng:** `make check` xanh — **255 fast + 30 golden**; chạy thật `plastid run -m gene_names`
+trên 11 bản ghi panel.
+
+### 8.13. Chú giải & file nộp — P3-03 · P3-04 · P3-05 (03/10/2026)
+
+**P3-03 · PGA (adapter + module).** `external/pga.py` chạy PGA qua `run_tool()` (argv lấy từ
+README chính thức: `perl PGA.pl -r <refdir> -t <targetdir> -o <outdir>`), trong thư mục tạm mới
+mỗi lần, tên file đã slugify, **một bản ghi mỗi lần chạy** — ba thói quen xấu của PGA (xoá thư mục
+ra, vỡ ở tên có dấu cách, multi-FASTA) đã bị chặn từ trước. Đầu ra GenBank được **đọc lại bằng
+reader của mình** rồi đi qua đúng bộ kiểm tra ORF + chuẩn hoá tên như một bản ghi tải về.
+
+*Đo được ở máy này:* thiếu `PGA.pl` ⇒ `ToolError` có tên + exit 3. Đường đi từ "annotator ghi ra
+GenBank" tới "bộ gen đi qua kiểm tra" chạy với một **stub** thay PGA (test ghi rõ điều đó): ra
+**132 = 86 + 38 + 8**, 0 CDS lỗi ORF, 5 alternative start, 4 tên có đồng nghĩa. **Đây là kiểm tra
+dây nối của mình, không phải bằng chứng PGA chú giải đúng** — stub chép lại chính chú giải của
+genome vàng. Test thật (tier B) skip kèm lý do; `PTS_REQUIRE_TOOLS=1` sẽ biến skip thành fail.
+
+**P3-04 · mito — quyết định đã chốt, adapter chưa viết.** Chọn **PMGA** (không phải MITOS2). PMGA
+không nằm trên conda, không có repo git: bài báo phân phối nó dưới dạng **singularity container**
+(Figshare 27201798) và web server, và **không có tài liệu CLI công khai** nào tra được. Viết
+`external/pmga.py` theo một CLI tự nghĩ ra sẽ là placeholder trông như thật ⇒ dừng lại, ghi yêu cầu
+cụ thể vào TASKS.md. Hai số đo để phiên sau khỏi đo lại: bản ghi mito thay thế `OX459128.1`
+**không có qualifier `/gene`** (mọi "tên" trong model là chuỗi `/product`, ví dụ "NADH
+dehydrogenase subunit 1") ⇒ muốn báo "tên gen mito" thì phải có từ vựng product→symbol trước; và
+CDS của nó có start `CCT`, `CGC` — không bảng mã nào nhận, đúng như bộ kiểm tra ORF sẽ báo.
+
+**P3-05 · file nộp NCBI.** `.fsa` + `.tbl` viết thuần Python; `.sqn` là tuỳ chọn (`--set
+sqn=true`) và cần cả `table2asn` **lẫn** template `.sbt` — template chứa tên người và cơ quan, bộ
+công cụ không tự bịa. Thiếu công cụ ⇒ `ToolError` tên rõ ràng + exit 3 (`table2asn` không có ở
+máy này; bản tải dở 12 MB nằm ở `~/toolbox/bin/table2asn.gz`).
+
+*Quy tắc định dạng lấy từ tài liệu NCBI, không lấy từ trí nhớ* — mỗi lỗi trong số này chỉ lộ ra ở
+bước upload, sau khi đã làm xong hết:
+
+| Quy tắc | Ghi chú |
+|---|---|
+| 5 cột, tab: start · stop · feature key · **qualifier name (cột 4)** · value (cột 5) | định nghĩa cột theo tài liệu NCBI |
+| `join()` **không tồn tại** trong định dạng này | interval **xếp tầng**, key chỉ ở dòng đầu |
+| mạch âm | interval **đảo** (toạ độ lớn trước), từng interval một — nên gen trans-spliced khác mạch vẫn viết được |
+| `<` luôn ở cột 1, `>` luôn ở cột 2, **bất kể mạch** | và cả hai đều là **tiền tố**: `>1050`, không phải `1050>` |
+| partial ở interval **giữa** | NCBI từ chối ("internal partials") ⇒ bộ ghi **raise**, không bỏ dấu |
+
+*Đo được:* vòng tròn khép kín trên genome vàng — **265/265** feature (133 `gene` + 86 CDS + 38 tRNA
++ 8 rRNA) đọc lại đúng kind, tên, interval (kể cả partial), product và bảng mã; 0 vấn đề first-pass.
+Chạy thật qua CLI: `submission.fsa` (156.300 B) + `submission.tbl` (15.503 B) nằm trong thư mục
+run, có trong `manifest.json`, và lần chạy thứ hai (cache hit) phục hồi **byte-identical**.
+
+*Hai khoảng trống, nói thẳng:* (1) điều khoản "khớp một bản nộp thật từng trường" mới đối chiếu với
+**quy tắc tài liệu + ví dụ nguyên văn của NCBI**, chưa đối chiếu với một file `.tbl` đã nộp thật
+(không kiếm được cái nào ở đây); (2) nửa `.sqn` chưa chạy lần nào.
+
+**Một ràng buộc mới phát hiện:** test quét template cấm **mọi** chữ số ngoài `{{…}}`, nên template
+không thể viết tên gen có số (`ycf3`, `rps19`), mã quyết định (`D3-02`), hay `ASN.1`. Guard vẫn
+giữ nguyên (không nới); hai template mới né bằng cách để dữ liệu trong bảng. Nếu sau này prose cần
+tên gen, cách đúng là tham chiếu một ô bảng — và nếu team muốn nới guard thì phải là một quyết định
+riêng, có test âm đi kèm.
+
+---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
 
