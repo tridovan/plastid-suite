@@ -220,5 +220,5 @@ not a question a reference-transfer annotator can answer (§8.24).
 |---|---|---|---|
 | D-03 | Fill Reference Panel item (c) in PROJECT.md §13.1 | BLOCKED | cô Trang provides the text |
 | H-04 | `trnG-GCC` vs `trnG-UCC` — the golden uses one name for two different tRNA sequences | OPEN | cô Trang decides the name printed in the manuscript table (PROJECT.md §10.10) |
-| H-05 | PMGA web service re-test | OPEN | `curl` above answers; then one web run + `panel pin --file` closes P3-04 |
+| H-05 | PMGA web service re-test — **re-tested 03/10, still down** (`47.96.249.172:16084` refuses the connection; `www.1kmpg.cn/pmga/` still answers 200 and still only redirects there) | OPEN | `curl` above answers; then one web run + `panel pin --file` closes P3-04. Phase 3A no longer waits on it — the self-built annotator is the route now |
 | H-06 | `data/mito_gene_names.yaml` holds **31** loci; the references carry **10 standard genes more** (`rpl2` · `rpl10` · `rpl16` · `rpl23` · `rps2` · `rps7` · `rps12` · `rps14` · `rps19` · `sdh3`) | OPEN, measured 03/10 | each new locus carries the reference `/product` string that justifies it; a test proves the vocabulary covers the set — it changes naming for **every** mito record, so it is its own task, not a side effect |
