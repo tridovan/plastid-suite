@@ -110,14 +110,13 @@ samples → P2-10 (the stand-in set already contains both species, as *public re
 the same as the team's specimens) · real Illumina reads + nuclear genome → Phase 6/7 · item (c) →
 docs.
 
-**Branches (all pushed to `origin`, 2026-10-03):** `main` = **Phase 1 complete** (fast-forwarded to
-the Phase-1 tip, no merge commit) · `feat/phase-1` · `feat/p1-02-core-model` · `feat/p1-04-result-schema`
-(the stacked Phase-1 branches, kept for reference; their commits are already in `main`) ·
-**`feat/phase-2` = current**, nine commits on top of `main` (four of them from session 4) — a PR
-from it to `main` shows exactly those, which is why Phase 1 was fast-forwarded in first.
+**Branches (all pushed to `origin`):** `main` = **Phase 1 complete** · `feat/phase-2` (nine commits,
+not yet merged) · **`feat/phase-3` = current**, stacked on `feat/phase-2`. The three Phase-1 label
+branches (`feat/phase-1`, `feat/p1-02-core-model`, `feat/p1-04-result-schema`) were **deleted
+03/10** — measured first: each had 0 commits outside `main`, so nothing was lost.
 
-Every commit on `feat/phase-2` was checked out and `make check`-verified individually, so
-`git bisect` is usable across the branch.
+Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on its own, so
+`git bisect` is usable across both branches.
 
 **Data note:** `.panel/` is gitignored; re-fetch the stand-in set with the two `panel pin --groups`
 commands in PROJECT.md §8.6.
@@ -148,7 +147,15 @@ commands in PROJECT.md §8.6.
   `.sbt`); template prose cannot contain digits at all, so gene names with digits must come from
   table cells.
 - **Blocked:** P3-04 on the PMGA container; P3-03's measured half on a machine with PGA; the `.sqn`
-  half on `table2asn` + a submitter template (`cô Trang`).
+  half on a submitter template (`.sbt`) — `table2asn` itself is installed and declared.
+- **Late in the session, three more things landed:** the **mito path** (`modules/mito_genes.py`:
+  a plant mitogenome described with no IR gate, 51 = 31 + 17 + 3 on the stand-in, every CDS named
+  by a symbol); **`table2asn` 1.29.324 installed and declared** (`docs/tools/table2asn.md`, md5
+  recorded) with both of its error paths tested; and **three real NCBI-produced `.tbl` files
+  vendored** (`tests/data/real_*.tbl`), which closed the "field for field" clause for everything
+  but joins — and which corrected the writer (three fields per interval line, not five) and the
+  parser (a table file may hold several records; one VADR file carried eight and they had been
+  merged silently).
 - **Next:** see the Resume point.
 
 ### 2026-10-03 · Claude · dev WSL · session 6 (blocker clearance)
