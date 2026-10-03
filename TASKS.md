@@ -137,16 +137,28 @@ only `-version`, so the tool this module depends on was being recorded as "unkno
 **Left open on purpose:** the two 19- and 7-codon exons of the published nad1/nad5 are not
 recoverable from any alignment, and the caller reports 4 exons rather than inventing a fifth.
 
-### P3A-04 · tRNA caller · M3A.4 · [ ]
+### P3A-04 · tRNA caller · M3A.4 · [x] DONE 03/10
 
-- [ ] `external/aragorn.py` through `run_tool()`; its tabular output parsed; names through the
+- [x] `external/aragorn.py` through `run_tool()`; its tabular output parsed; names through the
       existing normalizer (`core/gene_names.py`), never a private rename
-- [ ] `environment.yml` gains `aragorn=1.2.41`; `docs/tools/aragorn.md` carries source, licence,
+- [x] `environment.yml` gains `aragorn=1.2.41`; `docs/tools/aragorn.md` carries source, licence,
       install line and why it is not vendored
 
 **Done when:** on `OX459128.1` the count is reported against the published **17**, with every
 difference — extra or missing — listed by name, position and anticodon. A count of 16 or 18 is
 **reported as measured**, not adjusted. **Needs:** D3A-01.
+**Met 03/10** — ARAGORN 1.2.41 calls **17**, the record carries **17**, and they are **not the
+same 17**: `trnA-UGC 13244-13348` is in the record and not called (105 bp, longer than a tRNA);
+`trnL-AAG 36355-36427` is called and not in the record; the tRNA-His at 11741-11819 is
+**`trnH-AUG` to ARAGORN and `trnH-GUG` to the record** — an anticodon disagreement, printed rather
+than resolved. 9 spans differ by 1–6 bp, the largest being the one tRNA that **crosses the
+origin** (`[258274,73]`, written as the two parts a `join()` needs). 12 unit tests + the golden
+check. **Needs:** D3A-01.
+**Measured, and two of them changed the code:** ARAGORN's `-V` **is not a version flag** — it
+exits 0 and prints "No sequence file specified", which `run_tool` recorded as the version of the
+tool calling tRNA genes; the probe now requires a digit in the answer, and the adapter verifies the
+release from `-h`'s banner itself. And a name is not an identity: the record's 17 tRNAs carry only
+**14 distinct names**, so a comparison that deduplicates by name reports 14.
 
 ### P3A-05 · CLI + pipeline wiring · M3A.5 · [ ]
 

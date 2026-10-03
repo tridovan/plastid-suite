@@ -1218,6 +1218,47 @@ không vendor (52 MB nhị phân).
 
 ---
 
+### 8.23. Bộ gọi tRNA — ARAGORN 1.2.41, và 17 không phải là một tập hợp (P3A-04, 03/10/2026)
+
+**Vì sao.** CDS đến từ BLAST+ (P3A-03); tRNA thì không thể chuyển từ bộ tham chiếu protein, nên
+cần một bộ gọi riêng. Chọn **ARAGORN 1.2.41** (D3A-01): 147 kB trên bioconda, GPLv3, và chính là
+công cụ mà PMGA chạy bên trong. Một bộ gọi tự viết rồi chỉnh cho ra đúng 17 sẽ là overfitting
+đúng nghĩa.
+
+**Kết quả đo trên `OX459128.1`:** ARAGORN gọi **17 tRNA**, bản ghi công bố có **17** — **nhưng
+không phải cùng một tập**:
+
+| Khác biệt | Chi tiết |
+|---|---|
+| Thiếu | `trnA-UGC 13244-13348` — bản ghi chú giải, ARAGORN không gọi (feature dài **105 bp**, hơn một tRNA thường) |
+| Thừa | `trnL-AAG 36355-36427` — ARAGORN gọi, bản ghi không có gì ở đó |
+| Lệch anticodon | tRNA-His ở 11741-11819: ARAGORN đọc **`trnH-AUG`**, bản ghi ghi **`trnH-GUG`** |
+| Lệch toạ độ | **9** feature lệch 1–6 bp; lớn nhất là tRNA **vắt qua origin** — ARAGORN in `[258274,73]`, bản ghi viết `1-79` |
+| Trùng khít | 15 feature còn lại |
+
+Con số **17 = 17** vì vậy không phải bằng chứng khớp: nó che một ca thiếu, một ca thừa và một ca
+lệch anticodon. Đây đúng là lý do bài kiểm tra so **từng feature**, không đếm tên: 17 tRNA của bản
+ghi chỉ mang **14 tên khác nhau** (`trnH-GUG` · `trnK-UUU` · `trnM-CAU` mỗi tên hai lần) — gộp theo
+tên sẽ ra 14 và sai.
+
+**Ba cái bẫy đo được, đã thành test:**
+
+1. **`-V` của ARAGORN không phải cờ phiên bản.** Nó thoát với mã **0** và in
+   "No sequence file specified, type aragorn -h for help" — `run_tool` ghi nguyên câu đó làm
+   **phiên bản** của công cụ gọi tRNA. Một chuỗi trông hợp lý trong hồ sơ provenance còn tệ hơn
+   "unknown": không ai phát hiện được. Bộ dò giờ chỉ nhận dòng **có chữ số**, và adapter tự xác
+   minh bản phát hành từ banner của `-h`.
+2. **ARAGORN in anticodon dưới dạng DNA** (`(cat)`) còn tên công bố dùng RNA (`trnM-CAU`), và in
+   axit amin bằng chữ (`tRNA-Met`). Adapter đổi Met→M, `cat`→`CAU` rồi đưa qua
+   `core/gene_names.normalize_name` — **cùng một bộ chuẩn hoá** mà một bản ghi tải về phải đi qua.
+3. **Gene vắt qua origin**: ARAGORN in `[258274,73]` (đầu > cuối). Đó không phải toạ độ GenBank;
+   adapter tách thành hai part theo đúng thứ tự phiên mã, tức một `join()`.
+
+**Đã khai báo:** `environment.yml` ghim `aragorn=1.2.41`, `docs/tools/aragorn.md` ghi nguồn
+(bioconda — upstream `ansikte.se` trả HTTP 455), licence GPLv3, đường cài và ba quyết định trên.
+
+---
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
@@ -1358,6 +1399,18 @@ không vendor (52 MB nhị phân).
    ORF-walking (D3A-02 cấm).
 8. **Ba CDS `no_stop` của chính bản ghi đáp án** (ccmFc · ccmC · nad6) bỏ codon stop nằm ngay sau
    ⇒ cùng một gen, hai cách chú giải, lệch 3 bp. Không bên nào sai; phải **kể ra**, không chỉnh.
+
+### E. Bộ gọi tRNA (ARAGORN, P3A-04)
+
+1. **`aragorn -V` thoát mã 0 và in một câu lỗi** ⇒ `run_tool` ghi câu đó làm *phiên bản*. Cùng họ
+   với ca BLAST+ chỉ nhận `-version`: bộ dò phiên bản tin vào quy ước `--version`/`-v`/`-V`, và
+   hai công cụ liên tiếp đã cho thấy quy ước đó không tồn tại. Luật mới: một dòng chỉ là phiên
+   bản nếu nó **có chữ số**.
+2. **Đếm tRNA theo tên là sai**: 17 feature chỉ có 14 tên (3 tên lặp hai lần). Gộp theo tên ra 14.
+3. **17 = 17 không có nghĩa là cùng một tập**: một locus thiếu, một locus thừa, một anticodon
+   lệch. Một phép so chỉ đếm số lượng sẽ báo "khớp" cho cả ba sai khác đó.
+4. **Gene vắt qua origin** bị ARAGORN in là `[258274,73]` — nếu ghi thẳng vào GenBank thì đó là
+   toạ độ vượt quá độ dài bản ghi. Phải tách thành `join()`.
 
 ## 10. Câu hỏi còn treo
 

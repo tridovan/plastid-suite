@@ -19,9 +19,9 @@ closed by *decision* rather than by code is P3-04's annotator (see below).
 
 **Phase 3A — IN PROGRESS, branch `feat/phase-3a`** (stacked on `feat/phase-3`). A mito annotator
 this project builds itself, because PMGA cannot run here and its web service is down. **P3A-01
-(GenBank writer) · P3A-02 (reference set) · P3A-03 (gene caller) are DONE**; **next is P3A-04 —
-the tRNA caller (ARAGORN 1.2.41)**, then P3A-05 (CLI), P3A-06 (the golden 31 · 17 · 3 check) and
-P3A-07 (`AP045469.1`). The board is `TASKS.md` — read it first, it carries the decisions, the
+(GenBank writer) · P3A-02 (reference set) · P3A-03 (gene caller) · P3A-04 (tRNA caller) are
+DONE**; **next is P3A-05 — the CLI (`plastid mito annotate`)**, then P3A-06 (the golden
+31 · 17 · 3 check, which now has every number it needs) and P3A-07 (`AP045469.1`). The board is `TASKS.md` — read it first, it carries the decisions, the
 pitfalls and every measured number. Phase 4 (multi-genome comparison) follows 3A.
 
 - **P3-01 ORF checks — DONE.** `core/orf.py` + `modules/orf.py`; `Gene` now carries the record's own
@@ -191,6 +191,43 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 14 (P3A-04 — the tRNA caller, and 17 is not one set)
+
+**Did.** Installed and declared **ARAGORN 1.2.41** (`environment.yml` + `docs/tools/aragorn.md`,
+same session as the install), wrote `external/aragorn.py`, wired it into `modules/mito_annotate.py`
+(a `trna_calls` table, tRNA columns in the summary, tRNA genes in the artifact), and added the
+golden comparison. 12 new unit tests; the parameter that points at the binaries is now one name
+(`--set tools=<dir>`) for both tools.
+
+**Validation.** `make check` green (438 fast + 30 golden, 9 tier-B skips with named reasons); with
+`PTS_BLAST_DIR` the five golden tests pass, including the new one. Measured on `OX459128.1`:
+**ARAGORN calls 17 tRNA, the record carries 17, and they are not the same 17** — `trnA-UGC
+13244-13348` is in the record and not called (105 bp, longer than a tRNA), `trnL-AAG 36355-36427`
+is called and not in the record, and the tRNA-His at 11741-11819 is **`trnH-AUG` to ARAGORN and
+`trnH-GUG` to the record** — an anticodon disagreement, printed rather than resolved. 9 spans
+differ by 1–6 bp; the largest is the one tRNA that crosses the origin (`[258274,73]`, written as
+the two parts a `join()` needs).
+
+**Two traps that changed the code.** (1) `aragorn -V` is not a version flag: it exits **0** and
+prints "No sequence file specified", which `run_tool` was recording as the version of the tool
+that calls tRNA genes — the probe now requires a digit in the answer, and the adapter verifies the
+release from `-h` itself. Same family as the BLAST+ `-version` bug from the previous session: the
+`--version` convention does not exist. (2) A name is not an identity: the record's 17 tRNAs carry
+only 14 distinct names, so any comparison that deduplicates by name reports 14.
+
+**Residual risks.** (1) The three tRNA differences above are **findings, not errors** — nobody has
+ruled on whether ARAGORN's `trnH-AUG` or the record's `trnH-GUG` is right for that locus; it is
+recorded in PROJECT.md §8.23/§9.E and flagged for review. (2) `-i` (intron search) is off, so an
+intron-containing tRNA would be reported missing rather than modelled. (3) ARAGORN's
+`trnL-AAG` extra call may be a genuine plastid-derived tRNA or a false positive — not yet
+adjudicated.
+
+**Blocked.** Nothing.
+
+**Next.** P3A-05 — `plastid mito annotate --input <fasta> --reference <dir> --out <dir>`, with the
+output going through `orf` + `mito_genes` unchanged; then P3A-06's itemized golden check
+(31 · 17 · 3, differences listed) and P3A-07 (`AP045469.1`, then pin it).
 
 ### 2026-10-03 · Claude · dev WSL · session 13 (P3A-03 — the mito gene caller, measured on the answer key)
 
