@@ -48,6 +48,11 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 02/10 | **Report sinh từ `Result`** (§10.7): mọi số trong report trỏ về **đúng một ô bảng gốc**; template chỉ trỏ `{{bảng.cột}}` / `{{bảng[dòng].cột}}`, không gõ số; ref không giải được ⇒ **raise**, không in trống |
 | 02/10 | **Reference Panel** (§10.8): engine **gợi ý** qua cache RefSeq có ngày (làm mới được); khi người dùng chốt danh sách thì **tải về + ghim checksum**; chạy lại **không cần mạng**. Mục (c) điền sau, không chặn code |
 | 03/10 | **Backend (P1-12, dev quyết)**: giai đoạn 1–5 và 8 chạy **tại chỗ** trên máy phổ thông; giai đoạn 6 (thời gian phân kỳ) + 7 (lắp ráp) chạy **máy chủ từ xa** — máy 8 GB chỉ còn 1,5–2,5 GB trống mỗi việc (§9.14). Ghi lại theo luật phân quyết định trong CLAUDE.md |
+| 03/10 | **Bảng gen xuất bản (P2-09, dev quyết)**: bảng in ra bài báo là bảng **phân nhóm theo chức năng**, không phải bản dump từng feature; nhóm gen là **dữ liệu** (`src/plastid/data/gene_groups.yaml`), không phải code. tRNA/rRNA khớp theo **tiền tố tên** (`trn`, `rrn`) chứ không theo danh sách anticodon — bản Oldenlandia/Coleus thật sẽ mang anticodon khác, danh sách cứng sẽ **rơi im lặng**. Gen không nhóm nào nhận ⇒ một dòng *unclassified* + ghi tên trong notes, **không bao giờ bị bỏ** |
+| 03/10 | **Số đếm của bảng gen = số bản sao** (kể cả 2 bản IR), đúng quy ước 132 = 86 + 38 + 8, và bảng **tự đối chiếu với `count_genes()`** trong một bảng riêng — cùng kiểu đối chiếu đã bắt lỗi MISA ở P2-06. Một gen rơi giữa bộ đếm và bảng sẽ hiện ra thành *DISAGREES*, không phải thành một số nhỏ hơn không ai kiểm |
+| 03/10 | **Xuất Word (D2-04 + P2-09, dev quyết)**: `python-docx` là **extra tuỳ chọn** (`pip install 'plastid-suite[docx]'`), import **bên trong hàm** nên bản cài tối thiểu vẫn thuần Python; thiếu nó ⇒ `ExportDependencyError` + exit 3, không phải traceback ImportError. `openpyxl` **chưa thêm** — chưa có gì dùng (YAGNI); sẽ vào cùng extra khi làm Excel ở Giai đoạn 5 |
+| 03/10 | **Tài liệu Word phải tái lập được từng byte**: `python-docx` đóng dấu thời gian đồng hồ vào zip, nên gói được **dựng lại** với timestamp cố định (1980-01-01), entry sắp xếp, `create_system` ghim ⇒ cùng đầu vào ra cùng file. Đây là định nghĩa "Done when" của P2-09, không phải một lời hứa |
+| 03/10 | **Gói .docx được tỉa**: template của `python-docx` mang theo cả catalogue style của Word (164 style, ~350 kB) + `stylesWithEffects.xml` (438 kB) + thumbnail + `customXml`; bản xuất chỉ giữ style tài liệu **thực sự dùng** cùng tổ tiên và default của chúng, mọi quan hệ trỏ tới phần đã bỏ đều bị cắt. Đo được: ~800 kB → **13 kB**, có test cấu trúc canh |
 | 03/10 | **Đa genome (D2-01, dev quyết)**: giữ nguyên contract v0.1 `run(genome, params, ctx)`; thêm contract thứ hai `run(genomes, params, ctx)` chọn bằng `arity` khai báo lúc đăng ký — **không** nới rộng contract cũ, vì module một-genome sẽ phải nhận một dãy nó không dùng (seam 5). Runner cưỡng chế số genome trước khi chạy. Ghi ở `docs/API_v0.2.md` |
 | 03/10 | **π: cửa sổ 600 bp · bước 200 bp (D2-02)** — quy ước kiểu mVISTA; window/step vào params, manifest và report |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
@@ -388,7 +393,88 @@ Số đo mới, phải nhớ:
   — **đúng**, mito không có IR canonical; module đòi cổng IR sẽ không chạy được trên mito cho tới khi
   có đường riêng (Phase 3+).
 
+### 8.7. Bảng gen xuất bản + xuất Word (03/10/2026 — P2-09, D2-04)
+
+Chạy thật: `plastid run -m gene_table -i tests/data/NC_050833.1.gb --docx --dataset golden`.
+
+**Bảng phân nhóm, đo trên genome vàng** (132 bản sao, 18 nhóm, 112 tên phân biệt):
+
+| Nhóm | Bản sao | Ghi chú |
+|---|---|---|
+| Subunits of photosystem I / II | 5 · 15 | |
+| Subunits of cytochrome b/f · ATP synthase | 6 · 6 | |
+| Large subunit of rubisco | 1 | |
+| Subunits of NADH dehydrogenase | 12 | gồm **ndhL** (mảnh) |
+| Ribosomal RNA · Transfer RNA | 8 · 38 | khớp theo tiền tố `rrn` / `trn` |
+| Small · Large subunit of ribosome | 15 · 11 | |
+| DNA-dependent RNA polymerase | 4 | |
+| Other genes (6 nhóm) | 6 | infA · matK · cemA · accD · ccsA · clpP |
+| Genes of unknown function | 5 | ycf1, ycf2 (×2), ycf3, ycf4 |
+| **Total** | **132** | = 86 CDS + 38 tRNA + 8 rRNA, khớp `count_genes()` |
+
+Đối chiếu trong `gene_reconciliation`: CDS 86/86 · tRNA 38/38 · rRNA 8/8 · Total 132/132 — **`agrees` cả 4**.
+Gen không nhóm nào nhận: **0**.
+
+**Tài liệu Word — đo được, không phải cảm nhận:**
+
+- **Tái lập từng byte**: hai lần dựng cách nhau 2,1 giây cho **cùng sha256** (mốc thời gian zip là
+  2 giây/lần, nên khoảng cách đó thật sự vượt qua ngưỡng); chạy lại qua **cache** cũng ra **đúng byte đó**
+  (`e4a65ddf…` cho gene_table). Test canh: mọi entry mang `date_time = 1980-01-01`, thứ tự sắp xếp,
+  `create_system = 0`.
+- **Kích thước gói**: ~800 kB (template thô) → **13 kB**; style giữ lại **< 25** trên **164** của template.
+- **Render thật** bằng LibreOffice (`soffice --headless`) → PDF → PNG và **xem tận mắt**: tiêu đề theo
+  style `Title`, mục theo `Heading 1`, lưới provenance (Dataset · Run · Input + sha256 · Coordinates ·
+  Module · Generated by), bảng có caption ở trên + dòng scope, header tô nền **lặp lại ở mỗi trang**,
+  hàng không bị cắt ngang trang, cột số căn phải, dòng **Total in đậm**, chân trang
+  `PlastidToolSuite · <accession> · <module> · Page X of Y`.
+- **Bảng 16 cột** (`genome_stats`) tự chuyển sang **khổ ngang** theo **bề rộng nội dung ước lượng**, không
+  theo số cột — bản đầu chọn theo số cột nên đẩy một bảng 7 cột, 1 hàng sang trang ngang gần như trắng.
+
+### 8.8. Bản nháp bản thảo trên bộ dữ liệu thay thế (03/10/2026 — P2-10)
+
+Công thức ở `docs/P2-10_manuscript_draft.md`. Chạy thật **một lệnh cho mỗi loài**, 7 module:
+
+```
+plastid run -m genome_stats -m structure -m gene_table -m codon_usage -m amino_acid \
+            -m introns -m ssr -i <genome>.gb --docx --dataset standin-<loài>
+```
+
+**Phát hiện quan trọng — bộ "thay thế" chứa đúng hai loài bản thảo:**
+
+- `PP078674.1` = ***Scleromitrion diffusum*** — **tên hiện hành của *Oldenlandia diffusa***
+- `PX923121.1` = ***Coleus amboinicus*** — **đúng loài thứ hai**
+
+Tức hai bản ghi này **không phải loài họ hàng** mà là bản công khai **của chính hai loài** —
+khác mẫu của nhóm, nhưng cùng loài. Vì vậy nhãn vẫn là `standin-…` và **vẫn không được** dùng như
+số của nhóm: cùng loài không có nghĩa cùng mẫu (kiểu gen, quần thể, chất lượng chú giải đều khác).
+
+**Số đo được (mỗi số là một ô trong bảng của lần chạy, không gõ tay):**
+
+| | *S. diffusum* `PP078674.1` | *C. amboinicus* `PX923121.1` |
+|---|---|---|
+| Chiều dài · GC | 153.676 bp · 37,61 % | 152.544 bp · 37,75 % |
+| Gen | **131 = 86 CDS + 37 tRNA + 8 rRNA** | **133 = 88 CDS + 37 tRNA + 8 rRNA** |
+| LSC · SSC · IR | 83.835 · 17.195 · 26.323 | 83.404 · 17.718 · 25.711 |
+| Cổng IR | PASS 100,00 % (de novo) | PASS 100,00 % (de novo) |
+| Bảng gen ↔ `count_genes()` | 86/86 · 37/37 · 8/8 · 131/131 — `agrees` | 88/88 · 37/37 · 8/8 · 133/133 — `agrees` |
+| Codon | 26.085 codon · ENC 50,65 · CAI 0,5603 · CBI 0,2645 · Fop 0,5067 | 26.721 codon · ENC 49,80 · CAI 0,5343 · CBI 0,2794 · Fop 0,5170 |
+| Amino acid | GRAVY −0,0856 · aromaticity 0,1116 | GRAVY −0,0962 · aromaticity 0,1105 |
+| Intron | 16 intron / 11 gen · 12.287 bp · dài nhất 1.142 | 17 intron / 12 gen · 12.134 bp · dài nhất 1.022 |
+| Trans-splicing | 2 điểm nối, đều rps12 — `agrees` với chú giải | 2 điểm nối, đều rps12 — `agrees` |
+| SSR | 32 = mono 32 · di 0 · tri 0 (3 compound) | 32 = mono 31 · di 1 · tri 0 (2 compound) |
+| Internal stop | 0 | 0 |
+
+**Điểm đáng chú ý:** trans-splicing được nhận đúng trên **hai genome mới**, không chỉ genome vàng —
+`annotation_check` ghi `agrees` cả hai, tức logic tách intron/trans-splicing của P2-05 không phải
+may mắn trên một ca. **Số gen khác 132** (131 và 133) là **đúng**: 132 là con số của genome vàng
+*Iris domestica*, không phải hằng số cho mọi loài — quy ước đếm mới là hằng số.
+
+**Chưa có trong bản nháp:** mục π và Ts/Tv (cần MAFFT 7.526 — máy này không có), và **hình** (Giai
+đoạn 5). Bản nháp ghi rõ phần thiếu là phần vắng, không phải phần ngắn im lặng.
+
 ---
+
+## 9. Lỗi đã gặp & số đo (tổng hợp)
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
 
@@ -436,6 +522,11 @@ Số đo mới, phải nhớ:
     đặt `annotated=True` cho mọi bản ghi; thực đo trên bộ dữ liệu thay thế: **3/11 plastome có
     0 CDS** (GenBank không mặc nhiên có chú giải). Đã sửa: chỉ tin RefSeq, bản GenBank **đo sau
     khi tải**.
+19. **Mới 03/10/2026 — dòng `Total` của bảng đối chiếu tự tố cáo chính nó.** Lần chạy đầu của
+    `gene_table`: CDS 86/86 · tRNA 38/38 · rRNA 8/8 đều `agrees`, nhưng dòng **Total ra
+    `in_table = 0`** — `by_kind.get("Total")` trên một `Counter` chỉ có ba khoá CDS/tRNA/rRNA.
+    Đúng loại lỗi mà cột đối chiếu sinh ra để bắt: nếu bảng chỉ in số mà không tự so, một dòng
+    tổng bằng 0 sẽ nằm giữa bảng và **không ai kiểm**. Đã sửa (`_in_table`), thành test.
 
 ### C. Môi trường & vận hành
 
@@ -456,6 +547,13 @@ Số đo mới, phải nhớ:
 17. Script gửi kèm **không tới được máy anh Điềm** — anh làm ở thư mục khác (`D:\diem\bai bao tool\ke_hoach_new\chạy Trí\probe`).
 18. `docker` không gọi được từ WSL trước khi bật WSL Integration (thông báo lỗi ở §8.4).
 19. Chuỗi phân tích trên máy 2,8 GB dùng 331 MB và 9,8 giây.
+20. **Mới 03/10/2026 — bộ tỉa style đọc sai chỗ, và bản render vẫn "trông ổn".** Style trong
+    OOXML được tham chiếu bằng **phần tử con** (`<w:pStyle w:val="Heading1"/>`), không phải
+    thuộc tính. Bản đầu đọc `element.get("w:pStyle")` ⇒ không thấy style nào được dùng ⇒ tỉa
+    gần hết, kể cả `Title` và `Heading 1`. **LibreOffice vẫn render ra hình như bình thường**
+    vì nó lùi về mặc định của chính nó — lỗi chỉ lộ ra khi mở PDF cạnh bản đúng, và chỉ bị bắt
+    vì có **test cấu trúc** ("mọi style tài liệu dùng phải còn trong styles.xml"). Bài học:
+    tỉa gói OOXML thì phải canh bằng cấu trúc, không bằng mắt.
 
 ---
 

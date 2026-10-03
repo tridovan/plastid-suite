@@ -19,7 +19,7 @@ Applies to **both plastid and mitochondrion**.
 | D2-01 | **Multi-genome contract** — π, SNP and later Ka/Ks take more than one genome; `run(genome, params, ctx)` is frozen in API v0.1 | ✅ **DONE 03/10**: contract thứ hai `run(genomes, params, ctx)` chọn bằng `arity`, giữ nguyên v0.1 (không migrate module nào) | Dev | `docs/API_v0.2.md` + PROJECT.md §3 |
 | D2-02 | π window size / step | ✅ **DONE 03/10**: 600 bp window · 200 bp step, vào params + report | Dev | `data/defaults.yaml` |
 | D2-03 | Translation table for codon/amino-acid work | NCBI table 1 (standard) for plastids; the table used is recorded in run info | Dev | `data/defaults.yaml` |
-| D2-04 | Word/Excel writers | add `python-docx` + `openpyxl` as an optional extra so the minimum install stays pure-Python | Dev | `pyproject.toml` |
+| D2-04 | Word/Excel writers | ✅ **DONE 03/10**: extra tuỳ chọn `docx = ["python-docx>=1.2"]`, import bên trong hàm ⇒ **bản cài tối thiểu vẫn thuần Python**. `openpyxl` **hoãn** tới khi có bảng Excel thật (Giai đoạn 5) — chưa có gì dùng thì khai báo chỉ là chỗ giữ chỗ | Dev | `pyproject.toml` + PROJECT.md §3 |
 
 ### Pitfalls for this phase *(every line has bitten somewhere — PROJECT.md §9, §7.9)*
 
@@ -125,17 +125,41 @@ reconcile with the alignment used. **Needs:** D2-01.
 **Done when:** windows are reproducible from the alignments and the window/step are in the report.
 **Needs:** D2-01, D2-02.
 
-### P2-09 · Publication gene table (Word) · M2.2 · [ ]
+### P2-09 · Publication gene table (Word) · M2.2 · [x] DONE
 
-- [ ] gene table export (Word) generated from the gene table, never hand-edited
-**Done when:** regenerating the document from the module produces an identical file.
-**Needs:** D2-04.
+- [x] gene table export (Word) generated from the gene table, never hand-edited
+      — `modules/gene_table.py` + `data/gene_groups.yaml` + `result/docx_export.py` + `--docx`.
+      The table is the **categorised** one a paper prints, not a per-feature dump; the grouping
+      is data (gene → functional group), and it carries its own reconciliation against
+      `count_genes()` — CDS 86/86 · tRNA 38/38 · rRNA 8/8 · Total 132/132, all `agrees`
+      (a first run reported **0** on the Total row; the reconciliation column is what caught it).
+- [x] reproducible bytes: the `.docx` is rebuilt with fixed zip timestamps and pruned of the
+      template's 164-style catalogue (~800 kB → **13 kB**), so two builds of one run are the
+      same file — **verified through the cache too** (same sha256 on a cached re-run)
+- [x] rendered and **looked at** (LibreOffice → PDF → PNG): title, provenance grid, table
+      captions above, scope line, header row repeating per page, rows unsplit, numbers
+      right-aligned, bold totals row, `Page X of Y` footer
+**Done when:** regenerating the document from the module produces an identical file. ✅
+**Needs:** D2-04 (DONE).
 
-### P2-10 · Manuscript deliverable — Oldenlandia / Coleus · M2.10 · [ ]
+### P2-10 · Manuscript deliverable — Oldenlandia / Coleus · M2.10 · [~] DRAFT PRODUCED — real data pending
 
-- [ ] tables + figures + draft Results for the two species (numbers traced to table cells)
+- [x] **one command per species → one Word draft** — `-m` is now repeatable, so a run holds
+      several modules and writes `report/report.docx` (prose + tables + provenance, joined from
+      the modules' own documents so a cache hit cannot produce an empty one);
+      recipe: `docs/P2-10_manuscript_draft.md`
+- [x] draft produced for both species from the public stand-in set, labelled `standin-…`
+      throughout (header, footer, manifest): **131 = 86 + 37 + 8** (*S. diffusum* `PP078674.1`)
+      and **133 = 88 + 37 + 8** (*C. amboinicus* `PX923121.1`), IR gate PASS 100.00 % on both,
+      gene table reconciles `agrees` on both — PROJECT.md §8.8
+- [x] **the stand-in set turns out to contain both manuscript species**: `PP078674.1` is
+      *Scleromitrion diffusum* (the current name of *O. diffusa*) and `PX923121.1` is
+      *C. amboinicus*. Same species, **not** the team's specimen — the label stays
+- [ ] real datasets substituted, then re-run — numbers are never patched in
+- [ ] π and Ts/Tv sections (need MAFFT 7.526, absent here) · figures (Phase 5, M5.1)
 **Done when:** every number in the draft resolves to a cell in a run's tables (the queryable-number
-rule, §13.5). **Needs:** the real datasets from anh Điềm/cô Trang.
+rule, §13.5). ✅ for the structure — **the real samples are still what makes it the team's draft**.
+**Needs:** the real datasets from anh Điềm/cô Trang.
 
 ### P2-11 · Sample-group labels on comparison output · M2.11 · [x] DONE
 
@@ -159,3 +183,4 @@ rule, §13.5). **Needs:** the real datasets from anh Điềm/cô Trang.
 |---|---|---|---|
 | D-03 | Fill Reference Panel item (c) in PROJECT.md §13.1 | BLOCKED | cô Trang provides the text |
 | D-04 | Public stand-in dataset — Oldenlandia / Coleus (CLAUDE.md §Data) | DONE | 13 records pinned with sha256; measured table recorded in PROJECT.md §8.6 |
+| D2-04 | Word writer as an optional extra | DONE | `pip install 'plastid-suite[docx]'`; the base install imports no third-party beyond biopython + PyYAML |

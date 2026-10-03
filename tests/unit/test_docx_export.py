@@ -316,3 +316,96 @@ def test_importing_the_package_never_pulls_in_the_optional_extra() -> None:
         [sys.executable, "-c", program], capture_output=True, text=True, check=True
     )
     assert result.stdout.strip() == "", f"importing plastid pulled in {result.stdout.strip()}"
+
+
+# --------------------------------------------------------------------- joining documents
+
+
+def _document(title: str, *, rows: int = 2, wide: bool = False) -> bytes:
+    columns = (Column("name", "Name"), Column("length_bp", "Length", dtype="int", unit="bp"))
+    if wide:
+        columns = tuple(Column(f"c{i}", f"Column number {i}") for i in range(14))
+    table = Table(
+        id="t",
+        title="A table",
+        columns=columns,
+        rows=tuple(
+            {column.name: f"{title}-{index}" for column in columns} for index in range(rows)
+        ),
+        scope=Scope(label="whole plastome"),
+        key=columns[0].name,
+    )
+    result = Result(module="m", module_version="0.1.0", tables={"t": table})
+    return export_docx(result, replace(_meta(), title=title))
+
+
+@requires_docx
+def test_merging_keeps_every_document_and_is_reproducible() -> None:
+    from plastid.result.docx_export import merge_documents
+
+    blob = merge_documents([_document("First"), _document("Second"), _document("Third")])
+    assert blob == merge_documents([_document("First"), _document("Second"), _document("Third")])
+    text = _text(blob)
+    assert "First" in text and "Second" in text and "Third" in text
+    assert "First-0" in text and "Second-0" in text and "Third-0" in text
+
+
+@requires_docx
+def test_merging_one_document_returns_it_untouched() -> None:
+    from plastid.result.docx_export import merge_documents
+
+    single = _document("Only")
+    assert merge_documents([single]) == single
+
+
+@requires_docx
+def test_merging_keeps_each_documents_own_page_setup() -> None:
+    """Dropping the earlier documents' sectPr would re-flow a landscape table into portrait."""
+    from docx import Document
+    from docx.enum.section import WD_ORIENT
+
+    from plastid.result.docx_export import merge_documents
+
+    merged = merge_documents([_document("Portrait"), _document("Wide", wide=True)])
+    orientations = [section.orientation for section in Document(io.BytesIO(merged)).sections]
+    assert WD_ORIENT.PORTRAIT in orientations and WD_ORIENT.LANDSCAPE in orientations
+    assert orientations[-1] == WD_ORIENT.LANDSCAPE
+
+
+@requires_docx
+def test_merging_sets_the_document_title() -> None:
+    from docx import Document
+
+    from plastid.result.docx_export import merge_documents
+
+    merged = merge_documents([_document("A"), _document("B")], title="Run report")
+    assert Document(io.BytesIO(merged)).core_properties.title == "Run report"
+
+
+def test_merging_rejects_a_document_this_exporter_did_not_build() -> None:
+    from plastid.result.docx_export import merge_documents
+
+    foreign = io.BytesIO()
+    with zipfile.ZipFile(foreign, "w") as archive:
+        archive.writestr("word/document.xml", "<w:document/>")
+    with pytest.raises(ValueError, match="different part list"):
+        merge_documents([_document("Built"), foreign.getvalue()])
+    with pytest.raises(ValueError, match="nothing to merge"):
+        merge_documents([])
+
+
+@requires_docx
+def test_merging_relabels_the_footer() -> None:
+    """The merged document keeps the first module's footer, which would name the wrong module."""
+    from docx import Document
+
+    from plastid.result.docx_export import merge_documents
+
+    merged = merge_documents([_document("A"), _document("B")], label="the whole run")
+    footers = [
+        paragraph.text
+        for section in Document(io.BytesIO(merged)).sections
+        for paragraph in section.footer.paragraphs
+    ]
+    assert any("the whole run" in text for text in footers), footers
+    assert not any("genome_stats ·" in text for text in footers)

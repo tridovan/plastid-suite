@@ -22,13 +22,13 @@ def _run(
     source: Path,
     dataset: str = "iris_domestica",
     extra: list[str] | None = None,
-    module: str = "genome_stats",
+    module: str | None = "genome_stats",
 ) -> int:
+    """``module=None`` leaves the module flags to ``extra`` — for multi-module runs."""
     return main(
         [
             "run",
-            "--module",
-            module,
+            *(["--module", module] if module else []),
             "--input",
             str(source),
             "--out",
@@ -230,3 +230,82 @@ def test_word_export_is_reproducible_and_carries_the_golden_numbers(
     assert "132" in joined and "86" in joined and "38" in joined and "8" in joined
     assert "agrees" in joined  # the reconciliation travelled with the document
     assert "Draft — needs human review." in joined  # never mistaken for a checked result
+
+
+def test_one_run_carries_several_modules_and_combines_their_documents(
+    tmp_path: Path, data_dir: Path
+) -> None:
+    """The run — not the module — is the deliverable: one command, one report, all tables."""
+    if importlib.util.find_spec("docx") is None:
+        pytest.skip("the 'docx' extra is not installed — pip install 'plastid-suite[docx]'")
+
+    modules = ["genome_stats", "structure", "gene_table"]
+    assert (
+        _run(
+            tmp_path,
+            data_dir / "NC_050833.1.gb",
+            module=None,
+            extra=[part for name in modules for part in ("--module", name)] + ["--docx"],
+        )
+        == 0
+    )
+    run_dir = _only_run_dir(tmp_path)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    validate(manifest)
+    assert [entry["id"] for entry in manifest["modules"]] == modules
+    assert [entry["status"] for entry in manifest["modules"]] == ["ok"] * 3
+
+    # each module keeps its own numbered directory and its own outputs
+    for order, module in enumerate(modules, start=1):
+        assert (run_dir / f"{order:02d}_{module}" / "report.md").is_file()
+        assert (run_dir / f"{order:02d}_{module}" / "report.docx").is_file()
+
+    combined = run_dir / "report" / "report.docx"
+    assert combined.is_file()
+    assert any(entry["path"] == "report/report.docx" for entry in manifest["files"])
+
+    from docx import Document
+
+    opened = Document(str(combined))
+    text = [paragraph.text for paragraph in opened.paragraphs]
+    text += [cell.text for table in opened.tables for row in table.rows for cell in row.cells]
+    joined = "\n".join(text)
+    for probe in ("Genome statistics", "Genome structure", "Publication gene table"):
+        assert probe in joined
+    assert "153724" in joined and "83127" in joined and "132" in joined
+    # every result table reached the page, and each one got a caption (the document also
+    # carries the provenance grid and any pipe table the prose itself contains)
+    captioned = [line for line in text if line.startswith("Table ")]
+    result_tables = sum(
+        len(json.loads((run_dir / f"{order:02d}_{module}" / "result.json").read_text())["tables"])
+        for order, module in enumerate(modules, start=1)
+    )
+    assert len(captioned) == result_tables == 9
+    assert len(opened.tables) >= result_tables
+
+    # a fully cached second run reproduces the combined document byte for byte
+    first = combined.read_bytes()
+    assert (
+        _run(
+            tmp_path,
+            data_dir / "NC_050833.1.gb",
+            module=None,
+            extra=[part for name in modules for part in ("--module", name)] + ["--docx"],
+        )
+        == 0
+    )
+    again = sorted((tmp_path / "iris_domestica").iterdir())[-1]
+    assert (again / "report" / "report.docx").read_bytes() == first
+
+
+def test_naming_a_module_twice_is_a_usage_error(tmp_path: Path, data_dir: Path) -> None:
+    """Two runs of one module in a run would write one directory twice; refuse instead."""
+    assert (
+        _run(
+            tmp_path,
+            data_dir / "NC_050833.1.gb",
+            module=None,
+            extra=["--module", "structure", "--module", "structure"],
+        )
+        == 2
+    )

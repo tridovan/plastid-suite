@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
     from docx.document import Document as _Document
     from docx.text.paragraph import Paragraph
 
-__all__ = ["DocxMeta", "ExportDependencyError", "export_docx"]
+__all__ = ["DocxMeta", "ExportDependencyError", "export_docx", "merge_documents"]
 
 # WordprocessingML namespace, spelled out so this module needs lxml only through python-docx.
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -133,6 +133,134 @@ def export_docx(result: Result, meta: DocxMeta | None = None) -> bytes:
 
 
 # --------------------------------------------------------------------------- document build
+
+
+def merge_documents(
+    documents: Sequence[bytes], *, title: str | None = None, label: str | None = None
+) -> bytes:
+    """Join documents this exporter built into one, section breaks and tables intact.
+
+    A run's combined report is assembled from the modules' own documents rather than re-rendered
+    from their results, because a cache hit restores files, not results — re-rendering would
+    silently produce an empty document on the second run of an unchanged input.
+
+    Documents from one template carry the same parts, so the package's plumbing comes from the
+    first; the body is concatenated and the styles are unioned. A part list that differs is a
+    programming error, not something to paper over, and raises.
+    """
+    if not documents:
+        raise ValueError("nothing to merge")
+    if len(documents) == 1:
+        return _with_title(documents[0], title, label)
+
+    from lxml import etree
+
+    parts = [_package_parts(blob) for blob in documents]
+    names = set(parts[0])
+    for index, other in enumerate(parts[1:], start=2):
+        if set(other) != names:
+            raise ValueError(
+                f"document {index} has a different part list from the first "
+                f"({sorted(set(other) ^ names)}) — it was not built by this exporter"
+            )
+
+    merged = dict(parts[0])
+    merged["word/document.xml"] = _merge_bodies(
+        etree, [part["word/document.xml"] for part in parts]
+    )
+    merged["word/styles.xml"] = _merge_styles(etree, [part["word/styles.xml"] for part in parts])
+    return _with_title(_deterministic_zip(merged), title, label)
+
+
+def _merge_bodies(etree: Any, blobs: Sequence[bytes]) -> bytes:
+    """Concatenate the bodies, ending each document's last section where it ended.
+
+    Each document's trailing ``w:sectPr`` holds that document's page setup. Dropping all but the
+    last one would re-flow the earlier ones into the last one's orientation, which is how a
+    landscape table comes back as a squeezed portrait one; instead each is re-attached as an
+    inline section break, which is what OOXML uses to end a section with its own properties.
+    """
+    bodies = []
+    for blob in blobs:
+        nodes = list(etree.fromstring(blob).find(f"{W}body"))
+        last = nodes.pop() if nodes and nodes[-1].tag == f"{W}sectPr" else None
+        bodies.append((nodes, last))
+    if bodies[-1][1] is None:
+        raise ValueError("the last document has no closing sectPr — not a document we built")
+
+    children: list[Any] = []
+    for index, (nodes, last) in enumerate(bodies):
+        children.extend(nodes)
+        if index < len(bodies) - 1 and last is not None:
+            # end this document's last section where it ended, before the next one starts
+            children.append(_section_break(etree, last))
+    children.append(bodies[-1][1])
+
+    root = etree.fromstring(blobs[0])
+    body = root.find(f"{W}body")
+    for node in list(body):
+        body.remove(node)
+    for node in children:
+        body.append(node)
+    return etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+
+
+def _section_break(etree: Any, sect_pr: Any) -> Any:
+    paragraph = etree.Element(f"{W}p")
+    properties = etree.SubElement(paragraph, f"{W}pPr")
+    properties.append(sect_pr)
+    return paragraph
+
+
+def _merge_styles(etree: Any, blobs: Sequence[bytes]) -> bytes:
+    """Union of the referenced styles. One template means one definition per style id."""
+    root = etree.fromstring(blobs[0])
+    known = {style.get(f"{W}styleId") for style in root.findall(f"{W}style")}
+    for blob in blobs[1:]:
+        for style in etree.fromstring(blob).findall(f"{W}style"):
+            if style.get(f"{W}styleId") not in known:
+                root.append(style)
+                known.add(style.get(f"{W}styleId"))
+    return etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+
+
+def _package_parts(blob: bytes) -> dict[str, bytes]:
+    with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+        return {name: archive.read(name) for name in archive.namelist()}
+
+
+def _with_title(blob: bytes, title: str | None, label: str | None = None) -> bytes:
+    """Rewrite the document title, and the footer's label when one is given.
+
+    A merged document inherits the first module's footer, which would tell a reader on page 30
+    that they are still reading `genome_stats`.
+    """
+    if not title and not label:
+        return blob
+    from lxml import etree
+
+    parts = _package_parts(blob)
+    if title:
+        core = parts.get("docProps/core.xml")
+        if core is not None:
+            root = etree.fromstring(core)
+            node = root.find("{http://purl.org/dc/elements/1.1/}title")
+            if node is None:
+                node = etree.SubElement(root, "{http://purl.org/dc/elements/1.1/}title")
+            node.text = title
+            parts["docProps/core.xml"] = etree.tostring(
+                root, xml_declaration=True, encoding="UTF-8", standalone=True
+            )
+    if label:
+        for name in [part for part in parts if part.startswith("word/footer")]:
+            root = etree.fromstring(parts[name])
+            first = next(iter(root.iter(f"{W}t")), None)
+            if first is not None:
+                first.text = f"PlastidToolSuite · {label} · Page "
+            parts[name] = etree.tostring(
+                root, xml_declaration=True, encoding="UTF-8", standalone=True
+            )
+    return _deterministic_zip(parts)
 
 
 def _load_docx() -> Any:
@@ -645,7 +773,10 @@ def _deterministic_package(data: bytes) -> bytes:
     ``python-docx`` stamps each entry with the wall-clock time, so two identical builds differ
     at the byte level. Everything below is what makes the export reproducible.
     """
-    parts = _pruned_parts(data)
+    return _deterministic_zip(_pruned_parts(data))
+
+
+def _deterministic_zip(parts: dict[str, bytes]) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         for name in sorted(parts):

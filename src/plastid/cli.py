@@ -18,6 +18,7 @@ import json
 import sys
 from dataclasses import asdict
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 
 from plastid import __version__
@@ -37,7 +38,12 @@ from plastid.core.samples import group_of, load_groups
 from plastid.modules import registry
 from plastid.report.citations import Citation, format_citation, load_citations
 from plastid.report.engine import CitationError, load_template, render
-from plastid.result.docx_export import DocxMeta, ExportDependencyError, export_docx
+from plastid.result.docx_export import (
+    DocxMeta,
+    ExportDependencyError,
+    export_docx,
+    merge_documents,
+)
 from plastid.result.result import Result
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
@@ -63,7 +69,13 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     run_parser = subparsers.add_parser("run", help="run one analysis module on one genome")
-    run_parser.add_argument("-m", "--module", required=True, help="module id (e.g. genome_stats)")
+    run_parser.add_argument(
+        "-m",
+        "--module",
+        required=True,
+        action="append",
+        help="module id (e.g. genome_stats); repeat the flag to run several in one run",
+    )
     run_parser.add_argument(
         "-i",
         "--input",
@@ -82,7 +94,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument(
         "--docx",
         action="store_true",
-        help="also write report.docx — a publication document (needs the 'docx' extra)",
+        help=(
+            "also write report.docx in each module directory, and a combined one in the run's "
+            "report directory (needs the 'docx' extra)"
+        ),
     )
     run_parser.add_argument("--force", action="store_true", help="ignore the cache and re-run")
     run_parser.add_argument(
@@ -231,24 +246,34 @@ def _document_renderer(
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    try:
-        spec = registry.get(args.module)
-    except registry.UnknownModuleError as error:
-        print(str(error), file=sys.stderr)
-        return EXIT_ERROR
+    specs: list[registry.ModuleSpec] = []
+    for module_id in args.module:
+        try:
+            specs.append(registry.get(module_id))
+        except registry.UnknownModuleError as error:
+            print(str(error), file=sys.stderr)
+            return EXIT_ERROR
+    repeated = sorted({spec.id for spec in specs if [s.id for s in specs].count(spec.id) > 1})
+    if repeated:
+        print(
+            f"run: module(s) named twice: {', '.join(repeated)} — one run holds each module once",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
 
     try:
         genomes = tuple(read_genbank(text) for text in args.input)
     except (OSError, ValueError) as error:
         print(f"cannot read the input: {error}", file=sys.stderr)
         return EXIT_ERROR
-    if len(genomes) != spec.arity:
-        print(
-            f"module {spec.id!r} takes {spec.arity} genome(s), got {len(genomes)} — "
-            f"pass --input once per genome",
-            file=sys.stderr,
-        )
-        return EXIT_USAGE
+    for spec in specs:
+        if len(genomes) != spec.arity:
+            print(
+                f"module {spec.id!r} takes {spec.arity} genome(s), got {len(genomes)} — "
+                f"pass --input once per genome",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
     genome = genomes[0]
     try:
         params = _parse_sets(args.set or [])
@@ -289,14 +314,13 @@ def _cmd_run(args: argparse.Namespace) -> int:
     layout = RunLayout.create(args.out, dataset, fingerprint=fingerprint)
     layout.make_dirs()
 
-    ctx = RunContext(layout=layout, params=params, module_id=spec.id, module_order=1)
+    ctx = RunContext(layout=layout, params=params, module_id=specs[0].id, module_order=1)
     manifest = build_manifest(
         run_id=layout.run_id,
         command=[
             "plastid",
             "run",
-            "--module",
-            spec.id,
+            *[part for spec in specs for part in ("--module", spec.id)],
             *[part for text in args.input for part in ("--input", text)],
         ],
         package_version=__version__,
@@ -320,7 +344,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         },
     )
 
-    if spec.requires_ir:
+    if any(spec.requires_ir for spec in specs):
         gated: list[IRResult] = []
         for candidate in genomes:
             try:
@@ -328,7 +352,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
             except (IRGateError, IRDetectionError) as error:
                 # every genome in a comparison must pass: one diverged IR corrupts them all
                 manifest["ir"] = {"gate_passed": False, "error": str(error)}
-                return _fail(manifest, layout, ctx, spec.version, f"IR gate: {error}", EXIT_USAGE)
+                return _fail(
+                    manifest, layout, ctx, specs[0].version, f"IR gate: {error}", EXIT_USAGE
+                )
         ctx.ir = gated[0]
         manifest["ir"] = {
             "source": gated[0].source,
@@ -353,74 +379,116 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 for candidate, result in zip(genomes, gated, strict=True)
             ]
 
-    try:
-        template = load_template(f"{spec.id}.en.md")
-    except FileNotFoundError:
-        template = None
     citations = load_citations()
-    render_report = (
-        (lambda result: render(template, result, citations=citations)) if template else None
-    )
-    render_document = (
-        _document_renderer(
-            spec=spec,
-            layout=layout,
-            manifest=manifest,
-            citations=citations,
-            accession=genome.accession or genome.name,
+    gated_ir = gated[0] if any(spec.requires_ir for spec in specs) else None
+    documents: list[Path] = []
+    files: list[dict] = []
+    for order, spec in enumerate(specs, start=1):
+        ctx = RunContext(layout=layout, params=params, module_id=spec.id, module_order=order)
+        ctx.ir = gated_ir
+        try:
+            template = load_template(f"{spec.id}.en.md")
+        except FileNotFoundError:
+            template = None
+        render_report = partial(render, template, citations=citations) if template else None
+        render_document = (
+            _document_renderer(
+                spec=spec,
+                layout=layout,
+                manifest=manifest,
+                citations=citations,
+                accession=genome.accession or genome.name,
+            )
+            if args.docx
+            else None
         )
-        if args.docx
-        else None
-    )
+        try:
+            outcome = execute_step(
+                module_id=spec.id,
+                module_version=spec.version,
+                run_fn=spec.run,
+                genomes=genomes,
+                arity=spec.arity,
+                params=params,
+                ctx=ctx,
+                cache=Cache(layout.cache_dir),
+                force=args.force,
+                render_report=render_report,
+                render_document=render_document,
+            )
+        except IRGateError as error:
+            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_USAGE)
+        except ExportDependencyError as error:
+            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
+        except ToolError as error:
+            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
+        except Exception as error:  # noqa: BLE001 — report any module failure, then exit 1
+            message = f"{type(error).__name__}: {error}"
+            return _fail(manifest, layout, ctx, spec.version, message, EXIT_ERROR)
 
-    try:
-        outcome = execute_step(
-            module_id=spec.id,
-            module_version=spec.version,
-            run_fn=spec.run,
-            genomes=genomes,
-            arity=spec.arity,
-            params=params,
-            ctx=ctx,
-            cache=Cache(layout.cache_dir),
-            force=args.force,
-            render_report=render_report,
-            render_document=render_document,
-        )
-    except IRGateError as error:
-        return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_USAGE)
-    except ExportDependencyError as error:
-        return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
-    except ToolError as error:
-        return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
-    except Exception as error:  # noqa: BLE001 — report any module failure, then exit 1
-        message = f"{type(error).__name__}: {error}"
-        return _fail(manifest, layout, ctx, spec.version, message, EXIT_ERROR)
-
-    files = []
-    for path_text in outcome.files:
-        path = Path(path_text)
-        files.append(
-            {
+        module_files = []
+        for path_text in outcome.files:
+            path = Path(path_text)
+            entry = {
                 "path": str(path.relative_to(layout.run_dir)),
                 "module": spec.id,
                 "sha256": _sha256_file(path),
                 "bytes": path.stat().st_size,
             }
+            module_files.append(entry)
+            files.append(entry)
+            if path.suffix == ".docx":
+                documents.append(path)
+        manifest["modules"].append(
+            {
+                "id": spec.id,
+                "version": spec.version,
+                "status": outcome.status,
+                "key": outcome.key,
+                "tools": [asdict(record) for record in ctx.tools],
+                "files": [entry["path"] for entry in module_files],
+            }
         )
-    manifest["modules"].append(
-        {
-            "id": spec.id,
-            "version": spec.version,
-            "status": outcome.status,
-            "key": outcome.key,
-            "tools": [asdict(record) for record in ctx.tools],
-            "files": [entry["path"] for entry in files],
-        }
-    )
+
     manifest["files"] = files
+    if len(documents) > 1:
+        # One run, one report: the modules' own documents are joined rather than re-rendered,
+        # because a cache hit restores files and not results (see result/docx_export).
+        try:
+            combined = _combine_documents(layout, manifest, documents, dataset)
+        except (OSError, ValueError) as error:
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                specs[-1].version,
+                f"cannot combine documents: {error}",
+                EXIT_ERROR,
+            )
+        manifest["files"].append(
+            {
+                "path": str(combined.relative_to(layout.run_dir)),
+                "module": "run",
+                "sha256": _sha256_file(combined),
+                "bytes": combined.stat().st_size,
+            }
+        )
     manifest["status"] = "ok"
-    return _finish(manifest, layout, ctx, spec.version, EXIT_OK)
+    return _finish(manifest, layout, ctx, specs[-1].version, EXIT_OK)
+
+
+def _combine_documents(
+    layout: RunLayout, manifest: dict, documents: list[Path], dataset: str
+) -> Path:
+    """Join the per-module documents into the run's own report — one file per run."""
+    blob = merge_documents(
+        [path.read_bytes() for path in documents],
+        title=f"{dataset} — analysis report",
+        label=f"{dataset} · {len(documents)} modules",
+    )
+    path = layout.report_dir / "report.docx"
+    path.write_bytes(blob)
+    return path
 
 
 def _cmd_panel(args: argparse.Namespace) -> int:
