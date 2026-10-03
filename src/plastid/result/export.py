@@ -12,7 +12,10 @@ import json
 
 from plastid.result.result import Result, Table
 
-__all__ = ["export_csv", "export_json", "export_markdown"]
+__all__ = ["Payload", "export_csv", "export_json", "export_markdown"]
+
+# What a result becomes on disk: text for csv/json/markdown, bytes for a Word document.
+Payload = dict[str, str | bytes]
 
 
 def export_csv(table: Table) -> str:

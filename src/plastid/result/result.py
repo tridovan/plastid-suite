@@ -71,6 +71,9 @@ class Table:
     rows: tuple[dict[str, Any], ...]
     scope: Scope
     key: str | None = None
+    # Key values to render emphasised — a totals row, in every table that has one. Presentation
+    # only: it changes no value and no export other than the Word document's weight.
+    emphasis: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if "." in self.id:
@@ -91,6 +94,14 @@ class Table:
                 raise ValueError(
                     f"table {self.id!r}: key column {self.key!r} repeats {repeated} — a "
                     f"reference to a repeated key would silently resolve to one of the rows"
+                )
+        if self.emphasis and self.key is None:
+            raise ValueError(f"table {self.id!r}: emphasis needs a key column to address rows by")
+        for value in self.emphasis:
+            if self.key is not None and value not in {row.get(self.key) for row in self.rows}:
+                raise ValueError(
+                    f"table {self.id!r}: emphasis {value!r} is not a value of key column "
+                    f"{self.key!r}"
                 )
 
     def _locate(self, ref: str) -> tuple[dict[str, Any], Column]:

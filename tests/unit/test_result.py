@@ -63,6 +63,44 @@ def test_a_repeated_key_is_rejected() -> None:
         )
 
 
+def test_emphasis_must_address_a_row_that_exists() -> None:
+    """A typo here is invisible in every export except the Word document's weight."""
+    table = _multi_row_table()
+    emphasised = Table(
+        id=table.id,
+        title=table.title,
+        columns=table.columns,
+        rows=table.rows,
+        scope=table.scope,
+        key="unit",
+        emphasis=("tri",),
+    )
+    assert emphasised.emphasis == ("tri",)
+
+    with pytest.raises(ValueError, match="not a value of key column"):
+        Table(
+            id=table.id,
+            title=table.title,
+            columns=table.columns,
+            rows=table.rows,
+            scope=table.scope,
+            key="unit",
+            emphasis=("tetra",),
+        )
+
+
+def test_emphasis_needs_a_key_column_to_address_rows_by() -> None:
+    with pytest.raises(ValueError, match="needs a key column"):
+        Table(
+            id="single",
+            title="Single",
+            columns=(Column("v", "V"),),
+            rows=({"v": 1},),
+            scope=Scope(label="x"),
+            emphasis=("Total",),
+        )
+
+
 def test_single_row_table_addresses_by_column() -> None:
     assert _single_row_table().value("gc_pct") == 37.8536
 

@@ -104,6 +104,23 @@ def test_cache_round_trip(tmp_path: Path) -> None:
     assert cache.get(key) == {"tables/x.csv": "a,b\n"}
 
 
+def test_cache_round_trips_bytes_without_touching_them(tmp_path: Path) -> None:
+    """A .docx is a zip: JSON has no bytes, and a cache hit has to restore the exact file.
+
+    The payload is stored as base64 — any lossy step here would show up as a document whose
+    bytes differ between a fresh run and a cached one, which is exactly what P2-09 forbids.
+    """
+    cache = Cache(tmp_path)
+    blob = bytes(range(256)) * 4
+    key = Cache.key(module_id="m", module_version="1", params_hash="p", input_sha256s=("a",))
+    cache.put(key, {"tables/x.csv": "a,b\n", "report.docx": blob})
+    restored = cache.get(key)
+    assert restored == {"tables/x.csv": "a,b\n", "report.docx": blob}
+    assert isinstance(restored["report.docx"], bytes)
+    # the cache file itself stays valid JSON — no bytes leaked into it
+    assert "report.docx" in (tmp_path / f"{key}.json").read_text(encoding="utf-8")
+
+
 def _stub_result() -> Result:
     return Result(
         module="stub",
