@@ -30,11 +30,11 @@ NCBI_JOIN_EXAMPLE = (
 
 NCBI_PARTIAL_EXAMPLE = (
     ">Feature Seq1\n"
-    "<1\t>1050\tgene\t\t\n"
+    "<1\t>1050\tgene\n"
     "\t\t\tgene\tATH1\n"
-    "<1\t1009\tCDS\t\t\n"
+    "<1\t1009\tCDS\n"
     "\t\t\tcodon_start\t2\n"
-    "<1\t>1050\tmRNA\t\t\n"
+    "<1\t>1050\tmRNA\n"
 )
 
 _PAD = "ACGT" * 20
@@ -52,15 +52,15 @@ def test_a_multi_interval_feature_is_stacked_not_joined() -> None:
     gene = Gene("trnK-UUU", "tRNA", (Interval(100, 200), Interval(300, 350)))
     lines = to_tbl(_genome(gene), "SYN001.1").splitlines()
     assert lines[0] == ">Features SYN001.1"
-    assert lines[1] == "101\t200\ttRNA\t\t"
-    assert lines[2] == "301\t350\t\t\t"
+    assert lines[1] == "101\t200\ttRNA"
+    assert lines[2] == "301\t350\t"
     assert lines[3] == "\t\t\tgene\ttrnK-UUU"
 
 
 def test_a_minus_strand_feature_writes_its_interval_reversed() -> None:
     gene = Gene("rbcL", "CDS", (Interval(100, 200, -1),), product="rubisco")
     lines = to_tbl(_genome(gene), "SYN001.1").splitlines()
-    assert lines[1] == "200\t101\tCDS\t\t"
+    assert lines[1] == "200\t101\tCDS"
     assert "\t\t\tproduct\trubisco" in lines
 
 
@@ -74,8 +74,8 @@ def test_a_mixed_strand_trans_spliced_gene_keeps_each_interval_its_own_way() -> 
         trans_splicing=True,
     )
     lines = to_tbl(_genome(gene), "SYN001.1").splitlines()
-    assert lines[1] == "120\t101\tCDS\t\t"
-    assert lines[2] == "301\t320\t\t\t"
+    assert lines[1] == "120\t101\tCDS"
+    assert lines[2] == "301\t320\t"
     assert "\t\t\ttrans_splicing\t" in lines
 
 
@@ -83,7 +83,7 @@ def test_a_partial_coordinate_keeps_its_symbol_in_the_right_column() -> None:
     """``<`` always in column 1, ``>`` always in column 2 — NCBI's rule, whatever the strand."""
     gene = Gene("ycf1", "CDS", (Interval(0, 100, 1, partial_start=True, partial_end=True),))
     lines = to_tbl(_genome(gene), "SYN001.1").splitlines()
-    assert lines[1] == "<1\t>100\tCDS\t\t"
+    assert lines[1] == "<1\t>100\tCDS"
 
 
 def test_a_partial_on_a_minus_strand_interval_stays_with_its_own_coordinate() -> None:
@@ -101,14 +101,14 @@ def test_a_partial_on_a_minus_strand_interval_stays_with_its_own_coordinate() ->
         (Interval(0, 100, -1, partial_start=True, partial_end=False),),
     )
     lines = to_tbl(_genome(gene), "SYN001.1").splitlines()
-    assert lines[1] == "100\t>1\tCDS\t\t"
+    assert lines[1] == "100\t>1\tCDS"
 
 
 def test_a_partial_five_prime_end_of_a_minus_strand_feature_takes_the_other_symbol() -> None:
     """The mirror case: `complement(1..>100)` — coordinate 100 is the feature's 5' end."""
     gene = Gene("ndhF", "CDS", (Interval(0, 100, -1, partial_start=False, partial_end=True),))
     lines = to_tbl(_genome(gene), "SYN001.1").splitlines()
-    assert lines[1] == "<100\t1\tCDS\t\t"
+    assert lines[1] == "<100\t1\tCDS"
 
 
 def test_a_partial_on_an_internal_interval_is_refused_not_dropped() -> None:
@@ -142,13 +142,13 @@ def test_a_sequence_id_with_a_space_is_refused() -> None:
 
 
 def test_the_parsers_reads_ncbi_documented_examples() -> None:
-    joined = parse_tbl(NCBI_JOIN_EXAMPLE)
+    joined = _features(parse_tbl(NCBI_JOIN_EXAMPLE))
     assert len(joined) == 1
     assert joined[0].kind == "tRNA"
     assert joined[0].parts == ((2626, 2590, False, False), (2570, 2535, False, False))
     assert joined[0].qualifiers == {"product": "tRNA-Phe"}
 
-    partial = parse_tbl(NCBI_PARTIAL_EXAMPLE)
+    partial = _features(parse_tbl(NCBI_PARTIAL_EXAMPLE))
     assert [feature.kind for feature in partial] == ["gene", "CDS", "mRNA"]
     assert partial[0].parts == ((1, 1050, True, True),)
     assert partial[0].qualifiers == {"gene": "ATH1"}
@@ -159,8 +159,14 @@ def test_the_parser_reads_the_compact_qualifier_layout_too() -> None:
     """The BankIt help page renders qualifiers with the leading tabs collapsed; a table pasted
     from it still has to read."""
     text = ">Feature Seq2\n2626\t2590\ttRNA\t\t\n2570\t2535\t\t\t\nproduct\ttRNA-Phe\n"
-    parsed = parse_tbl(text)
+    parsed = _features(parse_tbl(text))
     assert parsed[0].qualifiers == {"product": "tRNA-Phe"}
+
+
+def _features(records) -> tuple:
+    """The one record a table is expected to hold here — the multi-record case has its own test."""
+    assert len(records) == 1, f"expected one record, got {len(records)}"
+    return records[0].features
 
 
 def _canonical_parts(gene: Gene) -> tuple[tuple[tuple[int, bool], ...], ...]:
@@ -177,7 +183,7 @@ def test_the_golden_genome_round_trips_through_the_table(data_dir: Path) -> None
     name, same intervals (partials included), same product and translation table. Compared as a
     multiset: both IR copies are features in their own right, not one feature written twice."""
     golden = read_genbank(data_dir / "NC_050833.1.gb")
-    parsed = parse_tbl(to_tbl(golden, "NC_050833.1"))
+    parsed = _features(parse_tbl(to_tbl(golden, "NC_050833.1")))
 
     def from_gene(gene: Gene) -> tuple:
         return (
@@ -339,3 +345,68 @@ def test_the_cli_run_writes_the_files_and_the_manifest_lists_them(
     )
     second = sorted((tmp_path / "iris").iterdir())[-1]
     assert (second / "01_submission" / "submission.tbl").read_bytes() == before
+
+
+REAL_NCBI_TABLES = (
+    "real_NC_039897.vadr.tbl",
+    "real_va-dengue-rpn.vadr.tbl",
+    "real_va-noro.vadr.tbl",
+)
+
+
+@pytest.mark.parametrize("name", REAL_NCBI_TABLES)
+def test_a_real_ncbi_table_round_trips_through_our_writer(name: str, data_dir: Path) -> None:
+    """P3-05's second clause, as far as it can be closed here: the table we write has the same
+    shape as tables NCBI's own pipeline produces, field for field.
+
+    These files are not examples from a manual — they are VADR's output for real records
+    (provenance in tests/data/PROVENANCE.md). Reading one back and writing it out again must
+    reproduce it exactly, record by record: every convention that fails at *upload* time is in
+    these bytes, and a writer that disagrees with any of them disagrees with a real table.
+    """
+    from plastid.core.submission import tbl_text
+
+    text = (data_dir / name).read_text(encoding="utf-8")
+    records = parse_tbl(text)
+    assert records, "the real table parsed to nothing"
+
+    written = "".join(tbl_text(record.features, record.seq_id) for record in records)
+    original_lines = text.rstrip("\n").splitlines()
+    written_lines = written.rstrip("\n").splitlines()
+
+    # The header spelling differs between sources: NCBI's documentation says ">Features" (which
+    # this writer emits) and VADR's own output says ">Feature". The parser accepts both, because
+    # both are in the wild; everything after each header must match byte for byte.
+    original_body = [line for line in original_lines if not line.startswith(">")]
+    written_body = [line for line in written_lines if not line.startswith(">")]
+    assert written_body == original_body
+    assert all(line.startswith(">Features ") for line in written_lines if line.startswith(">"))
+
+
+def test_a_multi_record_table_keeps_its_records_apart(data_dir: Path) -> None:
+    """Measured while vendoring these files: NCBI's own output can hold several records in one
+    table (one VADR file carried eight). Merging them would attach every record's features to one
+    sequence — silently, and to the wrong sequence. So a record boundary is part of the model."""
+    noro = (data_dir / "real_va-noro.vadr.tbl").read_text(encoding="utf-8")
+    records = parse_tbl(noro)
+    assert len(records) == 8
+    assert [record.seq_id for record in records][:2] == ["KY887602.1", "KT818729.1"]
+    assert all(record.features for record in records)
+
+
+def test_the_conventions_the_real_tables_pin_down(data_dir: Path) -> None:
+    """Spelled out, so the reason these files are in the repository survives a refactor."""
+    partial = (data_dir / "real_va-dengue-rpn.vadr.tbl").read_text(encoding="utf-8")
+    # a partial marker is a prefix, in column 1 for the start and column 2 for the stop
+    assert "<1\t>515\tCDS" in partial
+    # a qualifier name sits in column 4, its value in column 5 — three empty fields before it
+    assert "\t\t\tcodon_start\t2" in partial
+    assert "\t\t\tproduct\tpolyprotein" in partial
+
+    plain = (data_dir / "real_NC_039897.vadr.tbl").read_text(encoding="utf-8")
+    assert plain.startswith(">Feature ref|NC_039897.1|\n")
+    assert "\t\t\tgene\tORF1" in plain
+    # features are written in position order, and only the first interval of a feature carries
+    # its key — the shape our writer emits for a multi-interval gene
+    starts = [int(line.split("\t")[0]) for line in plain.splitlines()[1:] if line[:1].isdigit()]
+    assert starts == sorted(starts)

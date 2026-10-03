@@ -154,11 +154,15 @@ included), product and table, and 0 first-pass problems. The syntax rules were t
 documentation, not memory — `join()` does not exist in this format (intervals **stack**), a
 minus-strand interval is **reversed**, and `<` goes in column 1 while `>` goes in column 2
 whatever the strand, both as **prefixes** (`>1050`, not `1050>`).
-**Two honest gaps, both named:** (1) the "matches a real submitted record field for field" clause
-was checked against NCBI's *documented* rules and their verbatim example rows, **not** against a
-real submitted `.tbl` — none was available here; (2) the `.sqn` half also needs a submitter
-template (`.sbt`), which only the team can supply (it names people and institutions), so the
-adapter takes `--set template=…` and refuses without it.
+**The "field for field" clause is now closed for everything but joins** — three real tables
+NCBI's own pipeline produced (VADR output, vendored under `tests/data/` with provenance and
+sha256) round-trip through our writer **byte for byte**, record by record. Reading them changed
+the writer twice: interval lines carry **three** fields, not five padded ones (NCBI's own tables
+do not pad them), and a table file may hold **several records** — one VADR file carried eight, and
+the parser had been merging them into one feature list, silently attaching every record's features
+to one sequence. Two gaps remain, both named: **joins** are verified against NCBI's documented
+example rather than a real file (no real table with a multi-interval feature was found), and the
+`.sqn` half needs the team's `.sbt`.
 
 ## Waiting on data / people
 

@@ -136,10 +136,10 @@ the golden genome's value, not a constant**: P2-10 measured 131 (*S. diffusum*) 
 (*C. amboinicus*), both correct. *De-novo assemblies (Phase 7 only) get the extra "verify vs close
 relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined" rule — skipped here.*
 
-- [ ] **M3.1 Annotation** — PGA (plastid) · MITOS2/GeSeq (mito)
-- [ ] **M3.2 Gene-name check & normalization** — one shared normalizer, no divergent copies
-- [ ] **M3.3 ORF checks** — start · stop · internal codons (handle truncated ycf1 case)
-- [ ] **M3.4 NCBI submission files** — FASTA · TBL · SQN
+- [~] **M3.1 Annotation** (2026-10-03) — PGA (plastid) implemented and gated; the mito path (`mito_genes`, no IR gate) done and measured, the **PMGA annotator blocked** on its container
+- [x] **M3.2 Gene-name check & normalization** (2026-10-03) — one normalizer (`core/gene_names.py`), panel measured: 155 → 115 canonical, 0 unresolved, 0 unclassified
+- [x] **M3.3 ORF checks** (2026-10-03) — golden: 0 failures, 5 alternative starts; the truncated ycf1 reported as annotated-not-coding
+- [~] **M3.4 NCBI submission files** (2026-10-03) — `.fsa` + `.tbl` in pure Python, 265/265 features round-trip; `.sqn` waits on the team's `.sbt`
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid and mito)*
 

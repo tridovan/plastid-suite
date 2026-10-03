@@ -19,12 +19,14 @@ different claim about the same sequence.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from plastid.core.model import Gene, Genome
 
 __all__ = [
     "TblFeature",
+    "TblRecord",
     "parse_tbl",
     "submission_problems",
     "to_fasta",
@@ -47,6 +49,19 @@ class TblFeature:
     qualifiers: dict[str, str | None] = field(default_factory=dict)
 
 
+@dataclass(frozen=True, slots=True)
+class TblRecord:
+    """One ``>Features <id>`` block. A table file may hold several — real ones do.
+
+    Measured 2026-10-03 on NCBI's own VADR output: one file carried eight records. Merging them
+    into one feature list would silently attach every record's features to one sequence, so a
+    record boundary is part of the model rather than something a reader is expected to notice.
+    """
+
+    seq_id: str
+    features: tuple[TblFeature, ...]
+
+
 def to_fasta(genome: Genome, seq_id: str, *, width: int = 60) -> str:
     """The ``.fsa``: one sequence, ID matching the ``>Features`` line of the table."""
     if not seq_id or " " in seq_id:
@@ -63,21 +78,33 @@ def to_tbl(genome: Genome, seq_id: str) -> str:
     Features are written in position order — the order the format expects a reader (and NCBI)
     to meet them — and every interval of one feature stays together on consecutive lines.
     """
+    features = tuple(
+        _feature_of(gene)
+        for gene in sorted(
+            (gene for gene in genome.genes if gene.kind in SUBMITTED_KINDS),
+            key=_position_key,
+        )
+    )
+    return tbl_text(features, seq_id)
+
+
+def tbl_text(features: Sequence[TblFeature], seq_id: str) -> str:
+    """Serialise features as NCBI's five-column table.
+
+    The one writer for this format, so a table we build from a genome and a table we read back
+    from a file cannot drift apart: everything the writer knows about the format lives here and
+    in :func:`_feature_of`, and ``parse_tbl`` is its inverse (a round-trip test on real
+    NCBI-produced tables holds the two together — see tests/unit/test_submission.py).
+    """
     lines = [f">Features {seq_id}"]
-    for gene in sorted(
-        (gene for gene in genome.genes if gene.kind in SUBMITTED_KINDS),
-        key=_position_key,
-    ):
-        lines.extend(_feature_lines(gene))
+    for feature in features:
+        lines.extend(_feature_lines(feature))
     return "\n".join(lines) + "\n"
 
 
-def _position_key(gene: Gene) -> tuple[int, int, str]:
-    return (min(part.start for part in gene.parts), max(part.end for part in gene.parts), gene.kind)
-
-
-def _feature_lines(gene: Gene) -> list[str]:
-    lines: list[str] = []
+def _feature_of(gene: Gene) -> TblFeature:
+    """A gene as the table writes it: intervals in the order and orientation the format needs."""
+    parts: list[tuple[int, int, bool, bool]] = []
     last = len(gene.parts) - 1
     for index, part in enumerate(gene.parts):
         start, end = part.to_1based()
@@ -88,13 +115,29 @@ def _feature_lines(gene: Gene) -> list[str]:
             # partial flags stay attached to their own coordinate, not to the column
             start, end = end, start
             partial_start, partial_end = partial_end, partial_start
-        # both markers are prefixes: NCBI's own example writes the stop column as ``>1050``
+        parts.append((start, end, partial_start, partial_end))
+    return TblFeature(kind=gene.kind, parts=tuple(parts), qualifiers=_qualifiers_of(gene))
+
+
+def _feature_lines(feature: TblFeature) -> list[str]:
+    lines: list[str] = []
+    for index, (start, end, partial_start, partial_end) in enumerate(feature.parts):
+        # both markers are prefixes: NCBI's own tables write the stop column as ``>1050``
         first_column = f"{'<' if partial_start else ''}{start}"
         second_column = f"{'>' if partial_end else ''}{end}"
-        key = gene.kind if index == 0 else ""
-        lines.append(f"{first_column}\t{second_column}\t{key}\t\t")
-    lines.extend(_qualifier_lines(gene))
+        key = feature.kind if index == 0 else ""
+        # three fields, not five: NCBI's own tables do not pad an interval line with empty
+        # qualifier columns (the round-trip test against their files is what settled this)
+        lines.append(f"{first_column}\t{second_column}\t{key}")
+    lines.extend(
+        f"\t\t\t{name}\t{'' if value is None else value}"
+        for name, value in feature.qualifiers.items()
+    )
     return lines
+
+
+def _position_key(gene: Gene) -> tuple[int, int, str]:
+    return (min(part.start for part in gene.parts), max(part.end for part in gene.parts), gene.kind)
 
 
 def _check_partial(gene: Gene, index: int, last: int, partial: bool) -> bool:
@@ -108,7 +151,8 @@ def _check_partial(gene: Gene, index: int, last: int, partial: bool) -> bool:
     return partial
 
 
-def _qualifier_lines(gene: Gene) -> list[str]:
+def _qualifiers_of(gene: Gene) -> dict[str, str | None]:
+    """The qualifiers this toolkit writes, in a stable order — the order they appear in the file."""
     qualifiers: list[tuple[str, str | None]] = [("gene", gene.name)]
     if gene.product:
         qualifiers.append(("product", gene.product))
@@ -121,29 +165,39 @@ def _qualifier_lines(gene: Gene) -> list[str]:
         qualifiers.append(("trans_splicing", None))
     if gene.pseudo:
         qualifiers.append(("pseudo", None))
-    return [f"\t\t\t{name}\t{'' if value is None else value}" for name, value in qualifiers]
+    return dict(qualifiers)
 
 
-def parse_tbl(text: str) -> tuple[TblFeature, ...]:
-    """Read a ``.tbl`` back into features — the round-trip check's other half.
+def parse_tbl(text: str) -> tuple[TblRecord, ...]:
+    """Read a ``.tbl`` back into records — the round-trip check's other half.
 
     Accepts both qualifier layouts seen in the wild: NCBI's documented one (qualifier in column
     4) and the compact one the BankIt help page renders (qualifier in column 3). It is our own
     writer's output that must be unambiguous, and that is the four-column form.
     """
+    records: list[TblRecord] = []
+    seq_id = ""
     features: list[TblFeature] = []
     kind: str | None = None
     parts: list[tuple[int, int, bool, bool]] = []
     qualifiers: dict[str, str | None] = {}
 
-    def flush() -> None:
+    def flush_feature() -> None:
         if kind is not None:
             features.append(TblFeature(kind=kind, parts=tuple(parts), qualifiers=dict(qualifiers)))
 
+    def flush_record() -> None:
+        flush_feature()
+        if seq_id:
+            records.append(TblRecord(seq_id=seq_id, features=tuple(features)))
+        features.clear()
+
     for raw in text.splitlines():
         if raw.startswith(">"):
-            flush()
+            flush_record()
             kind, parts, qualifiers = None, [], {}
+            # ">Features <id>" or ">Feature <id>": both spellings are in the wild
+            seq_id = raw.lstrip(">").split(" ", 1)[1].strip() if " " in raw else ""
             continue
         if not raw.strip():
             continue
@@ -154,7 +208,7 @@ def parse_tbl(text: str) -> tuple[TblFeature, ...]:
 
         if _looks_like_coordinate(first) or _looks_like_coordinate(second):
             if key.strip():  # an interval line carrying the key opens a new feature
-                flush()
+                flush_feature()
                 parts, qualifiers = [], {}
                 kind = key.strip()
             if kind is None:
@@ -174,8 +228,8 @@ def parse_tbl(text: str) -> tuple[TblFeature, ...]:
             name, text_value = first.strip(), second.strip()
         if name:
             qualifiers[name] = text_value or None
-    flush()
-    return tuple(features)
+    flush_record()
+    return tuple(records)
 
 
 def _looks_like_coordinate(text: str) -> bool:

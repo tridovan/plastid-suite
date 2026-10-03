@@ -33,15 +33,24 @@ yet merged to `main`).** The board is `TASKS.md`.
   minus-strand intervals reverse; `<` in column 1, `>` in column 2, both as prefixes). §8.13.
 - **P3-03 PGA annotation — implemented, measured half pending.** Adapter + module + a stub test of
   the wiring; the real run is `PTS_REQUIRE_TOOLS=1`-gated and skipped here (no PGA). §8.13.
-- **P3-04 mito — BLOCKED on the tool.** **PMGA decided** (not MITOS2, which is metazoan). PMGA ships
-  as a singularity container with no published CLI, so no adapter was written rather than invent one.
-  The exact ask is in `TASKS.md` → "Waiting on data / people".
+- **P3-04 mito — the testable half is DONE.** `modules/mito_genes.py` describes a plant mitogenome
+  **without asking for the IR gate** (a test runs it with `ctx.ir=None`; a companion test shows a
+  gated module still stopping on the same context). On the stand-in `OX459128.1`:
+  **51 = 31 CDS + 17 tRNA + 3 rRNA**, every CDS named by a standard symbol, 0 unmapped. The
+  vocabulary is a **separate file** (`data/mito_gene_names.yaml`) because the same product string
+  occurs in both organelles — measured: "ribosomal protein S3" is a plastid product *and* a
+  mitochondrial one. **PMGA itself is still not implemented**: it ships as a singularity container
+  with no published CLI, and an invented CLI would be a placeholder that looks real.
+- **P3-05 submission — `table2asn` is now installed and declared** (`docs/tools/table2asn.md`,
+  v1.29.324, md5 recorded) and both of its error paths are tested (no tool → exit 3; no template →
+  exit 3, named). What the `.sqn` still needs is the **team's `.sbt`**: a hand-written one is
+  rejected (`Error loading template file`, measured twice), so it comes from NCBI's web form.
 
-**Next action:** P3-04 waits on the PMGA container. Everything else in Phase 3 that can run on this
-machine has run — so the next session either pulls that container, or starts Phase 4 by wiring the
-remaining name-bearing modules (introns · diversity · substitutions) to the canonical name, since
-Phase 4 keys its comparisons on it. **Blockers: `docs/PHASE3_BLOCKERS.md`** (still the map of who
-owes what).
+**Next action:** two things wait on people, not on this machine — the PMGA container
+(`anh Điềm`/`anh Trí`) and the `.sbt` (`cô Trang`). Everything else Phase 3 can do here has run.
+The next session should therefore either chase those two, or start Phase 4 by wiring the remaining
+name-bearing modules (introns · diversity · substitutions) to the canonical name, since Phase 4
+keys its comparisons on it. **Blockers: `docs/PHASE3_BLOCKERS.md`** (the map of who owes what).
 
 Blocker state, short version:
 

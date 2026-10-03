@@ -765,9 +765,17 @@ bước upload, sau khi đã làm xong hết:
 Chạy thật qua CLI: `submission.fsa` (156.300 B) + `submission.tbl` (15.503 B) nằm trong thư mục
 run, có trong `manifest.json`, và lần chạy thứ hai (cache hit) phục hồi **byte-identical**.
 
-*Hai khoảng trống, nói thẳng:* (1) điều khoản "khớp một bản nộp thật từng trường" mới đối chiếu với
-**quy tắc tài liệu + ví dụ nguyên văn của NCBI**, chưa đối chiếu với một file `.tbl` đã nộp thật
-(không kiếm được cái nào ở đây); (2) nửa `.sqn` chưa chạy lần nào.
+*Đối chiếu với bảng THẬT (bổ sung cuối phiên).* Ba file `.tbl` do **chính pipeline của NCBI** sinh ra
+(đầu ra VADR, vendor ở `tests/data/real_*.tbl` kèm nguồn + sha256 + giấy phép public domain) đã được
+đọc lại và ghi lại **byte-identical từng dòng một** — tức là mọi quy ước "chết ở bước upload" đều đã
+đối chiếu với bảng thật, không chỉ với tài liệu. Đọc chúng làm **sửa writer hai lần**: (1) dòng
+interval chỉ có **3 trường**, không đệm 2 cột rỗng như bản đầu; (2) một file `.tbl` **có thể chứa
+nhiều bản ghi** — một file VADR chứa **8 bản ghi**, và parser cũ **gộp im lặng** tất cả feature của 8
+bản ghi vào một danh sách, tức là gán feature của bản ghi này cho sequence của bản ghi khác. Nay
+`parse_tbl` trả về `TblRecord` (seq_id + features) và có test riêng cho ca 8 bản ghi.
+*Hai khoảng trống còn lại:* (1) quy ước **join/xếp tầng** vẫn chỉ đối chiếu với ví dụ trong tài liệu
+NCBI — không tìm được file thật nào có feature nhiều đoạn; (2) nửa `.sqn` chưa chạy lần nào (thiếu
+template của nhóm).
 
 **Cập nhật cuối phiên — `table2asn` đã cài và đã khai báo.** Tải trọn 20.213.344 B (nén) →
 56.847.504 B, `table2asn -h` → **1.29.324**; md5 nhị phân `8b5b6cbede9d38b47c7c4cae29a25a0a`.
