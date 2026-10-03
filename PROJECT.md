@@ -63,6 +63,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **File nộp NCBI: `.fsa` + `.tbl` thuần Python, luôn luôn; `.sqn` chỉ khi có `table2asn` *và* có template `.sbt` (D3-04, P3-05)**: web submission của NCBI nhận thẳng cặp `.fsa`+`.tbl`, nên bản cài tối thiểu vẫn nộp được. `.tbl` mang **tên gốc của bản ghi** (đổi tên là đổi nội dung nộp — D3-06 chỉ nói về *chữ in trong bản thảo*); toạ độ partial đi theo bản ghi, partial ở interval giữa ⇒ **từ chối**, không bỏ im lặng (§8.13) |
 | 03/10 | **Chú giải: Chloe là annotator của pipeline; PGA còn lại cho genome ngoài angiosperm (D3-01 — sửa lại sau khi ĐO, dev quyết)**: ràng buộc cũ vẫn nguyên (offline, ghi được tên · phiên bản · đường dẫn · argv), nhưng *"công cụ offline nào"* chỉ là **giả thuyết cho tới khi chạy thật**. PGA trên genome vàng ra **147 gen** (7 reference) và **130** (1 reference) so với **132**, kèm ba kiểu hỏng im lặng (§8.15) ⇒ **thay bằng Chloe**: offline, có bộ reference chuẩn hoá của chính nó, và **đo qua reader của mình ra đúng 132 = 86 + 38 + 8, 0 CDS lỗi ORF** (§8.17). Giữ `--set annotator=pga` cho plastome không phải thực vật có hoa (Chloe chỉ làm angiosperm). GeSeq vẫn là kiểm tra chéo ghim một lần. **Bài học ghi lại:** công cụ thắng không nằm trong danh sách khảo sát ban đầu | Dev | `docs/D3-01_annotator.md`, `docs/tools/chloe.md` |
 | 03/10 | **Nối công cụ chú giải mito (P3-04) — PMGA**, không phải MITOS2 (annotator của động vật có vú, bộ tham chiếu `refseq81m`). PMGA phân phối dạng **singularity container** (Figshare 27201798) + web server, không có repo git và không có tài liệu CLI công khai ⇒ **chưa viết adapter**: viết theo CLI tự nghĩ ra sẽ là một placeholder trông như thật. Cần: kéo container, ghi entry point vào `docs/` |
+| 03/10 | **Bước nặng: chạy ở đâu, và kết quả chạy ở nơi khác phải ghim được (P1-12, làm nốt 03/10)**: luật backend đã có từ 03/10 (giai đoạn 1–5 và 8 chạy tại chỗ; 6–7 chạy máy chủ từ xa) nhưng **thiếu đường thực hiện** cho công cụ chạy bên ngoài: `panel pin` chỉ nhận accession. Bổ sung `plastid panel pin --file … --note …` (§8.19) để kết quả của web service / máy chủ khác vào được panel với đủ checksum + đọc lại + provenance — PMGA là ca đầu tiên dùng nó | Dev | `docs/tools/pmga.md`, §8.19 |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
 
 ## 4. Ai làm gì
@@ -1024,6 +1025,32 @@ mã vào bảng `validator_findings`, `.val` đi kèm như artifact, và báo c�
 **Ý nghĩa cho sản phẩm:** trước lần chạy này, bộ công cụ có thể tạo ra một cặp `.fsa` + `.tbl`
 *trông* đúng và **bị NCBI từ chối ở khâu upload** — sau khi đã làm xong mọi thứ. Đúng loại lỗi mà
 P3-05 tồn tại để chặn, và nó chỉ lộ ra khi có công cụ của chính NCBI để đối chiếu.
+
+---
+
+### 8.19. Nửa còn lại của luật backend: ghim kết quả công cụ chạy ở nơi khác (03/10/2026)
+
+**Luật đã có, không phải quyết định mới.** §3 (P1-12) và §13.10 đã chốt: bước nặng thì **chạy ở
+đâu cho phù hợp** — máy phổ thông khi chạy được, web/máy chủ khác khi không. Nhưng kiểm lại thì
+thiếu đúng một mảnh: `plastid panel pin` **chỉ nhận accession NCBI**, tức là kết quả của một công
+cụ chạy ở nơi khác **không ghim được**. Luật có mà đường thực hiện thì không.
+
+**Đã bổ sung:** `plastid panel pin --file <path> [--note "PMGA web, 03/10/2026"]` — ghim một bản
+ghi do nơi khác sinh ra, với **đúng những gì một lần tải NCBI có**: bytes · sha256 · md5 · bản ghi
+được **đọc lại bằng reader của mình** (kèm đo IR như mọi pin khác) · và `source`/`note` nói rõ nó
+từ đâu tới. Hai khác biệt so với ghim theo accession: khoá là **id của chính bản ghi** (không có
+accession thì lấy tên file — đúng ca một mẫu chưa có accession), và `PINNED.json` được **thêm vào**
+chứ không bị thay, vì ghim một file là ghim *vào* một panel đã có.
+
+Đo trên mitogenome thay thế: `pinned OX459128.1: 381931 bytes · sha256 e31da1d3… (258274 bp ·
+31 CDS + 17 tRNA + 3 rRNA · circular)` — khớp đúng số §8.14. Bản ghi không đọc được vẫn được ghim
+kèm `parse_error` (từ chối ghim sẽ để lại một con số mà không ai giữ nguồn).
+
+**Hệ quả cho P3-04:** PMGA giờ có **đủ hai đường** đúng như luật: (1) container local — đã có trên
+máy này (11 GB, cần Apptainer; **không phải đường cho máy 4–8 GB**), (2) chạy web service một lần
+rồi **ghim file** — chạy được ngay, không cần container. Adapter `external/pmga.py` vì thế là tiện
+ích về sau, **không còn là thứ chặn task**; điều kiện viết nó là có máy chạy nổi container, và số
+đầu tiên phải đo khi đó là **RAM đỉnh + thời gian**.
 
 ---
 

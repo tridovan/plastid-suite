@@ -59,15 +59,28 @@ mitochondrion (NC_037304) and plastome (NC_000932).
 * It therefore belongs to the **declared-external-tool tier**, exactly like Chloe and table2asn —
   never to the pip-only tier, which must keep working with no external tool at all.
 
-**Two ways to use it, and the second is the product answer** (the same reasoning D3-01 recorded
-for GeSeq):
+**This is not a new question: the plan already answered it** (PROJECT.md §3, P1-12 — the backend
+rule): *a heavy step runs where it fits*. Locally on an ordinary machine when it can, on a web
+service or a bigger server when it cannot. The same rule D3-01 applied to GeSeq applies here:
 
 1. **Container, locally** — for a machine that can afford it, declared here and called through
-   `run_tool()`; the toolkit records name · version · path · argv like any other tool.
+   `run_tool()`; the toolkit records name · version · path · argv like any other tool. It is the
+   route for whoever has the RAM; the paper's own authors ship the container for exactly that.
 2. **The web service, once, pinned** — `http://www.1kmpg.cn/pmga/` annotates the same inputs. Run
-   it once per species, then **pin the output** (`plastid panel pin`: accession · date · sha256)
-   and let the toolkit read it with its own reader. The manual step happens once; every later run
-   is offline, and the biologist's computer never has to hold the container.
+   it once per species, save the GenBank it returns, and **pin that file**:
+
+   ```
+   plastid panel pin --file pmga_output.gb --note "PMGA web, 2026-10-03"
+   ```
+
+   The pin records what an NCBI download records — bytes · sha256 · md5 · the record re-read with
+   our own reader — plus where it came from. Every later run is offline, and the biologist's
+   computer never holds the container. This is the route for the team's own machines, and the
+   `--file` half was built on 2026-10-03 precisely because the rule requires it (PROJECT.md §8.19).
+
+**What an adapter would add, and when to write it:** nothing the pinned file does not already
+give, for question 1 above. `external/pmga.py` earns its place the first time a machine here can
+run the container — and it is a small job then, because the command line is known.
 
 ## What is NOT yet measured — and what it needs
 

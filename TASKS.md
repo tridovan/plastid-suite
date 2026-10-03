@@ -160,22 +160,28 @@ its duplicate calls.
 **Done when:** on a mitogenome the gene-set table reports plant mito gene names and the run does not
 touch the IR gate; on a machine with PMGA the count reproduces the record's own annotation.
 **Needs:** PMGA on the machine — **it is now here, downloaded and unpacked (03/10, `docs/tools/pmga.md`).**
-**UPDATED 03/10 — the blocker moved, and it is now a permission decision, not information.**
-The container is at `~/toolbox/src/pmga_dl/PMGA_tools/` (3.18 GB download → >6 GB unpacked,
-sha256 `81a23743…`), Apptainer 1.5.4 is installed (`~/.local/share/mamba/envs/pmga`), and **the
-real command line is read from the container's own POD** — no more guessing:
+**UPDATED 03/10 — the plan's own rule supplies the two options, and both are now in place.**
+PROJECT.md §3 (P1-12, the backend rule): *a heavy step runs where it fits* — locally when the
+machine can, on a web service or a bigger server when it cannot. For PMGA that means:
 
-```
-mgavas -pid <id> -in <fasta> -db <1|2|4> [-conf <file>] [-ref <genbank>] [-outdir <dir>]
-```
+* **option 1 — container, local.** Here: `~/toolbox/src/pmga_dl/PMGA_tools/` (3.18 GB → **11 GB
+  unpacked**, 138,045 files, sha256 `81a23743…`), Apptainer 1.5.4 installed, and **the real
+  command line read from the container's own POD**: `mgavas -pid <id> -in <fasta> -db <1|2|4>
+  [-conf <file>] [-ref <genbank>] [-outdir <dir>]` (enter through `mgavas`/`mgavas.sh`, never
+  `mgavas_m` alone — the wrapper sets the environment). It bundles MAKER, vmatch, ARAGORN,
+  tRNAscan-SE, MISA, TRF, BLAST, EMBOSS, HMMER, circos and Deepred-mt. **Measured cost on this
+  machine: 11 GB of disk and a VM that balloons toward its 8 GB cap — it is not the route for a
+  4–8 GB laptop.** `external/pmga.py` is therefore a *later* convenience, not the unblocker.
+* **option 2 — the web service, pinned. DONE 03/10** (`plastid panel pin --file … --note …`,
+  PROJECT.md §8.19): run `1kmpg.cn/pmga` once per species, save the GenBank, pin it — checksums,
+  read-back and provenance recorded like any NCBI download. Every later run is offline and needs
+  no container at all.
 
-`apptainer exec PMGA_tools/ …` was **refused by the permission classifier** (third-party code the
-user has not named in-session — the same boundary that stopped PGA, cleared then by naming it).
-**The exact ask:** either name PMGA/its Figshare record as a source to run (or add a `Bash(apptainer
-exec *)`-style rule to `.claude/settings.local.json`), or run the one command by hand. Then
-`external/pmga.py` follows the same shape as `external/pga.py`, and the first thing to measure is
-**peak RAM + wall clock on one mitogenome** — that number decides whether PMGA can ever be a
-requirement for the team's own machines, or only a web-service step whose output we pin.
+**Done when** is therefore reachable by option 2 today: pin an annotation, run `mito_genes`, and
+the mito path is exercised end to end on real annotation. **The adapter stays open, with a named
+trigger:** write it when a machine here can run the container — and the first number to measure
+then is peak RAM and wall clock, because that decides whether PMGA can ever be a *requirement*
+rather than an option.
 **Why nothing was written this session — the honest reason.** PMGA is not on conda and has no git
 repository: the paper distributes it as a **singularity container** (Figshare 27201798) and a web
 server, and no command-line usage is published anywhere retrievable. An adapter written against an
