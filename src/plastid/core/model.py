@@ -9,7 +9,7 @@ inclusive**; convert only through :meth:`Interval.to_1based` /
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from plastid.core.sequence import reverse_complement
 
@@ -89,6 +89,11 @@ class Gene:
     transl_table: int | None = None
     # the record's own /codon_start; anything but 1 shifts the reading frame (D3-03)
     codon_start: int = 1
+    # the record's own /exception — a statement only the submitter can make ("RNA editing",
+    # "trans-splicing", …). Kept because dropping it is not neutral: measured 2026-10-03, a CDS
+    # whose start codon is created by RNA editing is rejected by NCBI's validator unless its
+    # /exception travels with it (PROJECT.md §8.18).
+    exception: str | None = None
 
     def __post_init__(self) -> None:
         if not self.parts:
@@ -124,6 +129,11 @@ class Genome:
     topology: str = "circular"
     genes: tuple[Gene, ...] = ()
     repeat_regions: tuple[Interval, ...] = ()
+    # the record's own source qualifiers (organism · organelle · mol_type · cultivar · …). They
+    # travel with the record for the same reason /transl_table does: a submission has to state
+    # them, and inventing an organism would be worse than refusing. Measured 2026-10-03 — a
+    # table without them fails NCBI's own validator twice (§8.18).
+    source: dict[str, str] = field(default_factory=dict)
 
     def __len__(self) -> int:
         return len(self.sequence)

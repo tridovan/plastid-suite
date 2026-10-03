@@ -9,6 +9,7 @@ column 4 and its value in column 5.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,8 @@ from plastid.core.genbank import read_genbank
 from plastid.core.model import Gene, Genome, Interval
 from plastid.core.submission import (
     parse_tbl,
+    partial_start_genes,
+    source_qualifiers_left_out,
     submission_problems,
     to_fasta,
     to_tbl,
@@ -37,13 +40,30 @@ NCBI_PARTIAL_EXAMPLE = (
     "<1\t>1050\tmRNA\n"
 )
 
-_PAD = "ACGT" * 20
 
+def _genome(*genes: Gene, length: int = 400) -> Genome:
+    """A synthetic genome whose CDS all start with ATG.
 
-def _genome(*genes: Gene, length: int | None = None) -> Genome:
-    sequence = _PAD if length is None else "A" * length
+    The submission writer marks a CDS whose first codon is not an initiator as partial — NCBI's
+    own rule, measured against its validator (§8.18) — and these tests are about the *format*, so
+    the sequence is built to have a real start codon. The tests that are about that rule build
+    their own genome instead.
+    """
+    sequence = bytearray(b"A" * length)
+    for gene in genes:
+        if gene.kind != "CDS" or gene.parts[0].end > length:
+            continue
+        first = gene.parts[0]
+        if first.strand < 0:
+            sequence[first.end - 3 : first.end] = b"CAT"  # read back on the minus strand: ATG
+        else:
+            sequence[first.start : first.start + 3] = b"ATG"
     return Genome(
-        name="synthetic", accession="SYN001.1", sequence=sequence, genes=genes, topology="linear"
+        name="synthetic",
+        accession="SYN001.1",
+        sequence=bytes(sequence).decode(),
+        genes=genes,
+        topology="linear",
     )
 
 
@@ -203,11 +223,48 @@ def test_the_golden_genome_round_trips_through_the_table(data_dir: Path) -> None
             tuple(tuple(sorted(((start, ps), (end, pe)))) for start, end, ps, pe in feature.parts),
         )
 
-    source = sorted(
-        from_gene(gene) for gene in golden.genes if gene.kind in ("gene", "CDS", "tRNA", "rRNA")
+    # The writer adds two things the gene model does not hold, both measured against NCBI's own
+    # validator (§8.18): the record's source feature, and a partial start on the CDS whose first
+    # codon is not an initiator (rpl2, both copies — ACG, edited to AUG in the transcript).
+    # Everything else must come back identical, which is what the two assertions below say.
+    marked = {(gene.kind, gene.name, *gene.span) for gene in partial_start_genes(golden)}
+    assert marked  # the golden really has one, so the excepted path is exercised, not assumed
+
+    def identity(feature) -> tuple:
+        coordinates = [value for part in feature.parts for value in (part[0], part[1])]
+        return (
+            feature.kind,
+            feature.qualifiers.get("gene"),
+            min(coordinates),
+            max(coordinates),
+        )
+
+    untouched = [
+        feature
+        for feature in parsed
+        if feature.kind != "source" and identity(feature) not in marked
+    ]
+    untouched_source = sorted(
+        from_gene(gene)
+        for gene in golden.genes
+        if gene.kind in ("gene", "CDS", "tRNA", "rRNA")
+        and (gene.kind, gene.name, *gene.span) not in marked
     )
-    assert len(source) == 265  # 133 gene + 86 CDS + 38 tRNA + 8 rRNA
-    assert sorted(from_tbl(feature) for feature in parsed) == source
+    assert len(untouched_source) == 263  # the 265 features minus the two marked rpl2 copies
+    assert sorted(from_tbl(feature) for feature in untouched) == untouched_source
+
+    assert len(parsed) == 266  # those 265 features, plus the record's source feature
+    assert sorted(from_tbl(f) for f in parsed if f.kind == "source") == [
+        ("source", None, None, None, (((1, False), (153724, False)),))
+    ]
+
+    # the marked CDS are exactly the ones carrying the marker, and nothing else moved
+    assert {identity(f) for f in parsed if f.kind == "CDS" and _is_partial(f)} == marked
+
+
+def _is_partial(feature) -> bool:
+    """True when any interval of the feature carries a partial marker."""
+    return any(partial_start or partial_end for _, _, partial_start, partial_end in feature.parts)
 
 
 def test_the_golden_genome_passes_the_first_pass_checks(data_dir: Path) -> None:
@@ -410,3 +467,179 @@ def test_the_conventions_the_real_tables_pin_down(data_dir: Path) -> None:
     # its key — the shape our writer emits for a multi-interval gene
     starts = [int(line.split("\t")[0]) for line in plain.splitlines()[1:] if line[:1].isdigit()]
     assert starts == sorted(starts)
+
+
+# --- what a submission needs that a gene model does not hold (measured 2026-10-03, §8.18) ------
+#
+# All three below came out of running table2asn on the golden genome's table with a real
+# submission template: 13 ERROR-level messages, of which these rules removed four. The remaining
+# ones are inherent to the format and are recorded in PROJECT.md §8.18.
+
+
+def test_the_source_feature_comes_first_with_the_records_own_qualifiers() -> None:
+    """Without it NCBI's validator reports ``NoSourceDescriptor`` and ``BioSourceMissing``: a
+    submission has to say what the sequence is, and a toolkit that invented an organism would be
+    worse than one that refuses."""
+    gene = Gene("psbA", "CDS", (Interval(100, 200, 1),), product="D1")
+    genome = replace(
+        _genome(gene),
+        source={
+            "organism": "Iris domestica",
+            "organelle": "plastid:chloroplast",
+            "mol_type": "genomic DNA",
+            "specimen_voucher": "HN-2024-001",
+        },
+    )
+    lines = to_tbl(genome, "SYN001.1").splitlines()
+    assert lines[1] == "1\t400\tsource"
+    assert "\t\t\torganism\tIris domestica" in lines
+    assert "\t\t\torganelle\tplastid:chloroplast" in lines
+    # the qualifiers a real sample carries travel too — they are the submitter's statement
+    assert "\t\t\tspecimen_voucher\tHN-2024-001" in lines
+    # and the source is one feature, not one per gene
+    assert lines.count("1\t400\tsource") == 1
+
+
+def test_a_record_that_states_no_organism_is_a_named_problem() -> None:
+    gene = Gene("psbA", "CDS", (Interval(100, 200, 1),), product="D1", transl_table=11)
+    problems = submission_problems(_genome(gene))
+    assert any("no source organism" in problem for problem in problems)
+
+
+def test_an_exception_travels_with_its_feature() -> None:
+    """``/exception`` is the record's own word about a gene whose translation is unusual. Dropping
+    it is not neutral: measured, NCBI's validator rejects an RNA-edited start without it."""
+    gene = Gene(
+        "rpl2",
+        "CDS",
+        (Interval(100, 200, 1),),
+        product="ribosomal protein L2",
+        transl_table=11,
+        exception="RNA editing",
+    )
+    lines = to_tbl(_genome(gene), "SYN001.1").splitlines()
+    assert "\t\t\texception\tRNA editing" in lines
+
+
+def _gene_with_start(sequence: str, *, strand: int = 1) -> Genome:
+    """A genome whose one CDS sits at 101-200 and whose first codon the test chooses."""
+    codon = sequence if strand > 0 else _reverse_complement(sequence)
+    body = "A" * 100 + codon + "A" * (300 - 103)
+    gene = Gene(
+        "psbA",
+        "CDS",
+        (Interval(100, 200, strand),),
+        product="D1",
+        transl_table=11,
+    )
+    return Genome(
+        name="synthetic", accession="SYN001.1", sequence=body, genes=(gene,), topology="linear"
+    )
+
+
+def _reverse_complement(codon: str) -> str:
+    return codon.translate(str.maketrans("ACGT", "TGCA"))[::-1]
+
+
+@pytest.mark.parametrize("strand", [1, -1])
+def test_a_start_codon_the_table_does_not_initiate_is_written_partial(strand: int) -> None:
+    """Measured 2026-10-03: ACG — the RNA-edited start of rpl2 — makes table2asn report both
+    ``StartCodon`` and ``BadProteinStart``. With a partial start the same CDS validates, which is
+    also what the published *Dioscorea alata* plastome submission does for its rpl2 and ndhD."""
+    genome = _gene_with_start("ACG", strand=strand)
+    assert [gene.name for gene in partial_start_genes(genome)] == ["psbA"]
+    lines = to_tbl(genome, "SYN001.1").splitlines()
+    if strand > 0:
+        assert lines[1] == "<101\t200\tCDS"
+    else:
+        # a minus-strand feature is written reversed, so its 5' end is in column 1
+        assert lines[1] == "<200\t101\tCDS"
+
+
+def test_a_canonical_start_is_left_exactly_as_the_record_has_it() -> None:
+    genome = _gene_with_start("ATG")
+    assert partial_start_genes(genome) == ()
+    assert to_tbl(genome, "SYN001.1").splitlines()[1] == "101\t200\tCDS"
+
+
+def test_a_cds_the_toolkit_cannot_translate_is_not_guessed_at() -> None:
+    """A table we do not know, or a shifted frame, is not evidence of an edited start — the
+    feature is left alone rather than marked on a guess."""
+    gene = Gene("psbA", "CDS", (Interval(100, 200, 1),), product="D1", transl_table=4)
+    genome = Genome(
+        name="synthetic",
+        accession="SYN001.1",
+        sequence="A" * 400,
+        genes=(gene,),
+        topology="linear",
+    )
+    assert partial_start_genes(genome) == ()
+    assert to_tbl(genome, "SYN001.1").splitlines()[1] == "101\t200\tCDS"
+
+
+def test_the_two_source_qualifiers_this_format_has_no_place_for_are_left_out() -> None:
+    """Measured 2026-10-03: table2asn calls ``mol_type`` and ``db_xref`` "Unrecognized qualifier
+    name" and exits non-zero while still writing a correct ``.sqn`` — the real published plastome
+    table carries ``mol_type`` and is noisier for it. Neither is the submitter's to state: NCBI
+    derives the molecule type from the submission and the taxon from the organism. They stay on
+    the genome, and the list of what was left behind is available rather than silent."""
+    gene = Gene("psbA", "CDS", (Interval(100, 200, 1),), product="D1", transl_table=11)
+    genome = replace(
+        _genome(gene),
+        source={
+            "organism": "Iris domestica",
+            "organelle": "plastid:chloroplast",
+            "mol_type": "genomic DNA",
+            "db_xref": "taxon:58944",
+            "cultivar": "Hong",
+        },
+    )
+    lines = to_tbl(genome, "SYN001.1").splitlines()
+    assert "\t\t\torganism\tIris domestica" in lines
+    assert "\t\t\tcultivar\tHong" in lines  # a sample qualifier, and the submitter's own to state
+    assert not [line for line in lines if "mol_type" in line or "db_xref" in line]
+    assert source_qualifiers_left_out(genome) == ("mol_type", "db_xref")
+    assert genome.source["mol_type"] == "genomic DNA"  # left out of the table, not off the record
+
+
+# --- what NCBI's own validator said about the table (measured 2026-10-03, §8.18) ---------------
+
+_VALIDATOR_STATS = """Total messages:\t\t104
+
+=================================================================
+95 WARNING-level messages exist
+
+SEQ_FEAT.GenCodeMismatch:\t86
+SEQ_FEAT.CDSgeneRange:\t8
+SEQ_FEAT.UnnecessaryException:\t1
+
+=================================================================
+9 ERROR-level messages exist
+
+SEQ_INST.BadProteinStart:\t2
+SEQ_FEAT.GeneXrefStrandProblem:\t7
+"""
+
+
+def test_the_validator_report_is_read_not_just_kept() -> None:
+    """table2asn's ``.stats`` is a file, and a file nobody reads is not a check — the counts go
+    into the table, and the per-code breakdown says which class each finding belongs to."""
+    from plastid.modules.submission import validator_counts
+
+    counts = validator_counts(_VALIDATOR_STATS)
+    assert (counts.errors, counts.warnings) == (9, 95)
+    # errors first, and the biggest class first within a level — the order a reader wants
+    assert counts.by_class == (
+        ("SEQ_FEAT.GeneXrefStrandProblem", "error", 7),
+        ("SEQ_INST.BadProteinStart", "error", 2),
+        ("SEQ_FEAT.GenCodeMismatch", "warning", 86),
+        ("SEQ_FEAT.CDSgeneRange", "warning", 8),
+        ("SEQ_FEAT.UnnecessaryException", "warning", 1),
+    )
+
+
+def test_a_stats_file_with_no_findings_is_not_an_error() -> None:
+    from plastid.modules.submission import validator_counts
+
+    counts = validator_counts("Total messages:\t\t0\n")
+    assert (counts.errors, counts.warnings, counts.by_class) == (0, 0, ())

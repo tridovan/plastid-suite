@@ -58,6 +58,13 @@ def annotator_tools() -> dict[str, str | None]:
     }
 
 
+@pytest.fixture(scope="session")
+def submission_tools() -> dict[str, str | None]:
+    """``table2asn`` — from ``PATH`` or from ``PTS_TABLE2ASN`` (it is a single binary fetched by
+    hand on the dev machine, so it is usually not on ``PATH``)."""
+    return {"table2asn": os.environ.get("PTS_TABLE2ASN") or which("table2asn")}
+
+
 def require_tools(tools: dict[str, str | None], *names: str) -> None:
     """Skip with a named reason — or fail when PTS_REQUIRE_TOOLS=1 (tool-equipped machines)."""
     missing = [name for name in names if not tools.get(name)]

@@ -58,7 +58,26 @@ def _to_genome(record: SeqRecord) -> Genome:
         topology=str(record.annotations.get("topology", "circular")).lower(),
         genes=genes,
         repeat_regions=repeat_regions,
+        source=_source_qualifiers(record),
     )
+
+
+def _source_qualifiers(record: SeqRecord) -> dict[str, str]:
+    """The ``source`` feature's qualifiers, as the record states them.
+
+    Read from the feature, not from the record's annotations: the feature is what a submission
+    has to reproduce, and it carries the fields a sample needs (``cultivar``, ``specimen_voucher``
+    …) that the record-level annotations do not. A record without one yields an empty mapping —
+    a real state, reported by ``submission_problems`` rather than filled in with a guess.
+    """
+    for feature in record.features:
+        if feature.type == "source":
+            return {
+                key: str(values[0])
+                for key, values in feature.qualifiers.items()
+                if values and isinstance(values[0], str)
+            }
+    return {}
 
 
 def _to_gene(feature: SeqFeature) -> Gene:
@@ -72,6 +91,7 @@ def _to_gene(feature: SeqFeature) -> Gene:
         trans_splicing="trans_splicing" in feature.qualifiers,
         transl_table=_int_qualifier(feature, "transl_table"),
         codon_start=_int_qualifier(feature, "codon_start") or 1,
+        exception=_first_qualifier(feature, "exception"),
     )
 
 

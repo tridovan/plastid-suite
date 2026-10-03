@@ -278,6 +278,9 @@ def run_chloe(
             topology=genome.topology,
             genes=genes,
             repeat_regions=genome.repeat_regions,
+            # the annotator says nothing about what the sample is; the record that was handed to
+            # it does, and a submission built from this genome needs it (§8.18)
+            source=dict(genome.source),
         )
         if not any(gene.kind in GENE_KINDS for gene in annotated.genes):
             # the same rule as PGA's: an annotator that reports success while finding nothing has

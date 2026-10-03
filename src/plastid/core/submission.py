@@ -20,14 +20,22 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from plastid.core.model import Gene, Genome
+from plastid.core.orf import (
+    START_CLASS_INVALID,
+    START_CLASS_NON_CANONICAL,
+    OrfError,
+    check_cds,
+)
 
 __all__ = [
     "TblFeature",
     "TblRecord",
     "parse_tbl",
+    "partial_start_genes",
+    "source_qualifiers_left_out",
     "submission_problems",
     "to_fasta",
     "to_tbl",
@@ -38,6 +46,12 @@ __all__ = [
 SUBMITTED_KINDS: tuple[str, ...] = ("gene", "CDS", "tRNA", "rRNA")
 
 _QUALIFIER_KEYS: tuple[str, ...] = ("gene", "product", "transl_table", "codon_start")
+
+# Source qualifiers that are not qualifiers *in this format*. Measured 2026-10-03 (§8.18):
+# table2asn calls both "Unrecognized qualifier name" and exits non-zero while still writing a
+# correct .sqn — a submission table carrying them is noisier than one that does not, and NCBI
+# derives both anyway (the molecule type from the submission, the taxon from the organism).
+_SOURCE_QUALIFIERS_NOT_IN_TABLE = frozenset({"mol_type", "db_xref"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,15 +91,101 @@ def to_tbl(genome: Genome, seq_id: str) -> str:
 
     Features are written in position order — the order the format expects a reader (and NCBI)
     to meet them — and every interval of one feature stays together on consecutive lines.
+
+    Two things are added to what the gene model holds, both measured against NCBI's own validator
+    (PROJECT.md §8.18):
+
+    * the **source feature** comes first, carrying the record's own qualifiers. Without it
+      table2asn reports ``NoSourceDescriptor`` and ``BioSourceMissing`` — a submission has to say
+      what the sequence is, and neither this writer nor the toolkit can invent that;
+    * a CDS whose first codon is **not an initiator** for its translation table gets a partial
+      start (``<``). NCBI rejects the feature otherwise ("Illegal start codon used … or protein
+      should be partial"), and the published plastome submission this was checked against writes
+      exactly that for its RNA-edited ``rpl2``. The coordinates do not move — only the marker is
+      added — and :func:`partial_start_genes` names the features it happened to.
     """
-    features = tuple(
-        _feature_of(gene)
+    marked = frozenset(partial_start_genes(genome))
+    features = [
+        _feature_of(_marked_partial_start(gene) if gene in marked else gene)
         for gene in sorted(
             (gene for gene in genome.genes if gene.kind in SUBMITTED_KINDS),
             key=_position_key,
         )
+    ]
+    source = _source_feature(genome)
+    return tbl_text((source, *features) if source is not None else features, seq_id)
+
+
+def partial_start_genes(genome: Genome) -> tuple[Gene, ...]:
+    """The CDS whose first codon their own translation table does not initiate.
+
+    Measured 2026-10-03 on the golden genome: ``rpl2`` starts with ACG — not an initiator in
+    table 11, because C-to-U editing turns it into AUG in the transcript — and NCBI's validator
+    rejects the feature as written. With the start marked partial the same CDS validates, which is
+    also what the published *Dioscorea alata* plastome submission does for its ``rpl2`` and
+    ``ndhD``. A CDS this function cannot judge (a table the toolkit does not translate, a
+    ``/codon_start`` other than 1) is left alone: an honest "no" beats a guessed marker.
+    """
+    marked: list[Gene] = []
+    length = len(genome)
+    for gene in genome.genes:
+        if gene.kind != "CDS":
+            continue
+        if any(part.start < 0 or part.end > length for part in gene.parts):
+            # a feature that runs off the sequence has no start codon to judge; it is a problem
+            # in its own right, and submission_problems names it
+            continue
+        try:
+            check = check_cds(genome, gene)
+        except OrfError:
+            continue
+        if check.start_class in (START_CLASS_INVALID, START_CLASS_NON_CANONICAL):
+            # both classes mean "not an initiator in this table": `invalid` is a codon no table
+            # uses, `non_canonical` is ACG — the RNA-edited start P3-01 already reports as such,
+            # and the one NCBI's validator rejects here. The ORF module's judgement and NCBI's
+            # agree on this feature, which is why the rule can reuse it rather than re-derive it.
+            marked.append(gene)
+    return tuple(marked)
+
+
+def _marked_partial_start(gene: Gene) -> Gene:
+    """The same gene with its 5' coordinate marked partial — a new object, never a mutation.
+
+    The 5' end of a feature is the *first* part in annotation order (that is what
+    :func:`~plastid.core.model.coding_sequence` reads first), and on the minus strand it is that
+    part's higher coordinate — so the marker goes on ``partial_end`` there, not on
+    ``partial_start``.
+    """
+    first = gene.parts[0]
+    marked = (
+        replace(first, partial_end=True) if first.strand < 0 else replace(first, partial_start=True)
     )
-    return tbl_text(features, seq_id)
+    return replace(gene, parts=(marked, *gene.parts[1:]))
+
+
+def source_qualifiers_left_out(genome: Genome) -> tuple[str, ...]:
+    """The record's source qualifiers this format has no place for, in the record's own order.
+
+    Reported rather than dropped in silence: they stay on the genome, and a caller that wants to
+    say what was left behind has the list.
+    """
+    return tuple(key for key in genome.source if key in _SOURCE_QUALIFIERS_NOT_IN_TABLE)
+
+
+def _source_feature(genome: Genome) -> TblFeature | None:
+    """The record's source feature, or None when the record states nothing about itself."""
+    qualifiers = {
+        key: value
+        for key, value in genome.source.items()
+        if key not in _SOURCE_QUALIFIERS_NOT_IN_TABLE
+    }
+    if not qualifiers:
+        return None
+    return TblFeature(
+        kind="source",
+        parts=((1, len(genome), False, False),),
+        qualifiers=qualifiers,
+    )
 
 
 def tbl_text(features: Sequence[TblFeature], seq_id: str) -> str:
@@ -156,6 +256,8 @@ def _qualifiers_of(gene: Gene) -> dict[str, str | None]:
     qualifiers: list[tuple[str, str | None]] = [("gene", gene.name)]
     if gene.product:
         qualifiers.append(("product", gene.product))
+    if gene.exception:
+        qualifiers.append(("exception", gene.exception))
     if gene.kind == "CDS":
         if gene.transl_table is not None:
             qualifiers.append(("transl_table", str(gene.transl_table)))
@@ -288,4 +390,11 @@ def submission_problems(genome: Genome) -> tuple[str, ...]:
                 f"{name}: {count} identical {kind} features ({count} identical locus tags "
                 f"would be generated)"
             )
+
+    if not genome.source.get("organism"):
+        problems.append(
+            "the record states no source organism — NCBI's validator rejects a table without "
+            "one, and this toolkit will not guess an organism: read the record that carries it, "
+            "or set the source qualifiers on the genome before submitting"
+        )
     return tuple(problems)

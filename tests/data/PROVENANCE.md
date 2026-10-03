@@ -33,6 +33,25 @@
 - **Licence:** Chloe is deposited on Zenodo under the MIT licence (doi:10.5281/zenodo.18194040).
   Its own repository carries no LICENSE file — recorded for the M9.3 review.
 
+## The stand-in submission template (P3-05)
+
+| File | Source | Size |
+|---|---|---|
+| `standin_template.sbt` | written for this repository, 2026-10-03, from the ASN.1 structure the tool accepts | 1,758 B |
+
+- **What it is:** a submitter template for `table2asn` with **placeholder** names — "Example
+  Submitter", `example@example.org`, "Example University". The real one names people and an
+  institution, is generated from NCBI's web form behind a login, and is therefore a **team
+  artifact**: `--set template=/path/to/your.sbt`.
+- **Why it is here:** so the `.sqn` half of P3-05 is testable. Measured 2026-10-03: with it,
+  `table2asn` runs the golden genome's `.fsa` + `.tbl` to completion — exit 0, a 361 kB `.sqn`,
+  and NCBI's validator report beside it. Without a template it refuses to start.
+- **It must never be used to submit anything.** Its own title line says so, and every value in it
+  is a placeholder — submitting with it would attribute a sequence to nobody.
+- **Licence:** written here, so no third-party claim attaches to it. Its structure follows the
+  templates published in public repositories (Cenote-Taker3, enviro-lab/ncbi-submit) and the
+  format NCBI's own converter accepts.
+
 ## Real five-column tables (P3-05)
 
 | File | Source | Size |

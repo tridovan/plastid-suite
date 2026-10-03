@@ -308,3 +308,72 @@ def _length(lines: list[str]) -> int:
     """
     locus = next(line for line in lines if line.startswith("LOCUS")).split()
     return int(locus[locus.index("bp") - 1])
+
+
+def test_the_sqn_step_runs_and_ncbi_reads_the_table(
+    submission_tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """P3-05's ``.sqn`` half, on a machine that has table2asn: the module builds the pair, the
+    tool converts it, and the validator's own verdict is in the run's tables rather than in a file
+    nobody opens.
+
+    The template is the repository's **stand-in** — a real submission uses the team's own, which
+    NCBI's form generates from cô Trang's details (``tests/data/PROVENANCE.md``). What is checked
+    here is the pipeline: the tool exits 0, the ``.sqn`` exists, and every error NCBI reports
+    belongs to the one class a duplicated inverted-repeat plastome produces (measured 2026-10-03
+    against a published plastome submission, PROJECT.md §8.18) — a new class would fail this test,
+    which is the point of asserting it.
+    """
+    require_tools(submission_tools, "table2asn")
+
+    assert (
+        main(
+            [
+                "run",
+                "--module",
+                "submission",
+                "--input",
+                str(data_dir / "NC_050833.1.gb"),
+                "--out",
+                str(tmp_path / "runs"),
+                "--dataset",
+                "sqn",
+                "--set",
+                "sqn=true",
+                "--set",
+                f"template={data_dir / 'standin_template.sbt'}",
+                "--set",
+                f"table2asn={submission_tools['table2asn']}",
+            ]
+        )
+        == 0
+    )
+    run_dir = sorted((tmp_path / "runs" / "sqn").iterdir())[0]
+    module_dir = run_dir / "01_submission"
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    validate(manifest)
+    record = manifest["modules"][0]["tools"][0]
+    assert record["name"] == "table2asn"
+    assert record["rc"] == 0  # the tool accepted the table pair without complaint
+
+    sqn = (module_dir / "submission.sqn").read_text(encoding="utf-8")
+    assert sqn.startswith("Seq-submit ::=")
+    assert "NC_050833.1" in sqn
+
+    # the report's counts are the validator's own, and the only error class left is the one this
+    # format produces for every duplicated IR gene
+    summary = (module_dir / "tables" / "submission_summary.csv").read_text(encoding="utf-8")
+    rows = csv.reader(
+        io.StringIO("\n".join(line for line in summary.splitlines() if not line.startswith("#")))
+    )
+    values = dict(zip(next(rows), next(rows), strict=True))
+    assert int(values["NCBI errors"]) > 0
+    val = (module_dir / "submission.val").read_text(encoding="utf-8")
+    errors = [line for line in val.splitlines() if line.startswith("Error:")]
+    assert len(errors) == int(values["NCBI errors"])
+    assert all("GeneXrefStrandProblem" in line for line in errors)
+
+    # and the table itself carries what the record states, plus the one marker NCBI requires
+    table = (module_dir / "submission.tbl").read_text(encoding="utf-8")
+    assert "\t\t\torganism\tIris domestica" in table
+    assert int(values["CDS written with a partial start"]) == 2
