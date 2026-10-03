@@ -59,6 +59,21 @@ def annotator_tools() -> dict[str, str | None]:
 
 
 @pytest.fixture(scope="session")
+def blast_tools() -> dict[str, str | None]:
+    """BLAST+ — from ``PATH``, or from ``PTS_BLAST_DIR``.
+
+    Its own fixture rather than an entry in ``tools``: that fixture's key set is asserted by a
+    test, and the dev machine keeps BLAST+ in a conda environment that is not on ``PATH``
+    (docs/tools/blast.md).
+    """
+    directory = os.environ.get("PTS_BLAST_DIR")
+    extra = [Path(directory)] if directory else []
+    return {
+        name: which(name, extra=extra) for name in ("blastx", "blastn", "makeblastdb", "aragorn")
+    }
+
+
+@pytest.fixture(scope="session")
 def submission_tools() -> dict[str, str | None]:
     """``table2asn`` — from ``PATH`` or from ``PTS_TABLE2ASN`` (it is a single binary fetched by
     hand on the dev machine, so it is usually not on ``PATH``)."""

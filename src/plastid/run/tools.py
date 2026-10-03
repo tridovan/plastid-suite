@@ -19,7 +19,11 @@ from pathlib import Path
 
 __all__ = ["ToolError", "ToolRecord", "run_tool", "tool_version", "which"]
 
-_VERSION_FLAGS = ("--version", "-v", "-V")
+# Flags tried in order. ``-version`` was added 03/10/2026 after measuring BLAST+: it accepts only
+# the single-dash spelling and exits 1 for ``--version``, ``-v`` and ``-V`` — so the version of the
+# tool that now annotates mitogenomes was recorded as "unknown" while every probe "succeeded" in
+# failing. The probe runs in a throwaway directory for exactly this class of surprise.
+_VERSION_FLAGS = ("--version", "-version", "-v", "-V")
 _TAIL_LINES = 20
 
 
@@ -109,8 +113,13 @@ def tool_version(
             except OSError:
                 return None, "unknown"
             if result.returncode == 0:
+                # A line is a version only if it contains a digit. Measured 03/10/2026 on
+                # ARAGORN: its ``-V`` is not a version flag, it exits **0** and prints
+                # "No sequence file specified, type aragorn -h for help" — which was recorded as
+                # the version of the tool that calls tRNA genes. A plausible-looking string in a
+                # provenance record is worse than "unknown": it cannot be noticed.
                 for line in (result.stdout or result.stderr).splitlines():
-                    if line.strip():
+                    if line.strip() and any(character.isdigit() for character in line):
                         return line.strip(), "flag"
     return None, "unknown"
 

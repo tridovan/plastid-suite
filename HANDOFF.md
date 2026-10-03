@@ -13,10 +13,17 @@ stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLE
 (PROJECT.md §8.8, `docs/P2-10_manuscript_draft.md`) — the real samples are still what makes it the
 team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
-**Phase 3 — code COMPLETE, one verification OPEN (4 full + P3-04's count check), branch `feat/phase-3` (stacked on `feat/phase-2`, which is not yet
-merged to `main`).** The board is `TASKS.md`; the one task that closed by *decision* rather than by
-code is P3-04's annotator (see below). **Next phase: Phase 4 — multi-genome comparison**
-(`ROADMAP.md`; M4.1–M4.6, of which M4.5 needs RNA data the team does not have yet).
+**Phase 3 — code COMPLETE, one verification OPEN (4 full + P3-04's count check), branch
+`feat/phase-3` (stacked on `feat/phase-2`, which is not yet merged to `main`).** The one task that
+closed by *decision* rather than by code is P3-04's annotator (see below).
+
+**Phase 3A — COMPLETE 03/10, branch `feat/phase-3a`** (stacked on `feat/phase-3`). A mito annotator
+this project builds itself, because PMGA cannot run here and its web service is down. **P3A-01 …
+P3A-07 are all DONE** and the phase check is met (§8.20–§8.24): on `OX459128.1` the annotator's own
+output re-reads, drives `orf` + `mito_genes` unchanged, and recounts to **31 CDS · 17 tRNA ·
+3 rRNA**; `AP045469.1` was annotated, pinned and read back offline. **The next planned phase is
+Phase 4 (multi-genome comparison)**, whose modules key on the canonical names. The board is
+`TASKS.md` — read it first, it carries the decisions, the pitfalls and every measured number.
 
 - **P3-01 ORF checks — DONE.** `core/orf.py` + `modules/orf.py`; `Gene` now carries the record's own
   `/transl_table` and `/codon_start`. Golden: 86 CDS, 81 `ok`, **5 `alternative_start`**
@@ -185,6 +192,171 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 15 (Phase 3A closed — the CLI, the golden check, the first real sample)
+
+**Did.** P3A-05 (the `plastid mito annotate` CLI), P3A-06 (the itemized golden check) and P3A-07
+(the unannotated sample, pinned). `core/genbank.py` gained `read_fasta` — an assembled sequence is
+the input door this phase needed; `cli.py` grew a `mito annotate` command that shares
+`_execute_run` with `plastid run`, so the mito path inherits the manifest, the cache and the
+provenance instead of re-implementing them (seam 3). The boards and ROADMAP now show Phase 3A
+complete.
+
+**Validation.** `make check` green (441 fast + 30 golden, tier-B skips named); with `PTS_BLAST_DIR`
+all **8** golden checks pass. Measured: the de-annotated `OX459128.1` (102 features stripped) →
+`mito_annotation.gb` → re-read **51 = 31 CDS + 17 tRNA + 3 rRNA** → `orf` + `mito_genes` both run
+unchanged. The consolidated count check prints `CDS 31/31 · tRNA 17/17 · rRNA 3/3` beside the
+published numbers and lists every difference.
+
+**P3A-07 is the honest one.** `AP045469.1` (*Coleus hadiensis*, 313,585 bp, 0 features) →
+**45 genes = 23 CDS + 19 tRNA + 3 rRNA**, pinned `3e7c7114ae5d…`, read back offline from the pin.
+**8 vocabulary loci are not called**, and a permissive re-search (E-value 10 against 1e-5) shows
+four of them — `mttB` · `rps1` · `rps13` · `rps4` — have **no alignment at all**, so the floors are
+not what excluded them. Whether those genes are missing from the genome or from this assembly is
+not a question a reference-transfer annotator can answer; that is recorded rather than papered
+over by loosening a threshold.
+
+**Residual risks.** (1) The Coleus run is a prototype annotation with 13 of 23 CDS failing the ORF
+checks (9 `no_start` — alignments that stop short of the reference's N-terminus); it is **not** a
+submission and every table says so. (2) The three tRNA differences on the answer key (one missing,
+one extra, one anticodon disagreement) are still awaiting a curator's ruling. (3) The floors are
+calibrated on one record; the Coleus run is the first evidence of how they behave on a genome with
+no answer key, and it says: they behave fine, the genes really are not findable.
+
+**Blocked.** Nothing.
+
+**Next.** Phase 4 — M4.1 Ka/Ks · M4.2 %identity + synteny · M4.3 barcodes · M4.4 population
+genetics · M4.6 Ts/Tv (**scope fixed: CDS only · 76 shared genes · MAFFT · IR excluded**). MAFFT
+7.526 is installed and pinned, so the Phase-2 numbers that were waiting on it (P2-07/P2-08) can
+also be measured now.
+
+### 2026-10-03 · Claude · dev WSL · session 14 (P3A-04 — the tRNA caller, and 17 is not one set)
+
+**Did.** Installed and declared **ARAGORN 1.2.41** (`environment.yml` + `docs/tools/aragorn.md`,
+same session as the install), wrote `external/aragorn.py`, wired it into `modules/mito_annotate.py`
+(a `trna_calls` table, tRNA columns in the summary, tRNA genes in the artifact), and added the
+golden comparison. 12 new unit tests; the parameter that points at the binaries is now one name
+(`--set tools=<dir>`) for both tools.
+
+**Validation.** `make check` green (438 fast + 30 golden, 9 tier-B skips with named reasons); with
+`PTS_BLAST_DIR` the five golden tests pass, including the new one. Measured on `OX459128.1`:
+**ARAGORN calls 17 tRNA, the record carries 17, and they are not the same 17** — `trnA-UGC
+13244-13348` is in the record and not called (105 bp, longer than a tRNA), `trnL-AAG 36355-36427`
+is called and not in the record, and the tRNA-His at 11741-11819 is **`trnH-AUG` to ARAGORN and
+`trnH-GUG` to the record** — an anticodon disagreement, printed rather than resolved. 9 spans
+differ by 1–6 bp; the largest is the one tRNA that crosses the origin (`[258274,73]`, written as
+the two parts a `join()` needs).
+
+**Two traps that changed the code.** (1) `aragorn -V` is not a version flag: it exits **0** and
+prints "No sequence file specified", which `run_tool` was recording as the version of the tool
+that calls tRNA genes — the probe now requires a digit in the answer, and the adapter verifies the
+release from `-h` itself. Same family as the BLAST+ `-version` bug from the previous session: the
+`--version` convention does not exist. (2) A name is not an identity: the record's 17 tRNAs carry
+only 14 distinct names, so any comparison that deduplicates by name reports 14.
+
+**Residual risks.** (1) The three tRNA differences above are **findings, not errors** — nobody has
+ruled on whether ARAGORN's `trnH-AUG` or the record's `trnH-GUG` is right for that locus; it is
+recorded in PROJECT.md §8.23/§9.E and flagged for review. (2) `-i` (intron search) is off, so an
+intron-containing tRNA would be reported missing rather than modelled. (3) ARAGORN's
+`trnL-AAG` extra call may be a genuine plastid-derived tRNA or a false positive — not yet
+adjudicated.
+
+**Blocked.** Nothing.
+
+**Next.** P3A-05 — `plastid mito annotate --input <fasta> --reference <dir> --out <dir>`, with the
+output going through `orf` + `mito_genes` unchanged; then P3A-06's itemized golden check
+(31 · 17 · 3, differences listed) and P3A-07 (`AP045469.1`, then pin it).
+
+### 2026-10-03 · Claude · dev WSL · session 13 (P3A-03 — the mito gene caller, measured on the answer key)
+
+**Did.** Built the caller that transfers an annotation from the pinned mito reference set:
+`core/mito_caller.py` (pure: chaining, exon merging, floors, refinement), `external/blast.py`
+(BLAST+ through `run_tool`, with the outfmt-6 parser beside the argv that produces it),
+`modules/mito_annotate.py` (wiring + six tables + the GenBank artifact), `defaults.yaml`'s `mito:`
+section, the report template, `docs/tools/blast.md`, and `environment.yml` repinned to
+`blast=2.17.0`. 47 unit + 4 tier-B tests, written test-first.
+
+**Validation.** `make check` green (424 fast + 30 golden, 8 tier-B skips with named reasons). Real
+run on `OX459128.1` with BLAST+ 2.17.0: **31 CDS + 3 rRNA called, nothing not called**; the golden
+test pairs every call with the published CDS its exons overlap (bijection over 31) and prints
+**18/31 spans byte-identical, 13 differing by ≤ 75 bp, strand 31/31**, ORF profile
+**21 ok · 3 no_start · 7 no_stop**.
+
+**Five measurements changed the design** (all in PROJECT.md §8.22 / §9.D, each with a test):
+BLAST truncates `sseqid` at the first whitespace; the committed reference FASTA holds 8 duplicate
+headers — 6 identical repeat copies and **2 symbols carrying two different sequences**
+(Arabidopsis `atp6` 385/349 aa), so an HSP belongs to the smallest reference length containing it
+and two sequences under one key are never chained; `-seg no` (SEG halves atp9's alignment,
+137 → 67 bits); `-parse_seqids` **fails** on our reference set and upper-cases ids; and ranking
+candidates by bitscore **builds chimeras** (`atp6` pulled 381 bp upstream onto a 75.6 % alignment)
+⇒ the winner is the highest-identity candidate that passes the floors.
+
+**A bug outside this module:** `run_tool`'s version probe tried `--version`/`-v`/`-V`, but BLAST+
+accepts **only** `-version` — so the tool the module depends on was recorded as "unknown" while
+every probe "succeeded" in failing. `-version` added, with a regression test.
+
+**Residual risks.** (1) Two published exons of nad1/nad5 (19 and 7 codons) are not recoverable from
+any alignment; the caller reports 4 exons and says so rather than inventing a fifth — P3A-06 owns
+listing that difference. (2) The caller cannot know a gene is a pseudogene (the answer key marks
+4), so its ORF profile reads 21 ok · 3 no_start · 7 no_stop against the record's 21 · 4 · 3 · 3.
+(3) The floors are calibrated on one record; a divergent sample is exactly what P3A-07
+(`AP045469.1`) will test. (4) BLAST version mismatch is a hard refusal (the Chloe precedent) — if
+that proves too strict for anh Điềm's machine it must be decided in PROJECT.md §3, not loosened
+quietly.
+
+**Blocked.** Nothing.
+
+**Next.** P3A-04 — ARAGORN 1.2.41 for tRNA (bioconda; `environment.yml` + `docs/tools/aragorn.md`
+in the same session), then P3A-05's CLI (`plastid mito annotate`), P3A-06's itemized golden check
+(31 · 17 · 3) and P3A-07 (`AP045469.1`, then pin it).
+
+### 2026-10-03 · Claude · dev WSL · session 12 (Phase 3A opened — a mito annotator we build ourselves)
+
+**Did.** Opened **Phase 3A** (`ROADMAP.md`, `TASKS.md`, branch **`feat/phase-3a`** off
+`feat/phase-3`) after measuring what a self-built mito annotator would cost. Then **P3A-01** and
+**P3A-02**.
+
+* **Why the phase exists.** P3-04's count check cannot close by either PMGA route: the container is
+  11 GB unpacked driving MAKER against an 8 GB WSL cap, and PMGA's web service refuses connections.
+  CLAUDE.md's rule for a tool that cannot run is *write that part ourselves* — and the estimate is
+  **under 10 MB on disk and seconds of runtime**, against PMGA's 14 GB.
+* **P3A-01 · GenBank writer — DONE (§8.20).** `to_genbank()` beside the reader. Round trip on the
+  golden: **265/265** features, parts in transcript order, sequence and source intact; 324 unit
+  tests green, so the `.tbl` path verified against NCBI's own tables is unchanged. Two findings:
+  `/pseudo` and `/trans_splicing` are **bare** qualifiers, and BioPython writes `=""` for an empty
+  string while reading its own output back happily (§9.B-25 — a round trip through the same library
+  is not evidence); and the qualifier builder moved to **`model.gene_qualifiers()`** so the table
+  and GenBank writers cannot disagree.
+* **P3A-02 · Reference set — DONE (§8.21).** Eight RefSeq mitogenomes pinned by the panel's own
+  taxonomy rule (three Lamiaceae for *Coleus*, three Rubiaceae for *Oldenlandia*, plus Arabidopsis
+  · Nicotiana · Oryza), 5.2 MB **not** committed; **287 proteins + 25 rRNAs (149 KB)** are, and a
+  test rebuilds them from the pinned panel and compares. Coverage **31/31**.
+  Two measurements changed the design: **self-translating is impossible** — all 530 reference CDS
+  publish a `/translation`, none declares a `/transl_table`, and plant mito CDS begin with `ACG`
+  which no table accepts as an initiator, so CDS-mode translation raises; and **the references are
+  polluted** — 236 anonymous ORFs annotated as CDS (121 in *Nicotiana* alone), plastid-derived
+  `rbcL`/`petG`/`atpB` inside the mitogenome, and a *Psychotria* "5S rRNA" that is 722 bp.
+
+**Validation.** `make check` green after each task (362 unit + 30 golden; tier-B skips name their
+missing tool). Every claim above is a measurement on the pinned records, not a reading of a paper.
+
+**Residual risks.** (1) **The vocabulary is narrower than the gene set** — 23 reference genes have
+no entry, ten of them standard (`rpl2` · `rpl10` · `rpl16` · `rpl23` · `rps2` · `rps7` · `rps12` ·
+`rps14` · `rps19` · `sdh3`). They are kept in the reference with `-` so a run can say it found one;
+named as **H-06** and deliberately *not* fixed here. (2) The writer is **not** a lossless GenBank
+editor — `locus_tag`, `note`, `protein_id`, `translation` and `misc_feature` are outside the model
+and stated as such in its docstring. (3) The golden round trip has **no partial coordinates** to
+exercise; the partial path is covered by a synthetic test only.
+
+**Blocked.** Nothing in Phase 3A. P3-04's count check stays open (H-05) and is now *also* the thing
+the phase is trying to make unnecessary.
+
+**Next.** **P3A-03 — the gene caller** (`blastx` → best hit per gene → codon boundaries → `Gene`;
+`blastn` for rRNA), then P3A-04 (ARAGORN), P3A-05 (CLI), P3A-06 (the 31·17·3 golden check),
+P3A-07 (`AP045469.1`, then pin it). All measured facts and the pitfalls are in `TASKS.md`; the
+design decision that matters most is **D3A-02 — boundaries come from the reference alignment, never
+from ORF-walking**, because the answer key's own 31 CDS score 21 ok · 4 pseudogene · 3 no_stop ·
+3 no_start.
 
 ### 2026-10-03 · Claude · dev WSL · session 11 (Phase 3 closed)
 

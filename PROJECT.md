@@ -67,6 +67,8 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **Chú giải mito: PMGA chạy trên web service rồi GHIM, không chạy local (dev quyết, xác nhận bởi anh Trí)**: máy này **không đủ mạnh để chạy annotate** — container PMGA 3,18 GB nén → **11 GB giải nén, 138.045 file**, cần Apptainer và bên trong chạy MAKER; trần WSL 8 GB, ổ C: thật chỉ còn 42 GB. Container đã được tải về, đọc lấy CLI thật, rồi **xoá** (14 GB = một phần ba chỗ trống). Chú giải mito đi theo **đường thứ hai của chính luật P1-12**: chạy PMGA trên web service một lần mỗi loài ⇒ `plastid panel pin --file … --note …` (§8.19) ghim kết quả với đủ checksum + đọc lại ⇒ `mito_genes` đọc offline. **`external/pmga.py` để mở có điều kiện:** viết khi có máy chạy nổi container, và số đầu tiên phải đo khi đó là RAM đỉnh + thời gian | Dev | `docs/tools/pmga.md`, TASKS.md P3-04 |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
 
+| 03/10 | **Bộ gọi gen mito tự viết: ranh giới lấy từ alignment, xếp hạng theo identity, và mọi thứ bị loại đều được kể ra (D3A-02 + P3A-03, dev quyết có đo)** — PMGA không chạy nổi ở đây nên Phase 3A tự viết phần chuyển chú giải: `blastx` (protein tham chiếu) + `blastn` (rRNA) qua `run_tool`, rồi `core/mito_caller.py` biến HSP thành gen. Bốn luật, mỗi luật có số đo đỡ lưng (§8.22): (1) **ranh giới từ alignment**, không bao giờ từ ORF-walking — codon stop chỉ được lấy khi chính chuỗi xác nhận, đọc **đúng một** codon, không đi tìm; (2) **chọn tham chiếu theo identity cao nhất** trong số các ứng viên qua được ngưỡng — đo trên `atp6`: xếp theo bitscore kéo gen lệch **381 bp** về thượng nguồn vì một alignment dài 418 aa chỉ khớp 75,6 %, trong khi bản khớp 93,4 % nằm đúng chỗ; tổng sai lệch toạ độ 310 bp so với 655 bp; (3) **ngưỡng 50 % identity / 50 % coverage**, in ra trong mọi bảng và trong `defaults.yaml`; (4) **mọi HSP không dùng đều được liệt kê kèm lý do** — dưới ngưỡng, trùng khung đọc, hay là **bản sao thứ hai** của một phần gen. Kèm theo: `-seg no` (mask làm atp9 mất một nửa điểm), **không** dùng `-parse_seqids` (nó **lỗi** trên chính bộ tham chiếu), và gen tìm thấy mà vocabulary chưa có tên thì **báo cáo chứ không đặt tên** (H-06) | Dev | §8.22, `docs/tools/blast.md`, `TASKS.md` P3A-03 |
+
 ## 4. Ai làm gì
 
 | Người | Vai trò |
@@ -1082,6 +1084,217 @@ cân nhắc đường không-cần-cài (web service + `panel pin --file`) trư�
 
 ---
 
+### 8.20. Writer GenBank — mảnh còn thiếu để một annotator tự viết có đầu ra dùng được (P3A-01, 03/10/2026)
+
+**Vì sao cần.** Tới giờ cả toolkit chỉ **đọc** GenBank (`core/genbank.py`); chưa có đường nào
+**ghi** ra. Đường `.fsa` + `.tbl` của P3-05 đủ cho NCBI nộp bài, nhưng `panel pin --file` và mọi
+bước sau đó đều đọc bằng **reader của mình** — nên một annotator tự viết (Phase 3A) mà không có
+writer thì sản phẩm của nó không vào được pipeline.
+
+**Đo hình dạng bản ghi vàng trước khi viết** (không đoán):
+* **265/265** feature gen đều có `/gene`, và với cả CDS · tRNA · rRNA thì **tên khác `/product`**;
+  feature `gene` chỉ có `/gene`.
+* **0 partial** trên toàn bản ghi · 2 `repeat_region` · 3 `misc_feature` (model không mang).
+* Qualifier model **không giữ**, nên writer không ghi lại: `locus_tag` (268) · `db_xref` (266) ·
+  `protein_id` (86) · `translation` (86) · `note` (51) · `rpt_type` (2).
+
+**Cái bẫy đo được — BioPython viết qualifier trần SAI.** `/pseudo` và `/trans_splicing` trong mọi
+bản ghi thật **không có giá trị**; BioPython gặp `{"pseudo": [""]}` thì ghi `/pseudo=""` — một file
+khác — còn gặp `None` mới ghi `/pseudo` trần. Đối chiếu chính file vàng: nó viết `/trans_splicing`
+trần, `/codon_start=1` và `/transl_table=11` (**số, không trích dẫn**) — đúng những gì BioPython
+sinh ra với `None` và với `str`. Từ đó thành quy ước trong model: **`None` nghĩa là qualifier trần**
+(§9.B-25).
+
+**Một hàm qualifier dùng chung.** Đường `.tbl` (P3-05) đã có `_qualifiers_of`; writer GenBank cần
+đúng thứ đó ⇒ theo luật DRY-sau-lần-trùng-thứ-hai nó thành `model.gene_qualifiers()`, **cả hai
+đường gọi chung một hàm** — một feature không thể ra hai kiểu ở hai định dạng. Nhân đó chốt thêm
+một quy tắc: **`/gene` chỉ ghi khi nó nói điều `/product` chưa nói** — đo trên `OX459128.1` (không
+có `/gene` nào, tên feature là cả câu `/product`), ghi cả hai sẽ gán cho bản ghi một *ký hiệu gen*
+là một câu văn.
+
+**Kết quả đo:** đọc → ghi → đọc lại trên genome vàng cho **265/265** feature trùng khớp
+(kind · tên · các part **theo đúng thứ tự transcript** · mạch · cờ partial · product ·
+`transl_table` · `codon_start` · `exception` · `pseudo` · `trans_splicing`), trình tự và `source`
+nguyên vẹn. Thêm 8 test cho writer (join mạch trừ, partial, tên-trùng-product, qualifier trần,
+`source`, và ca từ chối ghi feature vượt quá độ dài trình tự). **324 test unit vẫn xanh** — đường
+`.tbl` của P3-05 (đối chiếu byte-với-byte với bảng thật của NCBI) **không đổi hành vi**.
+
+**Writer này KHÔNG phải trình sửa GenBank bất tổn thất** — nó ghi *model*, không ghi lại file gốc:
+các qualifier kể trên rơi mất, `misc_feature` không có trong model, và phần LOCUS (division `PLN`,
+ngày hôm nay) được sinh lại. Điều đó đúng cho thứ nó phục vụ — đầu ra của annotator mình — và được
+nói thẳng trong docstring thay vì để người đọc tự phát hiện.
+
+---
+
+### 8.21. Bộ tham chiếu mito — dựng từ 8 bản ghi RefSeq, và cái bẫy nằm trong chính bộ tham chiếu (P3A-02, 03/10/2026)
+
+**Nguồn:** 8 mitogenome RefSeq ghim bằng `panel pin` (5,2 MB, sha256 trong `PINNED.json`), chọn
+theo **đúng luật taxonomy của Reference Panel** — cùng họ trước: 3 họ Lamiaceae (*Salvia
+miltiorrhiza* · *Ajuga reptans* · *Rotheca serrata*) cho *Coleus*, 3 họ Rubiaceae (*Psychotria
+viridis* · *Scyphiphora hydrophyllacea*) cho *Oldenlandia*, cộng 3 loài mẫu (Arabidopsis ·
+Nicotiana · Oryza) làm outgroup. Kết quả: `mito_reference_proteins.faa` (**287 protein, 100 KB**)
++ `mito_reference_rrna.fa` (**25 rRNA, 49 KB**).
+
+**Đo được — tự dịch protein là KHÔNG THỂ, không phải chỉ kém chính xác.** Cả **530/530** CDS tham
+chiếu đều có `/translation` và **không bản nào khai `/transl_table`**; và CDS mito thực vật mở đầu
+bằng codon như `ACG` mà **không bảng mã nào nhận làm codon khởi đầu** — dịch ở chế độ CDS thì
+BioPython **ném lỗi trước khi ra được protein nào**. Nên bộ tham chiếu lấy **chính `/translation`
+của người chú giải**: nó cũng xử lý luôn trans-splicing và các đầu do RNA editing, những thứ module
+này không có việc phải suy diễn lại.
+
+**Đo được — chính bộ tham chiếu bị ô nhiễm, và đây là cái bẫy lớn nhất của task.** Bản ghi mito
+thực vật chú giải **ORF vô danh như CDS**: *Nicotiana* **121 cái**, *Salvia* **97**, *Oryza* **22**
+— tổng **236**. Thêm 7 feature tên là cả câu (`hypothetical protein`, `LAGLIDADG endonuclease`).
+Thêm gen **nguồn gốc lục lạp** nằm trong mito: `rbcL` · `petG` · `petL` · `atpB` · `atpE` (cả 5
+trong bản ghi *Salvia*), và gen chuyển ngang `citB` · `epd` · `ltrA` · `rnhA` · `tuf` (*Psychotria*).
+Thêm rRNA **sai kích thước**: *Psychotria* gọi một feature **722 bp** là "5S" và một **1112 bp** là
+"18S" (khoảng thật: 5S 107–122 · 18S 1692–1935 · 26S 2907–3507). Một build ngây thơ sẽ nuốt hết.
+Nên builder **trả về và in ra** mọi thứ bị loại, không bỏ im lặng.
+
+**Kết quả:** phủ **31/31** locus của vocabulary, và artifact được **giữ đúng** bằng một test dựng
+lại từ panel đã ghim rồi so với file đã commit — tức FASTA là **bằng chứng**, không phải file sót
+lại. Đường pin (`panel pin` → `PINNED.json`) giữ sha256 của cả 8 nguồn.
+
+**Lỗ hổng đo được, để mở có tên (H-06):** tham chiếu còn **23 gen mà toolkit chưa có tên**, trong
+đó **10 gen mito chuẩn** — `rpl2` · `rpl10` · `rpl16` · `rpl23` · `rps2` · `rps7` · `rps12` ·
+`rps14` · `rps19` · `sdh3`. `mito_gene_names.yaml` chỉ có 31 locus vì nó được dựng từ **một** bản
+ghi; đây đúng là phép kiểm chéo mà chính file đó ghi là còn thiếu. Chúng **được giữ lại trong bộ
+tham chiếu** với dấu `-` ở cột vocabulary, để một lần chạy có thể **nói ra** là nó tìm thấy `rps12`
+thay vì im lặng về một gen nó không có tên.
+
+### 8.22. Bộ gọi gen mito — chuyển chú giải từ bộ tham chiếu, và sáu cái bẫy đo được (P3A-03, 03/10/2026)
+
+**Vì sao.** P3-04 chọn PMGA rồi không chạy nổi (11 GB + MAKER so với trần 8 GB, web service từ
+chối kết nối). Luật của CLAUDE.md cho ca đó là *thay — hoặc tự viết phần đó*, và các mảnh đã có
+sẵn: BLAST+ 2.17.0, bộ tham chiếu 287 protein + 25 rRNA (P3A-02), vocabulary 31 locus, các phép
+kiểm ORF, reader/writer của mình. P3A-03 là **bộ gọi gen**: `blastx` cho CDS, `blastn` cho rRNA,
+rồi `core/mito_caller.py` biến các HSP thành `Gene`.
+
+**Kết quả đo trên bản ghi đáp án `OX459128.1`** (chạy thật, BLAST+ 2.17.0, bộ tham chiếu đã commit):
+
+| Số đo | Giá trị |
+|---|---|
+| Gen gọi được | **31 CDS + 3 rRNA**, `not_called` **rỗng** |
+| Span trùng khít bản công bố | **18/31**; 13 ca còn lại lệch **≤ 75 bp** ở một đầu |
+| Mạch | khớp **31/31** (kể cả 2 gen mixed-strand: nad1, nad5) |
+| Hồ sơ ORF của các call | **21 ok · 3 no_start · 7 no_stop** (bản ghi gốc: 21 ok · 4 pseudo · 3 no_stop · 3 no_start) |
+| Exon | 11 gen một exon khớp; nad1/nad5 ra **4 exon so với 5** của bản ghi — hai exon 19 và 7 codon của bản ghi **không alignment nào tìm được**, và bộ gọi **không bịa** chúng |
+| Gen tìm thấy mà chưa có tên (H-06) | **15 hit** được báo cáo: rps19 · rps14 · rpl16 · rps2 · ccmFN2 · rbcL · atpB · orfX · orfB |
+| Hit không dùng | **68**, mỗi cái một lý do |
+| Thời gian | vài giây cho cả hai lượt tìm (bộ tham chiếu 287 + 25 chuỗi) |
+
+**Sáu cái bẫy, tất cả đều đo được và đều đã thành test:**
+
+1. **BLAST cắt `sseqid` tại khoảng trắng đầu tiên.** Header tham chiếu kết thúc bằng tên loài
+   (`…|Nicotiana tabacum`) nên nó về tới nơi là `…|Nicotiana`. Khoá chủ thể **phải** là ba field
+   đầu; parser **từ chối** một id ngắn hơn thay vì đoán.
+2. **Một header có thể là hai chuỗi khác nhau.** FASTA đã commit có **8 header trùng**: 6 là bản
+   sao y hệt (gen nằm trong repeat), nhưng *Arabidopsis* `atp6` là **385 và 349 aa**, *Psychotria*
+   `cox2` là **257 và 390 aa**. Nên một HSP thuộc về **độ dài nhỏ nhất chứa được khoảng subject
+   của nó**, và HSP của hai chuỗi cùng khoá **không bao giờ được nối chung** — đó chính là cách
+   một gen khảm được dựng lên.
+3. **`-seg no`.** SEG che các đoạn ít phức tạp của *query* — hợp lý khi đi tìm protein lạ, sai khi
+   chuyển chú giải cho một mitogenome thực vật vốn đầy protein màng kỵ nước. Đo được: `atp9` mất
+   **137 → 67 bits**, 21 locus khác cũng mất điểm. Ngưỡng identity mới là thứ giữ rác ở ngoài.
+4. **`makeblastdb -parse_seqids` là flag phá hoại.** Nó **lỗi thẳng**:
+   `Error: Duplicate seq_ids are found: LCL|NC_006581.1|SDH3|-|NICOTIANA` (bộ tham chiếu có bản
+   sao repeat một cách hợp pháp), và với id nó parse được thì nó **viết hoa** — phá mọi ký hiệu
+   gen viết thường trong khoá.
+5. **Mạch của rRNA đến từ phía subject, không phải query.** Tham chiếu lưu theo chiều 5'→3' của
+   gen, nên `sstart > send` nghĩa là gen nằm trên **mạch âm** của query — ngược với trực giác và
+   ngược với quy ước của blastx (nơi frame quyết định). Đo lại đúng cả ba rRNA của bản ghi đáp án.
+6. **`blastx` chỉ nhận `-version`, không nhận `--version`.** `run_tool` chỉ thử `--version`/`-v`/`-V`
+   ⇒ công cụ vừa trở thành mấu chốt của cả một module bị ghi là **"unknown"** trong khi mọi lần dò
+   đều "thành công" (thất bại). Đã thêm `-version` vào danh sách dò, kèm test.
+
+**Một phát hiện về chính bản ghi đáp án:** ba CDS `no_stop` của nó (ccmFc · ccmC · nad6) **kết thúc
+đúng ở codon cuối của protein và bỏ codon stop nằm ngay sau** — đo được: bộ gọi lấy codon đó khi
+chuỗi xác nhận, nên nad6/ccmFc của mình dài hơn bản ghi **3 bp**. Đây là khác biệt *có thật* giữa
+hai cách chú giải, không phải lỗi của bên nào.
+
+**Đã khai báo công cụ:** `environment.yml` ghim `blast=2.17.0` (trước đó là `blast>=2.8.1` chỉ vì
+PGA cần), `docs/tools/blast.md` ghi nguồn, phiên bản, đường cài, ba quyết định đo được và lý do
+không vendor (52 MB nhị phân).
+
+---
+
+### 8.23. Bộ gọi tRNA — ARAGORN 1.2.41, và 17 không phải là một tập hợp (P3A-04, 03/10/2026)
+
+**Vì sao.** CDS đến từ BLAST+ (P3A-03); tRNA thì không thể chuyển từ bộ tham chiếu protein, nên
+cần một bộ gọi riêng. Chọn **ARAGORN 1.2.41** (D3A-01): 147 kB trên bioconda, GPLv3, và chính là
+công cụ mà PMGA chạy bên trong. Một bộ gọi tự viết rồi chỉnh cho ra đúng 17 sẽ là overfitting
+đúng nghĩa.
+
+**Kết quả đo trên `OX459128.1`:** ARAGORN gọi **17 tRNA**, bản ghi công bố có **17** — **nhưng
+không phải cùng một tập**:
+
+| Khác biệt | Chi tiết |
+|---|---|
+| Thiếu | `trnA-UGC 13244-13348` — bản ghi chú giải, ARAGORN không gọi (feature dài **105 bp**, hơn một tRNA thường) |
+| Thừa | `trnL-AAG 36355-36427` — ARAGORN gọi, bản ghi không có gì ở đó |
+| Lệch anticodon | tRNA-His ở 11741-11819: ARAGORN đọc **`trnH-AUG`**, bản ghi ghi **`trnH-GUG`** |
+| Lệch toạ độ | **9** feature lệch 1–6 bp; lớn nhất là tRNA **vắt qua origin** — ARAGORN in `[258274,73]`, bản ghi viết `1-79` |
+| Trùng khít | 15 feature còn lại |
+
+Con số **17 = 17** vì vậy không phải bằng chứng khớp: nó che một ca thiếu, một ca thừa và một ca
+lệch anticodon. Đây đúng là lý do bài kiểm tra so **từng feature**, không đếm tên: 17 tRNA của bản
+ghi chỉ mang **14 tên khác nhau** (`trnH-GUG` · `trnK-UUU` · `trnM-CAU` mỗi tên hai lần) — gộp theo
+tên sẽ ra 14 và sai.
+
+**Ba cái bẫy đo được, đã thành test:**
+
+1. **`-V` của ARAGORN không phải cờ phiên bản.** Nó thoát với mã **0** và in
+   "No sequence file specified, type aragorn -h for help" — `run_tool` ghi nguyên câu đó làm
+   **phiên bản** của công cụ gọi tRNA. Một chuỗi trông hợp lý trong hồ sơ provenance còn tệ hơn
+   "unknown": không ai phát hiện được. Bộ dò giờ chỉ nhận dòng **có chữ số**, và adapter tự xác
+   minh bản phát hành từ banner của `-h`.
+2. **ARAGORN in anticodon dưới dạng DNA** (`(cat)`) còn tên công bố dùng RNA (`trnM-CAU`), và in
+   axit amin bằng chữ (`tRNA-Met`). Adapter đổi Met→M, `cat`→`CAU` rồi đưa qua
+   `core/gene_names.normalize_name` — **cùng một bộ chuẩn hoá** mà một bản ghi tải về phải đi qua.
+3. **Gene vắt qua origin**: ARAGORN in `[258274,73]` (đầu > cuối). Đó không phải toạ độ GenBank;
+   adapter tách thành hai part theo đúng thứ tự phiên mã, tức một `join()`.
+
+**Đã khai báo:** `environment.yml` ghim `aragorn=1.2.41`, `docs/tools/aragorn.md` ghi nguồn
+(bioconda — upstream `ansikte.se` trả HTTP 455), licence GPLv3, đường cài và ba quyết định trên.
+
+---
+
+### 8.24. Chạy trên mẫu chưa ai chú giải — `AP045469.1`, và tám locus không gọi được (P3A-07, 03/10/2026)
+
+**Input:** `AP045469.1` (*Coleus hadiensis*, **313.585 bp**, **0 feature** — đo được), đưa vào qua
+`plastid mito annotate` dưới dạng FASTA trần. Đây là hình dạng mọi lần chạy mito sau này sẽ đi:
+chuỗi vào → GenBank ra → `panel pin --file` ghim → đọc lại offline.
+
+**Kết quả:** **45 gen = 23 CDS + 19 tRNA + 3 rRNA**, ghim với sha256 `3e7c7114ae5d…`
+(402.318 B, `parse_error: null`). `mito_genes` đọc thẳng từ bản ghim, **không cần công cụ, không
+cần bộ tham chiếu**.
+
+**Tám locus vocabulary KHÔNG gọi được — và đây là phát hiện, không phải lỗi cần giấu.** Bảng
+`not_called` ghi rõ từng locus; đo thêm bằng cách nới E-value lên **10** (so với ngưỡng 1e-5 của
+lần chạy) để trả lời câu "ngưỡng có quá chặt không?":
+
+| Locus | Ở E-value ≤ 10 |
+|---|---|
+| `mttB` · `rps1` · `rps13` · `rps4` | **không có alignment nào cả** |
+| `cox2` | một mảnh 40 aa, 67,5 % — quá ngắn để phủ |
+| `ccmFn` · `matR` · `rps3` | mảnh 21–52 aa ở E-value 0,05–2,8 — không phải bằng chứng tương đồng |
+
+Nên **không phải ngưỡng** đang giữ chúng ở ngoài. Câu hỏi "các gen đó vắng trong genome hay vắng
+trong bản lắp ráp này" **không phải câu một bộ chuyển chú giải trả lời được** — nó cần người chú
+giải, hoặc một phép kiểm tra từ read. Ghi lại đúng như vậy thay vì hạ ngưỡng cho đủ 31.
+
+**Hồ sơ ORF của 23 call:** **10 ok · 9 no_start · 3 no_stop · 1 internal_stop**. Chín `no_start`
+phần lớn là các call bắt đầu giữa protein (alignment không tới đầu N của tham chiếu) — module đánh
+dấu `partial_start` chứ không dịch chuyển toạ độ. **Đây là prototype, không phải bản nộp** — dòng
+scope trong mọi bảng và ghi chú của lần chạy đều nói vậy.
+
+**Nhắc lại giới hạn (D3A-05):** không tự tìm gen mới, không mô hình intron, không dự đoán RNA
+editing. Bốn gen không tìm thấy **không** được suy đoán là "không có".
+
+---
+
+---
+
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
 
 ### A. Lỗi "sai mà không báo" ở khâu nhận diện IR
@@ -1162,6 +1375,13 @@ cân nhắc đường không-cần-cài (web service + `panel pin --file`) trư�
     `GeneXrefStrandProblem` trông như lỗi của mình cho tới khi chạy **cùng validator** trên một
     bảng nộp đã được chấp nhận (Dioscorea) và thấy nó cũng đúng 7 lỗi cùng lớp. Không có đối
     chứng thì hoặc là sửa những thứ không hỏng, hoặc là bỏ qua những thứ hỏng thật.
+25. **Mới 03/10/2026 — thư viện viết GenBank ghi ra cú pháp không ai dùng, và round-trip bằng
+    chính nó thì vẫn xanh.** BioPython gặp qualifier trần (`/pseudo`, `/trans_splicing`) dưới dạng
+    **chuỗi rỗng** thì ghi `=""`; gặp `None` mới ghi `/pseudo` trần. File `=""` vẫn đọc lại được
+    bằng chính BioPython, nên một test kiểu "ghi rồi đọc bằng thư viện đã ghi" **xanh trong khi
+    file khác cú pháp NCBI**. Bắt được chỉ vì có **bản ghi vàng thật** để đối chiếu cú pháp và vì
+    **reader của mình** mới là thứ đọc lại. Bài học: round-trip bằng chính thư viện đã ghi không
+    phải bằng chứng — phải đối chiếu với một file do NCBI viết (§8.20).
 
 ### C. Môi trường & vận hành
 
@@ -1191,6 +1411,52 @@ cân nhắc đường không-cần-cài (web service + `panel pin --file`) trư�
     tỉa gói OOXML thì phải canh bằng cấu trúc, không bằng mắt.
 
 ---
+
+### D. Chuyển chú giải mito bằng BLAST (P3A-03)
+
+1. **`sseqid` bị cắt tại khoảng trắng** ⇒ một khoá chủ thể dựng từ bốn field sẽ **không bao giờ**
+   khớp hit nào. Header tham chiếu kết thúc bằng tên loài nên chỗ cắt luôn nằm ở đó.
+2. **`makeblastdb -parse_seqids` lỗi trên chính bộ tham chiếu đã commit** (`Duplicate seq_ids …
+   LCL|NC_006581.1|SDH3|-|NICOTIANA`) và **viết hoa** id khi parse được. Flag trông "đúng chuẩn"
+   nhất lại là flag phá pipeline.
+3. **`blastx` chỉ nhận `-version`** — `--version`, `-v`, `-V` đều trả rc=1 kèm USAGE. `run_tool`
+   chỉ thử ba cái sau ⇒ phiên bản bị ghi là "unknown" trong im lặng.
+4. **SEG mask ăn mất điểm của gen thật**: atp9 137 → 67 bits, 21 locus khác cũng giảm. Mask được
+   thiết kế cho query ít phức tạp; mitogenome thực vật thì toàn protein màng.
+5. **Xếp hạng ứng viên theo bitscore tạo gen khảm.** `atp6`: alignment 418 aa khớp 75,6 % thắng
+   một alignment khớp 93,4 % ⇒ call bị kéo **381 bp** về thượng nguồn, ôm luôn một ORF phân kỳ.
+   Xếp theo identity: tổng sai lệch 13 gen còn lại **310 bp** thay vì **655 bp**.
+6. **Hai chuỗi cùng một header khoá**: nếu nối HSP của cả hai vào một call, coverage bị chia sai
+   mẫu số và hai phân tử khác nhau bị ghép thành một gen.
+7. **Codon stop của tham chiếu không nằm trong alignment** (protein không có stop). Mở rộng +3 chỉ
+   khi chuỗi xác nhận; mở rộng mà không kiểm là cách bịa ra một đầu gen, còn đi tìm stop là
+   ORF-walking (D3A-02 cấm).
+8. **Ba CDS `no_stop` của chính bản ghi đáp án** (ccmFc · ccmC · nad6) bỏ codon stop nằm ngay sau
+   ⇒ cùng một gen, hai cách chú giải, lệch 3 bp. Không bên nào sai; phải **kể ra**, không chỉnh.
+
+### E. Bộ gọi tRNA (ARAGORN, P3A-04)
+
+1. **`aragorn -V` thoát mã 0 và in một câu lỗi** ⇒ `run_tool` ghi câu đó làm *phiên bản*. Cùng họ
+   với ca BLAST+ chỉ nhận `-version`: bộ dò phiên bản tin vào quy ước `--version`/`-v`/`-V`, và
+   hai công cụ liên tiếp đã cho thấy quy ước đó không tồn tại. Luật mới: một dòng chỉ là phiên
+   bản nếu nó **có chữ số**.
+2. **Đếm tRNA theo tên là sai**: 17 feature chỉ có 14 tên (3 tên lặp hai lần). Gộp theo tên ra 14.
+3. **17 = 17 không có nghĩa là cùng một tập**: một locus thiếu, một locus thừa, một anticodon
+   lệch. Một phép so chỉ đếm số lượng sẽ báo "khớp" cho cả ba sai khác đó.
+4. **Gene vắt qua origin** bị ARAGORN in là `[258274,73]` — nếu ghi thẳng vào GenBank thì đó là
+   toạ độ vượt quá độ dài bản ghi. Phải tách thành `join()`.
+
+### F. Bộ chuyển chú giải trên một mẫu hoàn toàn mới (P3A-07)
+
+1. **`AP045469.1` (313.585 bp, 0 feature): chỉ 23/31 CDS gọi được.** Bốn locus không có alignment
+   nào ngay cả ở E-value 10, một locus chỉ có mảnh 40 aa, ba locus mảnh 21–52 aa ở E-value
+   0,05–2,8. **Không phải ngưỡng** — hạ ngưỡng không tìm thêm được gì.
+2. **Bài học về cách báo cáo:** một prototype trung thực phải in ra *cái nó không tìm thấy* kèm
+   bằng chứng đã cố nới ngưỡng. "Không tìm thấy" khác "không tồn tại", và bộ chuyển chú giải chỉ
+   trả lời được câu thứ nhất.
+3. **23 call vẫn cho 13 CDS không qua phép kiểm ORF** (9 `no_start`, 3 `no_stop`, 1
+   `internal_stop`) — trên một genome chưa ai chú giải thì đó là *thông tin*, không phải lỗi: nó
+   nói chỗ nào alignment không xác lập được đầu gen.
 
 ## 10. Câu hỏi còn treo
 

@@ -138,15 +138,43 @@ relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined
 
 - [x] **M3.1 Annotation** (2026-10-03) — plastome: **Chloe** (PGA measured and replaced, §8.15/§8.17),
       **132 = 86 + 38 + 8** through our own reader, 0 CDS failing the ORF checks; mito path
-      (`mito_genes`, no IR gate) done and measured; the mito **annotator's count check is OPEN** —
-      the local container needs 11 GB and MAKER (too strong for this machine) and PMGA's web
-      application server **refuses connections** (measured 03/10, `docs/tools/pmga.md`)
+      (`mito_genes`, no IR gate) done and measured; the mito **count check closed in Phase 3A** by
+      this project's own annotator — PMGA never ran here (11 GB + MAKER against an 8 GB cap; its web
+      server still refuses connections, re-measured 03/10) and nothing depends on it now (§8.22)
 - [x] **M3.2 Gene-name check & normalization** (2026-10-03) — one normalizer (`core/gene_names.py`), panel measured: 155 → 115 canonical, 0 unresolved, 0 unclassified
 - [x] **M3.3 ORF checks** (2026-10-03) — golden: 0 failures, 5 alternative starts; the truncated ycf1 reported as annotated-not-coding
 - [x] **M3.4 NCBI submission files** (2026-10-03) — `.fsa` + `.tbl` in pure Python, 265/265 features
       round-trip; **the `.sqn` step ran against `table2asn`**, and NCBI's own validator took the
       table from **13 errors to 7** (the rest inherent to duplicated IR genes; §8.18). A real
-      submission still needs the team's own `.sbt` from NCBI's form
+      submission still needs the team's own `.sbt` from NCBI's form —
+      **the mito count check continues in Phase 3A**
+
+## Phase 3A — Mito annotator, self-built prototype  *(opened 03/10)*
+
+**Goal:** a mito annotator this project can run, read and reproduce. PMGA cannot run here — 11 GB
+unpacked driving MAKER against an 8 GB VM cap, and its own web service refuses connections (P3-04,
+`docs/tools/pmga.md`). CLAUDE.md's rule for a tool that cannot run is *replace it — or write that
+part ourselves*, from parts the repo already has: BLAST+, the 31-locus vocabulary, the ORF checks,
+the reader. It is measured against a record whose answer is already published, so it must earn its
+place rather than be declared.
+
+**In-phase check — MET 03/10/2026.** On `OX459128.1` the annotator's **own output** re-reads with
+**our own reader**, runs through `orf` + `mito_genes` unchanged, and recounts to **31 CDS · 17 tRNA
+· 3 rRNA** — with **every difference from the published record listed** (13 CDS spans within 75 bp,
+1 missing and 1 extra tRNA, 1 anticodon disagreement), and anything it cannot call reported as not
+called. The counts agree; the *members* of two of the three sets do not, and that is what the
+golden file prints. On the unannotated `AP045469.1` the same command yields 23 CDS of 31, pinned —
+with the eight it could not call reported and measured (§8.24).
+
+- [x] **M3A.1 GenBank writer** — read → write → read round-trips the golden's 265 features
+- [x] **M3A.2 Reference set** — RefSeq mitogenomes chosen by taxonomy (same family first) → CDS
+      proteins + rRNA, pinned, with sources and sha256 recorded
+- [x] **M3A.3 Gene caller** (2026-10-03) — `blastx` for CDS and `blastn` for rRNA; boundaries come from the
+      alignment, not from ORF-walking; everything below the floor is reported
+- [x] **M3A.4 tRNA caller** (2026-10-03) — ARAGORN, declared in `environment.yml` and `docs/`
+- [x] **M3A.5 CLI** (2026-10-03) — `plastid mito annotate`, output through the existing pipeline, no second path
+- [x] **M3A.6 Golden check** (2026-10-03) — 31 · 17 · 3 against the published record, differences itemized
+- [x] **M3A.7 AP045469.1** (2026-10-03) — the unannotated sample: run it, report it, pin it
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid and mito)*
 
