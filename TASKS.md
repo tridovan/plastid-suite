@@ -184,14 +184,22 @@ The two commands share one body (`_execute_run`), so the mito path inherits the 
 and the provenance rather than re-implementing them. `core/genbank.py` gained `read_fasta`, the
 input door for an assembled sequence.
 
-### P3A-06 · Golden check · M3A.6 · [ ]
+### P3A-06 · Golden check · M3A.6 · [x] DONE 03/10
 
-- [ ] `tests/golden/test_mito_annotate.py`: the 31 CDS symbols · tRNA against 17 · 3 rRNA, against
+- [x] `tests/golden/test_mito_annotate.py`: the 31 CDS symbols · tRNA against 17 · 3 rRNA, against
       the published record, with the differences itemized rather than summarized
 
 **Done when:** the check runs and prints its counts **next to** the published ones. A count that
 differs is recorded in PROJECT.md §9 as a finding and the task says so — it is **never** tuned away,
 and a red check that reports honestly is a finished task, not a failed one. **Needs:** P3A-03…05.
+**Met 03/10** — `tests/golden/test_mito_annotate.py` holds **eight** tier-B checks and prints, for
+the answer-key record: `CDS 31 / published 31 · tRNA 17 / published 17 · rRNA 3 / published 3`, then
+itemizes what differs (13 CDS spans, 1 missing and 1 extra tRNA, 1 anticodon disagreement). The
+counts agree; the *members* of the tRNA set do not, and that is what the file reports.
+**The check is not circular** — the vocabulary was built from this record's own `/product` strings
+(§8.21), so the CDS half pairs calls with published CDS by **exon overlap**, a bijection over all
+31 that a call on the wrong locus cannot pass; the snippet of honesty is that the naming half is
+therefore vocabulary-derived and P3A-06 says so in its own docstring.
 
 ### P3A-07 · The sample nobody has annotated · M3A.7 · [x] DONE 03/10
 

@@ -17,13 +17,13 @@ team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pend
 `feat/phase-3` (stacked on `feat/phase-2`, which is not yet merged to `main`).** The one task that
 closed by *decision* rather than by code is P3-04's annotator (see below).
 
-**Phase 3A — IN PROGRESS, branch `feat/phase-3a`** (stacked on `feat/phase-3`). A mito annotator
-this project builds itself, because PMGA cannot run here and its web service is down. **P3A-01 … P3A-07 are ALL DONE** and the phase check is met (§8.20–§8.24): on `OX459128.1` the
-annotator's own output re-reads, drives `orf` + `mito_genes` unchanged, and recounts to
-**31 CDS · 17 tRNA · 3 rRNA**; `AP045469.1` was annotated, pinned and read back offline. **Phase 3A
-is complete** — the next planned phase is **Phase 4 (multi-genome comparison)**, whose modules can
-key on the canonical names. The board is `TASKS.md` — read it first, it carries the decisions, the
-pitfalls and every measured number. Phase 4 (multi-genome comparison) follows 3A.
+**Phase 3A — COMPLETE 03/10, branch `feat/phase-3a`** (stacked on `feat/phase-3`). A mito annotator
+this project builds itself, because PMGA cannot run here and its web service is down. **P3A-01 …
+P3A-07 are all DONE** and the phase check is met (§8.20–§8.24): on `OX459128.1` the annotator's own
+output re-reads, drives `orf` + `mito_genes` unchanged, and recounts to **31 CDS · 17 tRNA ·
+3 rRNA**; `AP045469.1` was annotated, pinned and read back offline. **The next planned phase is
+Phase 4 (multi-genome comparison)**, whose modules key on the canonical names. The board is
+`TASKS.md` — read it first, it carries the decisions, the pitfalls and every measured number.
 
 - **P3-01 ORF checks — DONE.** `core/orf.py` + `modules/orf.py`; `Gene` now carries the record's own
   `/transl_table` and `/codon_start`. Golden: 86 CDS, 81 `ok`, **5 `alternative_start`**
