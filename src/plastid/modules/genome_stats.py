@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from plastid.core.gene_names import GenomeNames, load_gene_aliases, normalize_genome
 from plastid.core.ir import IRResult
 from plastid.core.model import Gene, Genome, Interval, count_genes
 from plastid.core.normalize import normalize
@@ -31,6 +32,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
     counts = count_genes(genome)
     frame = normalize(genome, ir)
+    names = normalize_genome(genome, load_gene_aliases())
     regions = {region.name: region for region in frame.regions}
 
     stats = Table(
@@ -108,7 +110,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("in_ir", "In IR"),
             Column("pseudo", "Pseudo"),
         ),
-        rows=tuple(_gene_row(gene, ir) for gene in genome.genes),
+        rows=tuple(_gene_row(gene, ir, names) for gene in genome.genes),
         scope=Scope(label="GenBank coordinates; both IR copies included", coord_system="genbank"),
     )
 
@@ -121,10 +123,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     )
 
 
-def _gene_row(gene: Gene, ir: IRResult) -> dict[str, Any]:
+def _gene_row(gene: Gene, ir: IRResult, names: GenomeNames) -> dict[str, Any]:
     start, end = gene.span
     return {
-        "name": gene.name,
+        # the label, not the raw name: `pafI (ycf3)` is this locus whichever dialect the
+        # record used (P3-02) — one name in every table of one run
+        "name": names.label(gene),
         "kind": gene.kind,
         "start_1b": start,
         "end_1b": end,

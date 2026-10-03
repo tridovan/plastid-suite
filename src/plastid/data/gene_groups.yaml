@@ -25,9 +25,13 @@ categories:
   - name: Photosynthesis
     groups:
       - name: Subunits of photosystem I
-        genes: [psaA, psaB, psaC, psaI, psaJ]
+        # ycf3/ycf4 sit with photosystem I in the conventional published table, and pafI/pafII
+        # are the same two loci under the functional nomenclature (D3-02, PROJECT.md §8.10).
+        # Both dialects are listed so the grouping answers the same way whether or not the
+        # gene-name normalizer ran — one locus must never land in two different groups.
+        genes: [psaA, psaB, psaC, psaI, psaJ, pafI, pafII, ycf3, ycf4]
       - name: Subunits of photosystem II
-        genes: [psbA, psbB, psbC, psbD, psbE, psbF, psbH, psbI, psbJ, psbK, psbL, psbM, psbN, psbT, psbZ]
+        genes: [psbA, psbB, psbC, psbD, psbE, psbF, psbH, psbI, psbJ, psbK, psbL, psbM, psbN, pbf1, psbT, psbZ]
       - name: Subunits of cytochrome b/f complex
         genes: [petA, petB, petD, petG, petL, petN]
       - name: Subunits of ATP synthase
@@ -63,7 +67,7 @@ categories:
       - name: c-type cytochrome synthesis
         genes: [ccsA]
       - name: Protease
-        genes: [clpP]
+        genes: [clpP, clpP1]
 
   - name: Genes of unknown function
     groups:

@@ -16,7 +16,8 @@ from collections import Counter, defaultdict
 from typing import Any
 
 from plastid.core.gene_groups import GeneGroup, GeneGroups, assign, load_gene_groups
-from plastid.core.model import Gene, GeneCounts, Genome, count_genes
+from plastid.core.gene_names import GenomeNames, load_gene_aliases, normalize_genome
+from plastid.core.model import GENE_KINDS, Gene, GeneCounts, Genome, count_genes
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -37,9 +38,10 @@ _KINDS = ("CDS", "tRNA", "rRNA")
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     groups = load_gene_groups()
-    rows = assign(genome, groups)
+    names = normalize_genome(genome, load_gene_aliases())
+    rows = assign(genome, groups, canonical_of=names.canonical)
     counts = count_genes(genome)
-    unclassified = sorted({row.gene.name for row in rows if row.group is None})
+    unclassified = sorted({names.label(row.gene) for row in rows if row.group is None})
 
     by_group: dict[GeneGroup, list[Gene]] = defaultdict(list)
     by_kind: Counter[str] = Counter()
@@ -66,7 +68,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "accession": genome.accession or "",
                 "n_genes_total": counts.total,
                 "n_groups": sum(1 for genes in by_group.values() if genes),
-                "n_unique_names": counts.unique_names,
+                # distinct *canonical* names: the count a reader of this table can reproduce by
+                # reading it, which is not the same as the record's own name count once two
+                # dialects of one locus are merged
+                "n_unique_names": len(
+                    {names.canonical(gene) for gene in genome.genes if gene.kind in GENE_KINDS}
+                ),
                 "n_unclassified": len(unclassified),
                 "coord_system": "genbank",
             },
@@ -83,7 +90,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("genes", "Name of genes"),
             Column("copies", "Number", dtype="int"),
         ),
-        rows=(*_group_rows(groups, by_group), _total_row(len(rows))),
+        rows=(*_group_rows(groups, by_group, names), _total_row(len(rows))),
         scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
         key="group",
         emphasis=("Total",),
@@ -110,6 +117,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         "Number counts copies, both inverted-repeat copies included.",
         "A name marked (pseudo) has at least one pseudogene copy among its copies.",
     ]
+    aliased = sorted({names.label(row.gene) for row in rows if names.normalized(row.gene).synonyms})
+    if aliased:
+        notes.append(
+            "A name printed with a synonym is one locus under two nomenclatures (D3-02); the "
+            f"canonical name leads: {', '.join(aliased)}"
+        )
     if unclassified:
         notes.append(
             f"Unclassified genes (no group in gene_groups.yaml): {', '.join(unclassified)}"
@@ -142,7 +155,7 @@ def _counted_for(counts: GeneCounts, kind: str) -> int:
 
 
 def _group_rows(
-    groups: GeneGroups, by_group: dict[GeneGroup, list[Gene]]
+    groups: GeneGroups, by_group: dict[GeneGroup, list[Gene]], names: GenomeNames
 ) -> tuple[dict[str, Any], ...]:
     """One row per non-empty group, in the order the grouping file declares them.
 
@@ -153,7 +166,7 @@ def _group_rows(
         {
             "category": group.category,
             "group": group.name,
-            "genes": _names(by_group[group]),
+            "genes": _names(by_group[group], names),
             "copies": len(by_group[group]),
         }
         for group in groups.groups
@@ -167,16 +180,21 @@ def _total_row(total: int) -> dict[str, Any]:
     return {"category": "", "group": "Total", "genes": "", "copies": total}
 
 
-def _names(genes: list[Gene]) -> str:
-    """Gene names once each, in a stable order, with the copy count and pseudogene marker."""
-    copies = Counter(gene.name for gene in genes)
-    pseudo = {gene.name for gene in genes if gene.pseudo}
+def _names(genes: list[Gene], names: GenomeNames) -> str:
+    """Each locus once, in a stable order, with the copy count and pseudogene marker.
+
+    The label carries both dialects (``pafI (ycf3)``): a reader who knows either name finds the
+    gene, and never has to know which dialect this record happened to use.
+    """
+    labels = {gene: names.label(gene) for gene in genes}
+    copies = Counter(labels.values())
+    pseudo = {labels[gene] for gene in genes if gene.pseudo}
     parts = []
-    for name in sorted(copies):
-        label = f"{name} (pseudo)" if name in pseudo else name
-        if copies[name] > 1:
-            label = f"{label} (\N{MULTIPLICATION SIGN}{copies[name]})"
-        parts.append(label)
+    for label in sorted(copies):
+        text = f"{label} (pseudo)" if label in pseudo else label
+        if copies[label] > 1:
+            text = f"{text} (\N{MULTIPLICATION SIGN}{copies[label]})"
+        parts.append(text)
     return ", ".join(parts)
 
 

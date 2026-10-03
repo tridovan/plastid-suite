@@ -267,9 +267,13 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"cannot read the input: {error}", file=sys.stderr)
         return EXIT_ERROR
     for spec in specs:
-        if len(genomes) != spec.arity:
+        # API v0.2: arity ≥ 2 means *at least* that many genomes — an estimate over N accessions
+        # wants all of them. arity 1 still takes exactly one. The runner enforces "at least"
+        # too; this check is what turns a wrong count into a usage error before anything runs.
+        if len(genomes) < spec.arity or (spec.arity == 1 and len(genomes) != 1):
+            wanted = "exactly one genome" if spec.arity == 1 else f"at least {spec.arity} genomes"
             print(
-                f"module {spec.id!r} takes {spec.arity} genome(s), got {len(genomes)} — "
+                f"module {spec.id!r} takes {wanted}, got {len(genomes)} — "
                 f"pass --input once per genome",
                 file=sys.stderr,
             )

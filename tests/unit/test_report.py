@@ -615,9 +615,106 @@ def _orf_result() -> Result:
     )
 
 
+def _gene_names_result() -> Result:
+    return Result(
+        module="gene_names",
+        module_version="0.1.0",
+        tables={
+            "panel_summary": Table(
+                id="panel_summary",
+                title="Gene names across the run",
+                columns=(
+                    Column("n_records", "Records", dtype="int"),
+                    Column("n_genes", "Counted genes", dtype="int"),
+                    Column("n_distinct_names", "Distinct names as they arrived", dtype="int"),
+                    Column("n_distinct_canonical", "Distinct canonical names", dtype="int"),
+                    Column("n_renamed", "Written differently", dtype="int"),
+                    Column("n_aliased", "One locus, two nomenclatures", dtype="int"),
+                    Column("n_resolved_by_sequence", "Resolved by sequence", dtype="int"),
+                    Column("n_unresolved", "Unresolved", dtype="int"),
+                ),
+                rows=(
+                    {
+                        "n_records": 2,
+                        "n_genes": 264,
+                        "n_distinct_names": 118,
+                        "n_distinct_canonical": 112,
+                        "n_renamed": 6,
+                        "n_aliased": 8,
+                        "n_resolved_by_sequence": 1,
+                        "n_unresolved": 0,
+                    },
+                ),
+                scope=Scope(label="every counted gene of every record in the run"),
+            ),
+            "name_summary": Table(
+                id="name_summary",
+                title="Gene names by record",
+                columns=(
+                    Column("genome", "Record"),
+                    Column("organism", "Organism"),
+                    Column("n_genes", "Counted genes", dtype="int"),
+                    Column("n_distinct_names", "Distinct names as they arrived", dtype="int"),
+                    Column("n_distinct_canonical", "Distinct canonical names", dtype="int"),
+                    Column("n_renamed", "Written differently", dtype="int"),
+                    Column("n_aliased", "Two nomenclatures", dtype="int"),
+                    Column("n_resolved_by_sequence", "Resolved by sequence", dtype="int"),
+                    Column("n_unresolved", "Unresolved", dtype="int"),
+                ),
+                rows=tuple(
+                    {
+                        "genome": accession,
+                        "organism": organism,
+                        "n_genes": 132,
+                        "n_distinct_names": 112,
+                        "n_distinct_canonical": 112,
+                        "n_renamed": 0,
+                        "n_aliased": 4,
+                        "n_resolved_by_sequence": 0,
+                        "n_unresolved": 0,
+                    }
+                    for accession, organism in (
+                        ("NC_050833.1", "Iris domestica"),
+                        ("NC_024936.1", "Iris gatesii"),
+                    )
+                ),
+                scope=Scope(label="every counted gene of every record in the run"),
+                key="genome",
+            ),
+            "name_mappings": Table(
+                id="name_mappings",
+                title="Names that were normalized (or carry a synonym)",
+                columns=(
+                    Column("name_id", "Name id"),
+                    Column("genome", "Record"),
+                    Column("name", "Name as it arrived"),
+                    Column("canonical", "Canonical name"),
+                    Column("printed", "Printed as"),
+                    Column("rule", "Why"),
+                    Column("product", "Product in the record"),
+                ),
+                rows=(
+                    {
+                        "name_id": "NC_050833.1:ycf3",
+                        "genome": "NC_050833.1",
+                        "name": "ycf3",
+                        "canonical": "pafI",
+                        "printed": "pafI (ycf3)",
+                        "rule": "semantic",
+                        "product": "photosystem I assembly protein Ycf3",
+                    },
+                ),
+                scope=Scope(label="every counted gene of every record in the run"),
+                key="name_id",
+            ),
+        },
+    )
+
+
 TEMPLATE_FIXTURES = {
     "genome_stats": _result,
     "gene_table": _gene_table_result,
+    "gene_names": _gene_names_result,
     "orf": _orf_result,
     "ssr": _ssr_result,
     "structure": _structure_result,
