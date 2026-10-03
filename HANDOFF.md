@@ -23,9 +23,19 @@ starts are ATG 746 · GTG 11 · ACG 6 · CTG 5 · ATA 3 · TTG 2 · ATC 1 · ATT
 rule would fail 3.7 % of real plastid CDS. Every CDS declares `/transl_table=11` and
 `/codon_start=1`; the reader currently ignores both.
 
-Then P3-02 (gene-name normalization, syntax half — the semantic half waits on the PI's ruling about
-`clpP1` · `pafI` · `pafII` · `pbf1`), then P3-03/04 (PGA, MITOS2 — neither tool is on this machine),
-then P3-05 (NCBI submission files).
+Then P3-02 (gene-name normalization — **decided**, no longer waiting on anyone), then P3-03/04 (PGA,
+MITOS2 — neither tool is on this machine), then P3-05 (NCBI submission files).
+
+**Two facts from session 5 that change earlier work — read these before touching data:**
+
+1. **`PX923121.1` and `PX977793.1` are the group's OWN records** (`Vu,H.-T.` = cô Trang, Jan–Feb
+   2026), and `PX923121.1` **is the manuscript species** *C. amboinicus*. So P2-10's
+   `standin-coleus-amboinicus` label is **wrong** — see H-03. The *O. diffusa* record `PP078674.1`
+   is by Shen,C. and **is** a genuine stand-in.
+2. **The naming difference is a whole dialect, not four genes** — and it comes from GeSeq, the
+   team's own annotator (GetOrganelle → GeSeq). The comparison key is now the **team's** names
+   (`pafI`·`pafII`·`pbf1`·`clpP1`), with the classic names kept as `source_name` and both printed.
+   Full evidence: PROJECT.md §8.9–8.10.
 
 Open items carried over from Phase 2, in the order they matter:
 
@@ -76,11 +86,17 @@ commands in PROJECT.md §8.6.
   counting rule (**132**)". 132 is *Iris domestica*'s value, not a constant — P2-10 measured 131 and
   133 for two other species. The *rule* is fixed; the *number* is not. Left uncorrected this is the
   "133 genes" trap in a new costume.
-- **Did (cont.):** **D3-02 decided** — the four unusual gene names in *C. amboinicus* are the same
-  loci as `ycf3` · `ycf4` · `psbN` · `clpP`, proven three ways in our own nine records: identical
-  syntenic neighbours, identical length (`pbf1` and `psbN` both exactly 132 bp), matching `/product`.
-  Canonical stays the classic name (7 of 9 records and the golden use it); the record's own name
-  travels along as `source_name`. Recorded in PROJECT.md §8.9.
+- **Did (cont.):** **D3-02 decided** — the four unusual gene names are the same loci as
+  `ycf3` · `ycf4` · `psbN` · `clpP`, proven three ways (syntenic neighbours, identical length — `pbf1`
+  and `psbN` both exactly 132 bp — and `/product`). PROJECT.md §8.9.
+- **Did (cont.):** the user identified `Vu,H.-T.` as **cô Trang**, which made §8.9's conclusion
+  incomplete and flipped its main recommendation. Measured afterwards: **two of the eleven records are
+  the group's own** (`PX923121.1` *C. amboinicus* — the manuscript species — and `PX977793.1`); the
+  naming difference is a **whole dialect** (tRNA hyphen/bracket/**bare**, rRNA `rrn16`/`rrn16S`, protein
+  classic/functional), not four genes; and a bare tRNA name resolves by **sequence identity**, not by
+  reading an anticodon at a fixed offset (offset 34 matched only 106/293). The comparison key moved to
+  the **team's own names**, because normalising to the classic ones would make the team's paper print a
+  name that disagrees with the team's own submitted record. PROJECT.md §8.10.
 - **Residual risks:** P3-03/P3-04 (PGA, MITOS2) have no tool on this machine, so they can only be
   implemented and `PTS_REQUIRE_TOOLS=1`-gated — the same honest position P2-07/P2-08 are in.
 - **Process note worth keeping:** I first routed D3-02 to the PI *because I had no evidence*, then

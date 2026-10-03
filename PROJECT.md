@@ -54,6 +54,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **Tài liệu Word phải tái lập được từng byte**: `python-docx` đóng dấu thời gian đồng hồ vào zip, nên gói được **dựng lại** với timestamp cố định (1980-01-01), entry sắp xếp, `create_system` ghim ⇒ cùng đầu vào ra cùng file. Đây là định nghĩa "Done when" của P2-09, không phải một lời hứa |
 | 03/10 | **Gói .docx được tỉa**: template của `python-docx` mang theo cả catalogue style của Word (164 style, ~350 kB) + `stylesWithEffects.xml` (438 kB) + thumbnail + `customXml`; bản xuất chỉ giữ style tài liệu **thực sự dùng** cùng tổ tiên và default của chúng, mọi quan hệ trỏ tới phần đã bỏ đều bị cắt. Đo được: ~800 kB → **13 kB**, có test cấu trúc canh |
 | 03/10 | **Tên gen: ánh xạ theo locus, giữ tên gốc (D3-02, dev quyết có bằng chứng)**: `pafI`·`pafII`·`pbf1`·`clpP1` trong `PX923121.1` là **cùng locus** với `ycf3`·`ycf4`·`psbN`·`clpP` — chứng minh bằng synteny + độ dài + `/product` trên 9 bản ghi (§8.9). Tên **chuẩn** giữ bản cổ điển (7/9 bản ghi + genome vàng); tên gốc đi kèm `source_name`, không bao giờ bị bỏ. Tên **in trong bản thảo** và **nộp NCBI** vẫn là quyết định của PI (D3-06) |
+| 03/10 | **Tên gen: khoá theo locus, in cả hai tên (D3-02, dev quyết có bằng chứng)**: bốn tên `pafI`·`pafII`·`pbf1`·`clpP1` là **cùng locus** với `ycf3`·`ycf4`·`psbN`·`clpP` (synteny + độ dài + `/product`, §8.9). **Khoá so sánh nội bộ = phương ngữ của nhóm** — vì `PX923121.1` là bản ghi **của nhóm** (Vu,H.-T. = cô Trang) và **đúng loài bản thảo**, và GeSeq sẽ sinh ra đúng bộ tên đó; tên cổ điển đi kèm `source_name`. **In ra thì in cả hai** (`pafI (ycf3)`) — cách các bảng gen công bố đang làm. `gene_groups.yaml` nhận thêm bốn tên vào đúng nhóm chức năng (§8.10) |
 | 03/10 | **Đa genome (D2-01, dev quyết)**: giữ nguyên contract v0.1 `run(genome, params, ctx)`; thêm contract thứ hai `run(genomes, params, ctx)` chọn bằng `arity` khai báo lúc đăng ký — **không** nới rộng contract cũ, vì module một-genome sẽ phải nhận một dãy nó không dùng (seam 5). Runner cưỡng chế số genome trước khi chạy. Ghi ở `docs/API_v0.2.md` |
 | 03/10 | **π: cửa sổ 600 bp · bước 200 bp (D2-02)** — quy ước kiểu mVISTA; window/step vào params, manifest và report |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
@@ -511,6 +512,64 @@ chuẩn cộng đồng; nhóm mình cần xác nhận có phải bản ghi của
 thành quyết định của dev. Escalate khi thiếu bằng chứng là đúng; **giữ nguyên** mức escalate sau khi
 đã có bằng chứng là sai — ở đây nó chỉ nằm trong board một lúc, chưa gây thiệt hại, nhưng cơ chế thì
 sai: một việc dev làm được mà bị xếp cho PI sẽ **chặn im lặng** cho tới khi có người hỏi.
+
+### 8.10. Hai bản ghi là CỦA NHÓM — và cả một phương ngữ đặt tên (03/10/2026)
+
+**Xác nhận của anh Trí:** `Vu,H.-T.` = **Vũ Thị Huyền Trang** = **cô Trang, PI**. (Tên này cũng chính
+là tên file kế hoạch gốc ở §11 — lẽ ra phải nhận ra sớm hơn.)
+
+**Ai nộp bản ghi nào** (đo từ khối REFERENCE của cả 11 plastome):
+
+| Bản ghi | Loài | Người nộp |
+|---|---|---|
+| `PX923121.1` | ***Coleus amboinicus*** | **Vu,H.-T. and Nguyen,T.-V.H.** — 24/01/2026 |
+| `PX977793.1` | *Oldenlandia corymbosa* | **Vu,H.-T. and Duong,T.-H.** — 07/02/2026 |
+| `PP078674.1` | *Scleromitrion diffusum* | Shen,C. |
+| `PQ325515.1` | *Scleromitrion diffusum* | huang,z. |
+| `AP045470.1` · `PZ428230.1` · `NC_057679.1` · `NC_058328.1` · `NC_069583.1` | — | Furuta,Y. và cs. · Rahmat,E. và cs. · NCBI Genome Project · Zhao,F. và cs. |
+
+**Hệ quả 1 — nhãn `standin-coleus-amboinicus` là SAI.** `PX923121.1` **đúng loài bản thảo *C. amboinicus***
+và là **bản ghi do nhóm mình nộp**. Bản nháp P2-10 cho loài này dựng trên **dữ liệu của chính nhóm**, không
+phải dữ liệu thay thế. Còn `PP078674.1` (*O. diffusa* = *S. diffusum*) là của **Shen,C.** — bản đó **đúng
+là** dữ liệu thay thế. Ghi chú: mẫu đã công bố **không chắc** là mẫu bản thảo sẽ dùng; vẫn phải hỏi anh Điềm.
+
+**Hệ quả 2 — tên gen trong hai bản ghi đó là do nhóm đặt, qua GeSeq.** Khối COMMENT ghi
+`Assembly Method :: GetOrganelle v.1.7+` và bản ghi thiếu `##Annotation-Data`; tài liệu cho thấy GeSeq
+chú giải theo tương đồng với bộ tham chiếu dùng **tên chức năng mới** ⇒ đầu ra là `pafI`·`pafII`·`pbf1`.
+Nghĩa là **Giai đoạn 3 chạy GeSeq sẽ tự sinh ra đúng bộ tên đó** — việc chuẩn hoá tên không phải việc
+phụ, mà là việc bắt buộc.
+
+**Hệ quả 3 — khác biệt không phải 4 gen, mà là CẢ MỘT PHƯƠNG NGỮ.** Đo trên 11 bản ghi:
+
+| Khía cạnh | Dạng | Số bản ghi |
+|---|---|---|
+| tRNA anticodon | hyphen `trnA-UGC` | **8** |
+| | ngoặc `trnA(UGC)` | 1 (`NC_058328.1`) |
+| | **trần, không anticodon** `trnK` · `trnI` | 2 (`PX923121.1` · `NC_069583.1`) |
+| rRNA | trơn `rrn16` | 6 |
+| | có S `rrn16S` | 3 |
+| protein | tên cổ điển `ycf3`·`ycf4`·`psbN`·`clpP` | 7 + genome vàng |
+| | tên chức năng `pafI`·`pafII`·`pbf1`·`clpP1` | 2 (của nhóm) |
+
+**Tên trần giải được bằng TRÌNH TỰ, không bằng phỏng đoán** — so với các tRNA đã có tên ở bản ghi khác:
+
+- `trnK` ở `PX923121.1` ≡ **`trnK-UUU`** — **100,0 %** trùng với `NC_069583.1` và `NC_057679.1`
+- `trnI` ở `NC_069583.1` ≡ **`trnI-GAU`** — **100,0 %** trùng với `PX977793.1`
+
+*(Thử đọc anticodon theo offset cố định đã KHÔNG hội tụ: offset 34 chỉ khớp 106/293 — anticodon không
+nằm ở một vị trí cố định trong bộ này. So trình tự là cách đúng.)*
+
+**Quyết định (dev, có bằng chứng):**
+- **Khoá so sánh nội bộ = phương ngữ của nhóm** (`pafI`·`pafII`·`pbf1`·`clpP1`), tên cổ điển đi kèm ở
+  `source_name`. Lý do không phải "đa số": bản ghi *C. amboinicus* **là của nhóm**, là **loài bản thảo**,
+  và GeSeq — công cụ nhóm dùng — sẽ sinh ra đúng bộ tên đó. Chuẩn hoá về tên cổ điển sẽ làm **bài báo
+  của nhóm in tên khác với bản ghi của chính nhóm**.
+- **In ra thì in CẢ HAI**: `pafI (ycf3)`. Đây là cách các bảng gen công bố đang làm, và nó gỡ được câu
+  hỏi "tên nào" cho người đọc — mỗi tên vẫn truy được về bản ghi tương ứng.
+- **`gene_groups.yaml` phải nhận thêm bốn tên này** vào đúng nhóm chức năng (pafI/pafII → photosystem I;
+  pbf1 → photosystem II; clpP1 → protease). Hiện chúng rơi vào *unclassified* — đúng như thiết kế
+  fail-loud, và chính nó đã chỉ ra vấn đề này.
+- **D3-01 (chọn công cụ) giờ có bằng chứng**: quy trình thật của nhóm là **GetOrganelle → GeSeq**.
 
 ---
 
