@@ -19,9 +19,10 @@ closed by *decision* rather than by code is P3-04's annotator (see below).
 
 **Phase 3A — IN PROGRESS, branch `feat/phase-3a`** (stacked on `feat/phase-3`). A mito annotator
 this project builds itself, because PMGA cannot run here and its web service is down. **P3A-01
-(GenBank writer) and P3A-02 (reference set) are DONE**; **next is P3A-03, the gene caller.** The
-board is `TASKS.md` — read it first, it carries the decisions, the pitfalls and every measured
-number. Phase 4 (multi-genome comparison) is still the *next planned phase* after 3A.
+(GenBank writer) · P3A-02 (reference set) · P3A-03 (gene caller) are DONE**; **next is P3A-04 —
+the tRNA caller (ARAGORN 1.2.41)**, then P3A-05 (CLI), P3A-06 (the golden 31 · 17 · 3 check) and
+P3A-07 (`AP045469.1`). The board is `TASKS.md` — read it first, it carries the decisions, the
+pitfalls and every measured number. Phase 4 (multi-genome comparison) follows 3A.
 
 - **P3-01 ORF checks — DONE.** `core/orf.py` + `modules/orf.py`; `Gene` now carries the record's own
   `/transl_table` and `/codon_start`. Golden: 86 CDS, 81 `ok`, **5 `alternative_start`**
@@ -190,6 +191,49 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 13 (P3A-03 — the mito gene caller, measured on the answer key)
+
+**Did.** Built the caller that transfers an annotation from the pinned mito reference set:
+`core/mito_caller.py` (pure: chaining, exon merging, floors, refinement), `external/blast.py`
+(BLAST+ through `run_tool`, with the outfmt-6 parser beside the argv that produces it),
+`modules/mito_annotate.py` (wiring + six tables + the GenBank artifact), `defaults.yaml`'s `mito:`
+section, the report template, `docs/tools/blast.md`, and `environment.yml` repinned to
+`blast=2.17.0`. 47 unit + 4 tier-B tests, written test-first.
+
+**Validation.** `make check` green (424 fast + 30 golden, 8 tier-B skips with named reasons). Real
+run on `OX459128.1` with BLAST+ 2.17.0: **31 CDS + 3 rRNA called, nothing not called**; the golden
+test pairs every call with the published CDS its exons overlap (bijection over 31) and prints
+**18/31 spans byte-identical, 13 differing by ≤ 75 bp, strand 31/31**, ORF profile
+**21 ok · 3 no_start · 7 no_stop**.
+
+**Five measurements changed the design** (all in PROJECT.md §8.22 / §9.D, each with a test):
+BLAST truncates `sseqid` at the first whitespace; the committed reference FASTA holds 8 duplicate
+headers — 6 identical repeat copies and **2 symbols carrying two different sequences**
+(Arabidopsis `atp6` 385/349 aa), so an HSP belongs to the smallest reference length containing it
+and two sequences under one key are never chained; `-seg no` (SEG halves atp9's alignment,
+137 → 67 bits); `-parse_seqids` **fails** on our reference set and upper-cases ids; and ranking
+candidates by bitscore **builds chimeras** (`atp6` pulled 381 bp upstream onto a 75.6 % alignment)
+⇒ the winner is the highest-identity candidate that passes the floors.
+
+**A bug outside this module:** `run_tool`'s version probe tried `--version`/`-v`/`-V`, but BLAST+
+accepts **only** `-version` — so the tool the module depends on was recorded as "unknown" while
+every probe "succeeded" in failing. `-version` added, with a regression test.
+
+**Residual risks.** (1) Two published exons of nad1/nad5 (19 and 7 codons) are not recoverable from
+any alignment; the caller reports 4 exons and says so rather than inventing a fifth — P3A-06 owns
+listing that difference. (2) The caller cannot know a gene is a pseudogene (the answer key marks
+4), so its ORF profile reads 21 ok · 3 no_start · 7 no_stop against the record's 21 · 4 · 3 · 3.
+(3) The floors are calibrated on one record; a divergent sample is exactly what P3A-07
+(`AP045469.1`) will test. (4) BLAST version mismatch is a hard refusal (the Chloe precedent) — if
+that proves too strict for anh Điềm's machine it must be decided in PROJECT.md §3, not loosened
+quietly.
+
+**Blocked.** Nothing.
+
+**Next.** P3A-04 — ARAGORN 1.2.41 for tRNA (bioconda; `environment.yml` + `docs/tools/aragorn.md`
+in the same session), then P3A-05's CLI (`plastid mito annotate`), P3A-06's itemized golden check
+(31 · 17 · 3) and P3A-07 (`AP045469.1`, then pin it).
 
 ### 2026-10-03 · Claude · dev WSL · session 12 (Phase 3A opened — a mito annotator we build ourselves)
 

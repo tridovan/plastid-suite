@@ -104,19 +104,38 @@ would have swallowed all of it.
 standard (`rpl2` · `rpl16` · `rps7` · `rps12` · `rps14` · `rps19` · `rpl10` · `rpl23` · `rps2` ·
 `sdh3`). They stay in the set marked `-` so a run can *say* it found one.
 
-### P3A-03 · Gene caller — CDS and rRNA · M3A.3 · [ ]
+### P3A-03 · Gene caller — CDS and rRNA · M3A.3 · [x] DONE 03/10
 
-- [ ] `blastx` (target genome × reference proteins) through `run_tool()`; best hit per gene above a
-      **stated** coverage/identity floor
-- [ ] refine each hit to codon boundaries on the nucleotide sequence; a first codon that is not an
+- [x] `blastx` (target genome × reference proteins) through `run_tool()`; best hit per gene above a
+      **stated** coverage/identity floor — floors 50 % identity / 50 % coverage, in `defaults.yaml`,
+      printed in every run's summary
+- [x] refine each hit to codon boundaries on the nucleotide sequence; a first codon that is not an
       initiator becomes a **partial start**, never a shifted one (the submission module already
-      writes those)
-- [ ] `blastn` against the reference rRNA for `rrn18` · `rrn26` · `rrn5`
-- [ ] hits below the floor, and vocabulary genes with **no** hit, are reported as their own table
+      writes those). The stop codon is taken only where the sequence confirms it, one codon past
+      the alignment — never searched for (D3A-02)
+- [x] `blastn` against the reference rRNA for `rrn18` · `rrn26` · `rrn5` — strand from the subject's
+      direction, which is the inverse of the blastx convention
+- [x] hits below the floor, vocabulary genes with **no** hit, and genes whose symbol the vocabulary
+      lacks (H-06) are each reported in their own table
 
 **Done when:** on `OX459128.1` the caller returns the **same 31 symbols** the record carries, each
 with coordinates and strand, plus the explicit list of anything not called.
-**Needs:** D3A-02, D3A-04.
+**Met 03/10** — **31 CDS + 3 rRNA called, `not_called` empty**; `tests/golden/test_mito_annotate.py`
+pairs every call with the published CDS its **exons** overlap (a bijection over all 31 — spans
+cannot be used, a trans-spliced gene's span covers 100 kb of its neighbours) and prints the
+differences: **18/31 spans identical, 13 differ by ≤ 75 bp, strand 31/31**, ORF profile
+**21 ok · 3 no_start · 7 no_stop**. 47 unit tests + 4 tier-B. **Needs:** D3A-02, D3A-04.
+**Measured, and five of them changed the design** (§8.22): BLAST truncates `sseqid` at the first
+whitespace; the committed reference FASTA holds 8 duplicate headers, two of them **different
+sequences under one symbol** (Arabidopsis `atp6` 385/349 aa) ⇒ an HSP belongs to the smallest
+reference length containing it; **`-seg no`** (the mask halves atp9's alignment, 137 → 67 bits);
+**no `-parse_seqids`** (it fails outright on our reference set and upper-cases the ids);
+**ranking candidates by bitscore builds chimeras** — on `atp6` it pulled the call 381 bp upstream
+onto a 75.6 %-identity alignment, so the winner is the highest-**identity** candidate that passes
+the floors (total coordinate deviation 310 bp vs 655 bp). Also fixed in `run_tool`: BLAST+ accepts
+only `-version`, so the tool this module depends on was being recorded as "unknown".
+**Left open on purpose:** the two 19- and 7-codon exons of the published nad1/nad5 are not
+recoverable from any alignment, and the caller reports 4 exons rather than inventing a fifth.
 
 ### P3A-04 · tRNA caller · M3A.4 · [ ]
 

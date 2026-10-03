@@ -67,6 +67,8 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **Chú giải mito: PMGA chạy trên web service rồi GHIM, không chạy local (dev quyết, xác nhận bởi anh Trí)**: máy này **không đủ mạnh để chạy annotate** — container PMGA 3,18 GB nén → **11 GB giải nén, 138.045 file**, cần Apptainer và bên trong chạy MAKER; trần WSL 8 GB, ổ C: thật chỉ còn 42 GB. Container đã được tải về, đọc lấy CLI thật, rồi **xoá** (14 GB = một phần ba chỗ trống). Chú giải mito đi theo **đường thứ hai của chính luật P1-12**: chạy PMGA trên web service một lần mỗi loài ⇒ `plastid panel pin --file … --note …` (§8.19) ghim kết quả với đủ checksum + đọc lại ⇒ `mito_genes` đọc offline. **`external/pmga.py` để mở có điều kiện:** viết khi có máy chạy nổi container, và số đầu tiên phải đo khi đó là RAM đỉnh + thời gian | Dev | `docs/tools/pmga.md`, TASKS.md P3-04 |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
 
+| 03/10 | **Bộ gọi gen mito tự viết: ranh giới lấy từ alignment, xếp hạng theo identity, và mọi thứ bị loại đều được kể ra (D3A-02 + P3A-03, dev quyết có đo)** — PMGA không chạy nổi ở đây nên Phase 3A tự viết phần chuyển chú giải: `blastx` (protein tham chiếu) + `blastn` (rRNA) qua `run_tool`, rồi `core/mito_caller.py` biến HSP thành gen. Bốn luật, mỗi luật có số đo đỡ lưng (§8.22): (1) **ranh giới từ alignment**, không bao giờ từ ORF-walking — codon stop chỉ được lấy khi chính chuỗi xác nhận, đọc **đúng một** codon, không đi tìm; (2) **chọn tham chiếu theo identity cao nhất** trong số các ứng viên qua được ngưỡng — đo trên `atp6`: xếp theo bitscore kéo gen lệch **381 bp** về thượng nguồn vì một alignment dài 418 aa chỉ khớp 75,6 %, trong khi bản khớp 93,4 % nằm đúng chỗ; tổng sai lệch toạ độ 310 bp so với 655 bp; (3) **ngưỡng 50 % identity / 50 % coverage**, in ra trong mọi bảng và trong `defaults.yaml`; (4) **mọi HSP không dùng đều được liệt kê kèm lý do** — dưới ngưỡng, trùng khung đọc, hay là **bản sao thứ hai** của một phần gen. Kèm theo: `-seg no` (mask làm atp9 mất một nửa điểm), **không** dùng `-parse_seqids` (nó **lỗi** trên chính bộ tham chiếu), và gen tìm thấy mà vocabulary chưa có tên thì **báo cáo chứ không đặt tên** (H-06) | Dev | §8.22, `docs/tools/blast.md`, `TASKS.md` P3A-03 |
+
 ## 4. Ai làm gì
 
 | Người | Vai trò |
@@ -1160,6 +1162,62 @@ ghi; đây đúng là phép kiểm chéo mà chính file đó ghi là còn thi�
 tham chiếu** với dấu `-` ở cột vocabulary, để một lần chạy có thể **nói ra** là nó tìm thấy `rps12`
 thay vì im lặng về một gen nó không có tên.
 
+### 8.22. Bộ gọi gen mito — chuyển chú giải từ bộ tham chiếu, và sáu cái bẫy đo được (P3A-03, 03/10/2026)
+
+**Vì sao.** P3-04 chọn PMGA rồi không chạy nổi (11 GB + MAKER so với trần 8 GB, web service từ
+chối kết nối). Luật của CLAUDE.md cho ca đó là *thay — hoặc tự viết phần đó*, và các mảnh đã có
+sẵn: BLAST+ 2.17.0, bộ tham chiếu 287 protein + 25 rRNA (P3A-02), vocabulary 31 locus, các phép
+kiểm ORF, reader/writer của mình. P3A-03 là **bộ gọi gen**: `blastx` cho CDS, `blastn` cho rRNA,
+rồi `core/mito_caller.py` biến các HSP thành `Gene`.
+
+**Kết quả đo trên bản ghi đáp án `OX459128.1`** (chạy thật, BLAST+ 2.17.0, bộ tham chiếu đã commit):
+
+| Số đo | Giá trị |
+|---|---|
+| Gen gọi được | **31 CDS + 3 rRNA**, `not_called` **rỗng** |
+| Span trùng khít bản công bố | **18/31**; 13 ca còn lại lệch **≤ 75 bp** ở một đầu |
+| Mạch | khớp **31/31** (kể cả 2 gen mixed-strand: nad1, nad5) |
+| Hồ sơ ORF của các call | **21 ok · 3 no_start · 7 no_stop** (bản ghi gốc: 21 ok · 4 pseudo · 3 no_stop · 3 no_start) |
+| Exon | 11 gen một exon khớp; nad1/nad5 ra **4 exon so với 5** của bản ghi — hai exon 19 và 7 codon của bản ghi **không alignment nào tìm được**, và bộ gọi **không bịa** chúng |
+| Gen tìm thấy mà chưa có tên (H-06) | **15 hit** được báo cáo: rps19 · rps14 · rpl16 · rps2 · ccmFN2 · rbcL · atpB · orfX · orfB |
+| Hit không dùng | **68**, mỗi cái một lý do |
+| Thời gian | vài giây cho cả hai lượt tìm (bộ tham chiếu 287 + 25 chuỗi) |
+
+**Sáu cái bẫy, tất cả đều đo được và đều đã thành test:**
+
+1. **BLAST cắt `sseqid` tại khoảng trắng đầu tiên.** Header tham chiếu kết thúc bằng tên loài
+   (`…|Nicotiana tabacum`) nên nó về tới nơi là `…|Nicotiana`. Khoá chủ thể **phải** là ba field
+   đầu; parser **từ chối** một id ngắn hơn thay vì đoán.
+2. **Một header có thể là hai chuỗi khác nhau.** FASTA đã commit có **8 header trùng**: 6 là bản
+   sao y hệt (gen nằm trong repeat), nhưng *Arabidopsis* `atp6` là **385 và 349 aa**, *Psychotria*
+   `cox2` là **257 và 390 aa**. Nên một HSP thuộc về **độ dài nhỏ nhất chứa được khoảng subject
+   của nó**, và HSP của hai chuỗi cùng khoá **không bao giờ được nối chung** — đó chính là cách
+   một gen khảm được dựng lên.
+3. **`-seg no`.** SEG che các đoạn ít phức tạp của *query* — hợp lý khi đi tìm protein lạ, sai khi
+   chuyển chú giải cho một mitogenome thực vật vốn đầy protein màng kỵ nước. Đo được: `atp9` mất
+   **137 → 67 bits**, 21 locus khác cũng mất điểm. Ngưỡng identity mới là thứ giữ rác ở ngoài.
+4. **`makeblastdb -parse_seqids` là flag phá hoại.** Nó **lỗi thẳng**:
+   `Error: Duplicate seq_ids are found: LCL|NC_006581.1|SDH3|-|NICOTIANA` (bộ tham chiếu có bản
+   sao repeat một cách hợp pháp), và với id nó parse được thì nó **viết hoa** — phá mọi ký hiệu
+   gen viết thường trong khoá.
+5. **Mạch của rRNA đến từ phía subject, không phải query.** Tham chiếu lưu theo chiều 5'→3' của
+   gen, nên `sstart > send` nghĩa là gen nằm trên **mạch âm** của query — ngược với trực giác và
+   ngược với quy ước của blastx (nơi frame quyết định). Đo lại đúng cả ba rRNA của bản ghi đáp án.
+6. **`blastx` chỉ nhận `-version`, không nhận `--version`.** `run_tool` chỉ thử `--version`/`-v`/`-V`
+   ⇒ công cụ vừa trở thành mấu chốt của cả một module bị ghi là **"unknown"** trong khi mọi lần dò
+   đều "thành công" (thất bại). Đã thêm `-version` vào danh sách dò, kèm test.
+
+**Một phát hiện về chính bản ghi đáp án:** ba CDS `no_stop` của nó (ccmFc · ccmC · nad6) **kết thúc
+đúng ở codon cuối của protein và bỏ codon stop nằm ngay sau** — đo được: bộ gọi lấy codon đó khi
+chuỗi xác nhận, nên nad6/ccmFc của mình dài hơn bản ghi **3 bp**. Đây là khác biệt *có thật* giữa
+hai cách chú giải, không phải lỗi của bên nào.
+
+**Đã khai báo công cụ:** `environment.yml` ghim `blast=2.17.0` (trước đó là `blast>=2.8.1` chỉ vì
+PGA cần), `docs/tools/blast.md` ghi nguồn, phiên bản, đường cài, ba quyết định đo được và lý do
+không vendor (52 MB nhị phân).
+
+---
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
@@ -1278,6 +1336,28 @@ thay vì im lặng về một gen nó không có tên.
     tỉa gói OOXML thì phải canh bằng cấu trúc, không bằng mắt.
 
 ---
+
+### D. Chuyển chú giải mito bằng BLAST (P3A-03)
+
+1. **`sseqid` bị cắt tại khoảng trắng** ⇒ một khoá chủ thể dựng từ bốn field sẽ **không bao giờ**
+   khớp hit nào. Header tham chiếu kết thúc bằng tên loài nên chỗ cắt luôn nằm ở đó.
+2. **`makeblastdb -parse_seqids` lỗi trên chính bộ tham chiếu đã commit** (`Duplicate seq_ids …
+   LCL|NC_006581.1|SDH3|-|NICOTIANA`) và **viết hoa** id khi parse được. Flag trông "đúng chuẩn"
+   nhất lại là flag phá pipeline.
+3. **`blastx` chỉ nhận `-version`** — `--version`, `-v`, `-V` đều trả rc=1 kèm USAGE. `run_tool`
+   chỉ thử ba cái sau ⇒ phiên bản bị ghi là "unknown" trong im lặng.
+4. **SEG mask ăn mất điểm của gen thật**: atp9 137 → 67 bits, 21 locus khác cũng giảm. Mask được
+   thiết kế cho query ít phức tạp; mitogenome thực vật thì toàn protein màng.
+5. **Xếp hạng ứng viên theo bitscore tạo gen khảm.** `atp6`: alignment 418 aa khớp 75,6 % thắng
+   một alignment khớp 93,4 % ⇒ call bị kéo **381 bp** về thượng nguồn, ôm luôn một ORF phân kỳ.
+   Xếp theo identity: tổng sai lệch 13 gen còn lại **310 bp** thay vì **655 bp**.
+6. **Hai chuỗi cùng một header khoá**: nếu nối HSP của cả hai vào một call, coverage bị chia sai
+   mẫu số và hai phân tử khác nhau bị ghép thành một gen.
+7. **Codon stop của tham chiếu không nằm trong alignment** (protein không có stop). Mở rộng +3 chỉ
+   khi chuỗi xác nhận; mở rộng mà không kiểm là cách bịa ra một đầu gen, còn đi tìm stop là
+   ORF-walking (D3A-02 cấm).
+8. **Ba CDS `no_stop` của chính bản ghi đáp án** (ccmFc · ccmC · nad6) bỏ codon stop nằm ngay sau
+   ⇒ cùng một gen, hai cách chú giải, lệch 3 bp. Không bên nào sai; phải **kể ra**, không chỉnh.
 
 ## 10. Câu hỏi còn treo
 
