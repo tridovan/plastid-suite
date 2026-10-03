@@ -146,7 +146,32 @@ relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined
 - [x] **M3.4 NCBI submission files** (2026-10-03) — `.fsa` + `.tbl` in pure Python, 265/265 features
       round-trip; **the `.sqn` step ran against `table2asn`**, and NCBI's own validator took the
       table from **13 errors to 7** (the rest inherent to duplicated IR genes; §8.18). A real
-      submission still needs the team's own `.sbt` from NCBI's form
+      submission still needs the team's own `.sbt` from NCBI's form —
+      **the mito count check continues in Phase 3A**
+
+## Phase 3A — Mito annotator, self-built prototype  *(opened 03/10)*
+
+**Goal:** a mito annotator this project can run, read and reproduce. PMGA cannot run here — 11 GB
+unpacked driving MAKER against an 8 GB VM cap, and its own web service refuses connections (P3-04,
+`docs/tools/pmga.md`). CLAUDE.md's rule for a tool that cannot run is *replace it — or write that
+part ourselves*, from parts the repo already has: BLAST+, the 31-locus vocabulary, the ORF checks,
+the reader. It is measured against a record whose answer is already published, so it must earn its
+place rather than be declared.
+
+**In-phase check:** on `OX459128.1` the annotator's **own output** re-reads with **our own reader**,
+runs through `orf` + `mito_genes` unchanged, and recounts to **31 CDS · 17 tRNA · 3 rRNA** — with
+**every difference from the published record listed**, and anything it cannot call reported as not
+called. A count that differs is a finding (§9), never a number to tune away.
+
+- [ ] **M3A.1 GenBank writer** — read → write → read round-trips the golden's 265 features
+- [ ] **M3A.2 Reference set** — RefSeq mitogenomes chosen by taxonomy (same family first) → CDS
+      proteins + rRNA, pinned, with sources and sha256 recorded
+- [ ] **M3A.3 Gene caller** — `blastx` for CDS and `blastn` for rRNA; boundaries come from the
+      alignment, not from ORF-walking; everything below the floor is reported
+- [ ] **M3A.4 tRNA caller** — ARAGORN, declared in `environment.yml` and `docs/`
+- [ ] **M3A.5 CLI** — `plastid mito annotate`, output through the existing pipeline, no second path
+- [ ] **M3A.6 Golden check** — 31 · 17 · 3 against the published record, differences itemized
+- [ ] **M3A.7 AP045469.1** — the unannotated sample: run it, report it, pin it
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid and mito)*
 
