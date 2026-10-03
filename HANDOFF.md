@@ -228,11 +228,13 @@ real samples — unchanged.
 
 **Blocked.** Nothing.
 
-**Next.** **Phase 4 — multi-genome comparison.** Build the board with the `make-tasks` skill, then
-M4.1 Ka/Ks · M4.2 mVISTA-style %identity + synteny · M4.3 barcodes · M4.4 population genetics ·
-M4.6 Ts/Tv (whose module now exists and reproduces its golden number) · M4.5 RNA editing stays
-blocked on RNA data. MAFFT 7.526 is installed and pinned, so Phase 4's alignment path is already
-proven by this session's runs.
+**Next.** **Phase 4 is open** — branch `feat/phase-4`, board built (`TASKS.md`, five tasks with
+measured Done-whens). Start with **P4-01 (identity + synteny)**: install and declare `mummer4`, then
+reproduce the in-phase check — **21 blocks, %IDY 83.7–98.2 (mean 91.5)** — whose pipeline §7 records
+(`nucmer --maxmatch → delta-filter → show-coords`) and whose inputs are still on disk at
+`/mnt/d/business/pts/probe/run_local/{target,compare}.fa`. M4.5 (RNA editing) stays blocked on RNA
+data; MAFFT 7.526 is installed and pinned, so the alignment path under every one of these tasks is
+already proven.
 
 ### 2026-10-03 · Claude · dev WSL · session 15 (Phase 3A closed — the CLI, the golden check, the first real sample)
 
