@@ -24,7 +24,7 @@ from Bio.SeqRecord import SeqRecord
 
 from plastid.core.model import Gene, Genome, Interval, gene_qualifiers
 
-__all__ = ["read_genbank", "read_genbank_records", "to_genbank"]
+__all__ = ["read_fasta", "read_genbank", "read_genbank_records", "to_genbank"]
 
 _GENE_FEATURE_TYPES = frozenset({"gene", "CDS", "tRNA", "rRNA"})
 
@@ -35,6 +35,32 @@ def read_genbank(path: str | Path) -> Genome:
     if len(records) != 1:
         raise ValueError(f"{path}: expected exactly one record, found {len(records)}")
     return records[0]
+
+
+def read_fasta(path: str | Path) -> Genome:
+    """Parse a single-record FASTA into a :class:`Genome` with **no features**.
+
+    A sample arrives as a bare sequence from an assembler, and annotation is the step that gives
+    it features — so this reader produces exactly the genome an annotator needs and nothing more.
+    Circular is the default (an organelle is a circle; `to_fasta` writes no topology, so nothing
+    is being assumed away), and the header's first token is the accession because that is what
+    :func:`plastid.core.submission.to_fasta` writes and therefore what comes back.
+    """
+    records = list(SeqIO.parse(str(path), "fasta"))
+    if not records:
+        raise ValueError(f"{path}: no FASTA records found")
+    if len(records) != 1:
+        raise ValueError(
+            f"{path}: expected exactly one record, found {len(records)} — an assembly step hands "
+            f"over one organelle at a time, and annotating a mixture would mix their coordinates"
+        )
+    record = records[0]
+    return Genome(
+        name=record.description or record.id,
+        accession=record.id,
+        sequence=str(record.seq).upper(),
+        topology="circular",
+    )
 
 
 def read_genbank_records(path: str | Path) -> list[Genome]:

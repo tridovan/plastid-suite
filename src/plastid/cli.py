@@ -16,14 +16,16 @@ import argparse
 import hashlib
 import json
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime
 from functools import partial
 from pathlib import Path
 
 from plastid import __version__
-from plastid.core.genbank import read_genbank
+from plastid.core.genbank import read_fasta, read_genbank
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
+from plastid.core.model import Genome
 from plastid.core.normalize import normalize
 from plastid.core.panel import (
     IndexSnapshot,
@@ -107,6 +109,33 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="KEY=VALUE",
         help="module parameter (repeatable)",
+    )
+
+    mito = subparsers.add_parser("mito", help="mitochondrial annotation (Phase 3A prototype)")
+    mito_actions = mito.add_subparsers(dest="mito_action", metavar="ACTION")
+    annotate = mito_actions.add_parser(
+        "annotate",
+        help="annotate a mitogenome by transferring a gene model from a reference set",
+    )
+    annotate.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        help="FASTA file, one record — a bare assembled sequence is the usual input",
+    )
+    annotate.add_argument(
+        "--reference",
+        default=None,
+        help=(
+            "directory of GenBank references to transfer from (default: the packaged mito "
+            "reference set built in P3A-02)"
+        ),
+    )
+    annotate.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
+    annotate.add_argument("--dataset", default=None, help="dataset label (default: accession)")
+    annotate.add_argument("--force", action="store_true", help="ignore the cache and re-run")
+    annotate.add_argument(
+        "--set", action="append", default=[], metavar="KEY=VALUE", help="module parameter"
     )
 
     panel = subparsers.add_parser("panel", help="Reference Panel: propose and pin genomes")
@@ -291,7 +320,6 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return EXIT_USAGE
-    genome = genomes[0]
     try:
         params = _parse_sets(args.set or [])
     except ValueError as error:
@@ -324,22 +352,54 @@ def _cmd_run(args: argparse.Namespace) -> int:
             return EXIT_ERROR
         params["groups"] = labels
 
-    overlay = json.dumps(params, sort_keys=True)
-    sequences = "".join(item.sequence + "\x00" for item in genomes)  # ordered: order is meaning
-    fingerprint = hashlib.sha256((sequences + overlay).encode("ascii", "replace")).hexdigest()
-    dataset = args.dataset or genome.accession or genome.name
-    layout = RunLayout.create(args.out, dataset, fingerprint=fingerprint)
-    layout.make_dirs()
-
-    ctx = RunContext(layout=layout, params=params, module_id=specs[0].id, module_order=1)
-    manifest = build_manifest(
-        run_id=layout.run_id,
+    return _execute_run(
+        genomes=genomes,
+        specs=specs,
+        params=params,
+        out=args.out,
+        dataset=args.dataset,
+        force=args.force,
+        docx=args.docx,
         command=[
             "plastid",
             "run",
             *[part for spec in specs for part in ("--module", spec.id)],
             *[part for text in args.input for part in ("--input", text)],
         ],
+        inputs=list(args.input),
+    )
+
+
+def _execute_run(
+    *,
+    genomes: Sequence[Genome],
+    specs: Sequence[registry.ModuleSpec],
+    params: dict,
+    out: str,
+    dataset: str | None,
+    force: bool,
+    docx: bool,
+    command: Sequence[str],
+    inputs: Sequence[str],
+) -> int:
+    """One run's shared body: both ``plastid run`` and ``plastid mito annotate`` end up here.
+
+    The point of sharing it is seam 3 — a second command must not become a second code path.
+    Every output, every cache entry and every provenance record is written by the same lines,
+    so an annotation produced by the mito command is traceable exactly like any other run.
+    """
+
+    overlay = json.dumps(params, sort_keys=True)
+    sequences = "".join(item.sequence + "\x00" for item in genomes)  # ordered: order is meaning
+    fingerprint = hashlib.sha256((sequences + overlay).encode("ascii", "replace")).hexdigest()
+    label = dataset or genomes[0].accession or genomes[0].name
+    layout = RunLayout.create(out, label, fingerprint=fingerprint)
+    layout.make_dirs()
+
+    ctx = RunContext(layout=layout, params=params, module_id=specs[0].id, module_order=1)
+    manifest = build_manifest(
+        run_id=layout.run_id,
+        command=command,
         package_version=__version__,
         started_at=datetime.now().isoformat(timespec="seconds"),
         params=params,
@@ -349,7 +409,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 "sha256": _sha256_file(Path(text)),
                 "bytes": Path(text).stat().st_size,
             }
-            for text in args.input
+            for text in inputs
         ],
         coordinate_system={
             "name": "genbank",
@@ -383,7 +443,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             "denovo_delta": gated[0].denovo_delta,
         }
         manifest["coordinate_system"]["rotation_offset"] = normalize(
-            genome, gated[0]
+            genomes[0], gated[0]
         ).rotation_offset
         if len(gated) > 1:
             manifest["ir"]["genomes"] = [
@@ -414,9 +474,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 layout=layout,
                 manifest=manifest,
                 citations=citations,
-                accession=genome.accession or genome.name,
+                accession=genomes[0].accession or genomes[0].name,
             )
-            if args.docx
+            if docx
             else None
         )
         try:
@@ -429,7 +489,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 params=params,
                 ctx=ctx,
                 cache=Cache(layout.cache_dir),
-                force=args.force,
+                force=force,
                 render_report=render_report,
                 render_document=render_document,
             )
@@ -472,7 +532,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         # One run, one report: the modules' own documents are joined rather than re-rendered,
         # because a cache hit restores files and not results (see result/docx_export).
         try:
-            combined = _combine_documents(layout, manifest, documents, dataset)
+            combined = _combine_documents(layout, manifest, documents, label)
         except (OSError, ValueError) as error:
             return _fail(
                 manifest,
@@ -506,6 +566,70 @@ def _combine_documents(
     path = layout.report_dir / "report.docx"
     path.write_bytes(blob)
     return path
+
+
+MITO_MODULE = "mito_annotate"
+
+
+def _cmd_mito(args: argparse.Namespace) -> int:
+    action = getattr(args, "mito_action", None)
+    if action == "annotate":
+        return _cmd_mito_annotate(args)
+    print("mito: choose an action — annotate", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _cmd_mito_annotate(args: argparse.Namespace) -> int:
+    """Annotate an assembled mitogenome: FASTA in, GenBank out, the standard run report.
+
+    This command exists because the phase's input is a **bare sequence** — an assembler's output
+    has no features to read, and ``plastid run`` takes GenBank. Everything after the input is the
+    same body ``plastid run`` uses (:func:`_execute_run`), so the annotation lands in a run
+    directory with a manifest, a tool record and a report like every other output here: a second
+    command must not become a second code path (seam 3).
+
+    The GenBank it produces is written by :func:`plastid.core.genbank.to_genbank` and re-read by
+    the module before it is returned, so the file can be handed straight to
+    ``plastid run -m orf -m mito_genes``.
+    """
+    try:
+        spec = registry.get(MITO_MODULE)
+    except registry.UnknownModuleError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_ERROR
+
+    try:
+        genome = read_fasta(args.input)
+    except (OSError, ValueError) as error:
+        print(f"cannot read the input: {error}", file=sys.stderr)
+        return EXIT_ERROR
+
+    try:
+        params = _parse_sets(args.set or [])
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_USAGE
+    if args.reference:
+        params["reference"] = args.reference
+
+    return _execute_run(
+        genomes=(genome,),
+        specs=(spec,),
+        params=params,
+        out=args.out,
+        dataset=args.dataset,
+        force=args.force,
+        docx=False,
+        command=[
+            "plastid",
+            "mito",
+            "annotate",
+            "--input",
+            args.input,
+            *(["--reference", args.reference] if args.reference else []),
+        ],
+        inputs=[args.input],
+    )
 
 
 def _cmd_panel(args: argparse.Namespace) -> int:
@@ -717,6 +841,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "run":
         return _cmd_run(args)
+
+    if args.command == "mito":
+        return _cmd_mito(args)
 
     if args.command == "panel":
         return _cmd_panel(args)

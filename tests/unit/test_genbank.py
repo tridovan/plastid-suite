@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from plastid.core.genbank import read_genbank, to_genbank
+from plastid.core.genbank import read_fasta, read_genbank, to_genbank
 from plastid.core.model import Gene, Genome, Interval, count_genes
 
 
@@ -181,3 +181,36 @@ def test_a_feature_past_the_sequence_end_is_refused() -> None:
     )
     with pytest.raises(ValueError, match="past the end"):
         to_genbank(genome)
+
+
+def test_a_bare_fasta_reads_as_a_genome_with_no_features(tmp_path: Path) -> None:
+    """A sample arrives as a sequence from an assembler; this is the door it comes in by."""
+    path = tmp_path / "sample.fna"
+    path.write_text(">OX459128.1 sample\nATGCATGC\nATGC\n", encoding="utf-8")
+
+    genome = read_fasta(path)
+
+    assert (genome.accession, len(genome), genome.topology) == ("OX459128.1", 12, "circular")
+    assert genome.genes == ()
+
+
+def test_a_fasta_with_two_records_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "two.fna"
+    path.write_text(">A\nATGC\n>B\nATGC\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="exactly one record"):
+        read_fasta(path)
+
+
+def test_what_to_fasta_writes_is_what_read_fasta_gets_back(golden_genome, tmp_path: Path) -> None:
+    """The two functions are the input and output ends of one contract: the annotator's CLI takes
+    a FASTA in, and the same sequence has to come back byte for byte."""
+    from plastid.core.submission import to_fasta
+
+    path = tmp_path / "golden.fna"
+    path.write_text(to_fasta(golden_genome, "NC_050833.1"), encoding="utf-8")
+
+    back = read_fasta(path)
+
+    assert back.sequence == golden_genome.sequence
+    assert (back.accession, back.name) == ("NC_050833.1", "NC_050833.1")
