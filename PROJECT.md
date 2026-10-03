@@ -861,6 +861,42 @@ có cả hai phương ngữ; 4 gen không nhóm chức năng nào nhận.
 đã xuất hiện trong các bản nộp RefSeq khác cùng chi. Quyết định D3-02 (khoá = tên chức năng, in
 cả hai) vì thế **đứng vững hơn**, không yếu đi.
 
+### 8.16. Đổi công cụ chú giải: Chloe thay PGA (03/10/2026)
+
+**Vì sao đổi — theo nguyên tắc "sản phẩm quyết định, không phải bộ công cụ" (CLAUDE.md).** PGA đã
+được đo (§8.15) và không tái tạo được số vàng: 147 gen (7 reference) và 130 gen (1 reference) so
+với **132 = 86 + 38 + 8**. Nguyên nhân nằm ở chính thiết kế của nó: PGA bắt người dùng tự đưa bộ
+reference, và lấy tên gen từ từng reference ⇒ gọi cùng một locus hai lần dưới hai tên.
+
+**Chloe** (Ian Small, ĐH Tây Úc; `github.com/ian-small/Chloe.jl`, Julia, CLI
+`julia --project=. chloe.jl annotate <fasta>`) có sẵn **bộ reference chuẩn hoá của chính nó**
+(10 plastome tham chiếu, tải qua Julia artifact `Chloe_refs 1.0.1`) — đúng chỗ PGA thiếu.
+
+**Đo trên genome vàng đã gỡ chú giải (cùng một input như §8.15):**
+
+| Công cụ | Tổng | CDS | tRNA | rRNA | Thời gian |
+|---|---|---|---|---|---|
+| **Chloe** | **134** | **88** | **38** ✓ | **8** ✓ | 11,1 giây |
+| PGA 7 reference | 147 | 95 | 44 | 8 | ~13 giây |
+| PGA 1 reference | 130 | 87 | 35 | 8 | ~7 giây |
+| *genome vàng (sự thật)* | *132* | *86* | *38* | *8* | — |
+
+**tRNA và rRNA khớp tuyệt đối (38/38, 8/8).** CDS lệch đúng 2, và lệch đó **giải thích được**:
+Chloe ghi `rps12` thành **4 dòng gen** (ghép theo exon 5'/3' của cả hai bản IR), genome vàng ghi 2
+(mỗi bản IR một dòng, trans-spliced) ⇒ +2. Đây là khác biệt **cách biểu diễn**, không phải lỗi chú
+giải — và bộ chuẩn hoá của mình gộp được nó.
+
+**Còn phải làm trước khi chốt (ghi vào TASKS.md):** (1) viết `external/chloe.py` + đọc GFF bằng
+reader của mình (GFF, không phải GenBank — Biopython đọc được), đi qua đúng bộ kiểm tra ORF +
+chuẩn hoá tên; (2) gộp rps12 theo exon rồi đếm lại ⇒ kỳ vọng **132 = 86 + 38 + 8**; (3) **giấy
+phép: Chloe không có file LICENSE** — cùng loại với MISA, phải vào đợt rà soát M9.3 trước khi phát
+hành; (4) Chloe chỉ dành cho **thực vật có hoa** (angiosperm) — đúng phạm vi bộ công cụ, nhưng phải
+nói rõ trong tài liệu; (5) phụ thuộc **Julia** (conda-forge) — nặng hơn perl, chấp nhận được vì
+annotator là bước tuỳ chọn và Docker image chứa được.
+
+**Chưa chốt vội:** cần đọc lại output bằng reader của mình và đếm lại sau khi gộp rps12 — nếu ra
+đúng 132 thì D3-01 được sửa thành **Chloe là pipeline offline, GeSeq ghim là kiểm tra chéo**.
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)

@@ -88,7 +88,21 @@ required `len(genomes) == arity`, refusing an 11-record panel for an `arity=2` m
 Modules whose gene column is a *per-record key* (introns, diversity, substitutions) still print the
 name the record arrived with — Phase 4 keys its comparisons on the canonical name and must wire them.
 
-### P3-03 · Annotation — plastome (PGA) · M3.1 · [x] DONE 03/10 *(measured half still on a machine with PGA)*
+### P3-03 · Annotation — plastome · M3.1 · [~] **ĐANG ĐỔI CÔNG CỤ: PGA → Chloe**
+
+> **03/10 — PGA đã đo và không đạt** (§8.15): 147 gen (7 reference) / 130 gen (1 reference) so với
+> **132 = 86 + 38 + 8**; ba lỗi im lặng đã thành lỗi có tên. Theo nguyên tắc "sản phẩm quyết định,
+> không phải bộ công cụ" (CLAUDE.md), công cụ được thay. **Chloe** (Ian Small, Julia, CLI, có bộ
+> reference chuẩn hoá sẵn) đo được **134 = 88 CDS + 38 tRNA + 8 rRNA** — tRNA/rRNA khớp tuyệt đối,
+> CDS lệch 2 vì cách ghi `rps12` (4 dòng gen thay vì 2), tức khác biệt biểu diễn chứ không phải lỗi
+> chú giải (§8.16).
+>
+> **Việc còn lại của P3-03:** `external/chloe.py` (chạy `julia --project=. chloe.jl annotate`, ghi
+> provenance qua `run_tool`) · đọc GFF bằng reader của mình và đưa qua đúng bộ kiểm tra ORF +
+> chuẩn hoá tên · gộp rps12 theo exon rồi đếm lại (kỳ vọng **132 = 86 + 38 + 8**) · ghi giấy phép
+> (không có file LICENSE) vào mục rà soát M9.3 · test `PTS_REQUIRE_TOOLS=1`-gated như cũ.
+> **Đã cài trên máy này:** Julia ở `~/.local/share/mamba/envs/chloe`, code ở `~/toolbox/src/chloe`
+> (+ `chloe_references`), chạy hết 11 giây/genome.
 
 - [x] `external/pga.py` through `run_tool()`; path, version and argv land in the run info
 - [x] the annotator's GenBank output is read back by **our own reader** and must round-trip
