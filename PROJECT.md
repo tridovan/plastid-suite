@@ -1047,6 +1047,13 @@ chứ không bị thay, vì ghim một file là ghim *vào* một panel đã có
 31 CDS + 17 tRNA + 3 rRNA · circular)` — khớp đúng số §8.14. Bản ghi không đọc được vẫn được ghim
 kèm `parse_error` (từ chối ghim sẽ để lại một con số mà không ai giữ nguồn).
 
+**Chưa chạy, nói thẳng (03/10):** dịch vụ web **tới được** từ máy này (`www.1kmpg.cn/pmga/` →
+HTTP 200, ~11 giây) nhưng **chưa ai chạy nó** — đó là form upload, và bước `panel pin --file` mới
+được test bằng **một file stand-in** (bản ghi NCBI copy ra đĩa), **không phải output PMGA thật**.
+Nghĩa là: đường đã dựng, bước thứ hai đã test, **bước thứ nhất chưa từng xảy ra**. Và một điểm
+không phải việc của dev: đẩy genome **chưa công bố** của nhóm lên server bên thứ ba là **quyết định
+của cô Trang** (dữ liệu rời khỏi lab) — chạy kiểm bằng genome công khai thì không vướng gì.
+
 **Hệ quả cho P3-04:** PMGA giờ có **đủ hai đường** đúng như luật: (1) container local — đã có trên
 máy này (11 GB, cần Apptainer; **không phải đường cho máy 4–8 GB**), (2) chạy web service một lần
 rồi **ghim file** — chạy được ngay, không cần container. Adapter `external/pmga.py` vì thế là tiện

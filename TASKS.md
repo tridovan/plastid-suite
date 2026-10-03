@@ -160,10 +160,24 @@ its duplicate calls.
       — see the note below; the count check it was meant to enable is met by the pinned route instead
 **Done when:** on a mitogenome the gene-set table reports plant mito gene names and the run does not
 touch the IR gate; on a machine with PMGA the count reproduces the record's own annotation.
-**MET (03/10, both halves):** the mito path reports `OX459128.1` as **51 = 31 CDS + 17 tRNA +
-3 rRNA** with no IR gate (§8.14), and the count check runs against a **pinned** annotation —
-`plastid panel pin --file … --note …` (§8.19), measured on the same record.
+**Half met, half NOT YET — stated plainly (03/10):**
+* *the mito path* — **MET**: `OX459128.1` reports **51 = 31 CDS + 17 tRNA + 3 rRNA** with no IR
+  gate (§8.14).
+* *the count against an annotator's own output* — **NOT MET, and not measurable here.** Recorded
+  honestly rather than ticked: the web service is reachable from this machine (HTTP 200,
+  ~11 s to `www.1kmpg.cn/pmga/`) but **nobody has run it** — it is an upload form, and the
+  `panel pin --file` step was tested with a *stand-in file* (an NCBI record copied to disk), not
+  with a PMGA output. So the route is built and its second step is tested; the first step has
+  never happened. Closing it needs **one web-service run** — see the entry below on whose data
+  that may be.
 **Needs:** PMGA on the machine — **it is now here, downloaded and unpacked (03/10, `docs/tools/pmga.md`).**
+**WHOSE DATA MAY GO TO THE WEB SERVICE — a team decision, not a dev one (raised 03/10).**
+Option 2 sends a genome to a third-party server in order to get an annotation back. For a
+published stand-in (e.g. the *Arabidopsis* sample PMGA ships) that is nothing; for the team's own
+**unpublished** samples it is data leaving the lab, and who may do that is cô Trang's call — the
+same class of decision as what goes in a manuscript. Nothing here blocks the dev work: the route
+is built, and the run that verifies it can use a public genome.
+
 **DECISION (dev, 03/10, confirmed by anh Trí) — PMGA is a declared tool, not an adapter, because
 this machine is not strong enough to run the annotator.**
 Measured: the container is 3.18 GB compressed → **11 GB unpacked, 138,045 files**; running it
