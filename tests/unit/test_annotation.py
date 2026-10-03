@@ -99,7 +99,7 @@ def test_the_module_analyses_whatever_the_annotator_wrote(
 
     result = annotation.run(
         read_genbank(golden_path),
-        {"reference": str(reference), "pga": str(_stub_pga(tmp_path))},
+        {"annotator": "pga", "reference": str(reference), "pga": str(_stub_pga(tmp_path))},
         _ctx(tmp_path),
     )
 
@@ -112,7 +112,10 @@ def test_the_module_analyses_whatever_the_annotator_wrote(
     )
     assert summary["n_orf_failed"] == 0
     assert summary["n_unclassified"] == 0
-    assert summary["n_aliased_names"] == 4  # ycf3/ycf4/psbN/clpP carry a second name
+    # ycf3/ycf4/psbN/clpP carry a second name, and so does ndhL — the synonym this record uses
+    # for ndhI (added 2026-10-03 with the evidence in data/gene_aliases.yaml, measured while
+    # annotating the same genome with Chloe)
+    assert summary["n_aliased_names"] == 5
 
     status = {row["status"]: row["n"] for row in result.tables["orf_status"].rows}
     assert status["ok"] == 81 and status["alternative_start"] == 5
@@ -131,7 +134,9 @@ def test_the_module_names_the_missing_reference_directory(data_dir: Path, tmp_pa
     from plastid.modules import annotation
 
     with pytest.raises(ValueError, match="reference="):
-        annotation.run(read_genbank(data_dir / "NC_050833.1.gb"), {}, _ctx(tmp_path))
+        annotation.run(
+            read_genbank(data_dir / "NC_050833.1.gb"), {"annotator": "pga"}, _ctx(tmp_path)
+        )
 
 
 def _write(path: Path, text: str) -> Path:
@@ -184,7 +189,7 @@ def test_two_calls_of_one_locus_are_reported_not_merged(tmp_path: Path, monkeypa
 
     result = annotation.run(
         read_genbank(source),
-        {"reference": str(reference), "pga": str(_stub_pga(tmp_path))},
+        {"annotator": "pga", "reference": str(reference), "pga": str(_stub_pga(tmp_path))},
         _ctx(tmp_path),
     )
 
@@ -223,7 +228,7 @@ def test_the_two_inverted_repeat_copies_are_not_reported_as_duplicates(
 
     result = annotation.run(
         read_genbank(source),
-        {"reference": str(reference), "pga": str(_stub_pga(tmp_path))},
+        {"annotator": "pga", "reference": str(reference), "pga": str(_stub_pga(tmp_path))},
         _ctx(tmp_path),
     )
     assert len(result.tables["gene_set"].rows) == 2

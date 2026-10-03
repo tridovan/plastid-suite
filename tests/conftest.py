@@ -44,6 +44,20 @@ def tools() -> dict[str, str | None]:
     }
 
 
+@pytest.fixture(scope="session")
+def annotator_tools() -> dict[str, str | None]:
+    """Chloe and the Julia it runs on — from ``PATH``, or from ``PTS_CHLOE`` / ``PTS_JULIA``.
+
+    Both live outside ``PATH`` on the machine this was written on (Julia came out of a mamba
+    environment, Chloe out of a git clone), so the environment is how a machine says where they
+    are; a fixture that guessed a path would just be wrong on the next machine.
+    """
+    return {
+        "chloe": os.environ.get("PTS_CHLOE") or which("chloe.jl"),
+        "julia": os.environ.get("PTS_JULIA") or which("julia"),
+    }
+
+
 def require_tools(tools: dict[str, str | None], *names: str) -> None:
     """Skip with a named reason — or fail when PTS_REQUIRE_TOOLS=1 (tool-equipped machines)."""
     missing = [name for name in names if not tools.get(name)]

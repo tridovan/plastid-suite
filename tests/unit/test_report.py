@@ -752,7 +752,7 @@ def _submission_result() -> Result:
 def _annotation_result() -> Result:
     return Result(
         module="annotation",
-        module_version="0.1.0",
+        module_version="0.2.0",
         tables={
             "annotation_summary": Table(
                 id="annotation_summary",
@@ -769,7 +769,7 @@ def _annotation_result() -> Result:
                     Column("n_aliased_names", "Names with a synonym", dtype="int"),
                     Column("n_unclassified", "Unclassified", dtype="int"),
                     Column("annotator", "Annotator"),
-                    Column("reference_dir", "Reference plastomes"),
+                    Column("reference", "References"),
                 ),
                 rows=(
                     {
@@ -783,8 +783,8 @@ def _annotation_result() -> Result:
                         "n_orf_failed": 0,
                         "n_aliased_names": 4,
                         "n_unclassified": 0,
-                        "annotator": "PGA (NC_050833.1.gb)",
-                        "reference_dir": "/refs",
+                        "annotator": "Chloe 0.1.18",
+                        "reference": "its own curated set (Chloe_refs 9163915d99fd)",
                     },
                 ),
                 scope=Scope(label="the annotator's gene set, read back with our reader"),

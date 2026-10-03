@@ -103,8 +103,17 @@ def test_the_canonical_name_prints_the_same_label_as_its_synonym() -> None:
     assert normalize_name("ycf4", ALIASES).label == "pafII (ycf4)"
 
 
-def test_the_four_measured_loci_are_the_only_ones_shipped() -> None:
-    assert {locus.canonical for locus in ALIASES.loci} == {"pafI", "pafII", "pbf1", "clpP1"}
+def test_the_measured_loci_are_the_only_ones_shipped() -> None:
+    """A locus enters this table only with its evidence, so the set is pinned: ndhI joined it on
+    2026-10-03 after the golden record's ndhL and Chloe's ndhI turned out to be one locus with one
+    protein (see data/gene_aliases.yaml)."""
+    assert {locus.canonical for locus in ALIASES.loci} == {
+        "pafI",
+        "pafII",
+        "pbf1",
+        "clpP1",
+        "ndhI",
+    }
     assert all(locus.evidence for locus in ALIASES.loci)
 
 

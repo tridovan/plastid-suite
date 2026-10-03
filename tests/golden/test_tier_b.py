@@ -14,6 +14,7 @@ import pytest
 
 from conftest import require_tools
 from plastid.cli import main
+from plastid.core.genbank import read_genbank
 from plastid.run.manifest import validate
 from plastid.run.tools import which
 
@@ -108,9 +109,6 @@ def test_pga_reproduces_the_golden_gene_counts(
     # supposed to have PGA
     require_tools({**tools, "PGA.pl": tools.get("PGA.pl") or which("PGA.pl")}, "perl", "PGA.pl")
 
-    import json as _json
-
-    from plastid.core.genbank import read_genbank
     from plastid.core.model import count_genes
 
     golden_path = data_dir / "NC_050833.1.gb"
@@ -142,7 +140,7 @@ def test_pga_reproduces_the_golden_gene_counts(
         == 0
     )
     run_dir = sorted((tmp_path / "runs" / "pga").iterdir())[0]
-    manifest = _json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     validate(manifest)
     assert manifest["modules"][0]["tools"][0]["name"] == "pga"
 
@@ -150,6 +148,144 @@ def test_pga_reproduces_the_golden_gene_counts(
     assert (counts.cds, counts.trna, counts.rrna) == (86, 38, 8)  # the fixed rule, golden value
     assert counts.total == 132
     assert len(golden.genes) > 0  # the source really was annotated
+
+
+def test_chloe_reproduces_the_golden_gene_counts(
+    annotator_tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """P3-03's Done-when, on a machine that has Chloe: annotate the golden genome's own sequence
+    and check the gene counts by the fixed rule. Skips with a named reason when the tool is
+    absent; ``PTS_REQUIRE_TOOLS=1`` turns that into a failure on a machine supposed to have it.
+
+    The last assertion is the one that is not a gene count: the run must have passed
+    ``--no-transform``. Without it Chloe annotates a *flipped* sequence and returns the same 132
+    genes in another frame — measured 2026-10-03, which is why the flag is asserted here rather
+    than trusted to stay in the adapter.
+    """
+    require_tools(annotator_tools, "chloe", "julia")
+    golden_path = data_dir / "NC_050833.1.gb"
+    target = tmp_path / "target.gb"
+    target.write_text(_strip_features(golden_path.read_text(encoding="utf-8")), encoding="utf-8")
+
+    assert (
+        main(
+            [
+                "run",
+                "--module",
+                "annotation",
+                "--input",
+                str(target),
+                "--out",
+                str(tmp_path / "runs"),
+                "--dataset",
+                "chloe",
+                "--set",
+                f"chloe={annotator_tools['chloe']}",
+                "--set",
+                f"julia={annotator_tools['julia']}",
+            ]
+        )
+        == 0
+    )
+    run_dir = sorted((tmp_path / "runs" / "chloe").iterdir())[0]
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    validate(manifest)
+
+    record = manifest["modules"][0]["tools"][0]
+    assert record["name"] == "chloe"
+    assert record["version"] == "0.1.18"  # pinned to the release the numbers were measured with
+    assert record["interpreter"].startswith("julia ")
+    assert "--no-transform" in record["argv"]
+    assert record["rc"] == 0
+
+    from plastid.core.gff import genes_from_gff
+    from plastid.core.model import Genome, count_genes
+
+    golden = read_genbank(golden_path)
+    annotated = Genome(
+        name=golden.name,
+        sequence=golden.sequence,
+        genes=genes_from_gff((run_dir / "01_annotation" / "annotation.gff").read_text("utf-8")),
+    )
+    counts = count_genes(annotated)
+    assert (counts.cds, counts.trna, counts.rrna) == (86, 38, 8)  # the fixed rule, golden value
+    assert counts.total == 132
+
+    from plastid.core.orf import check_genome
+
+    checks = check_genome(annotated, default_table=11)
+    assert not [check for check in checks if check.is_failure]
+
+
+def test_chloe_transforms_the_sequence_unless_it_is_told_not_to(
+    annotator_tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """The measurement behind ``--no-transform``, against the real tool.
+
+    Run without the flag, Chloe writes a FASTA beside its GFF — the sequence it actually
+    annotated, with the single-copy region flipped — and the gene set is *identical*: same 132
+    genes, same names. A gene count therefore cannot see it, which is the whole reason this is a
+    test rather than a comment in the adapter. What changes is the frame: read against the
+    sequence the caller handed over, the transformed GFF leaves a third of the CDS without a
+    valid ORF (measured 2026-10-03: 12 of 86 failing, 8 of them `no_start`).
+    """
+    require_tools(annotator_tools, "chloe", "julia")
+
+    from plastid.core.gff import genes_from_gff
+    from plastid.core.model import Genome, count_genes
+    from plastid.core.orf import check_genome
+    from plastid.core.submission import to_fasta
+
+    golden = read_genbank(data_dir / "NC_050833.1.gb")
+    chloe = _script(annotator_tools["chloe"])
+    workdir = tmp_path / "transformed"
+    workdir.mkdir()
+    fasta = workdir / "NC_050833.1.fa"
+    fasta.write_text(to_fasta(golden, "NC_050833.1"), encoding="utf-8")
+
+    ctx = _ctx(tmp_path)
+    ctx.tool(
+        "chloe",
+        [
+            str(annotator_tools["julia"]),
+            f"--project={chloe.parent}",
+            str(chloe),
+            "annotate",
+            str(fasta),
+        ],
+        kind="binary",
+        tool_path=str(chloe),
+        pinned_version="0.1.18",
+        cwd=workdir,
+        timeout=3600,
+    )
+
+    written = (workdir / "NC_050833.1.chloe.fa").read_text(encoding="utf-8")
+    sequence = "".join(
+        line.strip() for line in written.splitlines() if not line.startswith(">")
+    ).upper()
+    assert sequence != golden.sequence.upper()  # the sequence the GFF's coordinates belong to
+
+    genes = genes_from_gff((workdir / "NC_050833.1.chloe.gff").read_text(encoding="utf-8"))
+    annotated = Genome(name=golden.name, sequence=golden.sequence, genes=genes)
+    assert count_genes(annotated).total == 132  # the count survives the transform …
+    failures = [check for check in check_genome(annotated, default_table=11) if check.is_failure]
+    assert failures, "… but the frame does not, so this is what a gene count cannot see"
+
+
+def _script(value: str) -> Path:
+    """``--set chloe=`` takes the clone or the script in it; the tests take both too."""
+    path = Path(value)
+    return path / "chloe.jl" if path.is_dir() else path
+
+
+def _ctx(tmp_path: Path):
+    from plastid.run.context import RunContext
+    from plastid.run.layout import RunLayout
+
+    layout = RunLayout.create(tmp_path / "ctx", "chloe-tier-b", fingerprint="test")
+    layout.make_dirs()
+    return RunContext(layout=layout, params={}, module_id="annotation", module_order=1)
 
 
 def _strip_features(genbank_text: str) -> str:
@@ -162,6 +298,13 @@ def _strip_features(genbank_text: str) -> str:
 
 
 def _length(lines: list[str]) -> int:
-    """The record's length, from its LOCUS line — the only number left after stripping."""
-    locus = next(line for line in lines if line.startswith("LOCUS"))
-    return int(locus.split()[1])
+    """The record's length, from its LOCUS line — the only number left after stripping.
+
+    Read as the token before ``bp``: the field after ``LOCUS`` is the record's *name*, so a
+    published accession (``LOCUS  NC_050833  153724 bp``) and a hand-made one
+    (``LOCUS  SYN_ANNOT  600 bp``) do not sit in the same column. Measured 2026-10-03 — the
+    first version of this helper read position 1, worked on the hand-made record it was written
+    against, and raised on the golden one the moment a second annotator's test used it.
+    """
+    locus = next(line for line in lines if line.startswith("LOCUS")).split()
+    return int(locus[locus.index("bp") - 1])

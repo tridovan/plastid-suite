@@ -6,6 +6,16 @@ PROJECT.md §7.8 lists PGA and plann.pl as the offline substitutes. Which one is
 **Answer: the offline tool is the pipeline; GeSeq is a one-off cross-check whose output gets pinned.**
 The naming problem is handled by D3-02 either way, so it does not decide this.
 
+> **Update, 2026-10-03 — measured, and the offline tool changed.** The constraint below still
+> decides *offline vs web*; it never said *which* offline tool, and that part was a hypothesis
+> until it was run. PGA, run on the golden genome, returned 147 genes where the record has 132 and
+> failed silently three ways (PROJECT.md §8.15). **Chloe replaces it as the pipeline annotator:**
+> offline, its own curated references, **132 = 86 + 38 + 8** with every CDS translating (§8.17,
+> `docs/tools/chloe.md`). PGA is kept for the genomes Chloe does not cover — it annotates
+> flowering plants only. GeSeq's job is unchanged.
+
+
+
 ## Why this is a constraint, not a preference
 
 The toolkit has to run on an ordinary computer, offline, and ship as Linux native + Windows via
@@ -33,9 +43,12 @@ only open question is which offline tool.**
 | Output | GenBank, batch ("GLOBAL") | GenBank + log, batch | GenBank |
 | Measured on this machine | not runnable offline | **ABSENT** | **ABSENT** |
 
-**Recommended: PGA primary, plann.pl as the fallback.** PGA is a local command line tool, batch
-capable, GPL-3.0, and it already emits GenBank — which our reader handles and which the phase check
-requires us to read back.
+**Recommended at the time: PGA primary, plann.pl as the fallback.** PGA is a local command line
+tool, batch capable, GPL-3.0, and it already emits GenBank — which our reader handles and which the
+phase check requires us to read back. *(Superseded above: PGA was run, and it did not reproduce
+the golden record. The table below is what was known before that measurement — Chloe was not in
+the survey at all, which is the part worth remembering: the tool that won was one nobody had
+listed.)*
 
 ### PGA's known traps, and why this repo is already immune to them
 

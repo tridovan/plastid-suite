@@ -1,8 +1,9 @@
 ## Annotation — {{annotation_summary.accession}}
 
 The plastome of *{{annotation_summary.organism}}* ({{annotation_summary.accession}},
-{{annotation_summary.length_bp}} bp) was annotated by homology and read back with our own
-reader — a file that does not re-read is not a result. The gene set that came out is
+{{annotation_summary.length_bp}} bp) was annotated with **{{annotation_summary.annotator}}**,
+against {{annotation_summary.reference}}, and read back with our own reader — a file that does not
+re-read is not a result. The gene set that came out is
 **{{annotation_summary.n_genes}}** genes: {{annotation_summary.n_cds}} protein-coding,
 {{annotation_summary.n_trna}} tRNA and {{annotation_summary.n_rrna}} rRNA, both inverted-repeat
 copies included.

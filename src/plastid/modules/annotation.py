@@ -1,25 +1,37 @@
-"""Annotation of a plastome with PGA (M3.1, P3-03).
+"""Annotation of a plastome (M3.1, P3-03; annotator per D3-01).
 
 The module's job is to make an annotator's output *enter the same pipeline as a downloaded
-record*: the annotator produces a GenBank file, our own reader reads it back, and the gene set,
-its ORF status (P3-01) and its name mapping (P3-02) come from the same core functions every other
-module uses. There is no second code path — an annotation that skipped the checks would be the
-one output nobody verified.
+record*: the annotator writes its features, our own reader reads them back, and the gene set, its
+ORF status (P3-01) and its name mapping (P3-02) come from the same core functions every other
+module uses. There is no second code path — an annotation that skipped the checks would be the one
+output nobody verified.
 
-The annotator itself is external and optional: a machine without PGA still runs everything else.
-``PTS_REQUIRE_TOOLS=1`` turns the missing tool into a failure for a machine that is supposed to
+Two annotators can answer, and the report says which one did:
+
+* ``chloe`` (default) — offline, angiosperm plastomes, its own curated references;
+* ``pga`` — homology against a directory of GenBank references the caller supplies, which is the
+  only option for a genome Chloe does not cover (it annotates flowering plants only).
+
+Both are measured rather than trusted: PGA returned 147 genes where the golden record has 132 and
+failed silently three ways (§8.15), and Chloe returns 132 = 86 + 38 + 8 with every CDS translating
+— but only when it is told not to transform the sequence (§8.17, ``external/chloe.py``).
+
+The annotators are external and optional: a machine with neither still runs everything else.
+``PTS_REQUIRE_TOOLS=1`` turns a missing tool into a failure for a machine that is supposed to
 have it.
 """
 
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass, field
 from typing import Any
 
 from plastid.core.gene_groups import assign, load_gene_groups
 from plastid.core.gene_names import GenomeNames, load_gene_aliases, normalize_genome
 from plastid.core.model import GENE_KINDS, Genome, count_genes
 from plastid.core.orf import ORF_STATUSES, STATUS_PSEUDOGENE, check_genome
+from plastid.external.chloe import run_chloe
 from plastid.external.pga import run_pga
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
@@ -28,38 +40,55 @@ from plastid.run.defaults import load_defaults
 from plastid.run.layout import slugify
 
 MODULE_ID = "annotation"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 
 SCOPE_LABEL = "the annotator's gene set, read back with our reader; GenBank coordinates"
+
+ANNOTATORS: tuple[str, ...] = ("chloe", "pga")
+DEFAULT_ANNOTATOR = "chloe"
+
+# Plastids translate with NCBI table 11, and D3-03 measured that all 1,099 CDS in this project's
+# dataset declare it. Chloe's GFF declares no table at all, so without this default its CDS would
+# be checked against table 1 — which knows fewer initiation codons, and would report a curated
+# GTG or ACG start as a failure of the annotator. The value is stated in the run's notes either
+# way, and --set transl_table= overrides it (mitochondria use table 1).
+PLASTID_TRANSL_TABLE = 11
+
+
+@dataclass(frozen=True, slots=True)
+class _Annotated:
+    """What an annotator handed back, in the one shape this module analyses."""
+
+    genome: Genome
+    text: str
+    source_name: str
+    extension: str  # the annotator's own format, for the artifact the run keeps
+    annotator: str  # the label the report prints
+    reference: str  # what the annotation rests on
+    citation: str
+    notes: tuple[str, ...] = field(default=())
 
 
 @module(
     MODULE_ID,
     version=MODULE_VERSION,
-    title="Annotation (PGA)",
+    title="Annotation",
     requires_ir=False,  # annotating is not a position-based analysis
-    citations=("pga",),
+    citations=("chloe", "pga"),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
-    reference = params.get("reference")
-    if not reference:
-        raise ValueError(
-            "annotation needs reference plastomes: pass --set reference=<directory of GenBank "
-            "files from the same or a close family> (PGA annotates by homology)"
-        )
-    seq_id = genome.accession or slugify(genome.name)
-    produced = run_pga(
-        genome,
-        ctx,
-        reference_dir=str(reference),
-        seq_id=seq_id,
-        script=params.get("pga"),
-    )
+    table = int(params.get("transl_table", PLASTID_TRANSL_TABLE))
+    produced = _annotate(genome, params, ctx, table=table)
 
     annotated = produced.genome
     counts = count_genes(annotated)
-    default_table = int(load_defaults()["orf"]["default_translation_table"])
-    checks = check_genome(annotated, default_table=default_table)
+    # Every CDS a silent output produced was stamped with `table` by its adapter (Chloe's GFF
+    # declares none); a record that declares its own keeps it (PGA's GenBank carries
+    # /transl_table). The config default is what is left for a feature that declares nothing at
+    # all — the same fallback D3-03 records for a downloaded record.
+    checks = check_genome(
+        annotated, default_table=int(load_defaults()["orf"]["default_translation_table"])
+    )
     names = normalize_genome(annotated, load_gene_aliases())
     groups = load_gene_groups()
     rows = assign(annotated, groups, canonical_of=names.canonical)
@@ -81,7 +110,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("n_aliased_names", "Names with a synonym", dtype="int"),
             Column("n_unclassified", "Unclassified", dtype="int"),
             Column("annotator", "Annotator"),
-            Column("reference_dir", "Reference plastomes"),
+            Column("reference", "References"),
         ),
         rows=(
             {
@@ -99,8 +128,8 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                     if gene.kind in GENE_KINDS and names.normalized(gene).synonyms
                 ),
                 "n_unclassified": len(unclassified),
-                "annotator": f"PGA ({produced.source_name})",
-                "reference_dir": str(reference),
+                "annotator": produced.annotator,
+                "reference": produced.reference,
             },
         ),
         scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
@@ -177,16 +206,16 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         )
 
     notes = [
-        "The annotator's GenBank output was read back with our own reader and then went through "
-        "the same ORF checks and name normalization as a downloaded record.",
+        "The annotator's output was read back with our own reader and then went through the same "
+        "ORF checks and name normalization as a downloaded record.",
         f"Raw annotator output kept beside the tables as {produced.source_name}.",
+        f"CDS were checked against translation table(s) "
+        f"{', '.join(str(number) for number in sorted({check.transl_table for check in checks}))}"
+        f": a record that declares its own (PGA writes /transl_table) keeps it, and an output "
+        f"that is silent (Chloe's GFF says nothing) is stamped with {table} — pass "
+        f"--set transl_table= to change that.",
+        *produced.notes,
     ]
-    if produced.attempts > 1:
-        notes.append(
-            "The annotator produced nothing on its first attempt and the run was retried once: "
-            "PGA's temporary file names can contain a character the shell it calls blastn "
-            "through expands away (measured, about one run in five). The retry succeeded."
-        )
     if duplicates:
         notes.append(
             f"{len(duplicates)} locus/loci were annotated more than once "
@@ -205,8 +234,85 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         module_version=MODULE_VERSION,
         tables=tables,
         notes=tuple(notes),
-        citations=("pga",),
-        artifacts={"annotation.gb": produced.genbank_text},
+        citations=(produced.citation,),
+        # the annotator's own file, byte for byte, under the format it writes: the report names
+        # it, so any number above can be traced back to the line that produced it
+        artifacts={f"annotation.{produced.extension}": produced.text},
+    )
+
+
+def _annotate(genome: Genome, params: dict[str, Any], ctx: RunContext, *, table: int) -> _Annotated:
+    """Run the requested annotator and hand back one shape, whichever one answered.
+
+    Each annotator's own failures stay its own (they are raised by its adapter, with the fix in
+    the message); what this function decides is only *which* one runs and how its provenance is
+    worded for the report.
+    """
+    annotator = str(params.get("annotator", DEFAULT_ANNOTATOR)).lower()
+    if annotator not in ANNOTATORS:
+        raise ValueError(
+            f"annotation: unknown annotator {annotator!r} — available: {', '.join(ANNOTATORS)}"
+        )
+    seq_id = genome.accession or slugify(genome.name)
+
+    if annotator == "chloe":
+        produced = run_chloe(
+            genome,
+            ctx,
+            seq_id=seq_id,
+            script=params.get("chloe"),
+            julia=params.get("julia"),
+            transl_table=table,
+        )
+        return _Annotated(
+            genome=produced.genome,
+            text=produced.gff_text,
+            source_name=produced.source_name,
+            extension="gff",
+            annotator=f"Chloe {produced.version}",
+            reference=f"its own curated set (Chloe_refs {produced.reference_tree[:12]})",
+            citation="chloe",
+            notes=(
+                "The annotator was run with --no-transform, so its coordinates are this "
+                "sequence's own: by default Chloe flips the single-copy region into its standard "
+                "configuration and writes a GFF in *that* frame, which no other module of this "
+                "run could line up with (measured 2026-10-03 — the gene set is identical either "
+                "way, so a gene count alone cannot see the difference).",
+            ),
+        )
+
+    reference = params.get("reference")
+    if not reference:
+        raise ValueError(
+            "annotation: PGA needs reference plastomes — pass --set "
+            "reference=<directory of GenBank files from the same or a close family> (it "
+            "annotates by homology), or use the default annotator, which brings its own"
+        )
+    pga = run_pga(
+        genome,
+        ctx,
+        reference_dir=str(reference),
+        seq_id=seq_id,
+        script=params.get("pga"),
+    )
+    notes = (
+        (
+            "The annotator produced nothing on its first attempt and the run was retried once: "
+            "PGA's temporary file names can contain a character the shell it calls blastn "
+            "through expands away (measured, about one run in five). The retry succeeded.",
+        )
+        if pga.attempts > 1
+        else ()
+    )
+    return _Annotated(
+        genome=pga.genome,
+        text=pga.genbank_text,
+        source_name=pga.source_name,
+        extension="gb",
+        annotator=f"PGA {pga.source_name}",
+        reference=str(reference),
+        citation="pga",
+        notes=notes,
     )
 
 

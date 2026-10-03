@@ -47,3 +47,14 @@ loci:
     evidence: >
       PROJECT.md §8.9–8.10 (2026-10-03). Same locus as clpP: syntenic neighbours rps12 … psbB
       in all seven classic records, matching /product, and length 591 bp.
+
+  - canonical: ndhI
+    synonyms: [ndhL]
+    evidence: >
+      PROJECT.md §8.17 (2026-10-03), measured while annotating the golden genome with Chloe. The
+      golden record names this locus ndhL; Chloe names it ndhI; the two proteins are identical
+      (543 bp, 181 codons, one and the same sequence) at one and the same position. Two further
+      signals point the same way: the golden record's own /product reads "NADH-plastoquinone
+      oxidoreductase subunit I", and the plastid ndh complex has subunits A–K — there is no
+      subunit L. Canonical direction follows the standard name, which is also the one this
+      project's records from GeSeq and from Chloe use.
