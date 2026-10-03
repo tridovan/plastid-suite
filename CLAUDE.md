@@ -205,7 +205,13 @@ make check    # lint + test + golden
 4. On completion: run `make check`; record new measured facts in PROJECT.md (§8 log, §9 errors);
    set the task `DONE`.
 5. Tick the checkboxes in `TASKS.md`; append a `HANDOFF.md` entry.
-6. Commit only when the user asks.
+6. **Commit and push each task as it completes** — not at the end of the session. The Done-when
+   passes, `make check` is green, that task's files are committed and pushed, then the next task
+   starts. Session documents that describe several tasks (`TASKS.md` · `PROJECT.md` · `HANDOFF.md`)
+   go in one `docs:` commit at the end. Splitting a pile of finished work into per-task commits
+   afterwards means reconstructing intermediate states of shared files by hand — and it is the
+   step that gets skipped when someone is in a hurry, which is how a session becomes one
+   unreviewable commit.
 
 Approved designs that must outlive the session go into PROJECT.md (§3 decisions, §13 roadmap) or
 `docs/` — never rely on session-local plan files being readable later.
@@ -236,6 +242,11 @@ Blocked · Next**. Assume the next reader is a fresh agent with zero history.
 Conventional-commit style, English, no diacritics: `feat:` `fix:` `docs:` `test:` `chore:` `refactor:`.
 Do **not** add any assistant attribution — no `Co-Authored-By: Claude …`, no "generated with" trailer.
 Commits are authored by the team only.
+
+**One commit per task, pushed when the task is done** (workflow step 6). A commit should stand on
+its own: check it out, run `make check`, and it passes — which is also what makes `git bisect`
+usable. When one file genuinely carries changes for two tasks, say so in the message rather than
+leaving the split ambiguous.
 
 ## Don't
 
