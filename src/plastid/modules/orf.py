@@ -135,11 +135,14 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         key="cds_id",
     )
 
-    tables = {
+    tables: dict[str, Table] = {
         summary.id: summary,
         status_table.id: status_table,
-        checks_table.id: checks_table,
     }
+    if checks:
+        # a record with no CDS is a legitimate input — an unannotated draft, or the target of an
+        # annotation run. It gets a summary of zeros and this note, not a crash on an empty table.
+        tables[checks_table.id] = checks_table
     if orphans:
         tables["annotated_not_coding"] = _orphan_table(orphans)
 

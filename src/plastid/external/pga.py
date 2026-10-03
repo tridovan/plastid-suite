@@ -23,7 +23,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from plastid.core.genbank import read_genbank
+from plastid.core.genbank import read_genbank, read_genbank_records
 from plastid.core.model import Genome
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, which
@@ -40,11 +40,15 @@ class PgaResult:
     The text travels back rather than a path: the run happens in a temporary directory that is
     gone by the time a module sees this, and the caller decides what to keep (a module hands it
     to :class:`~plastid.result.result.Result` as an artifact — seam 2).
+
+    ``attempts`` is 2 when the first attempt produced nothing and the retry succeeded — a
+    measured PGA bug (see :func:`run_pga`), recorded so a run can say it happened.
     """
 
     genome: Genome
     genbank_text: str
     source_name: str
+    attempts: int = 1
 
 
 def pga_script(explicit: str | Path | None = None) -> Path:
@@ -87,7 +91,54 @@ def run_pga(
         raise ToolError(f"pga: the reference directory {reference} does not exist")
     if not any(reference.glob("*.gb*")):
         raise ToolError(f"pga: the reference directory {reference} holds no GenBank file")
+    partial = _references_with_partial_coordinates(reference)
+    if partial:
+        # Measured 2026-10-03: a reference with partial coordinates makes PGA print warnings,
+        # produce nothing, and still exit 0 — a silent failure this check turns into a named one.
+        raise ToolError(
+            f"pga: these reference files carry partial coordinates (< or >): "
+            f"{', '.join(partial)} — PGA cannot parse them, and it fails *silently* (measured: "
+            f"0 genes annotated, exit 0). Give it a reference set whose features are complete."
+        )
 
+    # PGA's temporary file names are random over an alphabet that includes ``$``, and it hands
+    # them to blastn through ``system("blastn ... $name ...")`` — a second pass through the shell,
+    # which expands ``$…`` away. Measured 2026-10-03: roughly one run in five then finds no file,
+    # annotates nothing, and still exits 0. So one retry, and if both attempts come back empty the
+    # failure is named rather than reported as an empty annotation.
+    for attempt in (1, 2):
+        annotated, text, name = _annotate_once(
+            genome,
+            ctx,
+            perl=perl,
+            pga=pga,
+            reference=reference,
+            seq_id=seq_id,
+            extra_args=extra_args,
+        )
+        if any(gene.kind in ("CDS", "tRNA", "rRNA") for gene in annotated.genes):
+            return PgaResult(
+                genome=annotated, genbank_text=text, source_name=name, attempts=attempt
+            )
+    raise ToolError(
+        "pga: two attempts both produced a record with no gene features, while PGA reported "
+        "success. Check the captured log (it names what it skipped) and check that the references "
+        "are from the same or a close family — a single empty attempt is the known temporary-name "
+        "bug and is retried automatically, so two in a row is something else."
+    )
+
+
+def _annotate_once(
+    genome: Genome,
+    ctx: RunContext,
+    *,
+    perl: str,
+    pga: Path,
+    reference: Path,
+    seq_id: str,
+    extra_args: tuple[str, ...],
+) -> tuple[Genome, str, str]:
+    """One PGA run in its own fresh directory; the genome it wrote, its text, and its file name."""
     with tempfile.TemporaryDirectory(prefix="pga_") as work:
         workdir = Path(work)
         # PGA pairs its output with the FASTA header and breaks on spaces, so the id is passed
@@ -119,21 +170,41 @@ def run_pga(
         )
 
         produced = sorted(out_dir.glob("*.gb*")) if out_dir.is_dir() else []
-        if not produced:
-            raise ToolError(
-                f"pga: the run produced no GenBank file in {out_dir} — see the captured logs "
-                f"(PGA writes a warning log listing what it could not annotate)"
-            )
         if len(produced) > 1:
             raise ToolError(
                 f"pga: the run produced {len(produced)} GenBank files for one target — one "
                 f"record per run is the contract, so a multi-record target slipped through"
             )
-        return PgaResult(
-            genome=read_genbank(produced[0]),
-            genbank_text=produced[0].read_text(encoding="utf-8"),
-            source_name=produced[0].name,
-        )
+        if not produced:
+            # a run that wrote nothing at all is the same failure as one that wrote no genes
+            return Genome(name=genome.name, sequence=genome.sequence), "", ""
+        text = produced[0].read_text(encoding="utf-8")
+        return read_genbank(produced[0]), text, produced[0].name
+
+
+def _references_with_partial_coordinates(reference: Path) -> tuple[str, ...]:
+    """Reference files holding an incomplete coordinate — the ones PGA cannot read.
+
+    Read with **our** reader rather than by scanning the text for ``<``/``>``: a GenBank record
+    may mention either character in a note, and a false positive here would refuse a reference
+    set that works.
+    """
+    names: list[str] = []
+    for path in sorted(reference.glob("*.gb*")):
+        try:
+            records = read_genbank_records(path)
+        except ValueError as error:
+            raise ToolError(
+                f"pga: the reference file {path.name} does not re-read: {error}"
+            ) from error
+        if any(
+            part.partial_start or part.partial_end
+            for record in records
+            for gene in record.genes
+            for part in gene.parts
+        ):
+            names.append(path.name)
+    return tuple(names)
 
 
 def _to_fasta(genome: Genome, seq_id: str, width: int = 60) -> str:

@@ -10,6 +10,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -64,11 +65,21 @@ def which(name: str, extra: Sequence[Path] = ()) -> str | None:
 def tool_version(
     name: str, kind: str, path: str | None, pinned: str | None = None
 ) -> tuple[str | None, str]:
-    """Best-effort version: a version flag for binaries, ``$^V`` for perl, pinned for vendored."""
+    """Best-effort version: a version flag for binaries, ``$^V`` for perl, pinned for vendored.
+
+    The probe *runs the tool*, so two rules apply, both measured 2026-10-03 on PGA:
+
+    * a Perl script is asked for the **interpreter's** version, never probed with a flag. Passing
+      an unknown flag makes the script run itself with its default arguments: PGA's next act is
+      ``rm -rf gb`` — deleting a directory named ``gb`` in whatever directory the toolkit happened
+      to be running from;
+    * a binary is probed in a throwaway directory, for the same reason: ``--version`` is only a
+      convention, and a tool that ignores it may do real work where it stands.
+    """
     if kind == "vendored" or pinned is not None:
         return pinned, "pinned" if pinned is not None else "unknown"
     if kind == "perl":
-        binary = path or which("perl") or "perl"
+        binary = which("perl") or "perl"
         try:
             result = subprocess.run(
                 [binary, "-e", "print $^V"],
@@ -84,17 +95,23 @@ def tool_version(
     binary = path or which(name)
     if binary is None:
         return None, "unknown"
-    for flag in _VERSION_FLAGS:
-        try:
-            result = subprocess.run(
-                [binary, flag], capture_output=True, text=True, timeout=10, check=False
-            )
-        except OSError:
-            return None, "unknown"
-        if result.returncode == 0:
-            for line in (result.stdout or result.stderr).splitlines():
-                if line.strip():
-                    return line.strip(), "flag"
+    with tempfile.TemporaryDirectory(prefix="version_probe_") as probe:
+        for flag in _VERSION_FLAGS:
+            try:
+                result = subprocess.run(
+                    [binary, flag],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                    cwd=probe,
+                )
+            except OSError:
+                return None, "unknown"
+            if result.returncode == 0:
+                for line in (result.stdout or result.stderr).splitlines():
+                    if line.strip():
+                        return line.strip(), "flag"
     return None, "unknown"
 
 

@@ -31,8 +31,17 @@ yet merged to `main`).** The board is `TASKS.md`.
   **265/265** golden features; `.sqn` is opt-in and needs both `table2asn` and a `.sbt` template.
   The `.tbl` rules came from NCBI's docs, not memory (`join()` does not exist — intervals stack;
   minus-strand intervals reverse; `<` in column 1, `>` in column 2, both as prefixes). §8.13.
-- **P3-03 PGA annotation — implemented, measured half pending.** Adapter + module + a stub test of
-  the wiring; the real run is `PTS_REQUIRE_TOOLS=1`-gated and skipped here (no PGA). §8.13.
+- **P3-03 PGA annotation — RUN FOR REAL, and the Done-when does not hold.** The "waiting on anh Trí"
+  item was a *permission* boundary, not a capability one: same machine, and once anh Trí granted
+  `Bash(perl *)` in `.claude/settings.local.json` (gitignored), PGA ran. Measured: 7 Iris references
+  → **147 = 95 CDS + 44 tRNA + 8 rRNA**; 1 reference → **130 = 87 + 35 + 8**; truth **132 = 86 + 38
+  + 8**. So PGA does not reproduce the golden counts, and the module says so rather than hiding it.
+  Three traps measured and turned into named errors or a retry: a reference with **partial
+  coordinates** makes PGA annotate nothing and exit 0; PGA's temp names can contain `$` which the
+  shell eats (≈1 run in 5 is empty, retried once); and the version probe used to run `perl PGA.pl
+  -e …`, which made PGA run with defaults — whose first act is `rm -rf gb` in the working directory
+  (fixed: the probe never executes a Perl tool now). Also measured: 3 of the RefSeq Iris references
+  use the **functional dialect** too, which strengthens D3-02. §8.15.
 - **P3-04 mito — the testable half is DONE.** `modules/mito_genes.py` describes a plant mitogenome
   **without asking for the IR gate** (a test runs it with `ctx.ir=None`; a companion test shows a
   gated module still stopping on the same context). On the stand-in `OX459128.1`:
@@ -46,8 +55,12 @@ yet merged to `main`).** The board is `TASKS.md`.
   exit 3, named). What the `.sqn` still needs is the **team's `.sbt`**: a hand-written one is
   rejected (`Error loading template file`, measured twice), so it comes from NCBI's web form.
 
-**Next action:** two things wait on people, not on this machine — the PMGA container
-(`anh Điềm`/`anh Trí`) and the `.sbt` (`cô Trang`). Everything else Phase 3 can do here has run.
+**Next action:** the two remaining asks are a **curated PGA reference set** (the annotator's
+over-calling is a property of its references — with 7 uncurated Iris references it returns 147
+genes for a 132-gene genome) and the **team's `.sbt`** (`cô Trang`) for the `.sqn` half; PMGA's
+container is now documented (`singularity exec … mgavas_m -pid … --in … --db 1 --outdir …`, from the
+Figshare record) so `external/pmga.py` can be written from the publisher's own instructions — it
+needs singularity, which is installable here, and the container (3.2 GB). Everything else Phase 3 can do here has run.
 The next session should therefore either chase those two, or start Phase 4 by wiring the remaining
 name-bearing modules (introns · diversity · substitutions) to the canonical name, since Phase 4
 keys its comparisons on it. **Blockers: `docs/PHASE3_BLOCKERS.md`** (the map of who owes what).

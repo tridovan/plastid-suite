@@ -98,13 +98,24 @@ name the record arrived with — Phase 4 keys its comparisons on the canonical n
 gene counts by the fixed rule (86 CDS + 38 tRNA + 8 rRNA) and the output re-reads clean. Here:
 implemented and `PTS_REQUIRE_TOOLS=1`-gated, **no number claimed from a run that did not happen**.
 **Needs:** D3-01, and PGA on the machine.
-**Measured (PROJECT.md §8.13):** the two halves that do not need PGA. A missing `PGA.pl` is a named
-`ToolError` (clone instructions included) and exit 3. The path *from* "the annotator wrote a
-GenBank file" *to* the gene set runs against a **stub** in PGA's place — our argv, our read-back,
-our checks — and reproduces **132 = 86 + 38 + 8**, 0 ORF failures, 5 alternative starts, 4 aliased
-names. **That is a test of our wiring, not of PGA**: the golden's own annotation is what the stub
-copies, so it is not evidence that PGA annotates correctly. The gated test is the one that can
-say that, and it has not run here.
+**Measured 03/10 — PGA RUNS HERE NOW (PROJECT.md §8.15).** Clone at `~/toolbox/src/PGA`, BLAST+
+and MAFFT in `~/toolbox/env/pts/bin`. De-annotated golden genome in, and the answer to the Done-when
+above is **no**: with **7 Iris references** PGA produced **147 = 95 CDS + 44 tRNA + 8 rRNA**; with
+**1** reference (Iris gatesii) **130 = 87 + 35 + 8**. Neither is 86 + 38 + 8. What the run *does*
+show is where the difference comes from and that our pipeline reports it honestly: 4 CDS fail the
+ORF checks, **4 loci come back twice under two names** (`clpP`/`clpP1`, `ycf3`/`pafI`,
+`ycf4`/`pafII`, `psbN`/`pbf1` — the annotator takes one name from each reference), and 4 genes
+match no functional group.
+**Three traps measured on the way, each now a named error or a retry instead of a silent wrong:**
+(1) a reference containing partial coordinates makes PGA annotate **nothing and still exit 0** —
+refused by name now; (2) PGA's temporary file names can contain `$`, which the shell it calls
+blastn through expands away — roughly **one run in five** produces nothing; the adapter retries
+once and says so; (3) the version probe used to run `perl PGA.pl -e …`, which made PGA run with
+its *default* arguments — whose first act is `rm -rf gb` in the working directory. The probe no
+longer executes a Perl tool at all (PROJECT.md §8.15, regression test in `tests/unit/test_run.py`).
+**Still needs a machine with PGA?** No — it needs *references* someone trusts. The next step is a
+curated reference set and, if the team wants PGA in the pipeline, the curation step that removes
+its duplicate calls.
 
 ### P3-04 · Annotation — mitochondrion · M3.1 · [~] **mito path DONE 03/10 · annotator BLOCKED**
 

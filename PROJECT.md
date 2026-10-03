@@ -819,6 +819,48 @@ dạng**, không đoán — có bảng `unmapped_names` riêng.
 **Còn lại của P3-04:** adapter PMGA. Không viết, vì PMGA chỉ phát hành dạng singularity container
 (Figshare 27201798) và không có tài liệu CLI công khai — viết theo CLI tự nghĩ ra là placeholder.
 
+### 8.15. PGA chạy thật trên genome vàng — và ba cái bẫy (03/10/2026)
+
+**Bối cảnh:** mục "chờ anh Trí chạy PGA một lần" trên board hoá ra **không phải chờ người**: cùng
+một cái máy, việc bị chặn là *quyền* của agent, không phải khả năng. Anh Trí cấp quyền trong
+`.claude/settings.local.json` (file này đã vào `.gitignore`), và PGA chạy được ngay sau đó.
+
+**Đo được** (genome vàng đã gỡ chú giải làm target, reference là các plastome chi *Iris*):
+
+| Cấu hình | Kết quả | So với chuẩn 132 = 86 + 38 + 8 |
+|---|---|---|
+| 7 reference (6 RefSeq + *I. gatesii*) | **147 = 95 CDS + 44 tRNA + 8 rRNA** | thừa 15 gen |
+| 1 reference (*I. gatesii*) | **130 = 87 CDS + 35 tRNA + 8 rRNA** | thiếu 2, lệch 4 |
+
+→ **Done-when của P3-03 ("tái tạo đúng số gen của genome vàng") KHÔNG đạt** với PGA. Đây là số đo
+về annotator, không phải lỗi module: module chạy đúng, đọc lại output, và báo cáo trung thực.
+
+**Chênh lệch đến từ đâu (đo được, không suy đoán):** 4 CDS trượt kiểm tra ORF (2 `no_start`,
+1 `no_stop`, 1 `internal_stop`); **4 locus bị gọi hai lần dưới hai tên** — `clpP`/`clpP1`,
+`ycf3`/`pafI`, `ycf4`/`pafII`, `psbN`/`pbf1` — vì PGA lấy tên từ **từng reference**, mà bộ reference
+có cả hai phương ngữ; 4 gen không nhóm chức năng nào nhận.
+
+**Ba cái bẫy, mỗi cái thành một lỗi có tên hoặc một lần thử lại (thay vì "sai mà không báo"):**
+
+1. **Reference có toạ độ partial ⇒ PGA chú giải RỖNG và vẫn exit 0.** Đo được: reference
+   `NC_024936.1` (có `<153124`, `>83020`) → 0 gen, "Finish annotating", exit 0. Adapter nay **từ
+   chối theo tên**, liệt kê file nào có partial.
+2. **Tên file tạm của PGA chứa `$`** (bảng ký tự random của chính nó), rồi
+   `system("blastn … $reference1_random …")` đưa chuỗi đó qua shell lần nữa ⇒ shell nuốt `$…` ⇒
+   blastn nhận đường dẫn không tồn tại ⇒ **0 gen, exit 0**. Xác suất 1 − (63/64)¹⁴ ≈ **20 %/lần**.
+   Adapter **thử lại một lần** và ghi vào report khi phải thử lại.
+3. **Dò version suýt xoá dữ liệu.** `run_tool` hỏi version bằng cách chạy `perl <tool> -e …`; PGA.pl
+   nhận cờ lạ, chạy với tham số **mặc định**, và việc đầu tiên nó làm là `rm -rf gb` — tức xoá thư
+   mục tên `gb` trong thư mục làm việc hiện tại. Nay `tool_version` **không bao giờ chạy script
+   Perl** (hỏi version của chính `perl`), và binary được dò trong thư mục tạm. Regression test:
+   `tests/unit/test_run.py::test_the_version_probe_never_runs_a_perl_tool`.
+
+**Một phát hiện phụ, ảnh hưởng D3-02:** ba bản ghi RefSeq trong bộ reference
+(`NC_085782.1`, `NC_085783.1`, `NC_086581.1`) **cũng dùng phương ngữ chức năng**
+(`clpP1`·`pafI`·`pafII`·`pbf1`). Nghĩa là đây không chỉ là "quy ước của nhóm" như §8.10 viết — nó
+đã xuất hiện trong các bản nộp RefSeq khác cùng chi. Quyết định D3-02 (khoá = tên chức năng, in
+cả hai) vì thế **đứng vững hơn**, không yếu đi.
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
