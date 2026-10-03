@@ -42,6 +42,7 @@ __all__ = [
     "NormalizedName",
     "UnresolvedName",
     "load_gene_aliases",
+    "load_mito_aliases",
     "normalize_genome",
     "normalize_name",
     "references_from",
@@ -153,6 +154,10 @@ class GenomeNames:
 def load_gene_aliases(path: str | Path | None = None) -> AliasTable:
     """Load and validate ``data/gene_aliases.yaml`` (or an explicit file)."""
     source = Path(path) if path is not None else data_file("gene_aliases.yaml")
+    return _load_aliases(source)
+
+
+def _load_aliases(source: Path) -> AliasTable:
     payload = yaml.safe_load(source.read_text(encoding="utf-8"))
     if not isinstance(payload, dict) or not isinstance(payload.get("loci"), list):
         raise GeneAliasError(f"{source}: expected a 'loci' list")
@@ -160,6 +165,17 @@ def load_gene_aliases(path: str | Path | None = None) -> AliasTable:
     loci = tuple(_locus_from(entry, source) for entry in payload["loci"])
     _reject_shared_names(loci, source)
     return AliasTable(loci=loci)
+
+
+def load_mito_aliases(path: str | Path | None = None) -> AliasTable:
+    """Load ``data/mito_gene_names.yaml`` — the plant-mitochondrial product-text vocabulary.
+
+    A separate file on purpose: measured 2026-10-03, the same product string is a plastid CDS
+    product *and* a mitochondrial one ("ribosomal protein S3" in both), so a shared table could
+    rename a plastid gene to a mitochondrial symbol. Only the mitochondrial path loads this one.
+    """
+    source = Path(path) if path is not None else data_file("mito_gene_names.yaml")
+    return _load_aliases(source)
 
 
 def _locus_from(entry: object, source: Path) -> Locus:

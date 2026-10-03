@@ -1,0 +1,115 @@
+# Plant-mitochondrial gene names: the product text a record carries -> the standard symbol.
+#
+# WHY THIS FILE IS SEPARATE FROM gene_aliases.yaml. Measured 2026-10-03: the same product string
+# occurs in both organelles — "ribosomal protein S3" is a plastid CDS product in the golden
+# genome and a mitochondrial one in the stand-in mitogenome. A shared table would let a plastid
+# gene be renamed to a mitochondrial symbol, which is a silent wrong of the kind this project
+# keeps meeting. The plastid table maps *names*; this one maps *product text*, and only the
+# mitochondrial path loads it.
+#
+# WHY IT IS NEEDED AT ALL. Measured on the pinned stand-in mitogenome OX459128.1: it carries no
+# /gene qualifier on any feature, so every "name" our reader reports for it is really a /product
+# sentence ("NADH dehydrogenase subunit 1"). A gene-set table that calls a gene by a sentence is
+# not reporting a gene name.
+#
+# EVIDENCE BASIS, stated plainly: every synonym below is quoted verbatim from OX459128.1's own
+# /product qualifiers — that part is measured. The symbol each one maps to is standard
+# plant-mitochondrial nomenclature (the names used across published mitogenome annotations), and
+# it has NOT yet been checked against a curated reference annotation. That check is Phase 8's
+# cross-testing work; until it happens, this file is the weakest evidence in the repository and
+# says so.
+
+loci:
+  - canonical: atp1
+    synonyms: ["ATP synthase F1 subunit 1"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol atp1"
+  - canonical: atp4
+    synonyms: ["ATPase subunit 4"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol atp4 (the F0 subunit IV, which plastids lack)"
+  - canonical: atp6
+    synonyms: ["ATP synthase F0 subunit 6"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol atp6"
+  - canonical: atp8
+    synonyms: ["ATPase subunit 8"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol atp8"
+  - canonical: atp9
+    synonyms: ["ATP synthase F0 subunit 9"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol atp9"
+  - canonical: ccmB
+    synonyms: ["cytochrome c maturation protein B"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol ccmB"
+  - canonical: ccmC
+    synonyms: ["cytochrome c biogenesis C"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol ccmC"
+  - canonical: ccmFc
+    synonyms: ["cytochrome c biogenesis FC"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol ccmFc"
+  - canonical: ccmFn
+    synonyms: ["cytochrome c maturation protein CcmFN"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol ccmFn"
+  - canonical: cob
+    synonyms: ["apocytochrome b"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol cob"
+  - canonical: cox1
+    synonyms: ["cytochrome c oxidase subunit 1"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol cox1"
+  - canonical: cox2
+    synonyms: ["cytochrome c oxidase subunit 2"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol cox2"
+  - canonical: cox3
+    synonyms: ["cytochrome c oxidase subunit 3"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol cox3"
+  - canonical: matR
+    synonyms: ["maturase-related protein"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol matR"
+  - canonical: mttB
+    synonyms: ["Sec-independent protein translocase"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol mttB"
+  - canonical: nad1
+    synonyms: ["NADH dehydrogenase subunit 1"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol nad1"
+  - canonical: nad2
+    synonyms: ["NADH dehydrogenase subunit 2"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol nad2"
+  - canonical: nad3
+    synonyms: ["NADH dehydrogenase subunit 3"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol nad3"
+  - canonical: nad4
+    synonyms: ["NADH dehydrogenase subunit 4"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol nad4"
+  - canonical: nad4L
+    synonyms: ["NADH dehydrogenase subunit 4L"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol nad4L"
+  - canonical: nad5
+    synonyms: ["NADH dehydrogenase subunit 5"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol nad5"
+  - canonical: nad6
+    synonyms: ["NADH dehydrogenase subunit 6"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol nad6"
+  - canonical: nad7
+    synonyms: ["NADH dehydrogenase subunit 7"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol nad7"
+  - canonical: nad9
+    synonyms: ["NADH dehydrogenase subunit 9"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol nad9"
+  - canonical: rpl5
+    synonyms: ["ribosomal protein L5"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol rpl5"
+  - canonical: rps1
+    synonyms: ["ribosomal protein S1"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol rps1"
+  - canonical: rps3
+    synonyms: ["ribosomal protein S3"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol rps3 (also a plastid product string: this is why the file is separate)"
+  - canonical: rps4
+    synonyms: ["ribosomal protein S4"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol rps4 (also a plastid product string: this is why the file is separate)"
+  - canonical: rps10
+    synonyms: ["ribosomal protein S10"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol rps10"
+  - canonical: rps13
+    synonyms: ["ribosomal protein S13"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol rps13"
+  - canonical: sdh4
+    synonyms: ["succinate dehydrogenase subunit 4"]
+    evidence: "OX459128.1 /product verbatim — standard plant-mitochondrial symbol sdh4"

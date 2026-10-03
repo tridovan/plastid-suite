@@ -785,6 +785,32 @@ giữ nguyên (không nới); hai template mới né bằng cách để dữ li�
 tên gen, cách đúng là tham chiếu một ô bảng — và nếu team muốn nới guard thì phải là một quyết định
 riêng, có test âm đi kèm.
 
+### 8.14. Đường mito — P3-04 phần chạy được (03/10/2026)
+
+**Đã làm:** `modules/mito_genes.py` + `data/mito_gene_names.yaml` (31 locus) + `load_mito_aliases()`.
+Module **không bao giờ** gọi `ctx.require_ir()` — có test chạy nó với `ctx.ir=None`, và một test
+đối chứng cho thấy module có gate vẫn dừng trên đúng context đó (gate vẫn thật, chỉ là nó nằm trước
+phân tích theo vị trí, không nằm trước việc đếm gen).
+
+**Đo trên mitogenome thay thế `OX459128.1`:** **51 = 31 CDS + 17 tRNA + 3 rRNA**; **31/31 CDS được
+gọi bằng ký hiệu chuẩn** (`nad1`·`nad2`·`cox1`·`atp6`·`ccmFn`·`matR`·`sdh4` …); **0 tên không map
+được**; run không đụng gate.
+
+**Vì sao phải có từ vựng riêng:** bản ghi này **không có qualifier `/gene`** trên bất kỳ feature
+nào, nên "tên" mà reader trả về thực chất là **câu `/product`** ("NADH dehydrogenase subunit 1").
+Và **vì sao file phải tách khỏi `gene_aliases.yaml`**: đo được chuỗi product **trùng giữa hai bào
+quan** — "ribosomal protein S3" là product của cả CDS plastid (genome vàng) lẫn CDS mito. Dùng
+chung một bảng thì một gen plastid có thể bị đổi sang ký hiệu mito. Có test canh đúng ca này.
+
+**Chất lượng bằng chứng, nói thẳng:** chuỗi synonym thì **đo được** (trích nguyên văn từ
+`OX459128.1`); còn ký hiệu là **danh pháp chuẩn của mito thực vật** và **chưa** đối chiếu với một
+chú giải tham chiếu đã công bố. Đây là file có bằng chứng yếu nhất trong repo, và chính nó nói ra
+điều đó; việc đối chiếu thuộc Giai đoạn 8 (kiểm thử chéo). Tên nào không map được thì **báo nguyên
+dạng**, không đoán — có bảng `unmapped_names` riêng.
+
+**Còn lại của P3-04:** adapter PMGA. Không viết, vì PMGA chỉ phát hành dạng singularity container
+(Figshare 27201798) và không có tài liệu CLI công khai — viết theo CLI tự nghĩ ra là placeholder.
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)

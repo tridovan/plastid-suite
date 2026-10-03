@@ -106,15 +106,17 @@ names. **That is a test of our wiring, not of PGA**: the golden's own annotation
 copies, so it is not evidence that PGA annotates correctly. The gated test is the one that can
 say that, and it has not run here.
 
-### P3-04 · Annotation — mitochondrion · M3.1 · [ ] **BLOCKED — see the exact ask**
+### P3-04 · Annotation — mitochondrion · M3.1 · [~] **mito path DONE 03/10 · annotator BLOCKED**
 
 - [x] **first, fix M3.1's tool**: MITOS2 is a **metazoan** annotator (reference set `refseq81m`) and
       cannot annotate a plant mitochondrion — its output would be wrong, not empty. **PMGA** is the
       tool that fits (Li et al. 2025, benchmarked at 1 wrong gene vs GeSeq's 18), at the cost of a
       heavy environment. Decide before implementing — PROJECT.md §7.8b
       → **DECIDED 03/10 (dev + user): PMGA.** Recorded in PROJECT.md §3.
-- [ ] the mito path: no canonical IR, so nothing may call `ctx.require_ir()` on it — measured on both
+- [x] the mito path: no canonical IR, so nothing may call `ctx.require_ir()` on it — measured on both
       stand-in mitogenomes, which raise `IRDetectionError` and are **right** to
+      → `modules/mito_genes.py`; a test runs it with `ctx.ir=None` and another shows a gated module
+      still stopping on the same context
 - [ ] `external/pmga.py` through `run_tool()`, output re-read by our reader
 **Done when:** on a mitogenome the gene-set table reports plant mito gene names and the run does not
 touch the IR gate; on a machine with PMGA the count reproduces the record's own annotation.
@@ -125,12 +127,14 @@ server, and no command-line usage is published anywhere retrievable. An adapter 
 invented CLI would be a placeholder that looks real — the one thing CLAUDE.md bans — so the adapter
 waits for the container. **The exact ask:** pull the Figshare container, record its entry point and
 `--help` in `docs/`, and then `external/pmga.py` follows the same shape as `external/pga.py`.
-**Two measurements the next session needs** (PROJECT.md §8.13): the stand-in mitogenome
-`OX459128.1` carries **no `/gene` qualifier at all** — every name in our model is its `/product`
-text ("NADH dehydrogenase subunit 1"), so "plant mito gene names" needs a product→symbol vocabulary
-before it can be reported; and its CDS starts include `CCT` and `CGC`, which no translation table
-accepts — the ORF check will (correctly) flag them, and that is a finding about the record, not a
-bug to paper over.
+**Measured (PROJECT.md §8.14):** the testable half is done. `mito_genes` reports the stand-in
+mitogenome `OX459128.1` as **51 = 31 CDS + 17 tRNA + 3 rRNA**, every CDS named by a standard symbol
+(`nad1`·`cox1`·`atp6`·`ccmFn`·`matR` …), 0 names left unmapped, and the run never asks for an IR.
+Two things came out of building it: the vocabulary must be a **separate file** from the plastid
+aliases (measured collision — "ribosomal protein S3" is a product string in *both* organelles, so a
+shared table could rename a plastid gene with a mitochondrial symbol), and the stand-in record's CDS
+starts include `CCT` and `CGC`, which no translation table accepts — the ORF check flags them, and
+that is a finding about the record rather than a bug to paper over.
 
 ### P3-05 · NCBI submission files — FASTA · TBL · SQN · M3.4 · [~] (Python half DONE 03/10)
 

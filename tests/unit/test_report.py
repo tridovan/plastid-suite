@@ -812,7 +812,48 @@ def _annotation_result() -> Result:
     )
 
 
+def _mito_genes_result() -> Result:
+    return Result(
+        module="mito_genes",
+        module_version="0.1.0",
+        tables={
+            "mito_summary": Table(
+                id="mito_summary",
+                title="Mitochondrial gene set",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("topology", "Topology"),
+                    Column("n_genes", "Genes", dtype="int"),
+                    Column("n_cds", "CDS", dtype="int"),
+                    Column("n_trna", "tRNA", dtype="int"),
+                    Column("n_rrna", "rRNA", dtype="int"),
+                    Column("n_named_by_symbol", "Named by a standard symbol", dtype="int"),
+                    Column("ir_gate", "Inverted-repeat gate"),
+                ),
+                rows=(
+                    {
+                        "organism": "Oldenlandia corymbosa var. corymbosa",
+                        "accession": "OX459128.1",
+                        "length_bp": 258_274,
+                        "topology": "circular",
+                        "n_genes": 51,
+                        "n_cds": 31,
+                        "n_trna": 17,
+                        "n_rrna": 3,
+                        "n_named_by_symbol": 31,
+                        "ir_gate": "not applicable",
+                    },
+                ),
+                scope=Scope(label="every counted mitochondrial gene"),
+            ),
+        },
+    )
+
+
 TEMPLATE_FIXTURES = {
+    "mito_genes": _mito_genes_result,
     "annotation": _annotation_result,
     "genome_stats": _result,
     "gene_table": _gene_table_result,
