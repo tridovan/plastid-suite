@@ -231,6 +231,56 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 | Krait | đã thử, là GUI nên không dùng | chưa ghi nguồn |
 | PGA — giấy phép | PGA = GPL-3.0 | (đã ghi ở §3) |
 
+### 7.8b. Cài đặt thật trên máy dev (03/10/2026 — gỡ chặn Giai đoạn 3)
+
+Không có conda trên máy ⇒ dựng **micromamba 2.9.0** (`~/toolbox/bin/micromamba`), env dùng chung
+`~/toolbox/env/pts`. **Không thêm gì vào repo**: dự án pin *nguồn gốc* công cụ, không pin *binary*.
+
+| Công cụ | Bản | Kiểm chứng |
+|---|---|---|
+| **MAFFT** | **7.526** `h4bc722e_0` (conda-forge) | **khớp tuyệt đối bản đã pin**: tarball 2.610.460 B · md5 **`cf3b2acf649bc31e576ed43a2fa4aaa3`** · `mafft --version` → `v7.526 (2024/Apr/26)`. Gỡ chặn H-01 ⇒ P2-07/P2-08 chạy số thật được |
+| **BLAST+** | 2.17.0+ (bioconda) | `blastn -version` → `2.17.0+`; PGA cần ≥ 2.8.1 |
+| **Perl** | có sẵn | dùng cho MISA và PGA |
+| **table2asn** | NCBI, `ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/` | **không có trên conda**; tải từ nguồn chính thức của NCBI |
+
+**Phát hiện làm sai lệch kế hoạch — MITOS2 không dùng được cho ty thể thực vật.** `M3.1` ghi
+"MITOS2/GeSeq (ty thể)". MITOS2 tìm gen bằng `blastx` với **protein ty thể của metazoan** (bộ tham
+chiếu mặc định `refseq81m`) — sai giới, nên kết quả sẽ **sai im lặng** chứ không rỗng. Công cụ đúng
+là **PMGA** (Plant Mitochondrial Genome Annotator, Li và cs. 2025, *Plant Communications*
+6(3):101191): làm riêng cho ty thể thực vật, nhận FASTA một-nhiều, ra GFF3 + GenBank, và trong
+benchmark của chính tác giả trên *Arabidopsis thaliana* / *Liriodendron tulipifera* cho **1 gen sai**
+so với GeSeq 18 và AGORA 42. Module RNA editing của nó chạy **Deepred-mt** — công cụ §7.8 đã ghi.
+
+*Giá phải trả:* PMGA bọc MAKER · CPGAVAS2 · BLASTn · ARGORN · tRNAscan-SE · MISA · TRF · Vmatch —
+nặng hơn nhiều so với PGA (Perl + BLAST). Quyết ở P3-04, không phải bây giờ.
+*Độ mạnh bằng chứng:* phạm vi của MITOS2 là chắc (trang phân phối và tài liệu nói thẳng); số
+benchmark của PMGA đọc từ bản tóm tắt web, **chưa đọc bài gốc** — kiểm lại trước khi chọn.
+
+### 7.8c. LỖI ĐÃ SỬA — công cụ chỉ nằm trên một máy thì không phải là một phần của bộ công cụ
+
+**Chuyện đã xảy ra (03/10/2026, do chính tôi gây ra):** để gỡ chặn Giai đoạn 3, tôi cài MAFFT 7.526
+và BLAST+ vào `~/toolbox/` trên máy dev — nhưng **không sửa gì trong repo**. Nếu dừng ở đó thì:
+
+- mọi số tôi đo được **không ai tái lập được** — kể cả anh Điềm, kể cả chính tôi sáu tháng nữa;
+- người cài `plastid-suite` theo hướng dẫn trong repo **không có công cụ nào**, và tier B sẽ skip
+  sạch mà không rõ vì sao;
+- Docker image ở Giai đoạn 9 sẽ không chạy được phần cần công cụ.
+
+**Kiểm tra thì phát hiện lỗi nặng hơn:** `environment.yml` cũ liệt kê công cụ **không kèm phiên bản**
+— trong đó có dòng `mafft` trần. Mà §9.B-13 **đã đo**: cùng một đầu vào, aligner khác nhau cho
+**Ts/Tv 2,667** so với **2,686**. Tức một người cài theo `environment.yml` cũ sẽ ra **số vàng khác**
+với cùng bộ gen — đúng loại "sai mà không báo" mà dự án đang săn, chỉ khác là nó nổ ở máy người khác.
+
+**Đã sửa:** `environment.yml` pin theo đúng phiên bản §7.8 ghi; ba công cụ không có trên conda
+(PGA, table2asn, công cụ ty thể thực vật) được ghi rõ nguồn và lý do ngay trong file; dry-run xác
+nhận bộ giải chọn **`mafft 7.526 h4bc722e_0` từ conda-forge** — đúng bản đã pin, không rơi về 7.525
+của bioconda (bioconda cũng có `mafft`, nên đây là bẫy thật, không phải giả định).
+
+**Luật mới trong CLAUDE.md** (mục Invariants): công cụ phải được khai báo **trong repo** ngay khi
+module dùng nó — `environment.yml` (pin phiên bản) · `src/plastid/vendor/` + `SOURCE.json` (script
+nhỏ, như MISA) · hoặc `docs/` kèm nguồn và lệnh cài. Cài lên máy để **kiểm chứng** là việc nên làm;
+dừng ở đó là việc không được phép — **sửa repo trong cùng phiên, không để "lát nữa"**.
+
 ### 7.9. Bài học từ mã nguồn CGAS (đọc trực tiếp 02/10/2026 — 18.353 dòng, 14 mô-đun + CLI)
 
 Đọc để học cách tổ chức, và để không lặp lại lỗi của họ.

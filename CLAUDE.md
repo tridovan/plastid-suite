@@ -86,6 +86,21 @@ A stand-in never stops being a stand-in:
   Only verified facts go into PROJECT.md.
 - **Measurement rule**: if a number is needed and not measured, write "not measured" — never estimate,
   round to something plausible, or silently drop a failing case.
+- **A tool that exists only on one machine is not part of the toolkit.** The moment a module uses an
+  external tool, that tool must already be declared **in the repo**, in one of three places:
+  1. `environment.yml` — conda/bioconda tools, **with the version pinned** to what PROJECT.md §7.8
+     records. An unpinned `mafft` is not a shortcut, it is two users getting two different golden
+     numbers from the same genome (§9.B-13 measured exactly that: Ts/Tv 2.667 vs 2.686).
+  2. `src/plastid/vendor/<tool>/` + `SOURCE.json` — small script tools, vendored byte-for-byte with
+     md5/sha256 and the retrieval date. MISA is the worked example.
+  3. `docs/` — a tool that fits neither, with its source, its exact install line, and why it is not
+     vendored.
+
+  Installing a tool locally to *verify* work is expected and encouraged. What is not allowed is
+  stopping there: **the repo change ships in the same session as the install**, never "later".
+  Otherwise every number measured here is reproducible by nobody — not by anh Điềm, not by the
+  released toolkit on a biologist's computer, not by us in six months. This is the same failure as a
+  number that looks plausible and is wrong; it just fails later.
 
 ## Code rules (six seams — full detail in PROJECT.md §13.1)
 

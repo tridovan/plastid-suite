@@ -83,14 +83,18 @@ gene counts by the fixed rule (86 CDS + 38 tRNA + 8 rRNA) and the output re-read
 implemented and `PTS_REQUIRE_TOOLS=1`-gated, **no number claimed from a run that did not happen**.
 **Needs:** D3-01, and PGA on the machine.
 
-### P3-04 · Annotation — mitochondrion (MITOS2) · M3.1 · [ ]
+### P3-04 · Annotation — mitochondrion · M3.1 · [ ]  ⚠ **the planned tool does not fit**
 
+- [ ] **first, fix M3.1's tool**: MITOS2 is a **metazoan** annotator (reference set `refseq81m`) and
+      cannot annotate a plant mitochondrion — its output would be wrong, not empty. **PMGA** is the
+      tool that fits (Li et al. 2025, benchmarked at 1 wrong gene vs GeSeq's 18), at the cost of a
+      heavy environment. Decide before implementing — PROJECT.md §7.8b
 - [ ] the mito path: no canonical IR, so nothing may call `ctx.require_ir()` on it — measured on both
       stand-in mitogenomes, which raise `IRDetectionError` and are **right** to
 - [ ] `external/mitos.py` through `run_tool()`, output re-read by our reader
 **Done when:** on a mitogenome the gene-set table reports plant mito gene names and the run does not
 touch the IR gate; on a machine with MITOS2 the count reproduces the record's own annotation.
-**Needs:** MITOS2 on the machine.
+**Needs:** the tool decision above; PMGA (or the chosen tool) on the machine.
 
 ### P3-05 · NCBI submission files — FASTA · TBL · SQN · M3.4 · [ ]
 
@@ -107,7 +111,10 @@ the source, and the TBL's partial/join syntax matches a real submitted record fi
 | What | Who | Blocks |
 |---|---|---|
 | Which gene name the manuscript and the NCBI submission print (D3-06) | cô Trang | the *wording* of the gene table, not the pipeline |
-| A machine with PGA and MITOS2 (or a run from anh Điềm's toolbox) | anh Điềm | the *measured* halves of P3-03, P3-04 |
+| A first run of PGA by hand (`~/toolbox/src/PGA`, GPL-3.0) | anh Trí | the *measured* half of P3-03 |
+| The mito annotator decision — MITOS2 cannot do plant mito; PMGA can, at a heavy dependency cost | dev + anh Điềm | P3-04 |
+| Whether `PX923121.1` is the specimen this manuscript reports | cô Trang | quoting *C. amboinicus* numbers as the manuscript's |
+| The team's own *O. diffusa* record | anh Điềm / cô Trang | the *O. diffusa* half of P2-10 (today: a stand-in) |
 | Item (c) text for the Reference Panel notes | cô Trang | D-03 only (documentation) |
 
 ## Housekeeping
@@ -115,6 +122,6 @@ the source, and the TBL's partial/join syntax matches a real submitted record fi
 | ID | Task | Status | Done when |
 |---|---|---|---|
 | D-03 | Fill Reference Panel item (c) in PROJECT.md §13.1 | BLOCKED | cô Trang provides the text |
-| H-01 | MAFFT 7.526 on a machine that can run it | BLOCKED | P2-07/P2-08 real-data numbers (PROJECT.md §7.8 pins 7.526) |
+| H-01 | MAFFT 7.526 | **DONE 03/10** | installed from conda-forge, tarball md5 **matches §7.8 exactly** (`cf3b2acf…`) — P2-07/P2-08 real runs are now possible (PROJECT.md §7.8b) |
 | H-03 | P2-10's *C. amboinicus* label | **DONE 03/10** | re-run as `own-record-coleus-amboinicus`; both draft labels now state what they are (`standin-` for someone else's record, `own-record-` for the group's) — `docs/P2-10_manuscript_draft.md` |
 | H-02 | Three merged Phase-1 branches (`feat/phase-1`, `feat/p1-02-core-model`, `feat/p1-04-result-schema`) are labels on commits already in `main` | OPEN | deleted or deliberately kept — commits are reachable from `main` either way |
