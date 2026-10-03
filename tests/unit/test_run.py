@@ -240,6 +240,24 @@ def test_require_ir_fails_loudly() -> None:
         gated.require_ir()
 
 
+def test_the_version_probe_knows_the_single_dash_spelling(tmp_path: Path) -> None:
+    """Measured 03/10/2026 on BLAST+ 2.17.0: ``blastx --version`` exits 1 with a usage message and
+    ``blastx -version`` prints the version. A probe that only tried the double dash reported the
+    tool that now annotates mitogenomes as "unknown" — a silent hole in the tool report."""
+    script = tmp_path / "blastx"
+    script.write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = "-version" ]; then echo "blastx: 2.17.0+"; exit 0; fi\n'
+        "echo USAGE; exit 1\n",
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+
+    version, source = tool_version("blastx", "binary", str(script))
+
+    assert (version, source) == ("blastx: 2.17.0+", "flag")
+
+
 def test_the_version_probe_never_runs_a_perl_tool(tmp_path: Path, monkeypatch) -> None:
     """Measured 2026-10-03: probing PGA for a version with an unknown flag made it run itself with
     its *default* arguments, and its first act is `rm -rf gb` — deleting a directory named ``gb``

@@ -34,3 +34,17 @@ diversity:
 
 report:
   draft_banner: "*Draft — needs human review.*"
+
+mito:
+  # P3A-03 (03/10/2026): the floors a transferred mito call must clear, and the code it is read
+  # in. Measured on the answer-key record OX459128.1: spurious and repeat-derived alignments sit
+  # at 40-45 % identity, while the weakest real gene there — sdh4, which the record itself marks
+  # /pseudo — is 50.4 % over 78 % of its reference. The floors are reported in every run's
+  # summary; `--set min_identity=… min_coverage=…` overrides them for an experiment.
+  min_identity: 50.0
+  min_coverage: 0.5
+  evalue: 1.0e-5
+  # Plant mitochondria translate with NCBI table 1 (D3-03). The caller stamps it on every CDS it
+  # calls, so the initiator test that decides a partial start and the ORF checks downstream read
+  # the same number instead of two defaults that happen to agree.
+  translation_table: 1

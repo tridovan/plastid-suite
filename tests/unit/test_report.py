@@ -858,7 +858,63 @@ def _mito_genes_result() -> Result:
     )
 
 
+def _mito_annotate_result() -> Result:
+    """The P3A-03 module's tables, in the smallest shape its template resolves against."""
+    scope = Scope(
+        label="CDS and rRNA called by transfer from the reference set", coord_system="genbank"
+    )
+    summary = Table(
+        id="mito_annotation_summary",
+        title="Mitochondrial annotation",
+        columns=(
+            Column("organism", "Organism"),
+            Column("accession", "Accession"),
+            Column("length_bp", "Length", dtype="int", unit="bp"),
+            Column("n_calls", "Genes called", dtype="int"),
+            Column("n_cds", "CDS", dtype="int"),
+            Column("n_rrna", "rRNA", dtype="int"),
+            Column("n_not_called", "Vocabularies not called", dtype="int"),
+            Column("n_cds_failing_orf", "Called CDS failing the ORF checks", dtype="int"),
+            Column("n_dropped", "Hits not used", dtype="int"),
+            Column("n_unnameable", "Hits this vocabulary cannot name", dtype="int"),
+            Column("min_identity_pct", "Identity floor", dtype="float", unit="%"),
+            Column("min_coverage_pct", "Coverage floor", dtype="float", unit="%"),
+            Column("evalue", "E-value ceiling"),
+            Column("transl_table", "Translation table", dtype="int"),
+            Column("blast", "BLAST"),
+            Column("reference", "Reference set"),
+        ),
+        rows=(
+            {
+                "organism": "Oldenlandia corymbosa var. corymbosa",
+                "accession": "OX459128.1",
+                "length_bp": 258_274,
+                "n_calls": 34,
+                "n_cds": 31,
+                "n_rrna": 3,
+                "n_not_called": 0,
+                "n_cds_failing_orf": 10,
+                "n_dropped": 68,
+                "n_unnameable": 15,
+                "min_identity_pct": 50.0,
+                "min_coverage_pct": 50.0,
+                "evalue": "1e-05",
+                "transl_table": 1,
+                "blast": "BLAST+ 2.17.0",
+                "reference": "the packaged reference set",
+            },
+        ),
+        scope=scope,
+    )
+    return Result(
+        module="mito_annotate",
+        module_version="0.1.0",
+        tables={summary.id: summary},
+    )
+
+
 TEMPLATE_FIXTURES = {
+    "mito_annotate": _mito_annotate_result,
     "mito_genes": _mito_genes_result,
     "annotation": _annotation_result,
     "genome_stats": _result,

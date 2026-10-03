@@ -19,7 +19,11 @@ from pathlib import Path
 
 __all__ = ["ToolError", "ToolRecord", "run_tool", "tool_version", "which"]
 
-_VERSION_FLAGS = ("--version", "-v", "-V")
+# Flags tried in order. ``-version`` was added 03/10/2026 after measuring BLAST+: it accepts only
+# the single-dash spelling and exits 1 for ``--version``, ``-v`` and ``-V`` — so the version of the
+# tool that now annotates mitogenomes was recorded as "unknown" while every probe "succeeded" in
+# failing. The probe runs in a throwaway directory for exactly this class of surprise.
+_VERSION_FLAGS = ("--version", "-version", "-v", "-V")
 _TAIL_LINES = 20
 
 

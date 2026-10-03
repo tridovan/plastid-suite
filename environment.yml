@@ -25,7 +25,9 @@ dependencies:
   - cpstools=3.0 # bioconda only — NOT on conda-forge (§7.8)
 
   # --- Phase 3: annotation --------------------------------------------------------------
-  - blast>=2.8.1 # PGA's only hard requirement beyond Perl; §7.8 records no version
+  - blast=2.17.0 # our own mito caller (P3A-03) transfers annotations with it, so the version is
+                 # part of the result — measured 03/10/2026 (docs/tools/blast.md). Also satisfies
+                 # PGA's "BLAST+ 2.8.1 or newer".
 
   # --- Phase 4+: comparison, figures, dating ---------------------------------------------
   - mummer4 # nucmer + repeat-match — §7.8 records no version

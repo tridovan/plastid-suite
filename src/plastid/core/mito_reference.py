@@ -93,6 +93,18 @@ class ReferenceEntry:
     vocabulary: str | None  # our canonical symbol, when we have one
     sequence: str
 
+    @property
+    def key(self) -> str:
+        """What a BLAST hit calls this sequence: the first three fields of its header.
+
+        Measured 2026-10-03: BLAST+ truncates ``sseqid`` at the first whitespace, and the fourth
+        header field is the organism name — ``Nicotiana tabacum`` arrives as ``Nicotiana``. Three
+        fields are also all a hit needs; the fourth is only there to be read by a person, which is
+        why :func:`read_reference` still requires it. ``-`` means this toolkit has no symbol for
+        the gene, exactly as :func:`render_fasta` writes it.
+        """
+        return f"{self.accession}|{self.source_gene}|{self.vocabulary or '-'}"
+
 
 @dataclass(frozen=True, slots=True)
 class ReferenceBuild:
