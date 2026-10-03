@@ -257,9 +257,32 @@ def test_the_sqn_step_is_a_named_error_when_table2asn_is_absent(data_dir: Path) 
     golden = read_genbank(data_dir / "NC_050833.1.gb")
     with pytest.raises(ToolError, match="table2asn not found"):
         submission.run(golden, {"sqn": "true"}, _ctx())
-    # asking for it *with* the tool present but no template is a different named error
-    with pytest.raises((ToolError, ValueError), match="table2asn not found"):
-        submission.run(golden, {"sqn": "true", "template": "/nonexistent.sbt"}, _ctx())
+
+
+def test_with_the_tool_present_the_missing_template_is_what_stops_the_sqn(
+    data_dir: Path, tmp_path: Path
+) -> None:
+    """This machine has table2asn (installed 2026-10-03, declared in docs/tools/table2asn.md),
+    so the path past "tool not found" is testable — and what stops it is the template, which is
+    exactly the file only the team can produce."""
+    from plastid.modules import submission
+    from plastid.run.tools import ToolError, which
+
+    binary = which("table2asn") or (
+        "/root/toolbox/bin/table2asn" if Path("/root/toolbox/bin/table2asn").is_file() else None
+    )
+    if binary is None:
+        pytest.skip("table2asn is not installed here — nothing to test past the tool check")
+
+    golden = read_genbank(data_dir / "NC_050833.1.gb")
+    with pytest.raises(ToolError, match="needs a submitter template"):
+        submission.run(golden, {"sqn": "true", "table2asn": binary}, _ctx())
+    with pytest.raises(ToolError, match="does not exist"):
+        submission.run(
+            golden,
+            {"sqn": "true", "table2asn": binary, "template": str(tmp_path / "none.sbt")},
+            _ctx(),
+        )
 
 
 def test_the_cli_run_writes_the_files_and_the_manifest_lists_them(

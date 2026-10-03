@@ -769,6 +769,16 @@ run, có trong `manifest.json`, và lần chạy thứ hai (cache hit) phục h�
 **quy tắc tài liệu + ví dụ nguyên văn của NCBI**, chưa đối chiếu với một file `.tbl` đã nộp thật
 (không kiếm được cái nào ở đây); (2) nửa `.sqn` chưa chạy lần nào.
 
+**Cập nhật cuối phiên — `table2asn` đã cài và đã khai báo.** Tải trọn 20.213.344 B (nén) →
+56.847.504 B, `table2asn -h` → **1.29.324**; md5 nhị phân `8b5b6cbede9d38b47c7c4cae29a25a0a`.
+Khai báo theo invariant trong `docs/tools/table2asn.md` (nguồn + dòng tải nguyên văn + lý do không
+vendored). Đo được hai lỗi có tên, đúng như thiết kế: thiếu công cụ ⇒ `ToolError` chỉ luôn
+`--set table2asn=`; có công cụ nhưng thiếu template ⇒ `ToolError` chỉ trang sinh `.sbt` của NCBI —
+**exit 3**, manifest ghi `status: failed` kèm thông báo, run vẫn truy lại được.
+Thử hai cách viết `.sbt` bằng tay: cả hai bị `Error loading template file` — nên **không đoán**
+định dạng đó nữa; `.sbt` là file của nhóm, sinh từ form NCBI. Nửa `.sqn` vì vậy vẫn chờ đúng một
+thứ: template.
+
 **Một ràng buộc mới phát hiện:** test quét template cấm **mọi** chữ số ngoài `{{…}}`, nên template
 không thể viết tên gen có số (`ycf3`, `rps19`), mã quyết định (`D3-02`), hay `ASN.1`. Guard vẫn
 giữ nguyên (không nới); hai template mới né bằng cách để dữ liệu trong bảng. Nếu sau này prose cần

@@ -140,7 +140,10 @@ bug to paper over.
       `transl_table` on every CDS
 **Done when:** a golden record produces `.fsa` + `.tbl` whose features re-read into the same set as
 the source, and the TBL's partial/join syntax matches a real submitted record field for field.
-**Needs:** D3-04. **Blocked for the `.sqn` half by:** `table2asn` (absent here).
+**Needs:** D3-04. **Blocked for the `.sqn` half by:** the team's submitter template (`.sbt`) —
+`table2asn` itself is now **installed and declared** (`docs/tools/table2asn.md`, v1.29.324, md5
+recorded), so the only missing piece is a file NCBI generates from a web form that names people
+and institutions.
 **Measured (PROJECT.md §8.13):** the round trip holds on the golden — **265/265** features
 (133 `gene` + 86 CDS + 38 tRNA + 8 rRNA) come back with the same kind, name, intervals (partials
 included), product and table, and 0 first-pass problems. The syntax rules were taken from NCBI's
@@ -161,7 +164,7 @@ adapter takes `--set template=…` and refuses without it.
 | A first run of PGA by hand (`~/toolbox/src/PGA`, GPL-3.0) | anh Trí | the *measured* half of P3-03 |
 | ~~The mito annotator decision~~ — **decided 03/10: PMGA** (PROJECT.md §3) | — | — |
 | The PMGA singularity container (Figshare 27201798), pulled and its entry point recorded | anh Điềm / anh Trí | P3-04 |
-| A submitter template (`.sbt`) for `table2asn` — names people and institutions | cô Trang | the `.sqn` half of P3-05 |
+| A submitter template (`.sbt`) from NCBI's form — names people and institutions | cô Trang | the `.sqn` half of P3-05 (table2asn itself is installed and declared) |
 | Whether `PX923121.1` is the specimen this manuscript reports | cô Trang | quoting *C. amboinicus* numbers as the manuscript's |
 | The team's own *O. diffusa* record | anh Điềm / cô Trang | the *O. diffusa* half of P2-10 (today: a stand-in) |
 | Item (c) text for the Reference Panel notes | cô Trang | D-03 only (documentation) |

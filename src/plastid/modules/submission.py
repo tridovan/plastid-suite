@@ -139,18 +139,28 @@ def _build_sqn(
     artifacts: dict[str, str],
 ) -> tuple[dict[str, str], str]:
     """Run table2asn and keep its outputs. A missing tool or template is a named error."""
-    binary = which(TOOL)
+    explicit = params.get("table2asn")
+    binary = None
+    if explicit:
+        candidate = Path(str(explicit))
+        binary = str(candidate) if candidate.is_file() else which(TOOL, extra=(candidate,))
+    else:
+        binary = which(TOOL)
     if binary is None:
         raise ToolError(
-            f"{TOOL} not found — the .sqn step needs it (NCBI's asn1-converters). The .fsa and "
-            f".tbl in this run are complete and are what NCBI's web submission accepts; drop "
-            f"--set sqn=true to submit without it"
+            f"{TOOL} not found — the .sqn step needs it. It is a single binary from NCBI's "
+            f"asn1-converters (see docs/tools/table2asn.md for the exact download line); pass "
+            f"--set table2asn=/path/to/table2asn if it is not on PATH. The .fsa and .tbl in "
+            f"this run are complete and are what NCBI's web submission accepts, so dropping "
+            f"--set sqn=true loses nothing but the conversion"
         )
     template = params.get("template")
     if not template:
         raise ToolError(
-            "--set sqn=true needs a submitter template: pass --set template=/path/to/you.sbt. "
-            "A template names people and institutions, and this toolkit does not invent those"
+            "--set sqn=true needs a submitter template: pass --set template=/path/to/your.sbt. "
+            "NCBI generates it from a web form (submit.ncbi.nlm.nih.gov/genbank/template/"
+            "submission) because it names people and institutions — this toolkit does not "
+            "invent those, and a hand-written .sbt is rejected as an unreadable template"
         )
     if not Path(str(template)).is_file():
         raise ToolError(f"the submitter template {template!r} does not exist")
