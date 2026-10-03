@@ -53,6 +53,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **Xuất Word (D2-04 + P2-09, dev quyết)**: `python-docx` là **extra tuỳ chọn** (`pip install 'plastid-suite[docx]'`), import **bên trong hàm** nên bản cài tối thiểu vẫn thuần Python; thiếu nó ⇒ `ExportDependencyError` + exit 3, không phải traceback ImportError. `openpyxl` **chưa thêm** — chưa có gì dùng (YAGNI); sẽ vào cùng extra khi làm Excel ở Giai đoạn 5 |
 | 03/10 | **Tài liệu Word phải tái lập được từng byte**: `python-docx` đóng dấu thời gian đồng hồ vào zip, nên gói được **dựng lại** với timestamp cố định (1980-01-01), entry sắp xếp, `create_system` ghim ⇒ cùng đầu vào ra cùng file. Đây là định nghĩa "Done when" của P2-09, không phải một lời hứa |
 | 03/10 | **Gói .docx được tỉa**: template của `python-docx` mang theo cả catalogue style của Word (164 style, ~350 kB) + `stylesWithEffects.xml` (438 kB) + thumbnail + `customXml`; bản xuất chỉ giữ style tài liệu **thực sự dùng** cùng tổ tiên và default của chúng, mọi quan hệ trỏ tới phần đã bỏ đều bị cắt. Đo được: ~800 kB → **13 kB**, có test cấu trúc canh |
+| 03/10 | **Tên gen: ánh xạ theo locus, giữ tên gốc (D3-02, dev quyết có bằng chứng)**: `pafI`·`pafII`·`pbf1`·`clpP1` trong `PX923121.1` là **cùng locus** với `ycf3`·`ycf4`·`psbN`·`clpP` — chứng minh bằng synteny + độ dài + `/product` trên 9 bản ghi (§8.9). Tên **chuẩn** giữ bản cổ điển (7/9 bản ghi + genome vàng); tên gốc đi kèm `source_name`, không bao giờ bị bỏ. Tên **in trong bản thảo** và **nộp NCBI** vẫn là quyết định của PI (D3-06) |
 | 03/10 | **Đa genome (D2-01, dev quyết)**: giữ nguyên contract v0.1 `run(genome, params, ctx)`; thêm contract thứ hai `run(genomes, params, ctx)` chọn bằng `arity` khai báo lúc đăng ký — **không** nới rộng contract cũ, vì module một-genome sẽ phải nhận một dãy nó không dùng (seam 5). Runner cưỡng chế số genome trước khi chạy. Ghi ở `docs/API_v0.2.md` |
 | 03/10 | **π: cửa sổ 600 bp · bước 200 bp (D2-02)** — quy ước kiểu mVISTA; window/step vào params, manifest và report |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
@@ -471,6 +472,45 @@ may mắn trên một ca. **Số gen khác 132** (131 và 133) là **đúng**: 1
 
 **Chưa có trong bản nháp:** mục π và Ts/Tv (cần MAFFT 7.526 — máy này không có), và **hình** (Giai
 đoạn 5). Bản nháp ghi rõ phần thiếu là phần vắng, không phải phần ngắn im lặng.
+
+### 8.9. Bốn tên gen lạ ở *C. amboinicus* — cùng locus, khác tên (03/10/2026 — D3-02)
+
+`PX923121.1` (*C. amboinicus*) và `PX977793.1` (*O. corymbosa*) có **bốn tên gen không khớp** bộ
+nhóm chức năng: `pafI` · `pafII` · `pbf1` · `clpP1`. Tra theo **vị trí** (không tra theo tên) trên
+9 bản ghi có chú giải:
+
+| Tên trong `PX923121.1` | Nằm giữa | Ở 7 bản ghi còn lại, đúng chỗ đó là | Độ dài |
+|---|---|---|---|
+| `pafI` | `psaA` … `trnS-GGA` | **`ycf3`** | 507 bp (510 bp ở cả hai bên) |
+| `pafII` | `psaI` … `cemA` | **`ycf4`** | 531 bp (555 bp ở cả hai bên) |
+| `pbf1` | `psbT` … `psbH` | **`psbN`** | **132 bp — khớp tuyệt đối** |
+| `clpP1` | `rps12` … `psbB` | **`clpP`** | 591 bp |
+
+Ba lớp bằng chứng độc lập: **synteny** (hàng xóm hai bên giống hệt, 7 bản ghi) · **độ dài** (khớp
+từng cặp, khớp cả theo chi: 507 bp ở Oldenlandia / 510 bp ở Coleus) · **`/product`** ("photosystem I
+assembly factor I" ↔ "photosystem I assembly protein Ycf3"). Ngoài ra `pbf1` = **132 bp** trùng khít
+`orf43/psbN` (43 codon + stop).
+
+**Vì sao tên đổi:** `ycf` = *hypothetical chloroplast open reading frame* — tên đặt khi chưa biết gen
+làm gì. Đã biết rồi thì đổi sang tên chức năng: Ycf3/Ycf4 là yếu tố lắp ráp PSI (PafI/PafII); `psbN`
+→ `pbf1` do Krech và cs. 2013 đề xuất sau khi chứng minh sản phẩm gen tham gia sinh tổng hợp **cả**
+PSI lẫn PSII. Một bảng gen công bố ghi thẳng `pafI(ycf3)`, `pafII(ycf4)`.
+
+**Quyết định (dev, có bằng chứng):** tên chuẩn giữ **tên cổ điển** — `ycf3` · `ycf4` · `psbN` ·
+`clpP` — vì **7/9 bản ghi và genome vàng** dùng chúng, mà genome vàng là hợp đồng của dự án.
+Tên gốc **không bị bỏ**: đi kèm là `source_name`, truy ngược được về bản ghi. Lý do phải ánh xạ:
+so sánh chéo genome khoá theo **tên gen**, để nguyên thì `pafI` và `ycf3` thành hai gen khác nhau và
+bảng π theo gen / bảng gen xuất bản **tách đôi một gen** — đúng loại "sai mà không báo".
+
+**Còn lại của PI:** tên **in trong bản thảo** và tên **nộp NCBI** (D3-06) — hai việc đó mới đổi nội
+dung công bố. Ghi chú: hai bản ghi dùng tên mới là **Direct Submission** nộp 24/01/2026 và
+07/02/2026 bởi cùng một nhóm (`Vu,H.-T.` và cs.) — tức đây là **quy ước của một nhóm**, không phải
+chuẩn cộng đồng; nhóm mình cần xác nhận có phải bản ghi của mình không.
+
+**Bài học phương pháp:** lần đầu tôi xếp việc này vào cột PI vì *chưa có bằng chứng*. Đo xong thì nó
+thành quyết định của dev. Escalate khi thiếu bằng chứng là đúng; **giữ nguyên** mức escalate sau khi
+đã có bằng chứng là sai — ở đây nó chỉ nằm trong board một lúc, chưa gây thiệt hại, nhưng cơ chế thì
+sai: một việc dev làm được mà bị xếp cho PI sẽ **chặn im lặng** cho tới khi có người hỏi.
 
 ---
 

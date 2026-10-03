@@ -19,7 +19,8 @@ Phase 7 only, skipped here.*
 | ID | Decision | Recommended default (evidence) | Who | Recorded in |
 |---|---|---|---|---|
 | D3-01 | Which plastome annotator | **PGA** (GPL-3.0, Java, runs local) primary; **plann.pl** the offline fallback. Measured 03/10 on the dev machine: PGA **ABSENT**, plann **ABSENT**, `java` present | Dev | PROJECT.md §7.8 + §3 |
-| D3-02 | **Semantic gene-name aliases** — do `clpP1` · `pafI` · `pafII` · `pbf1` get renamed? | **Not a dev call.** All four are in *C. amboinicus* `PX923121.1` — a manuscript species — with `/product` reading "ATP-dependent Clp protease proteolytic subunit 1", "photosystem I assembly factor I", "…II", "photosystem biogenesis factor 1". A rename changes what a **submitted record** says ⇒ PI | PI (cô Trang) | PROJECT.md §3 |
+| D3-02 | **Semantic gene-name aliases** — `clpP1` · `pafI` · `pafII` · `pbf1` (in *C. amboinicus* `PX923121.1`) | ✅ **DONE 03/10, dev, with evidence**: all four are **the same locus** as a classic gene, proven three ways in our own 9 records — identical syntenic neighbours (`pafI` between `psaA`/`trnS-GGA` where 7 records have `ycf3`), identical length (`pbf1` and `psbN` both exactly 132 bp), and matching `/product`. Canonical stays the **classic** name (`ycf3` · `ycf4` · `psbN` · `clpP`) — 7 of 9 records and the golden genome use it, and the golden is the contract. The record's own name is **kept** as `source_name`, never dropped | Dev | PROJECT.md §8.9 + §3 |
+| D3-06 | The name **printed in the manuscript** and **submitted to NCBI** | open — the pipeline maps internally either way; whether the paper's gene table says `ycf3` or `ycf3 (pafI)` is presentation | PI (cô Trang) | PROJECT.md §3 |
 | D3-03 | Which translation table for reading frames | the record's own `/transl_table` — **all 1,099 CDS in the dataset declare 11** — falling back to `defaults.yaml` (1) when absent. Tables 1 and 11 share amino-acid assignments and differ only in initiation codons, so P2-03/P2-04 numbers are unaffected | Dev | `data/defaults.yaml` + PROJECT.md §3 |
 | D3-04 | `.sqn`: build it, or ship the modern path | emit **`.fsa` + `.tbl`** in pure Python (always); produce `.sqn` only when `table2asn` is present — measured **ABSENT** here. NCBI's web submission takes `.fsa` + `.tbl` directly | Dev | PROJECT.md §3 |
 
@@ -53,13 +54,16 @@ ndhD ATC); the truncated ycf1 is reported as *annotated, not coding* rather than
 
 - [ ] **one** normalizer in `core/gene_names.py` — syntax only (case, tRNA anticodon `trnL(UAA)` →
       `trnL-UAA`, `rrn16S` → `rrn16`, whitespace) — and nothing else in the codebase may rename a gene
-- [ ] `data/gene_aliases.yaml` for **semantic** aliases, each entry carrying the evidence it rests on;
-      it ships **empty of guesses**
-- [ ] a name with no mapping is **kept** and listed in the Result with its `/product`, so the PI can rule
+- [ ] `data/gene_aliases.yaml` for **semantic** aliases — seeded with the four decided in D3-02, each
+      entry carrying the evidence it rests on; it ships **empty of guesses**
+- [ ] a name with no mapping is **kept** and listed in the Result with its `/product`, never guessed
+- [ ] a mapped name keeps its **`source_name`**, so a reader can always trace back to the record
 **Done when:** the normalizer is idempotent over all **156** distinct names in the dataset and leaves
-the golden's **112** names unchanged; on the panel exactly **4** names are reported as needing a
-decision (`clpP1` · `pafI` · `pafII` · `pbf1`, in the two *Coleus/Oldenlandia* records).
-**Needs:** D3-02 for the semantic half only — the syntax half does not wait.
+the golden's **112** names unchanged; the four mapped names (`pafI` · `pafII` · `pbf1` · `clpP1`)
+resolve to `ycf3` · `ycf4` · `psbN` · `clpP` **and** still report the name they arrived under; any
+name with no mapping is reported rather than renamed.
+**Needs:** nothing — **D3-02 is decided** (PROJECT.md §8.9). Only the *printing* of a name (D3-06)
+waits on the PI.
 
 ### P3-03 · Annotation — plastome (PGA) · M3.1 · [ ]
 
@@ -95,7 +99,8 @@ the source, and the TBL's partial/join syntax matches a real submitted record fi
 
 | What | Who | Blocks |
 |---|---|---|
-| Nomenclature ruling on `clpP1` · `pafI` · `pafII` · `pbf1` (D3-02) | cô Trang | the semantic half of P3-02, and every submission file for *C. amboinicus* |
+| Whether `Vu,H.-T.` (submitter of `PX923121.1` / `PX977793.1`, Jan–Feb 2026) is this group | anh Điềm / cô Trang | nothing — it only says whether the unusual names are ours to explain |
+| Which gene name the manuscript and the NCBI submission print (D3-06) | cô Trang | the *wording* of the gene table, not the pipeline |
 | A machine with PGA and MITOS2 (or a run from anh Điềm's toolbox) | anh Điềm | the *measured* halves of P3-03, P3-04 |
 | Item (c) text for the Reference Panel notes | cô Trang | D-03 only (documentation) |
 

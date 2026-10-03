@@ -76,12 +76,20 @@ commands in PROJECT.md §8.6.
   counting rule (**132**)". 132 is *Iris domestica*'s value, not a constant — P2-10 measured 131 and
   133 for two other species. The *rule* is fixed; the *number* is not. Left uncorrected this is the
   "133 genes" trap in a new costume.
+- **Did (cont.):** **D3-02 decided** — the four unusual gene names in *C. amboinicus* are the same
+  loci as `ycf3` · `ycf4` · `psbN` · `clpP`, proven three ways in our own nine records: identical
+  syntenic neighbours, identical length (`pbf1` and `psbN` both exactly 132 bp), matching `/product`.
+  Canonical stays the classic name (7 of 9 records and the golden use it); the record's own name
+  travels along as `source_name`. Recorded in PROJECT.md §8.9.
 - **Residual risks:** P3-03/P3-04 (PGA, MITOS2) have no tool on this machine, so they can only be
-  implemented and `PTS_REQUIRE_TOOLS=1`-gated — the same honest position P2-07/P2-08 are in. The
-  semantic gene-name question is a real fork: four names in *C. amboinicus* carry modern names whose
-  relation to the older `ycf`-style names is a nomenclature call, not a code call.
-- **Blocked:** the nomenclature ruling (cô Trang) blocks only P3-02's semantic half; PGA/MITOS2
-  (anh Điềm's toolbox) block the measured halves of P3-03/P3-04.
+  implemented and `PTS_REQUIRE_TOOLS=1`-gated — the same honest position P2-07/P2-08 are in.
+- **Process note worth keeping:** I first routed D3-02 to the PI *because I had no evidence*, then
+  kept it there after measuring — which is the wrong half to keep. The mapping is a dev call with
+  evidence; only the name **printed in the manuscript / submitted to NCBI** (D3-06) is the PI's.
+  A dev-decidable item parked on the PI blocks silently until someone asks.
+- **Blocked:** PGA/MITOS2 (anh Điềm's toolbox) block the measured halves of P3-03/P3-04. A
+  confirmation of whether `Vu,H.-T.` — submitter of the two records that use the new names — is this
+  group would settle whether those names are ours to explain.
 - **Next:** P3-01.
 
 ### 2026-10-03 · Claude · dev WSL · session 4 (P2-09, D2-04, P2-10)
