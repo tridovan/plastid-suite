@@ -67,6 +67,14 @@ team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pend
   -e …`, which made PGA run with defaults — whose first act is `rm -rf gb` in the working directory
   (fixed: the probe never executes a Perl tool now). Also measured: 3 of the RefSeq Iris references
   use the **functional dialect** too, which strengthens D3-02. §8.15.
+- **P3-04 mito — the tool's two options are now in place (03/10, late).** The plan's backend rule
+  (PROJECT.md §3 P1-12: a heavy step runs where it fits) was half-implemented — `panel pin` took
+  only NCBI accessions, so a tool that ran elsewhere could not be pinned. `plastid panel pin
+  --file … --note …` closes that (§8.19), and PMGA now has both routes: the container is
+  downloaded here (3.18 GB → **11 GB unpacked**, 138,045 files, Apptainer 1.5.4 installed, real
+  CLI read from its own POD: `mgavas -pid <id> -in <fasta> -db <1|2|4> [-conf] [-ref] [-outdir]`)
+  but needs more RAM than a 4–8 GB laptop should give it; the web service + pin route works today
+  and needs no container. `external/pmga.py` is a later convenience, not a blocker. `docs/tools/pmga.md`.
 - **P3-04 mito — the testable half is DONE.** `modules/mito_genes.py` describes a plant mitogenome
   **without asking for the IR gate** (a test runs it with `ctx.ir=None`; a companion test shows a
   gated module still stopping on the same context). On the stand-in `OX459128.1`:
@@ -162,6 +170,26 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 10 (PMGA downloaded, and the backend rule completed)
+
+- **Did:** downloaded and unpacked the PMGA container (Figshare 27201798), read its real command
+  line out of its own POD, and closed the half of the plan's backend rule that was missing:
+  `plastid panel pin --file/--note` (§8.19), tested, so a tool that ran on a web service or
+  another machine can be pinned and consumed offline. `docs/tools/pmga.md`, TASKS.md P3-04,
+  PROJECT.md §3 + §8.19.
+- **Validation:** `make check` green — **345 fast + 30 golden**. `panel pin --file` measured on the
+  stand-in mitogenome: 381,931 bytes · sha256 `e31da1d3…` · 258,274 bp · 31 CDS + 17 tRNA +
+  3 rRNA · circular (the §8.14 numbers).
+- **Risks / notes:** (1) the container is 11 GB unpacked and made the WSL VM balloon toward its
+  8 GB cap — the user saw `vmmemWSL` at 4 GB after the extraction; dropping the page cache inside
+  the guest does **not** shrink the VM (that takes `wsl --shutdown` or idle time with
+  `autoMemoryReclaim=gradual`). (2) PMGA is still unrun: peak RAM and wall clock are unmeasured,
+  and that is the number that decides whether it can ever be a requirement rather than an option.
+- **Blocked:** nothing. The container is on this machine and can be deleted whenever the disk or
+  the VM footprint is unwanted — the web-service route does not need it.
+- **Next:** P3-04 via the pin route (pin a PMGA/GeSeq mito annotation, run `mito_genes`), or
+  Phase 4's comparison modules.
 
 ### 2026-10-03 · Claude · dev WSL · session 9 (P3-05's `.sqn` half — run against NCBI's own converter)
 
