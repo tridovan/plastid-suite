@@ -22,9 +22,13 @@ class SampleGroup:
 
 def load_groups(path: str | Path) -> tuple[SampleGroup, ...]:
     """Load ``{group_name: [accession, ...]}``; an accession may belong to one group only."""
-    payload = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    source = Path(path)
+    try:
+        payload = yaml.safe_load(source.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as error:  # not a ValueError — translate it at the boundary
+        raise ValueError(f"{source}: invalid YAML: {error}") from error
     if not isinstance(payload, dict):
-        raise ValueError(f"{path}: groups must be a mapping of group name to accessions")
+        raise ValueError(f"{source}: groups must be a mapping of group name to accessions")
 
     groups: list[SampleGroup] = []
     seen: dict[str, str] = {}

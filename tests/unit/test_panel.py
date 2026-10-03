@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 
 import pytest
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 from plastid.core.panel import (
     IndexSnapshot,
     PanelEntry,
+    entries_from_summaries,
+    entry_from_summary,
     load_index,
     load_pinned,
     pin,
@@ -17,6 +23,8 @@ from plastid.core.panel import (
     save_index,
     tier_of,
 )
+
+LINEAGE = "cellular organisms; Eukaryota; Lamiales; Lamiaceae; Coleus"
 
 TARGET = PanelEntry(
     accession="NC_050833.1",
@@ -145,6 +153,12 @@ def test_pin_writes_checksums_and_verifies_the_file(tmp_path: Path, data_dir: Pa
     assert pinned[0].parse_error is None
     assert pinned[0].length == 153_724
     assert pinned[0].cds == 86
+    assert (pinned[0].trna, pinned[0].rrna) == (38, 8)
+    assert pinned[0].topology == "circular"
+    # the IR outcome is measured at pin time — recorded as data, never enforced here
+    assert (pinned[0].ir_length, pinned[0].ir_source) == (26_214, "annotation")
+    assert pinned[0].ir_identity == pytest.approx(1.0)
+    assert pinned[0].ir_error is None
 
     manifest = json.loads((tmp_path / "PINNED.json").read_text(encoding="utf-8"))
     assert manifest["pinned_at"] == "2026-10-02T18:00:00"
@@ -161,3 +175,63 @@ def test_pin_records_a_parse_failure_instead_of_crashing(tmp_path: Path) -> None
     pinned = pin(entries, lambda accession: "this is not a GenBank file", tmp_path)
     assert pinned[0].parse_error is not None  # loud in the data, never silent
     assert pinned[0].length is None and pinned[0].cds is None
+    assert pinned[0].ir_length is None and pinned[0].ir_error is None
+
+
+def _genbank_text(record: SeqRecord) -> str:
+    buffer = io.StringIO()
+    SeqIO.write(record, buffer, "genbank")
+    return buffer.getvalue()
+
+
+def test_pin_records_a_failed_ir_gate_instead_of_raising(tmp_path: Path, data_dir: Path) -> None:
+    """A diverged IR is data at pin time; only the run-time gate may stop an analysis."""
+    record = next(
+        record
+        for record in SeqIO.parse(str(data_dir / "iridaceae_edge_cases.gb"), "genbank")
+        if record.id == "NC_063920.1"
+    )
+    entries = (PanelEntry(accession="NC_063920.1", organism="Iris petrana"),)
+    pinned = pin(entries, lambda accession: _genbank_text(record), tmp_path)
+
+    assert pinned[0].parse_error is None
+    assert pinned[0].ir_identity == pytest.approx(0.9263, abs=0.001)
+    assert "IR gate failed" in (pinned[0].ir_error or "")
+
+
+def test_pin_records_an_absent_ir(tmp_path: Path) -> None:
+    """No IR pair at all — a mitogenome, a fragment — is pinned with the reason recorded."""
+    record = SeqRecord(
+        Seq("ATGC" * 1000),
+        id="XX_TEST.1",
+        name="XX_TEST.1",
+        description="synthetic record with no inverted repeat",
+        annotations={"molecule_type": "DNA", "topology": "linear"},
+    )
+    entries = (PanelEntry(accession="XX_TEST.1", organism="synthetic"),)
+    pinned = pin(entries, lambda accession: _genbank_text(record), tmp_path)
+
+    assert pinned[0].parse_error is None
+    assert pinned[0].ir_length is None
+    assert "IRDetectionError" in (pinned[0].ir_error or "")
+
+
+def test_entries_from_summaries_records_problems_instead_of_dropping() -> None:
+    records = [
+        (
+            {"accessionversion": "NC_050833.1", "organism": "Iris domestica", "slen": 153724},
+            LINEAGE,
+        ),
+        ({"organism": "record without an accession"}, LINEAGE),
+    ]
+    entries, problems = entries_from_summaries(records)
+    assert [entry.accession for entry in entries] == ["NC_050833.1"]
+    assert len(problems) == 1 and "accession" in problems[0]
+
+
+def test_entry_from_summary_never_assumes_genbank_annotation() -> None:
+    """RefSeq is annotated by NCBI's build; a GenBank submission's annotation is unverified."""
+    refseq = entry_from_summary({"accessionversion": "NC_050833.1", "organism": "Iris"}, LINEAGE)
+    genbank = entry_from_summary({"accessionversion": "PX923121.1", "organism": "Coleus"}, LINEAGE)
+    assert refseq.annotated is True
+    assert genbank.annotated is False

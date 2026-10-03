@@ -18,7 +18,9 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 
-from plastid.core.model import count_genes
+from plastid.core.genbank import read_genbank
+from plastid.core.ir import IRDetectionError, IRGateError, detect_ir, enforce_ir_gate
+from plastid.core.model import Genome, count_genes
 
 __all__ = [
     "IndexSnapshot",
@@ -26,6 +28,7 @@ __all__ = [
     "PanelEntry",
     "PanelProposal",
     "PinnedGenome",
+    "entries_from_summaries",
     "load_index",
     "pin",
     "propose",
@@ -83,6 +86,12 @@ class PanelProposal:
 
 @dataclass(frozen=True, slots=True)
 class PinnedGenome:
+    """One pinned download, with everything measured by reading the file back.
+
+    The measurement fields are *data*: a diverged or absent IR is recorded, never enforced
+    here — the run-time gate stays the only enforcement point (code seam 4).
+    """
+
     accession: str
     path: str
     sha256: str
@@ -90,6 +99,13 @@ class PinnedGenome:
     bytes: int
     length: int | None = None  # read back from the file — None when it failed to parse
     cds: int | None = None
+    trna: int | None = None
+    rrna: int | None = None
+    topology: str | None = None
+    ir_length: int | None = None
+    ir_source: str | None = None  # "annotation" | "denovo_diag"; None when no IR was found
+    ir_identity: float | None = None
+    ir_error: str | None = None  # IRDetectionError (absent) or IRGateError (diverged)
     parse_error: str | None = None
 
 
@@ -107,6 +123,7 @@ def entry_from_summary(summary: dict, lineage: str) -> PanelEntry:
     accession = str(summary.get("accessionversion") or summary.get("caption") or "").strip()
     if not accession:
         raise ValueError(f"esummary record has no accession: {summary!r}")
+    refseq = accession.startswith("NC_")
     return PanelEntry(
         accession=accession,
         organism=organism,
@@ -115,9 +132,30 @@ def entry_from_summary(summary: dict, lineage: str) -> PanelEntry:
         family=family,
         order=order,
         length=int(summary.get("slen") or 0),
-        annotated=True,  # RefSeq complete genomes are annotated; the user confirms the list
-        refseq=accession.startswith("NC_"),
+        # RefSeq is annotated by NCBI's build. A GenBank submission's annotation is only known
+        # after download (measured at pin time), so it is never assumed here — the old
+        # unconditional True was a claim nothing had checked.
+        annotated=refseq,
+        refseq=refseq,
     )
+
+
+def entries_from_summaries(
+    records: Iterable[tuple[dict, str]],
+) -> tuple[tuple[PanelEntry, ...], tuple[str, ...]]:
+    """``(esummary record, lineage)`` pairs → entries, plus one problem line per unreadable record.
+
+    Unreadable records are returned, never dropped silently — the caller prints them and fails
+    loudly (CLAUDE.md: fail loud). Shared by ``panel refresh`` and ``panel pin``.
+    """
+    entries: list[PanelEntry] = []
+    problems: list[str] = []
+    for summary, lineage in records:
+        try:
+            entries.append(entry_from_summary(summary, lineage))
+        except ValueError as error:
+            problems.append(str(error))
+    return tuple(entries), tuple(problems)
 
 
 def tier_of(target: PanelEntry, entry: PanelEntry) -> int | None:
@@ -192,6 +230,23 @@ def propose(
     )
 
 
+def _measure_ir(genome: Genome) -> tuple[int | None, str | None, float | None, str | None]:
+    """``(length, source, identity, error)`` for a freshly read genome — the gate as data.
+
+    A mitogenome legitimately has no IR and a bad assembly legitimately fails the gate; both
+    are *recorded* here and only enforced later, at run time (code seam 4).
+    """
+    try:
+        ir = detect_ir(genome)
+    except IRDetectionError as error:
+        return None, None, None, f"{type(error).__name__}: {error}"
+    try:
+        enforce_ir_gate(ir)
+    except IRGateError as error:
+        return ir.length, ir.source, ir.identity, f"{type(error).__name__}: {error}"
+    return ir.length, ir.source, ir.identity, None
+
+
 def pin(
     entries: Iterable[PanelEntry],
     fetch: Callable[[str], str],
@@ -214,13 +269,21 @@ def pin(
         path.write_bytes(payload)
         length: int | None = None
         cds: int | None = None
+        trna: int | None = None
+        rrna: int | None = None
+        topology: str | None = None
+        ir_length: int | None = None
+        ir_source: str | None = None
+        ir_identity: float | None = None
+        ir_error: str | None = None
         parse_error: str | None = None
         try:  # verify the pin by reading it back with our own reader
-            from plastid.core.genbank import read_genbank
-
             genome = read_genbank(path)
+            counts = count_genes(genome)
             length = len(genome)
-            cds = count_genes(genome).cds
+            cds, trna, rrna = counts.cds, counts.trna, counts.rrna
+            topology = genome.topology
+            ir_length, ir_source, ir_identity, ir_error = _measure_ir(genome)
         except Exception as error:  # noqa: BLE001 — recorded, not swallowed
             parse_error = f"{type(error).__name__}: {error}"
         pinned.append(
@@ -232,6 +295,13 @@ def pin(
                 bytes=len(payload),
                 length=length,
                 cds=cds,
+                trna=trna,
+                rrna=rrna,
+                topology=topology,
+                ir_length=ir_length,
+                ir_source=ir_source,
+                ir_identity=ir_identity,
+                ir_error=ir_error,
                 parse_error=parse_error,
             )
         )
