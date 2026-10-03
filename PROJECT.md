@@ -1259,6 +1259,40 @@ tên sẽ ra 14 và sai.
 
 ---
 
+### 8.24. Chạy trên mẫu chưa ai chú giải — `AP045469.1`, và tám locus không gọi được (P3A-07, 03/10/2026)
+
+**Input:** `AP045469.1` (*Coleus hadiensis*, **313.585 bp**, **0 feature** — đo được), đưa vào qua
+`plastid mito annotate` dưới dạng FASTA trần. Đây là hình dạng mọi lần chạy mito sau này sẽ đi:
+chuỗi vào → GenBank ra → `panel pin --file` ghim → đọc lại offline.
+
+**Kết quả:** **45 gen = 23 CDS + 19 tRNA + 3 rRNA**, ghim với sha256 `3e7c7114ae5d…`
+(402.318 B, `parse_error: null`). `mito_genes` đọc thẳng từ bản ghim, **không cần công cụ, không
+cần bộ tham chiếu**.
+
+**Tám locus vocabulary KHÔNG gọi được — và đây là phát hiện, không phải lỗi cần giấu.** Bảng
+`not_called` ghi rõ từng locus; đo thêm bằng cách nới E-value lên **10** (so với ngưỡng 1e-5 của
+lần chạy) để trả lời câu "ngưỡng có quá chặt không?":
+
+| Locus | Ở E-value ≤ 10 |
+|---|---|
+| `mttB` · `rps1` · `rps13` · `rps4` | **không có alignment nào cả** |
+| `cox2` | một mảnh 40 aa, 67,5 % — quá ngắn để phủ |
+| `ccmFn` · `matR` · `rps3` | mảnh 21–52 aa ở E-value 0,05–2,8 — không phải bằng chứng tương đồng |
+
+Nên **không phải ngưỡng** đang giữ chúng ở ngoài. Câu hỏi "các gen đó vắng trong genome hay vắng
+trong bản lắp ráp này" **không phải câu một bộ chuyển chú giải trả lời được** — nó cần người chú
+giải, hoặc một phép kiểm tra từ read. Ghi lại đúng như vậy thay vì hạ ngưỡng cho đủ 31.
+
+**Hồ sơ ORF của 23 call:** **10 ok · 9 no_start · 3 no_stop · 1 internal_stop**. Chín `no_start`
+phần lớn là các call bắt đầu giữa protein (alignment không tới đầu N của tham chiếu) — module đánh
+dấu `partial_start` chứ không dịch chuyển toạ độ. **Đây là prototype, không phải bản nộp** — dòng
+scope trong mọi bảng và ghi chú của lần chạy đều nói vậy.
+
+**Nhắc lại giới hạn (D3A-05):** không tự tìm gen mới, không mô hình intron, không dự đoán RNA
+editing. Bốn gen không tìm thấy **không** được suy đoán là "không có".
+
+---
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
@@ -1411,6 +1445,18 @@ tên sẽ ra 14 và sai.
    lệch. Một phép so chỉ đếm số lượng sẽ báo "khớp" cho cả ba sai khác đó.
 4. **Gene vắt qua origin** bị ARAGORN in là `[258274,73]` — nếu ghi thẳng vào GenBank thì đó là
    toạ độ vượt quá độ dài bản ghi. Phải tách thành `join()`.
+
+### F. Bộ chuyển chú giải trên một mẫu hoàn toàn mới (P3A-07)
+
+1. **`AP045469.1` (313.585 bp, 0 feature): chỉ 23/31 CDS gọi được.** Bốn locus không có alignment
+   nào ngay cả ở E-value 10, một locus chỉ có mảnh 40 aa, ba locus mảnh 21–52 aa ở E-value
+   0,05–2,8. **Không phải ngưỡng** — hạ ngưỡng không tìm thêm được gì.
+2. **Bài học về cách báo cáo:** một prototype trung thực phải in ra *cái nó không tìm thấy* kèm
+   bằng chứng đã cố nới ngưỡng. "Không tìm thấy" khác "không tồn tại", và bộ chuyển chú giải chỉ
+   trả lời được câu thứ nhất.
+3. **23 call vẫn cho 13 CDS không qua phép kiểm ORF** (9 `no_start`, 3 `no_stop`, 1
+   `internal_stop`) — trên một genome chưa ai chú giải thì đó là *thông tin*, không phải lỗi: nó
+   nói chỗ nào alignment không xác lập được đầu gen.
 
 ## 10. Câu hỏi còn treo
 

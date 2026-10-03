@@ -158,20 +158,23 @@ part ourselves*, from parts the repo already has: BLAST+, the 31-locus vocabular
 the reader. It is measured against a record whose answer is already published, so it must earn its
 place rather than be declared.
 
-**In-phase check:** on `OX459128.1` the annotator's **own output** re-reads with **our own reader**,
-runs through `orf` + `mito_genes` unchanged, and recounts to **31 CDS · 17 tRNA · 3 rRNA** — with
-**every difference from the published record listed**, and anything it cannot call reported as not
-called. A count that differs is a finding (§9), never a number to tune away.
+**In-phase check — MET 03/10/2026.** On `OX459128.1` the annotator's **own output** re-reads with
+**our own reader**, runs through `orf` + `mito_genes` unchanged, and recounts to **31 CDS · 17 tRNA
+· 3 rRNA** — with **every difference from the published record listed** (13 CDS spans within 75 bp,
+1 missing and 1 extra tRNA, 1 anticodon disagreement), and anything it cannot call reported as not
+called. The counts agree; the *members* of two of the three sets do not, and that is what the
+golden file prints. On the unannotated `AP045469.1` the same command yields 23 CDS of 31, pinned —
+with the eight it could not call reported and measured (§8.24).
 
-- [ ] **M3A.1 GenBank writer** — read → write → read round-trips the golden's 265 features
-- [ ] **M3A.2 Reference set** — RefSeq mitogenomes chosen by taxonomy (same family first) → CDS
+- [x] **M3A.1 GenBank writer** — read → write → read round-trips the golden's 265 features
+- [x] **M3A.2 Reference set** — RefSeq mitogenomes chosen by taxonomy (same family first) → CDS
       proteins + rRNA, pinned, with sources and sha256 recorded
-- [ ] **M3A.3 Gene caller** — `blastx` for CDS and `blastn` for rRNA; boundaries come from the
+- [x] **M3A.3 Gene caller** (2026-10-03) — `blastx` for CDS and `blastn` for rRNA; boundaries come from the
       alignment, not from ORF-walking; everything below the floor is reported
-- [ ] **M3A.4 tRNA caller** — ARAGORN, declared in `environment.yml` and `docs/`
-- [ ] **M3A.5 CLI** — `plastid mito annotate`, output through the existing pipeline, no second path
-- [ ] **M3A.6 Golden check** — 31 · 17 · 3 against the published record, differences itemized
-- [ ] **M3A.7 AP045469.1** — the unannotated sample: run it, report it, pin it
+- [x] **M3A.4 tRNA caller** (2026-10-03) — ARAGORN, declared in `environment.yml` and `docs/`
+- [x] **M3A.5 CLI** (2026-10-03) — `plastid mito annotate`, output through the existing pipeline, no second path
+- [x] **M3A.6 Golden check** (2026-10-03) — 31 · 17 · 3 against the published record, differences itemized
+- [x] **M3A.7 AP045469.1** (2026-10-03) — the unannotated sample: run it, report it, pin it
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid and mito)*
 

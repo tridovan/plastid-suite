@@ -160,14 +160,21 @@ tool calling tRNA genes; the probe now requires a digit in the answer, and the a
 release from `-h`'s banner itself. And a name is not an identity: the record's 17 tRNAs carry only
 **14 distinct names**, so a comparison that deduplicates by name reports 14.
 
-### P3A-05 · CLI + pipeline wiring · M3A.5 · [ ]
+### P3A-05 · CLI + pipeline wiring · M3A.5 · [x] DONE 03/10
 
-- [ ] `plastid mito annotate --input <fasta> --reference <dir> --out <dir>` — FASTA in, GenBank out,
+- [x] `plastid mito annotate --input <fasta> --reference <dir> --out <dir>` — FASTA in, GenBank out,
       plus the standard run report (tool · version · argv · time)
-- [ ] the output goes through `orf` + `mito_genes` **unchanged** — no second code path, per code seam 3
+- [x] the output goes through `orf` + `mito_genes` **unchanged** — no second code path, per code seam 3
 
 **Done when:** the de-annotated `OX459128.1` sequence in, a GenBank out that re-reads with our
 reader and drives both module reports end to end through the normal runner.
+**Met 03/10** — the sequence with all **102 features stripped** goes in as FASTA; the run directory
+holds `00_run_info` (five tool invocations logged: makeblastdb ×2 · blastx · blastn · aragorn),
+the six tables, and `mito_annotation.gb`, which re-reads as **51 = 31 CDS + 17 tRNA + 3 rRNA** and
+then drives `orf` + `mito_genes` through `plastid run` **without a single change to either module**.
+The two commands share one body (`_execute_run`), so the mito path inherits the manifest, the cache
+and the provenance rather than re-implementing them. `core/genbank.py` gained `read_fasta`, the
+input door for an assembled sequence.
 
 ### P3A-06 · Golden check · M3A.6 · [ ]
 
@@ -178,15 +185,23 @@ reader and drives both module reports end to end through the normal runner.
 differs is recorded in PROJECT.md §9 as a finding and the task says so — it is **never** tuned away,
 and a red check that reports honestly is a finished task, not a failed one. **Needs:** P3A-03…05.
 
-### P3A-07 · The sample nobody has annotated · M3A.7 · [ ]
+### P3A-07 · The sample nobody has annotated · M3A.7 · [x] DONE 03/10
 
-- [ ] run on `AP045469.1` (*Coleus hadiensis*, 313,585 bp, **0 features** — measured)
-- [ ] report the gene set found **and** the vocabulary genes not found; ORF profile through the
+- [x] run on `AP045469.1` (*Coleus hadiensis*, 313,585 bp, **0 features** — measured)
+- [x] report the gene set found **and** the vocabulary genes not found; ORF profile through the
       existing module; scope label stating this is a prototype run, not a submission
-- [ ] `plastid panel pin --file <out.gb> --note "prototype mito annotate, <date>"`
+- [x] `plastid panel pin --file <out.gb> --note "prototype mito annotate, <date>"`
 
 **Done when:** `PINNED.json` holds the file with sha256 and a **clean read-back**, and the gene-set
 table runs offline from the pin — which is the same shape every later mito run will take.
+**Met 03/10** — **45 genes = 23 CDS + 19 tRNA + 3 rRNA**, pinned as
+`3e7c7114ae5d…` (402,318 B, `parse_error: null`), and `mito_genes` reads the pin offline with no
+tool and no reference set. **8 vocabulary loci are not called**, and this is a finding, not a
+defect to hide: at a permissive E-value of 10 four of them — `mttB` · `rps1` · `rps13` · `rps4` —
+still have **no alignment at all**, `cox2` has a 40 aa fragment and three others fragments at
+E-values 0.05–2.8. The ORF profile of the 23 calls is **10 ok · 9 no_start · 3 no_stop · 1
+internal_stop**. Whether those genes are absent from the genome or absent from this assembly is
+not a question a reference-transfer annotator can answer (§8.24).
 
 ## Waiting on data / people
 

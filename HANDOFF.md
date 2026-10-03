@@ -18,10 +18,11 @@ team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pend
 closed by *decision* rather than by code is P3-04's annotator (see below).
 
 **Phase 3A — IN PROGRESS, branch `feat/phase-3a`** (stacked on `feat/phase-3`). A mito annotator
-this project builds itself, because PMGA cannot run here and its web service is down. **P3A-01
-(GenBank writer) · P3A-02 (reference set) · P3A-03 (gene caller) · P3A-04 (tRNA caller) are
-DONE**; **next is P3A-05 — the CLI (`plastid mito annotate`)**, then P3A-06 (the golden
-31 · 17 · 3 check, which now has every number it needs) and P3A-07 (`AP045469.1`). The board is `TASKS.md` — read it first, it carries the decisions, the
+this project builds itself, because PMGA cannot run here and its web service is down. **P3A-01 … P3A-07 are ALL DONE** and the phase check is met (§8.20–§8.24): on `OX459128.1` the
+annotator's own output re-reads, drives `orf` + `mito_genes` unchanged, and recounts to
+**31 CDS · 17 tRNA · 3 rRNA**; `AP045469.1` was annotated, pinned and read back offline. **Phase 3A
+is complete** — the next planned phase is **Phase 4 (multi-genome comparison)**, whose modules can
+key on the canonical names. The board is `TASKS.md` — read it first, it carries the decisions, the
 pitfalls and every measured number. Phase 4 (multi-genome comparison) follows 3A.
 
 - **P3-01 ORF checks — DONE.** `core/orf.py` + `modules/orf.py`; `Gene` now carries the record's own
@@ -191,6 +192,43 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 15 (Phase 3A closed — the CLI, the golden check, the first real sample)
+
+**Did.** P3A-05 (the `plastid mito annotate` CLI), P3A-06 (the itemized golden check) and P3A-07
+(the unannotated sample, pinned). `core/genbank.py` gained `read_fasta` — an assembled sequence is
+the input door this phase needed; `cli.py` grew a `mito annotate` command that shares
+`_execute_run` with `plastid run`, so the mito path inherits the manifest, the cache and the
+provenance instead of re-implementing them (seam 3). The boards and ROADMAP now show Phase 3A
+complete.
+
+**Validation.** `make check` green (441 fast + 30 golden, tier-B skips named); with `PTS_BLAST_DIR`
+all **8** golden checks pass. Measured: the de-annotated `OX459128.1` (102 features stripped) →
+`mito_annotation.gb` → re-read **51 = 31 CDS + 17 tRNA + 3 rRNA** → `orf` + `mito_genes` both run
+unchanged. The consolidated count check prints `CDS 31/31 · tRNA 17/17 · rRNA 3/3` beside the
+published numbers and lists every difference.
+
+**P3A-07 is the honest one.** `AP045469.1` (*Coleus hadiensis*, 313,585 bp, 0 features) →
+**45 genes = 23 CDS + 19 tRNA + 3 rRNA**, pinned `3e7c7114ae5d…`, read back offline from the pin.
+**8 vocabulary loci are not called**, and a permissive re-search (E-value 10 against 1e-5) shows
+four of them — `mttB` · `rps1` · `rps13` · `rps4` — have **no alignment at all**, so the floors are
+not what excluded them. Whether those genes are missing from the genome or from this assembly is
+not a question a reference-transfer annotator can answer; that is recorded rather than papered
+over by loosening a threshold.
+
+**Residual risks.** (1) The Coleus run is a prototype annotation with 13 of 23 CDS failing the ORF
+checks (9 `no_start` — alignments that stop short of the reference's N-terminus); it is **not** a
+submission and every table says so. (2) The three tRNA differences on the answer key (one missing,
+one extra, one anticodon disagreement) are still awaiting a curator's ruling. (3) The floors are
+calibrated on one record; the Coleus run is the first evidence of how they behave on a genome with
+no answer key, and it says: they behave fine, the genes really are not findable.
+
+**Blocked.** Nothing.
+
+**Next.** Phase 4 — M4.1 Ka/Ks · M4.2 %identity + synteny · M4.3 barcodes · M4.4 population
+genetics · M4.6 Ts/Tv (**scope fixed: CDS only · 76 shared genes · MAFFT · IR excluded**). MAFFT
+7.526 is installed and pinned, so the Phase-2 numbers that were waiting on it (P2-07/P2-08) can
+also be measured now.
 
 ### 2026-10-03 · Claude · dev WSL · session 14 (P3A-04 — the tRNA caller, and 17 is not one set)
 
