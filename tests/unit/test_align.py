@@ -1,0 +1,116 @@
+"""Alignment maths — analytic checks on hand-built alignments (offline, no aligner)."""
+
+from __future__ import annotations
+
+import pytest
+
+from plastid.core.align import (
+    Alignment,
+    columns_for_span,
+    nucleotide_diversity,
+    reference_positions,
+    substitution_counts,
+    variable_sites,
+    window_diversity,
+)
+
+
+def _two(second: str) -> Alignment:
+    return Alignment(names=("ref", "other"), sequences=("ACGTACGT", second))
+
+
+def test_rows_must_be_equal_length() -> None:
+    with pytest.raises(ValueError, match="differ in length"):
+        Alignment(names=("a", "b"), sequences=("ACGT", "ACG"))
+
+
+def test_diversity_is_zero_for_identical_rows() -> None:
+    pi, usable = nucleotide_diversity(_two("ACGTACGT"), range(8))
+    assert pi == 0.0
+    assert usable == 8
+
+
+def test_diversity_of_one_difference_in_four_sites() -> None:
+    # one differing site in four: its site value is 2/1 * (1 - 2*(1/2)^2) = 1, so π = 1/4
+    alignment = Alignment(names=("a", "b"), sequences=("AAAA", "AATA"))
+    pi, usable = nucleotide_diversity(alignment, range(4))
+    assert usable == 4
+    assert pi == pytest.approx(1 / 4)
+
+
+def test_gapped_columns_are_dropped_and_counted() -> None:
+    alignment = Alignment(names=("a", "b"), sequences=("ACGT", "A-GT"))
+    pi, usable = nucleotide_diversity(alignment, range(4))
+    assert usable == 3  # the gap column is not scored as a match
+    assert pi == 0.0
+
+
+def test_diversity_is_none_when_nothing_is_usable() -> None:
+    alignment = Alignment(names=("a", "b"), sequences=("-N", "-N"))
+    assert nucleotide_diversity(alignment, range(2)) == (None, 0)
+
+
+def test_three_rows_weight_the_majority_allele() -> None:
+    # one odd base out of three: 3/2 * (1 - (2/3)^2 - (1/3)^2) = 3/2 * 4/9 = 2/3
+    alignment = Alignment(names=("a", "b", "c"), sequences=("A", "A", "T"))
+    pi, usable = nucleotide_diversity(alignment, range(1))
+    assert (pi, usable) == (pytest.approx(2 / 3), 1)
+
+
+def test_window_step_is_validated() -> None:
+    alignment = _two("ACGTACGT")
+    with pytest.raises(ValueError, match="exceeds window"):
+        window_diversity(alignment, window=4, step=5)
+    with pytest.raises(ValueError, match="must be positive"):
+        window_diversity(alignment, window=0, step=1)
+
+
+def test_windows_cover_the_alignment_and_report_usable_columns() -> None:
+    alignment = _two("ACGTACGT")
+    windows = window_diversity(alignment, window=4, step=4)
+    assert [(w.start_1b, w.end_1b) for w in windows] == [(1, 4), (5, 8)]
+    assert all(w.usable_columns == 4 for w in windows)
+
+
+def test_reference_positions_skip_gaps() -> None:
+    alignment = Alignment(names=("a", "b"), sequences=("A-CGT", "ATCGT"))
+    assert reference_positions(alignment) == (0, None, 1, 2, 3)
+
+
+def test_span_to_columns_follows_the_reference_row() -> None:
+    alignment = Alignment(names=("a", "b"), sequences=("A-CGT", "ATCGT"))
+    # reference positions 1..2 (0-based half-open) sit at columns 2 and 3
+    assert columns_for_span(alignment, 0, (1, 3)) == (2, 3)
+
+
+def test_substitution_counts_split_transitions_from_transversions() -> None:
+    counts = substitution_counts("AAAA", "GGGG")  # A>G four times: all transitions
+    assert counts["transitions"] == 4 and counts["transversions"] == 0
+    counts = substitution_counts("AAAA", "CCCC")  # A>C: a transversion each
+    assert counts["transitions"] == 0 and counts["transversions"] == 4
+    assert counts["compared"] == 4 and counts["skipped"] == 0
+
+
+def test_substitution_counts_skip_gaps_and_ambiguous_bases() -> None:
+    counts = substitution_counts("ACGT", "A-GN")
+    assert counts["compared"] == 2  # only A and T were comparable
+    assert counts["skipped"] == 2
+    assert counts["substitutions"] == 0
+
+
+def test_the_recorded_window_decision_matches_the_module() -> None:
+    """defaults.yaml records D2-02; this keeps the record and the module from drifting."""
+    from plastid.modules import diversity
+    from plastid.run.defaults import load_defaults
+
+    recorded = load_defaults()["diversity"]
+    assert recorded["window_bp"] == diversity.DEFAULT_WINDOW_BP
+    assert recorded["step_bp"] == diversity.DEFAULT_STEP_BP
+
+
+def test_variable_and_informative_sites() -> None:
+    # a site is informative only when two alleles each appear at least twice — four rows, not three
+    three = Alignment(names=("a", "b", "c"), sequences=("AAT", "AAG", "AAT"))
+    assert variable_sites(three) == (1, 0)
+    four = Alignment(names=("a", "b", "c", "d"), sequences=("AAT", "AAG", "AAT", "AAG"))
+    assert variable_sites(four) == (1, 1)

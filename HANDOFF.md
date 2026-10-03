@@ -6,23 +6,95 @@
 
 ## Resume point
 
-**Phase 1 — COMPLETE** (2026-10-03). Every `TASKS.md` item is done or explicitly non-blocking:
-P1-01…P1-13 delivered, D-01/D-02 done, D-03 (item (c)) documentation only. `make check` green:
-**94 fast + 13 golden**, tier B included — tier A asserts every §6 number and tier B reproduces
-**SSR 37 = mono 31 · di 4 · tri 2** through the vendored MISA.
+**Phase 1 — COMPLETE.** **D-04 (public stand-in dataset) — COMPLETE** (13 records pinned, sha256
+stable, PROJECT.md §8.6). **P2-01 — COMPLETE** (golden · 2nd genome · both diverged-IR genomes
+exit 2, in `tests/golden/test_e2e.py`).
 
-**Next action: Phase 2** — genome reading & statistics (ROADMAP M2.x). It slots into the frozen API
-(`docs/API_v0.1.md`): a new file in `modules/` + one registry line + a report template. Start with
-**M2.1** (gene content & summary statistics).
+**Phase 2 status:** P2-01 · P2-02 · P2-03 · P2-04 · P2-05 · P2-06 · P2-11 **DONE**.
+P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526** (absent here;
+`apt` would install a different version and §7.8 pins 7.526 — no number was measured with the
+wrong aligner). **P2-09 (Word gene table) and P2-10 (manuscript) are NOT started.**
 
-**Waiting on people (nothing else):** real Illumina reads + the nuclear genome → Phase 6/7 only
-(anh Điềm / cô Trang) · item (c) text → documentation only (cô Trang).
+**Next action: D2-04 + P2-09 (Word gene table).** Note the architectural point: a `.docx` is
+binary, while `runner._write` currently takes `dict[str, str]`. The export layer needs to accept
+bytes (seam 2: the export layer writes files, never a module), and the format should be requested
+explicitly at the CLI rather than emitted implicitly. Dependency per D2-04: `python-docx` +
+`openpyxl` as an **optional extra** so the minimum install stays pure Python.
 
-**Branches (all local, none pushed):** `main` = init commit · `feat/phase-1` = P1-01 ·
-`feat/p1-02-core-model` = P1-02 + P1-03 · `feat/p1-04-result-schema` = P1-04.
-Branches stack — consider merging the finished ones into `feat/phase-1` before it grows.
+Then **P2-10** — needs the team's real samples; the stand-in set (PROJECT.md §8.6) can produce a
+clearly labelled draft.
+
+**Before P2-07/08 numbers are used for anything:** the alignment must come from MAFFT 7.526, and
+§6's golden Ts/Tv (2.686) has the narrower scope *CDS only · 76 shared genes · IR excluded* — the
+module's default whole-alignment scope is a different number and must never be quoted as that one.
+
+Open item deliberately left: for a record with **no annotation**, nothing cross-checks the de-novo IR
+length — `PZ428230.1` passed the gate on a 15,756 bp repeat while every congener is ~25.7 kb
+(PROJECT.md §9.A-8). A congener length check is *not built* — decide before P2-07/08 use the set.
+
+**Waiting on people:** real Oldenlandia/Coleus samples → P2-10 only (stand-ins now unblock
+P2-07/08/11 development) · real Illumina reads + nuclear genome → Phase 6/7 · item (c) → docs.
+
+**Branches (all local, none pushed):** `main` = init · `feat/phase-1` · `feat/p1-02-core-model` ·
+`feat/p1-04-result-schema` (current). Stacked — consider merging finished ones into `feat/phase-1`.
+
+**Data note:** `.panel/` is gitignored; re-fetch the stand-in set with the two `panel pin --groups`
+commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 3 (P2-03 … P2-08, P2-11, D2-01/02/03)
+
+- **Did:** completed seven Phase-2 tasks. `core/codon.py` + `modules/codon_usage.py` (RSCU · ENC ·
+  CAI · CBI · Fop), `core/protein.py` + `modules/amino_acid.py` (GRAVY · aromaticity),
+  `modules/introns.py`, SSR by region + motif, `modules/diversity.py` (π) and
+  `modules/substitutions.py` (Ts/Tv), plus group labels on comparison output.
+  D2-01 (multi-genome contract, `docs/API_v0.2.md`), D2-02 (π 600/200), D2-03 (NCBI table 1).
+- **Validation:** `make check` green — **169 fast + 22 golden**. Every new number is either a
+  §6 golden number or an analytic check (ENC = 61 unbiased / 20 at the extreme; CAI = Fop = CBI = 1
+  for a self-referenced sequence; π of a known alignment; the two IR copies' skew mirrors exactly).
+- **Six real bugs found by the new work, each now a regression test:**
+  1. `_parse_gff` read only `monomeric_repeat` — MISA writes every longer unit as `microsatellite`
+     and a compound as one `repeat_region` line, so **7 of 37 SSRs were silently dropped**. The old
+     test fixture invented a type MISA never writes, which is why it passed. P2-06's reconciliation
+     column caught it.
+  2. `coding_sequence` — re-sorting a trans-spliced gene's parts or reading them all forward gives
+     a wrong ORF; only per-part strand + annotation order yields rps12's `ATG…TAA`.
+  3. Two independent copies of a `Table` key were allowed (`rpl2.1` twice) — references resolved
+     silently to one row. `Table` now rejects a repeated key.
+  4. `load_groups` let `yaml.YAMLError` through (not a `ValueError`) — a malformed file crashed
+     with a traceback instead of a message.
+  5. `NcbiClient.resolve` could leak a `KeyError` where `NcbiError` belongs.
+  6. `entry_from_summary` claimed `annotated=True` for every record; GenBank submissions are not
+     annotated by default — 3 of the 11 stand-in plastomes have zero gene features.
+- **Residual risks:** the comparison modules are unit-verified but **no real-data number was
+  measured** — MAFFT is absent and installing a different version than the pinned 7.526 would
+  measure the wrong thing. π per intron/IGS is still missing from P2-08.
+- **Blocked:** nothing. P2-10 still needs the team's real samples.
+- **Next:** P2-09 (see the binary-export note in the resume point), then P2-10.
+
+### 2026-10-03 · Claude · dev WSL · session 2 (stand-in data, P2-01, P2-02)
+
+- **Did:** **D-04** — a public stand-in dataset for Oldenlandia/Coleus: `data/*.yaml` definitions
+  (13 records), `panel pin --groups` (new) + `--index` now optional + live accession resolution via
+  the new `NcbiClient.resolve`; `PinnedGenome` measures gene counts · topology · IR outcome at pin
+  time, so `PINNED.json` *is* the verification table. Hardened what the first cut got wrong
+  (all found by a review pass): malformed YAML raised a traceback (`yaml.YAMLError` is not a
+  `ValueError`), `resolve` could leak a `KeyError`, `annotated=True` was assumed for GenBank
+  records. **P2-01** done (e2e tests: golden numbers in report *and* CSV · 2nd golden genome ·
+  both diverged-IR genomes exit 2). **P2-02** done — `modules/structure.py` + `gc_skew()` +
+  `structure.en.md` + `tests/unit/test_structure.py`.
+- **Validation:** `make check` green — **124 fast + 18 golden**. All 13 sha256 re-verified
+  byte-identical on a second pin. Structure on the golden genome reproduces LSC 83,127 ·
+  IRa = IRb = 26,214 · SSC 18,169 · tiling 153,724, and the two IR copies skew exactly opposite
+  (reverse complements) — a real correctness signal for the sign convention.
+- **Residual risks:** `PZ428230.1` is a bad record (15,756 bp IR, `linear`) — excluded from
+  position-based analysis, and nothing in the tool would have caught it automatically (§9.A-8).
+  The API doc said `table[rowkey].column` but the implementation parses `table.rowkey.column`;
+  no template had used a row key until now — docs corrected to the tested syntax, code unchanged.
+  3 of 11 stand-in plastomes have no annotation (0 CDS) — sequence-level analyses only.
+- **Blocked:** nothing. P2-10 still needs the team's real samples.
+- **Next:** P2-03 (decide D2-03 first), then P2-04 … P2-11.
 
 ### 2026-10-03 · Claude · dev WSL
 
