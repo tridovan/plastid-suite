@@ -30,11 +30,21 @@ GENE_KINDS: tuple[str, ...] = ("CDS", "tRNA", "rRNA")
 
 @dataclass(frozen=True, slots=True)
 class Interval:
-    """A 0-based half-open interval ``[start, end)`` on one strand."""
+    """A 0-based half-open interval ``[start, end)`` on one strand.
+
+    ``partial_start`` / ``partial_end`` say that the *coordinate* is incomplete in the record
+    (GenBank ``<`` / ``>``, i.e. BioPython's ``BeforePosition`` / ``AfterPosition``) — they are
+    about the coordinate, not about the biological 5'/3' end, because on the minus strand those
+    are opposite ends. The submission writer needs them: dropping a partial marker silently
+    turns "this gene runs off the contig" into "this gene starts here", which is a different
+    claim in a submitted record.
+    """
 
     start: int
     end: int
     strand: int = 1
+    partial_start: bool = False
+    partial_end: bool = False
 
     def __post_init__(self) -> None:
         if self.start < 0:
@@ -73,6 +83,12 @@ class Gene:
     pseudo: bool = False
     # the record's own /trans_splicing qualifier — the annotation's word, not our inference
     trans_splicing: bool = False
+    # the record's own /transl_table; None means the record declares none (fall back to defaults).
+    # Never assume a table: measured 2026-10-03, every CDS in the project's dataset declares 11,
+    # and P3-01 refuses a table it cannot translate rather than translating the wrong one.
+    transl_table: int | None = None
+    # the record's own /codon_start; anything but 1 shifts the reading frame (D3-03)
+    codon_start: int = 1
 
     def __post_init__(self) -> None:
         if not self.parts:

@@ -1,0 +1,242 @@
+"""ORF checks — report, never repair (M3.3, P3-01).
+
+Every ``CDS`` feature is checked against its own declared translation table and reported with
+one headline status; ``gene`` features no CDS covers (the truncated-ycf1 shape, PROJECT.md
+§9.B-9) get their own table rather than a failure. Nothing here rewrites a CDS to make it pass:
+a sequence that disagrees with its annotation is the finding.
+"""
+
+from __future__ import annotations
+
+from collections import Counter
+from typing import Any
+
+from plastid.core.model import Gene, Genome, count_genes
+from plastid.core.orf import (
+    ORF_STATUSES,
+    STATUS_ALTERNATIVE_START,
+    STATUS_INTERNAL_STOP,
+    STATUS_NO_START,
+    STATUS_NO_STOP,
+    STATUS_NOT_MULTIPLE_OF_THREE,
+    STATUS_OK,
+    STATUS_PSEUDOGENE,
+    OrfCheck,
+    annotated_not_coding,
+    check_genome,
+)
+from plastid.modules.registry import module
+from plastid.result.result import Column, Result, Scope, Table
+from plastid.run.context import RunContext
+from plastid.run.defaults import load_defaults
+
+MODULE_ID = "orf"
+MODULE_VERSION = "0.1.0"
+
+SCOPE_LABEL = "every CDS feature, both IR copies, pseudogenes included; GenBank coordinates"
+
+_STATUS_MEANING = {
+    STATUS_NOT_MULTIPLE_OF_THREE: "length is not a multiple of three — no frame to translate",
+    STATUS_NO_START: "first codon is not an initiation codon of the declared table",
+    STATUS_NO_STOP: "last codon is not a stop codon",
+    STATUS_INTERNAL_STOP: "in-frame stop codon before the end",
+    STATUS_ALTERNATIVE_START: "non-ATG initiation codon — flagged, not a failure",
+    STATUS_PSEUDOGENE: "annotated pseudogene — kept out of the failure counts",
+    STATUS_OK: "ATG start, stop codon at the end, no internal stop",
+}
+
+
+@module(
+    MODULE_ID,
+    version=MODULE_VERSION,
+    title="ORF checks",
+    requires_ir=False,  # reading frames come from the sequence, not from IR positions
+)
+def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
+    default_table = int(load_defaults()["orf"]["default_translation_table"])
+    checks = check_genome(genome, default_table=default_table)
+    orphans = annotated_not_coding(genome)
+    counts = count_genes(genome)
+
+    status_counts = Counter(check.status for check in checks)
+    failed = sum(1 for check in checks if check.is_failure)
+    tables_used = sorted({check.transl_table for check in checks})
+
+    summary = Table(
+        id="orf_summary",
+        title="ORF check summary",
+        columns=(
+            Column("organism", "Organism"),
+            Column("accession", "Accession"),
+            Column("n_cds", "CDS checked", dtype="int"),
+            Column("n_failed", "Failed", dtype="int"),
+            Column("n_pseudogene", "Pseudogenes (excluded from failures)", dtype="int"),
+            Column("n_annotated_not_coding", "Annotated, not coding", dtype="int"),
+            Column("translation_tables", "Translation table(s) used"),
+            Column("coord_system", "Coordinates"),
+        ),
+        rows=(
+            {
+                "organism": genome.name,
+                "accession": genome.accession or "",
+                "n_cds": len(checks),
+                "n_failed": failed,
+                "n_pseudogene": status_counts[STATUS_PSEUDOGENE],
+                "n_annotated_not_coding": len(orphans),
+                "translation_tables": ", ".join(str(table) for table in tables_used),
+                "coord_system": "genbank",
+            },
+        ),
+        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+    )
+
+    status_table = Table(
+        id="orf_status",
+        title="CDS by ORF status",
+        columns=(
+            Column("status", "Status"),
+            Column("meaning", "Meaning"),
+            Column("n", "CDS", dtype="int"),
+        ),
+        rows=tuple(
+            {
+                "status": status,
+                "meaning": _STATUS_MEANING[status],
+                "n": status_counts[status],
+            }
+            for status in ORF_STATUSES
+        ),
+        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+        key="status",
+    )
+
+    checks_table = Table(
+        id="orf_checks",
+        title="ORF check per CDS",
+        columns=(
+            Column("cds_id", "CDS"),
+            Column("gene", "Gene"),
+            Column("start_1b", "Start", dtype="int"),
+            Column("end_1b", "End", dtype="int"),
+            Column("strand", "Strand"),
+            Column("length_bp", "Length", dtype="int", unit="bp"),
+            Column("transl_table", "Table", dtype="int"),
+            Column("codon_start", "Codon start", dtype="int"),
+            Column("start_codon", "Start codon"),
+            Column("start_class", "Start class"),
+            Column("stop_codon", "Stop codon"),
+            Column("internal_stops", "Internal stops", dtype="int"),
+            Column("internal_stop_codons", "Internal stop positions (codon)"),
+            Column("status", "Status"),
+            Column("pseudo", "Pseudogene"),
+        ),
+        rows=tuple(_check_row(check) for check in checks),
+        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+        key="cds_id",
+    )
+
+    tables = {
+        summary.id: summary,
+        status_table.id: status_table,
+        checks_table.id: checks_table,
+    }
+    if orphans:
+        tables["annotated_not_coding"] = _orphan_table(orphans)
+
+    tables["orf_reconciliation"] = Table(
+        id="orf_reconciliation",
+        title="ORF checks reconciled against the genome-wide CDS count",
+        columns=(
+            Column("kind", "Kind"),
+            Column("in_table", "Checked here", dtype="int"),
+            Column("counted", "count_genes()", dtype="int"),
+            Column("agreement", "Agreement"),
+        ),
+        rows=(
+            {
+                "kind": "CDS",
+                "in_table": len(checks),
+                "counted": counts.cds,
+                "agreement": "agrees" if len(checks) == counts.cds else "DISAGREES",
+            },
+        ),
+        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+        key="kind",
+    )
+
+    notes = ["Pseudogenes are reported as their own class and excluded from the failure count."]
+    if counts.cds == 0:
+        notes.append("This record carries no CDS feature: sequence-level analyses only.")
+    non_canonical = sorted(
+        {check.gene.name for check in checks if check.start_class == "non_canonical"}
+    )
+    if non_canonical:
+        notes.append(
+            f"Non-canonical start codon (not in the declared table, usually edited to ATG in "
+            f"the transcript): {', '.join(non_canonical)}"
+        )
+    if orphans:
+        notes.append(
+            "Annotated without a CDS (reported, not counted as a failure): "
+            + ", ".join(sorted({gene.name for gene in orphans}))
+        )
+
+    return Result(
+        module=MODULE_ID,
+        module_version=MODULE_VERSION,
+        tables=tables,
+        notes=tuple(notes),
+    )
+
+
+def _check_row(check: OrfCheck) -> dict[str, Any]:
+    start, end = check.gene.span
+    return {
+        "cds_id": f"{check.gene.name}:{start}-{end}",
+        "gene": check.gene.name,
+        "start_1b": start,
+        "end_1b": end,
+        "strand": "+" if check.gene.strand >= 0 else "-",
+        "length_bp": check.length_bp,
+        "transl_table": check.transl_table,
+        "codon_start": check.codon_start,
+        "start_codon": check.start_codon,
+        "start_class": check.start_class,
+        "stop_codon": check.stop_codon,
+        "internal_stops": len(check.internal_stop_positions),
+        "internal_stop_codons": ", ".join(
+            str(position) for position in check.internal_stop_positions
+        ),
+        "status": check.status,
+        "pseudo": "yes" if check.gene.pseudo else "no",
+    }
+
+
+def _orphan_table(orphans: tuple[Gene, ...]) -> Table:
+    """One row per ``gene`` feature no CDS covers — the truncated-ycf1 shape."""
+    return Table(
+        id="annotated_not_coding",
+        title="Annotated as a gene, not coding",
+        columns=(
+            Column("name", "Name"),
+            Column("start_1b", "Start", dtype="int"),
+            Column("end_1b", "End", dtype="int"),
+            Column("strand", "Strand"),
+            Column("length_bp", "Length", dtype="int", unit="bp"),
+            Column("product", "Product"),
+            Column("pseudo", "Pseudogene"),
+        ),
+        rows=tuple(
+            {
+                "name": gene.name,
+                "start_1b": gene.span[0],
+                "end_1b": gene.span[1],
+                "strand": "+" if gene.strand >= 0 else "-",
+                "length_bp": gene.length,
+                "product": gene.product or "",
+                "pseudo": "yes" if gene.pseudo else "no",
+            }
+            for gene in orphans
+        ),
+        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+    )

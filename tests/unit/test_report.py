@@ -476,9 +476,149 @@ def _gene_table_result() -> Result:
     )
 
 
+def _orf_result() -> Result:
+    return Result(
+        module="orf",
+        module_version="0.1.0",
+        tables={
+            "orf_summary": Table(
+                id="orf_summary",
+                title="ORF check summary",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("n_cds", "CDS checked", dtype="int"),
+                    Column("n_failed", "Failed", dtype="int"),
+                    Column("n_pseudogene", "Pseudogenes (excluded from failures)", dtype="int"),
+                    Column("n_annotated_not_coding", "Annotated, not coding", dtype="int"),
+                    Column("translation_tables", "Translation table(s) used"),
+                    Column("coord_system", "Coordinates"),
+                ),
+                rows=(
+                    {
+                        "organism": "Iris domestica",
+                        "accession": "NC_050833.1",
+                        "n_cds": 86,
+                        "n_failed": 0,
+                        "n_pseudogene": 0,
+                        "n_annotated_not_coding": 1,
+                        "translation_tables": "11",
+                        "coord_system": "genbank",
+                    },
+                ),
+                scope=Scope(label="every CDS feature, both IR copies"),
+            ),
+            "orf_status": Table(
+                id="orf_status",
+                title="CDS by ORF status",
+                columns=(
+                    Column("status", "Status"),
+                    Column("meaning", "Meaning"),
+                    Column("n", "CDS", dtype="int"),
+                ),
+                rows=tuple(
+                    {"status": status, "meaning": "…", "n": n}
+                    for status, n in (
+                        ("not_multiple_of_three", 0),
+                        ("no_start", 0),
+                        ("no_stop", 0),
+                        ("internal_stop", 0),
+                        ("alternative_start", 5),
+                        ("pseudogene", 0),
+                        ("ok", 81),
+                    )
+                ),
+                scope=Scope(label="every CDS feature, both IR copies"),
+                key="status",
+            ),
+            "orf_checks": Table(
+                id="orf_checks",
+                title="ORF check per CDS",
+                columns=(
+                    Column("cds_id", "CDS"),
+                    Column("gene", "Gene"),
+                    Column("start_1b", "Start", dtype="int"),
+                    Column("end_1b", "End", dtype="int"),
+                    Column("strand", "Strand"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("transl_table", "Table", dtype="int"),
+                    Column("codon_start", "Codon start", dtype="int"),
+                    Column("start_codon", "Start codon"),
+                    Column("start_class", "Start class"),
+                    Column("stop_codon", "Stop codon"),
+                    Column("internal_stops", "Internal stops", dtype="int"),
+                    Column("internal_stop_codons", "Internal stop positions (codon)"),
+                    Column("status", "Status"),
+                    Column("pseudo", "Pseudogene"),
+                ),
+                rows=(
+                    {
+                        "cds_id": "rpl2:1-100",
+                        "gene": "rpl2",
+                        "start_1b": 1,
+                        "end_1b": 100,
+                        "strand": "+",
+                        "length_bp": 100,
+                        "transl_table": 11,
+                        "codon_start": 1,
+                        "start_codon": "ACG",
+                        "start_class": "non-canonical (not in the table)",
+                        "stop_codon": "TAA",
+                        "internal_stops": 0,
+                        "internal_stop_codons": "",
+                        "status": "alternative_start",
+                        "pseudo": "no",
+                    },
+                ),
+                scope=Scope(label="every CDS feature, both IR copies"),
+                key="cds_id",
+            ),
+            "annotated_not_coding": Table(
+                id="annotated_not_coding",
+                title="Annotated as a gene, not coding",
+                columns=(
+                    Column("name", "Name"),
+                    Column("start_1b", "Start", dtype="int"),
+                    Column("end_1b", "End", dtype="int"),
+                    Column("strand", "Strand"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("product", "Product"),
+                    Column("pseudo", "Pseudogene"),
+                ),
+                rows=(
+                    {
+                        "name": "ycf1",
+                        "start_1b": 108_448,
+                        "end_1b": 109_347,
+                        "strand": "+",
+                        "length_bp": 900,
+                        "product": "",
+                        "pseudo": "yes",
+                    },
+                ),
+                scope=Scope(label="every CDS feature, both IR copies"),
+            ),
+            "orf_reconciliation": Table(
+                id="orf_reconciliation",
+                title="ORF checks reconciled against the genome-wide CDS count",
+                columns=(
+                    Column("kind", "Kind"),
+                    Column("in_table", "Checked here", dtype="int"),
+                    Column("counted", "count_genes()", dtype="int"),
+                    Column("agreement", "Agreement"),
+                ),
+                rows=({"kind": "CDS", "in_table": 86, "counted": 86, "agreement": "agrees"},),
+                scope=Scope(label="every CDS feature, both IR copies"),
+                key="kind",
+            ),
+        },
+    )
+
+
 TEMPLATE_FIXTURES = {
     "genome_stats": _result,
     "gene_table": _gene_table_result,
+    "orf": _orf_result,
     "ssr": _ssr_result,
     "structure": _structure_result,
     "codon_usage": _codon_usage_result,

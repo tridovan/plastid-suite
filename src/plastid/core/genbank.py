@@ -9,7 +9,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from Bio import SeqIO
-from Bio.SeqFeature import SeqFeature, SimpleLocation
+from Bio.SeqFeature import (
+    AfterPosition,
+    BeforePosition,
+    SeqFeature,
+    SimpleLocation,
+    UnknownPosition,
+)
 from Bio.SeqRecord import SeqRecord
 
 from plastid.core.model import Gene, Genome, Interval
@@ -64,7 +70,27 @@ def _to_gene(feature: SeqFeature) -> Gene:
         product=_first_qualifier(feature, "product"),
         pseudo="pseudo" in feature.qualifiers,
         trans_splicing="trans_splicing" in feature.qualifiers,
+        transl_table=_int_qualifier(feature, "transl_table"),
+        codon_start=_int_qualifier(feature, "codon_start") or 1,
     )
+
+
+def _int_qualifier(feature: SeqFeature, key: str) -> int | None:
+    """A numeric qualifier as an int; a malformed value raises instead of being ignored.
+
+    Silently dropping ``/codon_start=2`` would translate a frame the record did not ask for —
+    the class of bug this project keeps meeting (CLAUDE.md → fail loud).
+    """
+    raw = _first_qualifier(feature, key)
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        gene_name = _feature_name(feature)
+        raise ValueError(
+            f"{gene_name}: /{key}={raw!r} is not an integer — the record is malformed"
+        ) from None
 
 
 def _to_interval(location: SimpleLocation) -> Interval:
@@ -74,7 +100,14 @@ def _to_interval(location: SimpleLocation) -> Interval:
         start=int(location.start),
         end=int(location.end),
         strand=strand if strand in (1, -1) else 1,
+        partial_start=_is_partial(location.start),
+        partial_end=_is_partial(location.end),
     )
+
+
+def _is_partial(position: object) -> bool:
+    """True for an incomplete coordinate — ``<``, ``>``, or an unknown position (``?``)."""
+    return isinstance(position, BeforePosition | AfterPosition | UnknownPosition)
 
 
 def _feature_name(feature: SeqFeature) -> str:
