@@ -31,6 +31,7 @@ from plastid.core.panel import (
     entries_from_summaries,
     load_index,
     pin,
+    pin_files,
     propose,
     save_index,
 )
@@ -132,6 +133,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--groups",
         metavar="FILE",
         help="sample-group YAML ({group: [accessions]}) — pins every accession in it",
+    )
+    wanted.add_argument(
+        "--file",
+        action="append",
+        metavar="PATH",
+        help="pin a record produced elsewhere (a web service, a cluster) — repeat for several; "
+        "the answer of a heavy tool is a file, and a file that is not pinned cannot be reproduced",
+    )
+    pin_parser.add_argument(
+        "--note",
+        default=None,
+        help="with --file: which service produced it and when, e.g. 'PMGA web, 2026-10-03'",
     )
     pin_parser.add_argument("--out", default=".panel/genomes")
     return parser
@@ -267,9 +280,13 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"cannot read the input: {error}", file=sys.stderr)
         return EXIT_ERROR
     for spec in specs:
-        if len(genomes) != spec.arity:
+        # API v0.2: arity ≥ 2 means *at least* that many genomes — an estimate over N accessions
+        # wants all of them. arity 1 still takes exactly one. The runner enforces "at least"
+        # too; this check is what turns a wrong count into a usage error before anything runs.
+        if len(genomes) < spec.arity or (spec.arity == 1 and len(genomes) != 1):
+            wanted = "exactly one genome" if spec.arity == 1 else f"at least {spec.arity} genomes"
             print(
-                f"module {spec.id!r} takes {spec.arity} genome(s), got {len(genomes)} — "
+                f"module {spec.id!r} takes {wanted}, got {len(genomes)} — "
                 f"pass --input once per genome",
                 file=sys.stderr,
             )
@@ -503,6 +520,35 @@ def _cmd_panel(args: argparse.Namespace) -> int:
     return EXIT_USAGE
 
 
+def _panel_pin_files(args: argparse.Namespace) -> int:
+    """Pin records produced outside this machine — the other half of the backend rule (P1-12)."""
+    try:
+        pinned = pin_files(args.file, args.out, note=args.note)
+    except OSError as error:
+        print(f"panel pin: {error}", file=sys.stderr)
+        return EXIT_ERROR
+    problems = []
+    for record in pinned:
+        digest = record.sha256[:12]
+        if record.parse_error is not None:
+            print(
+                f"pinned {record.accession}: {record.bytes} bytes · sha256 {digest}… "
+                f"(UNVERIFIED: {record.parse_error})"
+            )
+            problems.append(record.accession)
+            continue
+        genes = f"{record.cds} CDS + {record.trna} tRNA + {record.rrna} rRNA"
+        print(
+            f"pinned {record.accession}: {record.bytes} bytes · sha256 {digest}… "
+            f"({record.length} bp · {genes} · {record.topology})"
+            + (f" · {record.note}" if record.note else "")
+        )
+    if problems:
+        print(f"panel pin: {len(problems)} problem(s): {', '.join(problems)}", file=sys.stderr)
+        return EXIT_ERROR
+    return EXIT_OK
+
+
 def _panel_refresh(args: argparse.Namespace) -> int:
     client = NcbiClient()
     out_dir = Path(args.out)
@@ -563,10 +609,17 @@ def _panel_propose(args: argparse.Namespace) -> int:
 def _panel_pin(args: argparse.Namespace) -> int:
     """Pin chosen genomes; accessions a panel index cannot hold are resolved live from NCBI.
 
+    A heavy tool runs where it fits (PROJECT.md §3, P1-12) — this machine when it can, a web
+    service or a cluster when it cannot — so ``--file`` pins what such a tool produced: the same
+    checksums, the same read-back, and the note saying where it came from.
+
     A RefSeq-only index can never contain a GenBank submission with no RefSeq twin, nor a
     mitogenome — yet those are exactly the genomes a manuscript may need (measured 2026-10-03:
     neither *Oldenlandia diffusa* nor *Coleus amboinicus* has a RefSeq plastome).
     """
+    if args.file:
+        return _panel_pin_files(args)
+
     if args.groups:
         try:
             wanted = [a for group in load_groups(args.groups) for a in group.accessions]

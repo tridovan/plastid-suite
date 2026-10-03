@@ -1,0 +1,60 @@
+# Semantic gene-name aliases — different names for the *same locus*.
+#
+# This is data, not code, for the same reason gene_groups.yaml is: it is external knowledge
+# (a naming convention, not a fact about our code), and the next record will bring names this
+# list has not seen.
+#
+# THE RULE (D3-02, PROJECT.md §8.10). `canonical` is the name this toolkit compares and prints;
+# every other name of that locus is a synonym and is printed beside it: `pafI (ycf3)`. The
+# direction is not a majority vote — the canonical forms are the ones the team's own records and
+# submissions use (their records come out of GeSeq, which emits them), so normalizing to the
+# classic names would make the team's paper print a name that disagrees with the team's own
+# submitted record. Printing both keeps every reader able to find either name.
+#
+# It ships empty of guesses: every entry carries the evidence it rests on, and the loader
+# refuses an entry without one. A name that is not listed here is left exactly as it arrived.
+#
+# Adding a locus means making the same three-signal measurement §8.9 made — syntenic
+# neighbours, length, /product — not matching a name that "looks like" another.
+
+loci:
+  - canonical: pafI
+    synonyms: [ycf3]
+    evidence: >
+      PROJECT.md §8.9–8.10 (2026-10-03), measured on the project's own nine annotated records.
+      Same locus by three independent signals: identical syntenic neighbours (psaA … trnS-GGA
+      in all seven records that use the classic name), matching /product ("photosystem I
+      assembly factor I" against "photosystem I assembly protein Ycf3"), and matching length
+      (507 bp; the Coleus copy 510 bp, exactly as the classic copies differ).
+
+  - canonical: pafII
+    synonyms: [ycf4]
+    evidence: >
+      PROJECT.md §8.9–8.10 (2026-10-03). Same locus as ycf4: syntenic neighbours psaI … cemA in
+      all seven classic records, matching /product, and length 531 bp against 555 bp in both
+      dialects — the same difference in both records that carry the functional name.
+
+  - canonical: pbf1
+    synonyms: [psbN]
+    evidence: >
+      PROJECT.md §8.9–8.10 (2026-10-03). Same locus as psbN, and the strongest of the four:
+      the length matches exactly — both are 132 bp, 43 codons plus the stop — and the syntenic
+      neighbours (psbT … psbH) match in all seven classic records. Krech et al. 2013 proposed
+      pbf1 after showing the product acts in the biogenesis of both photosystems.
+
+  - canonical: clpP1
+    synonyms: [clpP]
+    evidence: >
+      PROJECT.md §8.9–8.10 (2026-10-03). Same locus as clpP: syntenic neighbours rps12 … psbB
+      in all seven classic records, matching /product, and length 591 bp.
+
+  - canonical: ndhI
+    synonyms: [ndhL]
+    evidence: >
+      PROJECT.md §8.17 (2026-10-03), measured while annotating the golden genome with Chloe. The
+      golden record names this locus ndhL; Chloe names it ndhI; the two proteins are identical
+      (543 bp, 181 codons, one and the same sequence) at one and the same position. Two further
+      signals point the same way: the golden record's own /product reads "NADH-plastoquinone
+      oxidoreductase subunit I", and the plastid ndh complex has subunits A–K — there is no
+      subunit L. Canonical direction follows the standard name, which is also the one this
+      project's records from GeSeq and from Chloe use.

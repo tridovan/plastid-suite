@@ -59,6 +59,8 @@ def export_files(
 ) -> Payload:
     """Logical name → text or bytes. Deterministic: table order, then result.json, then report."""
     files: Payload = {}
+    for name, text in result.artifacts.items():
+        files[name] = text
     for table in result.tables.values():
         files[f"tables/{table.id}.csv"] = export_csv(table)
     files["result.json"] = export_json(result)

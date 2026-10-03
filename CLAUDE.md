@@ -26,6 +26,28 @@ install (pip only) runs the pure-Python analyses without any external tools.
 **Current state: Phase 1 in progress.** Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
 checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
 
+## Supreme objective — the deliverables decide, not the tools
+
+The project exists to produce the three deliverables above (PROJECT.md §1–§2), for a research group
+of biologists who are not command-line experts and work on ordinary computers. Everything else in
+this file — the seams, the golden numbers, the layering, the tool declarations — serves those
+deliverables. **Assembling a particular set of existing tools is not the goal, and never was.**
+
+So:
+
+- A tool named in `ROADMAP.md` / `TASKS.md` / PROJECT.md is a **hypothesis** until it is measured on
+  this project's own data. Measured behaviour beats reputation: PGA was picked on a published
+  benchmark and had to be re-examined the moment it was actually run on the golden genome
+  (PROJECT.md §8.15: 147 genes where the golden has 132, plus three silent failure modes).
+- When a tool is unsuitable, buggy, unmaintained, unlicensable, or simply not there, **replace it —
+  or write that part ourselves**. Record what was measured that forced the change (§8/§9) and the
+  decision (§3). "The plan says tool X" is never a reason to keep a tool that fails.
+- The replacement must meet the same non-negotiables: offline, provenance recorded (name · version ·
+  argv), declared in the repo, and no step whose version nobody can name.
+- **Never bend a number to fit a tool.** If the tool cannot reproduce the golden numbers, that *is*
+  the finding: say it, and change the tool. A pipeline that produces plausible numbers nobody can
+  reproduce is the failure this project exists to avoid.
+
 ## Golden numbers — the contract
 
 Golden sample: **Iris domestica NC_050833.1** (comparison genome: Iris gatesii NC_024936.1).
@@ -86,6 +108,21 @@ A stand-in never stops being a stand-in:
   Only verified facts go into PROJECT.md.
 - **Measurement rule**: if a number is needed and not measured, write "not measured" — never estimate,
   round to something plausible, or silently drop a failing case.
+- **A tool that exists only on one machine is not part of the toolkit.** The moment a module uses an
+  external tool, that tool must already be declared **in the repo**, in one of three places:
+  1. `environment.yml` — conda/bioconda tools, **with the version pinned** to what PROJECT.md §7.8
+     records. An unpinned `mafft` is not a shortcut, it is two users getting two different golden
+     numbers from the same genome (§9.B-13 measured exactly that: Ts/Tv 2.667 vs 2.686).
+  2. `src/plastid/vendor/<tool>/` + `SOURCE.json` — small script tools, vendored byte-for-byte with
+     md5/sha256 and the retrieval date. MISA is the worked example.
+  3. `docs/` — a tool that fits neither, with its source, its exact install line, and why it is not
+     vendored.
+
+  Installing a tool locally to *verify* work is expected and encouraged. What is not allowed is
+  stopping there: **the repo change ships in the same session as the install**, never "later".
+  Otherwise every number measured here is reproducible by nobody — not by anh Điềm, not by the
+  released toolkit on a biologist's computer, not by us in six months. This is the same failure as a
+  number that looks plausible and is wrong; it just fails later.
 
 ## Code rules (six seams — full detail in PROJECT.md §13.1)
 
@@ -190,7 +227,13 @@ make check    # lint + test + golden
 4. On completion: run `make check`; record new measured facts in PROJECT.md (§8 log, §9 errors);
    set the task `DONE`.
 5. Tick the checkboxes in `TASKS.md`; append a `HANDOFF.md` entry.
-6. Commit only when the user asks.
+6. **Commit and push each task as it completes** — not at the end of the session. The Done-when
+   passes, `make check` is green, that task's files are committed and pushed, then the next task
+   starts. Session documents that describe several tasks (`TASKS.md` · `PROJECT.md` · `HANDOFF.md`)
+   go in one `docs:` commit at the end. Splitting a pile of finished work into per-task commits
+   afterwards means reconstructing intermediate states of shared files by hand — and it is the
+   step that gets skipped when someone is in a hurry, which is how a session becomes one
+   unreviewable commit.
 
 Approved designs that must outlive the session go into PROJECT.md (§3 decisions, §13 roadmap) or
 `docs/` — never rely on session-local plan files being readable later.
@@ -221,6 +264,11 @@ Blocked · Next**. Assume the next reader is a fresh agent with zero history.
 Conventional-commit style, English, no diacritics: `feat:` `fix:` `docs:` `test:` `chore:` `refactor:`.
 Do **not** add any assistant attribution — no `Co-Authored-By: Claude …`, no "generated with" trailer.
 Commits are authored by the team only.
+
+**One commit per task, pushed when the task is done** (workflow step 6). A commit should stand on
+its own: check it out, run `make check`, and it passes — which is also what makes `git bisect`
+usable. When one file genuinely carries changes for two tasks, say so in the message rather than
+leaving the split ambiguous.
 
 ## Don't
 

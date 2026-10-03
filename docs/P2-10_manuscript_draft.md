@@ -35,10 +35,18 @@ tables and section breaks survive the join, and the whole thing is byte-reproduc
 
 A draft built from public records is **not** the team's data. `--dataset` is what carries that
 into every output: the document header prints it, the footer repeats it, and the manifest records
-it. A run over a public stand-in is named `standin-<species>`.
+it. There are three cases, and they are not the same:
 
-When the team's own records arrive, re-run the same command with the real files and a real
-label. Do not patch numbers into a document.
+| Where the record came from | Label | Example |
+|---|---|---|
+| Someone else's submission, used as a stand-in | `standin-<species>` | `standin-oldenlandia-diffusa` (`PP078674.1`, Shen C.) |
+| **The group's own published record** | `own-record-<species>` | `own-record-coleus-amboinicus` (`PX923121.1`) |
+| The samples this manuscript reports | the dataset's own name | to be set when anh Điềm delivers them |
+
+`own-record-` means the plastome is the group's, so the numbers are the group's — but *published*
+is still not the same as *the specimen this manuscript reports*. Ask before quoting one as the
+other. When the manuscript's own samples arrive, re-run the same command with the real files and a
+real label. Do not patch numbers into a document.
 
 ## What the draft contains
 

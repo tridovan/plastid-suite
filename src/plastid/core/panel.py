@@ -31,6 +31,7 @@ __all__ = [
     "entries_from_summaries",
     "load_index",
     "pin",
+    "pin_files",
     "propose",
     "save_index",
     "tier_of",
@@ -97,6 +98,12 @@ class PinnedGenome:
     sha256: str
     md5: str
     bytes: int
+    # where the bytes came from: "ncbi" (fetched by accession) or "file" (produced elsewhere —
+    # a web service, a cluster, a colleague's machine). A heavy tool runs where it fits
+    # (PROJECT.md §3, P1-12); either way its answer arrives as a file, and a file that is not
+    # pinned is a number nobody can reproduce.
+    source: str = "ncbi"
+    note: str | None = None  # which service/when, for a pinned file
     length: int | None = None  # read back from the file — None when it failed to parse
     cds: int | None = None
     trna: int | None = None
@@ -267,44 +274,7 @@ def pin(
         payload = text.encode("utf-8")
         path = directory / f"{entry.accession}.gb"
         path.write_bytes(payload)
-        length: int | None = None
-        cds: int | None = None
-        trna: int | None = None
-        rrna: int | None = None
-        topology: str | None = None
-        ir_length: int | None = None
-        ir_source: str | None = None
-        ir_identity: float | None = None
-        ir_error: str | None = None
-        parse_error: str | None = None
-        try:  # verify the pin by reading it back with our own reader
-            genome = read_genbank(path)
-            counts = count_genes(genome)
-            length = len(genome)
-            cds, trna, rrna = counts.cds, counts.trna, counts.rrna
-            topology = genome.topology
-            ir_length, ir_source, ir_identity, ir_error = _measure_ir(genome)
-        except Exception as error:  # noqa: BLE001 — recorded, not swallowed
-            parse_error = f"{type(error).__name__}: {error}"
-        pinned.append(
-            PinnedGenome(
-                accession=entry.accession,
-                path=str(path),
-                sha256=hashlib.sha256(payload).hexdigest(),
-                md5=hashlib.md5(payload).hexdigest(),
-                bytes=len(payload),
-                length=length,
-                cds=cds,
-                trna=trna,
-                rrna=rrna,
-                topology=topology,
-                ir_length=ir_length,
-                ir_source=ir_source,
-                ir_identity=ir_identity,
-                ir_error=ir_error,
-                parse_error=parse_error,
-            )
-        )
+        pinned.append(_measured(entry.accession, path, payload))
     manifest = {
         "pinned_at": timestamp or datetime.now().isoformat(timespec="seconds"),
         "index_retrieved_at": retrieved_at,
@@ -314,6 +284,135 @@ def pin(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     return tuple(pinned)
+
+
+def _measured(
+    accession: str,
+    path: Path,
+    payload: bytes,
+    *,
+    source: str = "ncbi",
+    note: str | None = None,
+) -> PinnedGenome:
+    """One pinned record, with everything a later run needs measured by reading the file back.
+
+    A file that does not re-read is still pinned — with ``parse_error`` set rather than an
+    exception: refusing to record it would leave a number in a report whose source nobody kept.
+    """
+    length: int | None = None
+    cds: int | None = None
+    trna: int | None = None
+    rrna: int | None = None
+    topology: str | None = None
+    ir_length: int | None = None
+    ir_source: str | None = None
+    ir_identity: float | None = None
+    ir_error: str | None = None
+    parse_error: str | None = None
+    try:  # verify the pin by reading it back with our own reader
+        genome = read_genbank(path)
+        counts = count_genes(genome)
+        length = len(genome)
+        cds, trna, rrna = counts.cds, counts.trna, counts.rrna
+        topology = genome.topology
+        ir_length, ir_source, ir_identity, ir_error = _measure_ir(genome)
+    except Exception as error:  # noqa: BLE001 — recorded, not swallowed
+        parse_error = f"{type(error).__name__}: {error}"
+    return PinnedGenome(
+        accession=accession,
+        path=str(path),
+        sha256=hashlib.sha256(payload).hexdigest(),
+        md5=hashlib.md5(payload).hexdigest(),
+        bytes=len(payload),
+        source=source,
+        note=note,
+        length=length,
+        cds=cds,
+        trna=trna,
+        rrna=rrna,
+        topology=topology,
+        ir_length=ir_length,
+        ir_source=ir_source,
+        ir_identity=ir_identity,
+        ir_error=ir_error,
+        parse_error=parse_error,
+    )
+
+
+def pin_files(
+    paths: Iterable[str | Path],
+    out_dir: str | Path,
+    *,
+    note: str | None = None,
+    timestamp: str | None = None,
+) -> tuple[PinnedGenome, ...]:
+    """Pin records **produced somewhere else** — a web service, a cluster, another machine.
+
+    This is the other half of the plan's rule for a heavy tool (PROJECT.md §3, P1-12): it runs
+    where it fits, on this machine when it can and elsewhere when it cannot, and its answer
+    arrives as a *file*. Pinning that file is what makes the answer reproducible — the same
+    bytes, sha256 and md5 as an NCBI download, the same re-read with our own reader, and the
+    same IR measurements.
+
+    Two differences from :func:`pin`: there is no accession to fetch, so the key is the record's
+    own id — or the file's stem when it carries none, which is exactly the case for a sample that
+    has no accession yet — and an existing ``PINNED.json`` is **added to**, not replaced, because
+    a file is normally pinned *into* a panel that already exists.
+    """
+    directory = Path(out_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    pinned: list[PinnedGenome] = []
+    for raw in paths:
+        source_path = Path(raw)
+        payload = source_path.read_bytes()
+        accession = _record_id(source_path)
+        target = directory / f"{accession}.gb"
+        if source_path.resolve() != target.resolve():
+            target.write_bytes(payload)
+        pinned.append(_measured(accession, target, payload, source="file", note=note))
+
+    existing = _load_pinned(directory)
+    keys = {record.accession for record in pinned}
+    merged = [record for record in existing if record.accession not in keys]
+    manifest = {
+        "pinned_at": timestamp or datetime.now().isoformat(timespec="seconds"),
+        "index_retrieved_at": None,
+        "genomes": [asdict(record) for record in (*merged, *pinned)],
+    }
+    (directory / "PINNED.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    return tuple(pinned)
+
+
+def _record_id(path: Path) -> str:
+    """What to call a pinned file: the record's own id, else the file's name.
+
+    The record's id wins because that is what every other tool in the pipeline keys on; the file
+    name is the fallback for an annotation of a sample that has no accession yet.
+    """
+    try:
+        genome = read_genbank(path)
+    except Exception:  # noqa: BLE001 — an unreadable file still gets pinned, and reported
+        return path.stem
+    return genome.accession or path.stem
+
+
+def _load_pinned(directory: Path) -> tuple[PinnedGenome, ...]:
+    """The records already in a directory's PINNED.json — empty when there is none."""
+    manifest = directory / "PINNED.json"
+    if not manifest.is_file():
+        return ()
+    try:
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ()
+    known = {field for field in PinnedGenome.__dataclass_fields__}
+    return tuple(
+        PinnedGenome(**{key: value for key, value in record.items() if key in known})
+        for record in payload.get("genomes", [])
+        if isinstance(record, dict) and "accession" in record
+    )
 
 
 def save_index(path: str | Path, snapshot: IndexSnapshot) -> None:

@@ -8,24 +8,34 @@ from __future__ import annotations
 
 from plastid.modules import (  # noqa: F401  (importing registers them)
     amino_acid,
+    annotation,
     codon_usage,
     diversity,
+    gene_names,
     gene_table,
     genome_stats,
     introns,
+    mito_genes,
+    orf,
     ssr,
     structure,
+    submission,
     substitutions,
 )
 
 __all__ = [
     "amino_acid",
+    "annotation",
     "codon_usage",
     "diversity",
+    "gene_names",
     "gene_table",
     "genome_stats",
     "introns",
+    "mito_genes",
+    "orf",
     "ssr",
     "structure",
+    "submission",
     "substitutions",
 ]

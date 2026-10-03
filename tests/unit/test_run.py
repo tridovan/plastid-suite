@@ -238,3 +238,32 @@ def test_require_ir_fails_loudly() -> None:
     gated = RunContext(layout=None, params={}, module_id="m", module_order=1, ir=failing_ir)  # type: ignore[arg-type]
     with pytest.raises(IRGateError, match="IR gate failed"):
         gated.require_ir()
+
+
+def test_the_version_probe_never_runs_a_perl_tool(tmp_path: Path, monkeypatch) -> None:
+    """Measured 2026-10-03: probing PGA for a version with an unknown flag made it run itself with
+    its *default* arguments, and its first act is `rm -rf gb` — deleting a directory named ``gb``
+    in whatever directory the toolkit ran from. A Perl tool is now asked for its interpreter's
+    version instead, and the probe never executes the script."""
+    from plastid.run.tools import tool_version
+
+    victim = tmp_path / "gb"
+    victim.mkdir()
+    (victim / "important.txt").write_text("do not delete\n", encoding="utf-8")
+
+    script = tmp_path / "tool.pl"
+    script.write_text(
+        "#!/usr/bin/env perl\n"
+        "use strict;\n"
+        'system("rm -rf gb");\n'  # what PGA does on its first run
+        'print "v9.9\\n";\n',
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+    monkeypatch.chdir(tmp_path)
+
+    version, source = tool_version("tool", "perl", str(script))
+
+    assert (victim / "important.txt").is_file(), "the probe executed the tool"
+    assert source == "stdout-header"  # the interpreter's version, which is the honest answer
+    assert version and version.startswith("v5")

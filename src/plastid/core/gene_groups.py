@@ -13,6 +13,7 @@ Two rules keep the table honest:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -129,10 +130,24 @@ def _reject_unreachable(groups: list[GeneGroup], source: Path) -> None:
                 )
 
 
-def assign(genome: Genome, groups: GeneGroups) -> tuple[Assignment, ...]:
-    """Every counted gene (both IR copies) with its group; unclassified comes back as None."""
+def assign(
+    genome: Genome,
+    groups: GeneGroups,
+    *,
+    canonical_of: Callable[[Gene], str] | None = None,
+) -> tuple[Assignment, ...]:
+    """Every counted gene (both IR copies) with its group; unclassified comes back as None.
+
+    ``canonical_of`` is the gene-name normalizer's canonical form (P3-02): two dialects of one
+    name must claim the same group, or the same locus lands in two rows of the same table. The
+    shipped file lists both dialects, so a caller that does not normalize still gets one answer —
+    the two paths agree by construction, not by luck.
+    """
     return tuple(
-        Assignment(gene=gene, group=groups.claim(gene.name))
+        Assignment(
+            gene=gene,
+            group=groups.claim(canonical_of(gene) if canonical_of is not None else gene.name),
+        )
         for gene in genome.genes
         if gene.kind in GENE_KINDS
     )

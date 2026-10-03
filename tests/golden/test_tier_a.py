@@ -175,6 +175,64 @@ def test_structure_module_tiles_the_golden_genome(golden_genome: Genome) -> None
     assert result.tables["structure_summary"].rows[0]["n_windows"] == 157
 
 
+def test_orf_checks_pass_on_the_golden_genome(golden_genome: Genome) -> None:
+    """P3-01's Done-when: 0 internal stops, 0 missing stops, every CDS divisible by three, and
+    exactly 5 classified ``alternative_start`` — rps19 GTG (both IR copies), rpl2 ACG (both),
+    ndhD ATC. Measured 2026-10-03; the counts are the board's, not adjusted to the code."""
+    from plastid.modules import orf
+
+    result = orf.run(golden_genome, {}, _ctx(golden_genome, "orf"))
+    summary = result.tables["orf_summary"].rows[0]
+    assert summary["n_cds"] == count_genes(golden_genome).cds == 86
+    assert summary["n_failed"] == 0
+    assert summary["n_pseudogene"] == 0
+    assert summary["translation_tables"] == "11"
+
+    status = {row["status"]: row["n"] for row in result.tables["orf_status"].rows}
+    assert status["ok"] == 81
+    assert status["alternative_start"] == 5
+    assert status["no_start"] == status["no_stop"] == 0
+    assert status["internal_stop"] == status["not_multiple_of_three"] == 0
+
+    alternative = [
+        (row["gene"], row["start_codon"])
+        for row in result.tables["orf_checks"].rows
+        if row["status"] == "alternative_start"
+    ]
+    assert sorted(alternative) == [
+        ("ndhD", "ATC"),
+        ("rpl2", "ACG"),
+        ("rpl2", "ACG"),
+        ("rps19", "GTG"),
+        ("rps19", "GTG"),
+    ]
+    # ACG is not in table 11's initiator list: flagged, but as non-canonical, not as a failure
+    non_canonical = [
+        row["gene"]
+        for row in result.tables["orf_checks"].rows
+        if row["start_class"] == "non_canonical"
+    ]
+    assert sorted(non_canonical) == ["rpl2", "rpl2"]
+
+
+def test_orf_check_reports_the_truncated_ycf1_as_annotated_not_coding(
+    golden_genome: Genome,
+) -> None:
+    """PROJECT.md §9.B-9: ycf1's truncated copy is a ``gene`` + ``misc_feature`` with no CDS.
+    It is reported in its own table — not as a failed CDS, and never "repaired"."""
+    from plastid.modules import orf
+
+    result = orf.run(golden_genome, {}, _ctx(golden_genome, "orf"))
+    summary = result.tables["orf_summary"].rows[0]
+    assert summary["n_annotated_not_coding"] == 1
+
+    rows = result.tables["annotated_not_coding"].rows
+    assert [(row["name"], row["start_1b"], row["end_1b"]) for row in rows] == [
+        ("ycf1", 108_448, 109_347)
+    ]
+    assert rows[0]["pseudo"] == "yes"
+
+
 def test_gene_table_reconciles_with_the_genome_wide_count(golden_genome: Genome) -> None:
     """P2-09: the publication table's own totals must equal `count_genes()` — 132 = 86 + 38 + 8.
 
@@ -218,7 +276,13 @@ def test_gene_table_lists_tirna_by_anticodon_with_copy_counts(golden_genome: Gen
     assert "trnfM-CAU" in trna["genes"]  # lowercase f: a prefix match, not a name list
     assert "trnL-TAA" not in trna["genes"]
 
-    assert rows["Conserved open reading frames"]["copies"] == 5  # ycf1, ycf2 x2, ycf3, ycf4
+    # ycf3/ycf4 are printed under their canonical names (pafI/pafII, D3-02) and sit with
+    # photosystem I, so only ycf1 and the two ycf2 copies remain in the unknown-function group
+    assert rows["Conserved open reading frames"]["copies"] == 3  # ycf1, ycf2 x2
+    assert "pafI (ycf3)" in rows["Subunits of photosystem I"]["genes"]
+    assert "pafII (ycf4)" in rows["Subunits of photosystem I"]["genes"]
+    assert "pbf1 (psbN)" in rows["Subunits of photosystem II"]["genes"]
+    assert rows["Protease"]["genes"] == "clpP1 (clpP)"
     assert rows["Subunits of NADH dehydrogenase"]["copies"] == 12  # includes the ndhL fragment
 
 

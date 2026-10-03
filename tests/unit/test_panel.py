@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -19,6 +20,7 @@ from plastid.core.panel import (
     load_index,
     load_pinned,
     pin,
+    pin_files,
     propose,
     save_index,
     tier_of,
@@ -235,3 +237,88 @@ def test_entry_from_summary_never_assumes_genbank_annotation() -> None:
     genbank = entry_from_summary({"accessionversion": "PX923121.1", "organism": "Coleus"}, LINEAGE)
     assert refseq.annotated is True
     assert genbank.annotated is False
+
+
+# --- the other half of the backend rule: a tool that ran somewhere else (P1-12, P3-04) --------
+
+
+def test_a_file_produced_elsewhere_is_pinned_with_its_provenance(
+    tmp_path: Path, data_dir: Path
+) -> None:
+    """A heavy tool runs where it fits — this machine, a web service, a cluster (PROJECT.md §3,
+    P1-12). Either way its answer arrives as a file, and a pinned file is what makes the number
+    reproducible: the same checksums as an NCBI download, the same read-back, plus the note
+    saying where it came from."""
+    source = tmp_path / "from_the_web.gb"
+    source.write_bytes((data_dir / "NC_050833.1.gb").read_bytes())
+
+    pinned = pin_files([source], tmp_path / "panel", note="PMGA web, 2026-10-03")
+
+    assert len(pinned) == 1
+    record = pinned[0]
+    assert record.accession == "NC_050833.1"  # the record's own id, not the file's name
+    assert record.source == "file"
+    assert record.note == "PMGA web, 2026-10-03"
+    assert record.sha256 == hashlib.sha256(source.read_bytes()).hexdigest()
+    assert (record.cds, record.trna, record.rrna) == (86, 38, 8)
+    # the pinned copy lives beside the manifest, and the manifest is the offline index
+    manifest = json.loads((tmp_path / "panel" / "PINNED.json").read_text(encoding="utf-8"))
+    assert manifest["genomes"][0]["path"] == str(tmp_path / "panel" / "NC_050833.1.gb")
+    assert (tmp_path / "panel" / "NC_050833.1.gb").is_file()
+
+
+def test_pinning_a_file_adds_to_a_panel_instead_of_replacing_it(
+    tmp_path: Path, data_dir: Path
+) -> None:
+    """A file is pinned *into* a panel that already exists — dropping the downloads that are
+    already there would make one pin silently undo another."""
+    downloaded = (data_dir / "NC_050833.1.gb").read_text(encoding="utf-8")
+    pin([TARGET], lambda accession: downloaded, tmp_path / "panel")
+
+    from_the_web = tmp_path / "annotated.gb"
+    from_the_web.write_bytes((data_dir / "iridaceae_edge_cases.gb").read_bytes())
+    pin_files([from_the_web], tmp_path / "panel", note="a colleague's server")
+
+    manifest = json.loads((tmp_path / "panel" / "PINNED.json").read_text(encoding="utf-8"))
+    sources = {record["source"] for record in manifest["genomes"]}
+    assert sources == {"ncbi", "file"}
+    assert len(manifest["genomes"]) >= 2  # the download is still indexed
+
+
+def test_a_file_that_does_not_read_back_is_pinned_and_says_so(tmp_path: Path) -> None:
+    """Refusing it would leave a number in a report whose source nobody kept; recording it with
+    the failure is what the pin is for. The key falls back to the file's name."""
+    broken = tmp_path / "not_a_record.gb"
+    broken.write_text("this is not a GenBank record\n", encoding="utf-8")
+
+    record = pin_files([broken], tmp_path / "panel")[0]
+
+    assert record.accession == "not_a_record"
+    assert record.parse_error is not None
+    assert record.length is None
+    assert record.sha256 == hashlib.sha256(broken.read_bytes()).hexdigest()
+
+
+def test_the_cli_pins_a_file_with_its_note(tmp_path: Path, data_dir: Path, capsys) -> None:
+    from plastid.cli import main
+
+    source = tmp_path / "pmga_output.gb"
+    source.write_bytes((data_dir / "NC_050833.1.gb").read_bytes())
+    code = main(
+        [
+            "panel",
+            "pin",
+            "--file",
+            str(source),
+            "--note",
+            "PMGA web service, 2026-10-03",
+            "--out",
+            str(tmp_path / "panel"),
+        ]
+    )
+    assert code == 0
+    printed = capsys.readouterr().out
+    assert "pinned NC_050833.1" in printed
+    assert "86 CDS + 38 tRNA + 8 rRNA" in printed
+    manifest = json.loads((tmp_path / "panel" / "PINNED.json").read_text(encoding="utf-8"))
+    assert manifest["genomes"][0]["note"] == "PMGA web service, 2026-10-03"

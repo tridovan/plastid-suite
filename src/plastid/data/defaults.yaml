@@ -19,6 +19,13 @@ codon:
   # set is defined, the reference is the analysed CDS set itself — named in every output.
   reference: self
 
+orf:
+  # D3-03 (03/10/2026): the check reads the record's own /transl_table. This value is the
+  # fallback for a record that declares none. It is the same number as codon.translation_table
+  # on purpose — but it is a different decision (what to do when the record is silent), so it
+  # is recorded separately. Measured: all 1,099 CDS in the project's dataset declare 11.
+  default_translation_table: 1
+
 diversity:
   # D2-02 (03/10/2026): the mVISTA-style convention. A π curve means nothing without its window,
   # so both values travel into params, the manifest and the report.

@@ -153,13 +153,20 @@ class Table:
 
 @dataclass(frozen=True, slots=True)
 class Result:
-    """Everything one module produced: tables, notes, citations."""
+    """Everything one module produced: tables, notes, citations, and file artifacts.
+
+    ``artifacts`` are files that are not tables — a submission ``.fsa``/``.tbl``, a tool's
+    output — carried as ``{"<name>.<ext>": text}``. They travel through the same export and
+    cache path as every other output, so they are written, listed in the manifest, and restored
+    on a cache hit exactly like a table. A module never writes a file itself (seam 2).
+    """
 
     module: str
     module_version: str
     tables: dict[str, Table] = field(default_factory=dict)
     notes: tuple[str, ...] = ()
     citations: tuple[str, ...] = ()
+    artifacts: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         for table_id, table in self.tables.items():

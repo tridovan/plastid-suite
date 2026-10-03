@@ -476,9 +476,396 @@ def _gene_table_result() -> Result:
     )
 
 
+def _orf_result() -> Result:
+    return Result(
+        module="orf",
+        module_version="0.1.0",
+        tables={
+            "orf_summary": Table(
+                id="orf_summary",
+                title="ORF check summary",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("n_cds", "CDS checked", dtype="int"),
+                    Column("n_failed", "Failed", dtype="int"),
+                    Column("n_pseudogene", "Pseudogenes (excluded from failures)", dtype="int"),
+                    Column("n_annotated_not_coding", "Annotated, not coding", dtype="int"),
+                    Column("translation_tables", "Translation table(s) used"),
+                    Column("coord_system", "Coordinates"),
+                ),
+                rows=(
+                    {
+                        "organism": "Iris domestica",
+                        "accession": "NC_050833.1",
+                        "n_cds": 86,
+                        "n_failed": 0,
+                        "n_pseudogene": 0,
+                        "n_annotated_not_coding": 1,
+                        "translation_tables": "11",
+                        "coord_system": "genbank",
+                    },
+                ),
+                scope=Scope(label="every CDS feature, both IR copies"),
+            ),
+            "orf_status": Table(
+                id="orf_status",
+                title="CDS by ORF status",
+                columns=(
+                    Column("status", "Status"),
+                    Column("meaning", "Meaning"),
+                    Column("n", "CDS", dtype="int"),
+                ),
+                rows=tuple(
+                    {"status": status, "meaning": "…", "n": n}
+                    for status, n in (
+                        ("not_multiple_of_three", 0),
+                        ("no_start", 0),
+                        ("no_stop", 0),
+                        ("internal_stop", 0),
+                        ("alternative_start", 5),
+                        ("pseudogene", 0),
+                        ("ok", 81),
+                    )
+                ),
+                scope=Scope(label="every CDS feature, both IR copies"),
+                key="status",
+            ),
+            "orf_checks": Table(
+                id="orf_checks",
+                title="ORF check per CDS",
+                columns=(
+                    Column("cds_id", "CDS"),
+                    Column("gene", "Gene"),
+                    Column("start_1b", "Start", dtype="int"),
+                    Column("end_1b", "End", dtype="int"),
+                    Column("strand", "Strand"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("transl_table", "Table", dtype="int"),
+                    Column("codon_start", "Codon start", dtype="int"),
+                    Column("start_codon", "Start codon"),
+                    Column("start_class", "Start class"),
+                    Column("stop_codon", "Stop codon"),
+                    Column("internal_stops", "Internal stops", dtype="int"),
+                    Column("internal_stop_codons", "Internal stop positions (codon)"),
+                    Column("status", "Status"),
+                    Column("pseudo", "Pseudogene"),
+                ),
+                rows=(
+                    {
+                        "cds_id": "rpl2:1-100",
+                        "gene": "rpl2",
+                        "start_1b": 1,
+                        "end_1b": 100,
+                        "strand": "+",
+                        "length_bp": 100,
+                        "transl_table": 11,
+                        "codon_start": 1,
+                        "start_codon": "ACG",
+                        "start_class": "non-canonical (not in the table)",
+                        "stop_codon": "TAA",
+                        "internal_stops": 0,
+                        "internal_stop_codons": "",
+                        "status": "alternative_start",
+                        "pseudo": "no",
+                    },
+                ),
+                scope=Scope(label="every CDS feature, both IR copies"),
+                key="cds_id",
+            ),
+            "annotated_not_coding": Table(
+                id="annotated_not_coding",
+                title="Annotated as a gene, not coding",
+                columns=(
+                    Column("name", "Name"),
+                    Column("start_1b", "Start", dtype="int"),
+                    Column("end_1b", "End", dtype="int"),
+                    Column("strand", "Strand"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("product", "Product"),
+                    Column("pseudo", "Pseudogene"),
+                ),
+                rows=(
+                    {
+                        "name": "ycf1",
+                        "start_1b": 108_448,
+                        "end_1b": 109_347,
+                        "strand": "+",
+                        "length_bp": 900,
+                        "product": "",
+                        "pseudo": "yes",
+                    },
+                ),
+                scope=Scope(label="every CDS feature, both IR copies"),
+            ),
+            "orf_reconciliation": Table(
+                id="orf_reconciliation",
+                title="ORF checks reconciled against the genome-wide CDS count",
+                columns=(
+                    Column("kind", "Kind"),
+                    Column("in_table", "Checked here", dtype="int"),
+                    Column("counted", "count_genes()", dtype="int"),
+                    Column("agreement", "Agreement"),
+                ),
+                rows=({"kind": "CDS", "in_table": 86, "counted": 86, "agreement": "agrees"},),
+                scope=Scope(label="every CDS feature, both IR copies"),
+                key="kind",
+            ),
+        },
+    )
+
+
+def _gene_names_result() -> Result:
+    return Result(
+        module="gene_names",
+        module_version="0.1.0",
+        tables={
+            "panel_summary": Table(
+                id="panel_summary",
+                title="Gene names across the run",
+                columns=(
+                    Column("n_records", "Records", dtype="int"),
+                    Column("n_genes", "Counted genes", dtype="int"),
+                    Column("n_distinct_names", "Distinct names as they arrived", dtype="int"),
+                    Column("n_distinct_canonical", "Distinct canonical names", dtype="int"),
+                    Column("n_renamed", "Written differently", dtype="int"),
+                    Column("n_aliased", "One locus, two nomenclatures", dtype="int"),
+                    Column("n_resolved_by_sequence", "Resolved by sequence", dtype="int"),
+                    Column("n_unresolved", "Unresolved", dtype="int"),
+                ),
+                rows=(
+                    {
+                        "n_records": 2,
+                        "n_genes": 264,
+                        "n_distinct_names": 118,
+                        "n_distinct_canonical": 112,
+                        "n_renamed": 6,
+                        "n_aliased": 8,
+                        "n_resolved_by_sequence": 1,
+                        "n_unresolved": 0,
+                    },
+                ),
+                scope=Scope(label="every counted gene of every record in the run"),
+            ),
+            "name_summary": Table(
+                id="name_summary",
+                title="Gene names by record",
+                columns=(
+                    Column("genome", "Record"),
+                    Column("organism", "Organism"),
+                    Column("n_genes", "Counted genes", dtype="int"),
+                    Column("n_distinct_names", "Distinct names as they arrived", dtype="int"),
+                    Column("n_distinct_canonical", "Distinct canonical names", dtype="int"),
+                    Column("n_renamed", "Written differently", dtype="int"),
+                    Column("n_aliased", "Two nomenclatures", dtype="int"),
+                    Column("n_resolved_by_sequence", "Resolved by sequence", dtype="int"),
+                    Column("n_unresolved", "Unresolved", dtype="int"),
+                ),
+                rows=tuple(
+                    {
+                        "genome": accession,
+                        "organism": organism,
+                        "n_genes": 132,
+                        "n_distinct_names": 112,
+                        "n_distinct_canonical": 112,
+                        "n_renamed": 0,
+                        "n_aliased": 4,
+                        "n_resolved_by_sequence": 0,
+                        "n_unresolved": 0,
+                    }
+                    for accession, organism in (
+                        ("NC_050833.1", "Iris domestica"),
+                        ("NC_024936.1", "Iris gatesii"),
+                    )
+                ),
+                scope=Scope(label="every counted gene of every record in the run"),
+                key="genome",
+            ),
+            "name_mappings": Table(
+                id="name_mappings",
+                title="Names that were normalized (or carry a synonym)",
+                columns=(
+                    Column("name_id", "Name id"),
+                    Column("genome", "Record"),
+                    Column("name", "Name as it arrived"),
+                    Column("canonical", "Canonical name"),
+                    Column("printed", "Printed as"),
+                    Column("rule", "Why"),
+                    Column("product", "Product in the record"),
+                ),
+                rows=(
+                    {
+                        "name_id": "NC_050833.1:ycf3",
+                        "genome": "NC_050833.1",
+                        "name": "ycf3",
+                        "canonical": "pafI",
+                        "printed": "pafI (ycf3)",
+                        "rule": "semantic",
+                        "product": "photosystem I assembly protein Ycf3",
+                    },
+                ),
+                scope=Scope(label="every counted gene of every record in the run"),
+                key="name_id",
+            ),
+        },
+    )
+
+
+def _submission_result() -> Result:
+    return Result(
+        module="submission",
+        module_version="0.1.0",
+        tables={
+            "submission_summary": Table(
+                id="submission_summary",
+                title="Submission files",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("sequence_id", "Sequence id in the files"),
+                    Column("n_features", "Features written", dtype="int"),
+                    Column("n_cds", "CDS", dtype="int"),
+                    Column("n_trna", "tRNA", dtype="int"),
+                    Column("n_rrna", "rRNA", dtype="int"),
+                    Column("n_partial_starts", "CDS written with a partial start", dtype="int"),
+                    Column("n_problems", "First-pass problems", dtype="int"),
+                    Column("n_validator_errors", "NCBI errors", dtype="int"),
+                    Column("n_validator_warnings", "NCBI warnings", dtype="int"),
+                    Column("sqn", "ASN.1 (.sqn)"),
+                ),
+                rows=(
+                    {
+                        "organism": "Iris domestica",
+                        "accession": "NC_050833.1",
+                        "sequence_id": "NC_050833.1",
+                        "n_features": 265,
+                        "n_cds": 86,
+                        "n_trna": 38,
+                        "n_rrna": 8,
+                        "n_partial_starts": 2,
+                        "n_problems": 0,
+                        "n_validator_errors": 7,
+                        "n_validator_warnings": 98,
+                        "sqn": "produced by table2asn; reports kept: val, stats",
+                    },
+                ),
+                scope=Scope(label="every counted feature, both IR copies"),
+            ),
+        },
+    )
+
+
+def _annotation_result() -> Result:
+    return Result(
+        module="annotation",
+        module_version="0.2.0",
+        tables={
+            "annotation_summary": Table(
+                id="annotation_summary",
+                title="Annotation summary",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("n_genes", "Genes", dtype="int"),
+                    Column("n_cds", "CDS", dtype="int"),
+                    Column("n_trna", "tRNA", dtype="int"),
+                    Column("n_rrna", "rRNA", dtype="int"),
+                    Column("n_orf_failed", "CDS failing the ORF checks", dtype="int"),
+                    Column("n_aliased_names", "Names with a synonym", dtype="int"),
+                    Column("n_unclassified", "Unclassified", dtype="int"),
+                    Column("annotator", "Annotator"),
+                    Column("reference", "References"),
+                ),
+                rows=(
+                    {
+                        "organism": "Iris domestica",
+                        "accession": "NC_050833.1",
+                        "length_bp": 153_724,
+                        "n_genes": 132,
+                        "n_cds": 86,
+                        "n_trna": 38,
+                        "n_rrna": 8,
+                        "n_orf_failed": 0,
+                        "n_aliased_names": 4,
+                        "n_unclassified": 0,
+                        "annotator": "Chloe 0.1.18",
+                        "reference": "its own curated set (Chloe_refs 9163915d99fd)",
+                    },
+                ),
+                scope=Scope(label="the annotator's gene set, read back with our reader"),
+            ),
+            "orf_status": Table(
+                id="orf_status",
+                title="ORF status of the annotated CDS",
+                columns=(Column("status", "Status"), Column("n", "CDS", dtype="int")),
+                rows=tuple(
+                    {"status": status, "n": n}
+                    for status, n in (
+                        ("not_multiple_of_three", 0),
+                        ("no_start", 0),
+                        ("no_stop", 0),
+                        ("internal_stop", 0),
+                        ("alternative_start", 5),
+                        ("pseudogene", 0),
+                        ("ok", 81),
+                    )
+                ),
+                scope=Scope(label="the annotator's gene set, read back with our reader"),
+                key="status",
+            ),
+        },
+    )
+
+
+def _mito_genes_result() -> Result:
+    return Result(
+        module="mito_genes",
+        module_version="0.1.0",
+        tables={
+            "mito_summary": Table(
+                id="mito_summary",
+                title="Mitochondrial gene set",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("topology", "Topology"),
+                    Column("n_genes", "Genes", dtype="int"),
+                    Column("n_cds", "CDS", dtype="int"),
+                    Column("n_trna", "tRNA", dtype="int"),
+                    Column("n_rrna", "rRNA", dtype="int"),
+                    Column("n_named_by_symbol", "Named by a standard symbol", dtype="int"),
+                    Column("ir_gate", "Inverted-repeat gate"),
+                ),
+                rows=(
+                    {
+                        "organism": "Oldenlandia corymbosa var. corymbosa",
+                        "accession": "OX459128.1",
+                        "length_bp": 258_274,
+                        "topology": "circular",
+                        "n_genes": 51,
+                        "n_cds": 31,
+                        "n_trna": 17,
+                        "n_rrna": 3,
+                        "n_named_by_symbol": 31,
+                        "ir_gate": "not applicable",
+                    },
+                ),
+                scope=Scope(label="every counted mitochondrial gene"),
+            ),
+        },
+    )
+
+
 TEMPLATE_FIXTURES = {
+    "mito_genes": _mito_genes_result,
+    "annotation": _annotation_result,
     "genome_stats": _result,
     "gene_table": _gene_table_result,
+    "gene_names": _gene_names_result,
+    "orf": _orf_result,
+    "submission": _submission_result,
     "ssr": _ssr_result,
     "structure": _structure_result,
     "codon_usage": _codon_usage_result,

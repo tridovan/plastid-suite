@@ -131,14 +131,22 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
 
 **Goal:** annotate genomes we already have; prepare NCBI submissions.
 **In-phase checks:** the output re-reads with our own GenBank reader (no format damage) · ORF checks
-pass · gene recount uses the fixed counting rule (132). *De-novo assemblies (Phase 7 only) get the
-extra "verify vs close relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined"
-rule — skipped here.*
+pass · gene recount uses the fixed counting **rule** (CDS + tRNA + rRNA, both IR copies) — **132 is
+the golden genome's value, not a constant**: P2-10 measured 131 (*S. diffusum*) and 133
+(*C. amboinicus*), both correct. *De-novo assemblies (Phase 7 only) get the extra "verify vs close
+relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined" rule — skipped here.*
 
-- [ ] **M3.1 Annotation** — PGA (plastid) · MITOS2/GeSeq (mito)
-- [ ] **M3.2 Gene-name check & normalization** — one shared normalizer, no divergent copies
-- [ ] **M3.3 ORF checks** — start · stop · internal codons (handle truncated ycf1 case)
-- [ ] **M3.4 NCBI submission files** — FASTA · TBL · SQN
+- [x] **M3.1 Annotation** (2026-10-03) — plastome: **Chloe** (PGA measured and replaced, §8.15/§8.17),
+      **132 = 86 + 38 + 8** through our own reader, 0 CDS failing the ORF checks; mito path
+      (`mito_genes`, no IR gate) done and measured; the mito **annotator's count check is OPEN** —
+      the local container needs 11 GB and MAKER (too strong for this machine) and PMGA's web
+      application server **refuses connections** (measured 03/10, `docs/tools/pmga.md`)
+- [x] **M3.2 Gene-name check & normalization** (2026-10-03) — one normalizer (`core/gene_names.py`), panel measured: 155 → 115 canonical, 0 unresolved, 0 unclassified
+- [x] **M3.3 ORF checks** (2026-10-03) — golden: 0 failures, 5 alternative starts; the truncated ycf1 reported as annotated-not-coding
+- [x] **M3.4 NCBI submission files** (2026-10-03) — `.fsa` + `.tbl` in pure Python, 265/265 features
+      round-trip; **the `.sqn` step ran against `table2asn`**, and NCBI's own validator took the
+      table from **13 errors to 7** (the rest inherent to duplicated IR genes; §8.18). A real
+      submission still needs the team's own `.sbt` from NCBI's form
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid and mito)*
 
