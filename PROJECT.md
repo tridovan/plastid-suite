@@ -972,6 +972,61 @@ chạy trên genome vàng, vì máy này không có PGA nên nhánh test kia ch�
 
 ---
 
+### 8.18. Chạy thật `table2asn` — bản `.tbl` của mình bị NCBI chê, và ba lỗi đã sửa (03/10/2026)
+
+**Vì sao chạy:** nửa `.sqn` của P3-05 bị xếp là "chờ file `.sbt` của nhóm". Form của NCBI cần đăng
+nhập, nhưng **`.sbt` chỉ là một file ASN.1 văn bản theo một cấu trúc xác định** — tìm được các mẫu
+công khai (Cenote-Taker3, enviro-lab/ncbi-submit) và viết một bản **stand-in** cho repo
+(`tests/data/standin_template.sbt`, tên/địa chỉ là chỗ trống, dòng tiêu đề ghi rõ "NOT FOR
+SUBMISSION"). Có nó thì chạy được cả bước.
+
+**Kết quả lần chạy đầu — bản `.tbl` của mình KHÔNG đạt:** NCBI's validator trả về **13 lỗi
+(ERROR) và 27 cảnh báo** cho genome vàng. Ba nguyên nhân, cả ba đều là của mình:
+
+| Lỗi NCBI báo | Nguyên nhân | Sửa |
+|---|---|---|
+| `NoSourceDescriptor` + `BioSourceMissing` (2) | `.tbl` **không có feature `source`** — người nộp phải nói trình tự là gì | ghi feature `source` từ **qualifier của chính bản ghi** (organism · organelle · cultivar · specimen_voucher…) |
+| `SEQ_FEAT.StartCodon` (2) | `rpl2` mở đầu bằng **ACG** — không phải mã khởi đầu của bảng 11, vì RNA editing C→U biến nó thành AUG | `/exception` của bản ghi **đi theo gene** vào bảng (trước đây bị bỏ) |
+| `SEQ_INST.BadProteinStart` (2) | cùng CDS đó, không có mã khởi đầu nên dịch ra protein có gap ở đầu | ghi **start partial** (`<`) — giữ nguyên toạ độ, chỉ thêm dấu |
+
+**Thêm một phát hiện nhỏ nhưng chặn đường:** `mol_type` và `db_xref` **không phải qualifier của
+định dạng bảng** — table2asn gọi chúng là "Unrecognized qualifier name" và **exit 2** (dù vẫn ghi
+`.sqn`). Hai giá trị đó NCBI tự suy ra, nên bảng để chúng ở lại trên genome và **không ghi vào
+`.tbl`**; module nói rõ điều này trong notes. Bảng nộp thật của *Dioscorea alata* có `mol_type` và
+cũng exit 2 vì nó.
+
+**Đối chứng — và đây là chỗ chứng minh phần còn lại không phải lỗi của mình.** Lấy **một bảng nộp
+thật đã được chấp nhận**: `Dalata-cp.tbl` + `Dalata-cp.fasta` của *Dioscorea alata*
+(bredeson/Dioscorea-alata-genomics, bảng dùng cho bản nộp GenBank thật), chạy qua **đúng
+validator đó**:
+
+| | Lỗi | Trong đó `GeneXrefStrandProblem` | Cảnh báo |
+|---|---|---|---|
+| Bảng nộp thật (Dioscorea) | **9** | **7** | 19 |
+| Bảng của mình — trước khi sửa | 13 | 7 | 27 |
+| **Bảng của mình — sau khi sửa** | **7** | **7** | 98 |
+
+**7 lỗi còn lại là `GeneXrefStrandProblem`** — lớp lỗi mà định dạng này sinh ra cho **mọi** gene
+nằm trong IR (có hai bản, một + một −) khi có feature `gene` riêng: bảng nộp thật của Dioscorea
+cũng đúng 7 lỗi cùng lớp, còn có thêm 2 lỗi vị trí `rps12` mà bảng của mình không có. Nói cách
+khác: **bảng của mình giờ ngang một bản nộp đã được chấp nhận**, và lỗi còn lại là thuộc tính của
+định dạng + genome có IR, không phải của writer.
+
+**Cảnh báo:** 98, trong đó **86 là `SEQ_FEAT.GenCodeMismatch`** với nội dung tự mâu thuẫn —
+"conflict between CDS (code 11) and BioSource… (uses code 11)" — tức bảng mã hai bên *giống nhau*;
+nó xuất hiện khi bản ghi khai `organelle`, và bản ghi vàng (RefSeq, đã được chấp nhận) cũng ghi
+`/transl_table=11` trên mọi CDS. **Không hành động được.**
+
+**Module giờ đọc file `.val` chứ không chỉ giữ nó:** số lỗi/cảnh báo vào bảng tổng, phân loại theo
+mã vào bảng `validator_findings`, `.val` đi kèm như artifact, và báo cáo in ra đúng câu "đọc
+`.val` trước khi nộp" — một file không ai đọc thì không phải là một phép kiểm.
+
+**Ý nghĩa cho sản phẩm:** trước lần chạy này, bộ công cụ có thể tạo ra một cặp `.fsa` + `.tbl`
+*trông* đúng và **bị NCBI từ chối ở khâu upload** — sau khi đã làm xong mọi thứ. Đúng loại lỗi mà
+P3-05 tồn tại để chặn, và nó chỉ lộ ra khi có công cụ của chính NCBI để đối chiếu.
+
+---
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
@@ -1039,6 +1094,21 @@ chạy trên genome vàng, vì máy này không có PGA nên nhánh test kia ch�
     `trnG-UCC` — bản ghi vàng dùng **một tên cho hai bản tRNA khác trình tự**, mà bộ gen chuẩn có
     cả hai gen. Không tự sửa: đo anticodon bằng offset cố định chỉ khớp 11/38 tRNA ⇒ **không đủ
     bằng chứng**, đưa vào §10 cho PI quyết.
+
+22. **Mới 03/10/2026 — ba thứ định dạng nộp bắt buộc mà model gene không mang (§8.18).**
+    Chạy `table2asn` thật trên genome vàng: **13 lỗi**, sửa ba chỗ còn **7**. Hai chỗ đầu là
+    *passthrough* (feature `source`, qualifier `/exception`) — bản ghi có, mình bỏ. Chỗ thứ ba là
+    một quy ước: **CDS không mở đầu bằng mã khởi đầu hợp lệ thì phải ghi start partial**, nếu
+    không NCBI báo `BadProteinStart`. Bài học: một model chỉ giữ những gì module *hiện tại* cần
+    thì mỗi định dạng xuất ra sẽ phát hiện lại từ đầu những gì nó bỏ.
+23. **Mới 03/10/2026 — "exit 0" không phải là tiêu chí của `table2asn`.** Nó **exit 2** khi chỉ
+    *cảnh báo* về một qualifier lạ (`mol_type`, `db_xref`) trong khi `.sqn` vẫn đúng; bảng nộp
+    thật của *Dioscorea alata* cũng exit 2 vì lý do đó. Nghĩa là: đọc `.val`/`.stats`, đừng tin
+    mã thoát. Và ngược lại — `.tbl` thiếu feature `source` thì **vẫn exit 0** nhưng bị đánh 2 lỗi.
+24. **Mới 03/10/2026 — phép kiểm mới chỉ có giá trị khi có ĐỐI CHỨNG.** 7 lỗi
+    `GeneXrefStrandProblem` trông như lỗi của mình cho tới khi chạy **cùng validator** trên một
+    bảng nộp đã được chấp nhận (Dioscorea) và thấy nó cũng đúng 7 lỗi cùng lớp. Không có đối
+    chứng thì hoặc là sửa những thứ không hỏng, hoặc là bỏ qua những thứ hỏng thật.
 
 ### C. Môi trường & vận hành
 

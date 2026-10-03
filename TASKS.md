@@ -175,18 +175,25 @@ shared table could rename a plastid gene with a mitochondrial symbol), and the s
 starts include `CCT` and `CGC`, which no translation table accepts — the ORF check flags them, and
 that is a finding about the record rather than a bug to paper over.
 
-### P3-05 · NCBI submission files — FASTA · TBL · SQN · M3.4 · [~] (Python half DONE 03/10)
+### P3-05 · NCBI submission files — FASTA · TBL · SQN · M3.4 · [x] DONE 03/10
 
 - [x] `.fsa` and the 5-column `.tbl`, in pure Python, from the *normalized* gene set
 - [x] `.sqn` through `table2asn` when it exists; a named error and exit 3 when it does not
 - [x] a first-pass check on the record: no duplicate locus tags, no feature past the sequence end,
       `transl_table` on every CDS
+- [x] **the `.sqn` step RUN FOR REAL (03/10, §8.18)** — with a stand-in template vendored in the
+      repo, so the step is no longer blocked on the team's `.sbt`
+- [x] the record's **source feature** and its `/exception` travel into the table; a CDS whose
+      start codon is not an initiator is written with a **partial start** — three fixes that took
+      NCBI's validator from **13 errors to 7**
+- [x] NCBI's `.val` is **read**, not just kept: its counts and classes are tables in the run
 **Done when:** a golden record produces `.fsa` + `.tbl` whose features re-read into the same set as
 the source, and the TBL's partial/join syntax matches a real submitted record field for field.
-**Needs:** D3-04. **Blocked for the `.sqn` half by:** the team's submitter template (`.sbt`) —
-`table2asn` itself is now **installed and declared** (`docs/tools/table2asn.md`, v1.29.324, md5
-recorded), so the only missing piece is a file NCBI generates from a web form that names people
-and institutions.
+**Needs:** D3-04. **No longer blocked:** `table2asn` is installed and declared (v1.29.324, md5
+recorded in `docs/tools/table2asn.md`) and the `.sqn` step runs end-to-end with a **stand-in**
+template committed for tests. For a real submission the team still needs its own `.sbt` from
+NCBI's web form — it names cô Trang and the institution, and nobody else can generate it. That is
+now a *submission* prerequisite, not a code one.
 **Measured (PROJECT.md §8.13):** the round trip holds on the golden — **265/265** features
 (133 `gene` + 86 CDS + 38 tRNA + 8 rRNA) come back with the same kind, name, intervals (partials
 included), product and table, and 0 first-pass problems. The syntax rules were taken from NCBI's
@@ -212,7 +219,7 @@ example rather than a real file (no real table with a multi-interval feature was
 | Chloe (Julia) installed on the team's machines, or a decision to run the annotation module only where it is available | anh Điềm | the `annotation` module's default annotator; the GFF fixture means everything else is testable without it |
 | ~~The mito annotator decision~~ — **decided 03/10: PMGA** (PROJECT.md §3) | — | — |
 | The PMGA singularity container (Figshare 27201798), pulled and its entry point recorded | anh Điềm / anh Trí | P3-04 |
-| A submitter template (`.sbt`) from NCBI's form — names people and institutions | cô Trang | the `.sqn` half of P3-05 (table2asn itself is installed and declared) |
+| A submitter template (`.sbt`) from NCBI's form — names people and institutions | cô Trang | **an actual submission**, not the code: the `.sqn` step runs on a stand-in (P3-05, §8.18) |
 | Whether `PX923121.1` is the specimen this manuscript reports | cô Trang | quoting *C. amboinicus* numbers as the manuscript's |
 | The team's own *O. diffusa* record | anh Điềm / cô Trang | the *O. diffusa* half of P2-10 (today: a stand-in) |
 | Item (c) text for the Reference Panel notes | cô Trang | D-03 only (documentation) |

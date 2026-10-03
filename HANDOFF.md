@@ -28,10 +28,17 @@ team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pend
   names → 115 canonical, **0 unresolved**, `trnK` → `trnK-UUU` and `trnI` → `trnI-GAU` by 100 %
   sequence identity, 0 unclassified. Output prints **`canonical (synonym)`** everywhere. Also fixed
   a real CLI bug: `arity ≥ 2` is "**at least**" (API v0.2) but the CLI demanded exactly. §8.12.
-- **P3-05 submission files — Python half DONE.** `.fsa` + 5-column `.tbl`, round-tripping
+- **P3-05 submission files — DONE, and the `.sqn` half ran for real (03/10, late).** `.fsa` + 5-column `.tbl`, round-tripping
   **265/265** golden features; `.sqn` is opt-in and needs both `table2asn` and a `.sbt` template.
   The `.tbl` rules came from NCBI's docs, not memory (`join()` does not exist — intervals stack;
   minus-strand intervals reverse; `<` in column 1, `>` in column 2, both as prefixes). §8.13.
+  **Then the `.sqn` step was run against `table2asn` with a stand-in template (no longer blocked on
+  the team's `.sbt`): our table had 13 ERROR-level findings and would have been refused at upload**
+  — no `source` feature, an RNA-edited start without its `/exception`, and that start without a
+  partial marker (plus two source qualifiers the format has no place for). All three fixed; the
+  validator now reports 7, every one of them the `GeneXrefStrandProblem` class that a **published,
+  accepted** plastome submission also has — proved by running that real table through the same
+  validator. NCBI's `.val` is read into the run's tables rather than kept unopened. §8.18.
 - **P3-03 plastome annotation — DONE (03/10, late).** Annotator replaced: PGA → **Chloe**.
   Written: `core/gff.py` (a GFF3 reader — BioPython has none), `external/chloe.py`,
   `modules/annotation.py` grown an `annotator` parameter (`chloe` default, `pga` for genomes
@@ -155,6 +162,28 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 9 (P3-05's `.sqn` half — run against NCBI's own converter)
+
+- **Did:** ran `table2asn` for real (a stand-in `.sbt` is vendored at
+  `tests/data/standin_template.sbt`), which found that our table was **not submittable**: fixed the
+  missing `source` feature, the dropped `/exception`, and the partial-start rule for a CDS whose
+  codon 1 is not an initiator. `Gene` gained `/exception`, `Genome` gained the record's source
+  qualifiers, the module reads NCBI's `.val` into its tables, and a tier-B test runs the whole
+  `.sqn` path on a machine that has the tool.
+- **Validation:** `make check` green — **343 fast + 30 golden**, plus the real-tool tier-B tests
+  (`PTS_TABLE2ASN`, `PTS_CHLOE`, `PTS_JULIA`). Measured: NCBI's validator on the golden table
+  **13 errors → 7**, the remainder being the class a real accepted plastome submission also has
+  (control run: *Dioscorea alata*'s published table → 9 errors, 7 of them the same class).
+- **Risks / notes:** (1) the partial-start rule is applied by the writer and named in the report —
+  it adds a marker, never moves a coordinate, but it *is* a claim, so a genome whose CDS start is
+  wrong for another reason will look "partial" rather than "broken" until someone reads the note;
+  (2) the 7 remaining errors are inherent to duplicated IR genes in this format and cannot be
+  removed from our side; (3) the stand-in template must never be used for a real submission.
+- **Blocked:** nothing. The **team's own `.sbt`** is still needed *to submit* (NCBI's form, cô
+  Trang's details) — that is now a submission prerequisite, not a code one.
+- **Next:** P3-04's mito annotator (PMGA container — record its real entry point), or Phase 4's
+  comparison modules, which can key on the canonical names.
 
 ### 2026-10-03 · Claude · dev WSL · session 8 (Chloe adapter — P3-03 closes)
 

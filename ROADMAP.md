@@ -141,7 +141,10 @@ relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined
       (`mito_genes`, no IR gate) done and measured, the **PMGA annotator still blocked** on its container
 - [x] **M3.2 Gene-name check & normalization** (2026-10-03) — one normalizer (`core/gene_names.py`), panel measured: 155 → 115 canonical, 0 unresolved, 0 unclassified
 - [x] **M3.3 ORF checks** (2026-10-03) — golden: 0 failures, 5 alternative starts; the truncated ycf1 reported as annotated-not-coding
-- [~] **M3.4 NCBI submission files** (2026-10-03) — `.fsa` + `.tbl` in pure Python, 265/265 features round-trip; `.sqn` waits on the team's `.sbt`
+- [x] **M3.4 NCBI submission files** (2026-10-03) — `.fsa` + `.tbl` in pure Python, 265/265 features
+      round-trip; **the `.sqn` step ran against `table2asn`**, and NCBI's own validator took the
+      table from **13 errors to 7** (the rest inherent to duplicated IR genes; §8.18). A real
+      submission still needs the team's own `.sbt` from NCBI's form
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid and mito)*
 
