@@ -6,9 +6,11 @@ cache hit on an identical second run; byte-identical restore after deleting an o
 
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 
+import pytest
 from Bio import SeqIO
 
 from plastid.cli import main
@@ -186,3 +188,45 @@ def test_structure_run_reports_regions_and_skew(tmp_path: Path, data_dir: Path) 
 
 def test_unknown_module_exits_1(tmp_path: Path, data_dir: Path) -> None:
     assert _run(tmp_path, data_dir / "NC_050833.1.gb", extra=["--module", "nope"]) in (1, 2)
+
+
+def test_word_export_is_reproducible_and_carries_the_golden_numbers(
+    tmp_path: Path, data_dir: Path
+) -> None:
+    """P2-09's Done-when end-to-end: regenerate the document, get an identical file."""
+    import hashlib
+    import zipfile
+
+    if importlib.util.find_spec("docx") is None:
+        pytest.skip("the 'docx' extra is not installed — pip install 'plastid-suite[docx]'")
+
+    assert _run(tmp_path, data_dir / "NC_050833.1.gb", module="gene_table", extra=["--docx"]) == 0
+    run_dir = _only_run_dir(tmp_path)
+    document = run_dir / "01_gene_table" / "report.docx"
+    assert document.is_file()
+    first = hashlib.sha256(document.read_bytes()).hexdigest()
+
+    # the manifest indexes it like every other output, with its own checksum
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    entry = next(item for item in manifest["files"] if item["path"].endswith("report.docx"))
+    assert entry["sha256"] == first and entry["bytes"] > 0
+
+    # a second run is served from the cache and must restore the very same bytes
+    assert _run(tmp_path, data_dir / "NC_050833.1.gb", module="gene_table", extra=["--docx"]) == 0
+    again = sorted((tmp_path / "iris_domestica").iterdir())[-1]
+    assert (again / "manifest.json").read_text() != ""
+    cached = again / "01_gene_table" / "report.docx"
+    assert hashlib.sha256(cached.read_bytes()).hexdigest() == first
+
+    from docx import Document
+
+    with zipfile.ZipFile(document) as archive:
+        assert archive.testzip() is None
+    opened = Document(str(document))
+    text = [paragraph.text for paragraph in opened.paragraphs]
+    text += [cell.text for table in opened.tables for row in table.rows for cell in row.cells]
+    joined = "\n".join(text)
+    assert "Publication gene table" in joined
+    assert "132" in joined and "86" in joined and "38" in joined and "8" in joined
+    assert "agrees" in joined  # the reconciliation travelled with the document
+    assert "Draft — needs human review." in joined  # never mistaken for a checked result

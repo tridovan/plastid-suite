@@ -173,3 +173,75 @@ def test_structure_module_tiles_the_golden_genome(golden_genome: Genome) -> None
     assert rows["IRa"]["length_bp"] == rows["IRb"]["length_bp"] == 26_214
     assert sum(row["length_bp"] for row in result.tables["regions"].rows) == 153_724
     assert result.tables["structure_summary"].rows[0]["n_windows"] == 157
+
+
+def test_gene_table_reconciles_with_the_genome_wide_count(golden_genome: Genome) -> None:
+    """P2-09: the publication table's own totals must equal `count_genes()` — 132 = 86 + 38 + 8.
+
+    The reconciliation is the module's own guard: a gene the grouping file failed to claim, or
+    a row silently dropped between the counter and the table, shows up here as a disagreement
+    rather than as a smaller number nobody checks.
+    """
+    from plastid.modules import gene_table
+
+    result = gene_table.run(golden_genome, {}, _ctx(golden_genome, "gene_table"))
+
+    counts = count_genes(golden_genome)
+    rows = {row["kind"]: row for row in result.tables["gene_reconciliation"].rows}
+    assert rows["CDS"]["in_table"] == counts.cds == 86
+    assert rows["tRNA"]["in_table"] == counts.trna == 38
+    assert rows["rRNA"]["in_table"] == counts.rrna == 8
+    assert rows["Total"]["in_table"] == counts.total == 132
+    assert [row["agreement"] for row in rows.values()] == ["agrees"] * 4
+
+    # the printed table ends on the same total — the two cannot drift apart
+    groups = result.tables["gene_groups"]
+    assert groups.rows[-1]["group"] == "Total"
+    assert groups.rows[-1]["copies"] == sum(row["copies"] for row in groups.rows[:-1]) == 132
+
+    summary = result.tables["gene_table_summary"].rows[0]
+    assert summary["n_genes_total"] == 132
+    assert summary["n_unclassified"] == 0
+    assert summary["n_unique_names"] == 112  # 132 copies, 112 distinct names
+
+
+def test_gene_table_lists_tirna_by_anticodon_with_copy_counts(golden_genome: Genome) -> None:
+    """The tRNA row is built from the record, not from a list that only fits one species."""
+    from plastid.modules import gene_table
+
+    result = gene_table.run(golden_genome, {}, _ctx(golden_genome, "gene_table"))
+    rows = {row["group"]: row for row in result.tables["gene_groups"].rows}
+
+    trna = rows["Transfer RNA genes"]
+    assert trna["copies"] == 38
+    assert "trnA-UGC (\N{MULTIPLICATION SIGN}2)" in trna["genes"]  # both IR copies
+    assert "trnfM-CAU" in trna["genes"]  # lowercase f: a prefix match, not a name list
+    assert "trnL-TAA" not in trna["genes"]
+
+    assert rows["Conserved open reading frames"]["copies"] == 5  # ycf1, ycf2 x2, ycf3, ycf4
+    assert rows["Subunits of NADH dehydrogenase"]["copies"] == 12  # includes the ndhL fragment
+
+
+def test_gene_table_flags_a_gene_no_group_claims() -> None:
+    """Negative case: an unknown name is reported as unclassified, never folded in silently."""
+    from plastid.core.model import Gene as Feature
+    from plastid.core.model import Interval
+    from plastid.modules import gene_table
+
+    genome = Genome(
+        name="synthetic",
+        sequence="ATGC" * 400,
+        genes=(
+            Feature("rbcL", "CDS", (Interval(0, 120),)),
+            Feature("mystery9", "CDS", (Interval(200, 300),)),
+        ),
+    )
+    # gene_table needs no IR: grouping a gene by function is not a position-based analysis
+    ctx = RunContext(layout=None, params={}, module_id="gene_table", module_order=1)  # type: ignore[arg-type]
+    result = gene_table.run(genome, {}, ctx)
+
+    rows = {row["kind"]: row for row in result.tables["gene_reconciliation"].rows}
+    assert rows["CDS"]["in_table"] == rows["CDS"]["counted"] == 2  # still counted, not hidden
+    assert rows["CDS"]["agreement"] == "agrees"
+    assert result.tables["gene_table_summary"].rows[0]["n_unclassified"] == 1
+    assert any("mystery9" in note for note in result.notes)

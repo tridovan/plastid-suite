@@ -416,8 +416,69 @@ def _substitutions_result() -> Result:
     )
 
 
+def _gene_table_result() -> Result:
+    return Result(
+        module="gene_table",
+        module_version="0.1.0",
+        tables={
+            "gene_table_summary": Table(
+                id="gene_table_summary",
+                title="Publication gene table — summary",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("n_genes_total", "Genes", dtype="int"),
+                    Column("n_groups", "Functional groups", dtype="int"),
+                    Column("n_unique_names", "Distinct gene names", dtype="int"),
+                    Column("n_unclassified", "Unclassified", dtype="int"),
+                    Column("coord_system", "Coordinates"),
+                ),
+                rows=(
+                    {
+                        "organism": "Iris domestica",
+                        "accession": "NC_050833.1",
+                        "n_genes_total": 132,
+                        "n_groups": 18,
+                        "n_unique_names": 112,
+                        "n_unclassified": 0,
+                        "coord_system": "genbank",
+                    },
+                ),
+                scope=Scope(label="every counted gene, both IR copies; grouped by function"),
+            ),
+            "gene_reconciliation": Table(
+                id="gene_reconciliation",
+                title="Gene table reconciled against the genome-wide count",
+                columns=(
+                    Column("kind", "Kind"),
+                    Column("in_table", "In the gene table", dtype="int"),
+                    Column("counted", "count_genes()", dtype="int"),
+                    Column("agreement", "Agreement"),
+                ),
+                rows=tuple(
+                    {
+                        "kind": kind,
+                        "in_table": copies,
+                        "counted": copies,
+                        "agreement": "agrees",
+                    }
+                    for kind, copies in (
+                        ("CDS", 86),
+                        ("tRNA", 38),
+                        ("rRNA", 8),
+                        ("Total", 132),
+                    )
+                ),
+                scope=Scope(label="every counted gene, both IR copies; grouped by function"),
+                key="kind",
+            ),
+        },
+    )
+
+
 TEMPLATE_FIXTURES = {
     "genome_stats": _result,
+    "gene_table": _gene_table_result,
     "ssr": _ssr_result,
     "structure": _structure_result,
     "codon_usage": _codon_usage_result,
