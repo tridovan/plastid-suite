@@ -12,16 +12,24 @@
 | P3-01 ORF checks | golden: 0 failures, 5 alternative starts; the truncated ycf1 reported, not repaired | §8.11 |
 | P3-02 Gene-name check | 155 arriving names → 115 canonical, 0 unresolved | §8.12 |
 | P3-03 Annotation, plastome | **132 = 86 + 38 + 8** with **Chloe**; PGA measured and replaced | §8.15, §8.17 |
-| P3-04 Annotation, mito | mito path done and measured; **the count check is OPEN — Phase 3A is how it closes** | §8.14 |
+| P3-04 Annotation, mito | mito path done and measured; **the count check is CLOSED — by Phase 3A's own annotator, not by PMGA** (§8.22, §8.24). PMGA itself never ran and never will here | §8.14 |
 | P3-05 Submission files | 265/265 features round-trip; `.sqn` ran for real; NCBI's validator 13 → 7 errors | §8.13, §8.18 |
 
-**P3-04's open half, kept here verbatim so it is not lost.** Both routes were tried; both fail, and
-only one of them is ours. **Local:** this machine is not strong enough (11 GB unpacked + MAKER vs an
-8 GB WSL cap). **Web:** PMGA's application server **refuses connections** — `www.1kmpg.cn/pmga/`
-answers 200 but only redirects to `47.96.249.172:16084`, which answers `Connection refused` on
-16084/16081/16086. It stays a **re-test**, not a task:
-`curl -sS -o /dev/null -w '%{http_code}\n' http://47.96.249.172:16084/home`
-— the moment that answers, one web run + `panel pin --file` closes it.
+**P3-04's open half — CLOSED 03/10 by Phase 3A, and not by PMGA.** Both PMGA routes were tried and
+both fail: **local**, this machine is not strong enough (11 GB unpacked + MAKER against an 8 GB WSL
+cap); **web**, the application server refuses connections (`www.1kmpg.cn/pmga/` answers 200 and only
+redirects to `47.96.249.172:16084`, which refuses — re-tested 03/10, still down). CLAUDE.md's rule
+for a tool that cannot run is *replace it or write that part ourselves*, and Phase 3A wrote it: the
+annotator now calls **31 CDS + 17 tRNA + 3 rRNA** on the answer-key record (§8.22) and 23 CDS on an
+unannotated sample (§8.24), measured against a published record rather than against PMGA.
+
+**What PMGA would still add, stated honestly, because it is not nothing:** it discovers genes
+**beyond a fixed vocabulary** and would be an **independent second opinion** on a sample with no
+answer key. Our own measurement shows the gap — on `AP045469.1` eight vocabulary loci are not
+called, and four of them have no alignment at all even at an E-value of 10, so *we cannot say*
+whether those genes are absent from the genome or absent from the assembly. Nothing else in the
+toolkit answers that either. It stays a **re-test**, not a task:
+`curl -sS -o /dev/null -w '%{http_code}\n' http://47.96.249.172:16084/home`.
 
 ## Phase 3A — Mito annotator, self-built prototype  *(ROADMAP.md → Phase 3A)*
 
