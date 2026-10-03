@@ -13,10 +13,15 @@ stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLE
 (PROJECT.md §8.8, `docs/P2-10_manuscript_draft.md`) — the real samples are still what makes it the
 team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
-**Phase 3 — code COMPLETE, one verification OPEN (4 full + P3-04's count check), branch `feat/phase-3` (stacked on `feat/phase-2`, which is not yet
-merged to `main`).** The board is `TASKS.md`; the one task that closed by *decision* rather than by
-code is P3-04's annotator (see below). **Next phase: Phase 4 — multi-genome comparison**
-(`ROADMAP.md`; M4.1–M4.6, of which M4.5 needs RNA data the team does not have yet).
+**Phase 3 — code COMPLETE, one verification OPEN (4 full + P3-04's count check), branch
+`feat/phase-3` (stacked on `feat/phase-2`, which is not yet merged to `main`).** The one task that
+closed by *decision* rather than by code is P3-04's annotator (see below).
+
+**Phase 3A — IN PROGRESS, branch `feat/phase-3a`** (stacked on `feat/phase-3`). A mito annotator
+this project builds itself, because PMGA cannot run here and its web service is down. **P3A-01
+(GenBank writer) and P3A-02 (reference set) are DONE**; **next is P3A-03, the gene caller.** The
+board is `TASKS.md` — read it first, it carries the decisions, the pitfalls and every measured
+number. Phase 4 (multi-genome comparison) is still the *next planned phase* after 3A.
 
 - **P3-01 ORF checks — DONE.** `core/orf.py` + `modules/orf.py`; `Gene` now carries the record's own
   `/transl_table` and `/codon_start`. Golden: 86 CDS, 81 `ok`, **5 `alternative_start`**
@@ -185,6 +190,54 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 12 (Phase 3A opened — a mito annotator we build ourselves)
+
+**Did.** Opened **Phase 3A** (`ROADMAP.md`, `TASKS.md`, branch **`feat/phase-3a`** off
+`feat/phase-3`) after measuring what a self-built mito annotator would cost. Then **P3A-01** and
+**P3A-02**.
+
+* **Why the phase exists.** P3-04's count check cannot close by either PMGA route: the container is
+  11 GB unpacked driving MAKER against an 8 GB WSL cap, and PMGA's web service refuses connections.
+  CLAUDE.md's rule for a tool that cannot run is *write that part ourselves* — and the estimate is
+  **under 10 MB on disk and seconds of runtime**, against PMGA's 14 GB.
+* **P3A-01 · GenBank writer — DONE (§8.20).** `to_genbank()` beside the reader. Round trip on the
+  golden: **265/265** features, parts in transcript order, sequence and source intact; 324 unit
+  tests green, so the `.tbl` path verified against NCBI's own tables is unchanged. Two findings:
+  `/pseudo` and `/trans_splicing` are **bare** qualifiers, and BioPython writes `=""` for an empty
+  string while reading its own output back happily (§9.B-25 — a round trip through the same library
+  is not evidence); and the qualifier builder moved to **`model.gene_qualifiers()`** so the table
+  and GenBank writers cannot disagree.
+* **P3A-02 · Reference set — DONE (§8.21).** Eight RefSeq mitogenomes pinned by the panel's own
+  taxonomy rule (three Lamiaceae for *Coleus*, three Rubiaceae for *Oldenlandia*, plus Arabidopsis
+  · Nicotiana · Oryza), 5.2 MB **not** committed; **287 proteins + 25 rRNAs (149 KB)** are, and a
+  test rebuilds them from the pinned panel and compares. Coverage **31/31**.
+  Two measurements changed the design: **self-translating is impossible** — all 530 reference CDS
+  publish a `/translation`, none declares a `/transl_table`, and plant mito CDS begin with `ACG`
+  which no table accepts as an initiator, so CDS-mode translation raises; and **the references are
+  polluted** — 236 anonymous ORFs annotated as CDS (121 in *Nicotiana* alone), plastid-derived
+  `rbcL`/`petG`/`atpB` inside the mitogenome, and a *Psychotria* "5S rRNA" that is 722 bp.
+
+**Validation.** `make check` green after each task (362 unit + 30 golden; tier-B skips name their
+missing tool). Every claim above is a measurement on the pinned records, not a reading of a paper.
+
+**Residual risks.** (1) **The vocabulary is narrower than the gene set** — 23 reference genes have
+no entry, ten of them standard (`rpl2` · `rpl10` · `rpl16` · `rpl23` · `rps2` · `rps7` · `rps12` ·
+`rps14` · `rps19` · `sdh3`). They are kept in the reference with `-` so a run can say it found one;
+named as **H-06** and deliberately *not* fixed here. (2) The writer is **not** a lossless GenBank
+editor — `locus_tag`, `note`, `protein_id`, `translation` and `misc_feature` are outside the model
+and stated as such in its docstring. (3) The golden round trip has **no partial coordinates** to
+exercise; the partial path is covered by a synthetic test only.
+
+**Blocked.** Nothing in Phase 3A. P3-04's count check stays open (H-05) and is now *also* the thing
+the phase is trying to make unnecessary.
+
+**Next.** **P3A-03 — the gene caller** (`blastx` → best hit per gene → codon boundaries → `Gene`;
+`blastn` for rRNA), then P3A-04 (ARAGORN), P3A-05 (CLI), P3A-06 (the 31·17·3 golden check),
+P3A-07 (`AP045469.1`, then pin it). All measured facts and the pitfalls are in `TASKS.md`; the
+design decision that matters most is **D3A-02 — boundaries come from the reference alignment, never
+from ORF-walking**, because the answer key's own 31 CDS score 21 ok · 4 pseudogene · 3 no_stop ·
+3 no_start.
 
 ### 2026-10-03 · Claude · dev WSL · session 11 (Phase 3 closed)
 
