@@ -749,7 +749,71 @@ def _submission_result() -> Result:
     )
 
 
+def _annotation_result() -> Result:
+    return Result(
+        module="annotation",
+        module_version="0.1.0",
+        tables={
+            "annotation_summary": Table(
+                id="annotation_summary",
+                title="Annotation summary",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("n_genes", "Genes", dtype="int"),
+                    Column("n_cds", "CDS", dtype="int"),
+                    Column("n_trna", "tRNA", dtype="int"),
+                    Column("n_rrna", "rRNA", dtype="int"),
+                    Column("n_orf_failed", "CDS failing the ORF checks", dtype="int"),
+                    Column("n_aliased_names", "Names with a synonym", dtype="int"),
+                    Column("n_unclassified", "Unclassified", dtype="int"),
+                    Column("annotator", "Annotator"),
+                    Column("reference_dir", "Reference plastomes"),
+                ),
+                rows=(
+                    {
+                        "organism": "Iris domestica",
+                        "accession": "NC_050833.1",
+                        "length_bp": 153_724,
+                        "n_genes": 132,
+                        "n_cds": 86,
+                        "n_trna": 38,
+                        "n_rrna": 8,
+                        "n_orf_failed": 0,
+                        "n_aliased_names": 4,
+                        "n_unclassified": 0,
+                        "annotator": "PGA (NC_050833.1.gb)",
+                        "reference_dir": "/refs",
+                    },
+                ),
+                scope=Scope(label="the annotator's gene set, read back with our reader"),
+            ),
+            "orf_status": Table(
+                id="orf_status",
+                title="ORF status of the annotated CDS",
+                columns=(Column("status", "Status"), Column("n", "CDS", dtype="int")),
+                rows=tuple(
+                    {"status": status, "n": n}
+                    for status, n in (
+                        ("not_multiple_of_three", 0),
+                        ("no_start", 0),
+                        ("no_stop", 0),
+                        ("internal_stop", 0),
+                        ("alternative_start", 5),
+                        ("pseudogene", 0),
+                        ("ok", 81),
+                    )
+                ),
+                scope=Scope(label="the annotator's gene set, read back with our reader"),
+                key="status",
+            ),
+        },
+    )
+
+
 TEMPLATE_FIXTURES = {
+    "annotation": _annotation_result,
     "genome_stats": _result,
     "gene_table": _gene_table_result,
     "gene_names": _gene_names_result,

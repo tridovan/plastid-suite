@@ -10,3 +10,6 @@ biopython:
 mafft:
   text: "Katoh K, Standley DM. MAFFT multiple sequence alignment software version 7: improvements in performance and usability. Molecular Biology and Evolution 30:772–780 (2013)."
   doi: "10.1093/molbev/mst010"
+pga:
+  text: "Qu X-J, Moore MJ, Li D-Z, Yi T-S. PGA: a software package for rapid, accurate, and flexible batch annotation of plastomes. Plant Methods 15:50 (2019)."
+  doi: "10.1186/s13007-019-0435-7"
