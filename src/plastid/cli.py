@@ -22,16 +22,18 @@ from pathlib import Path
 
 from plastid import __version__
 from plastid.core.genbank import read_genbank
-from plastid.core.ir import IRDetectionError, IRGateError, detect_ir, enforce_ir_gate
+from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
 from plastid.core.normalize import normalize
 from plastid.core.panel import (
     IndexSnapshot,
-    entry_from_summary,
+    PanelEntry,
+    entries_from_summaries,
     load_index,
     pin,
     propose,
     save_index,
 )
+from plastid.core.samples import group_of, load_groups
 from plastid.modules import registry
 from plastid.report.citations import load_citations
 from plastid.report.engine import load_template, render
@@ -60,9 +62,21 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser("run", help="run one analysis module on one genome")
     run_parser.add_argument("-m", "--module", required=True, help="module id (e.g. genome_stats)")
-    run_parser.add_argument("-i", "--input", required=True, help="GenBank file (one record)")
+    run_parser.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        action="append",
+        help="GenBank file (one record); repeat the flag for a multi-genome module",
+    )
     run_parser.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
     run_parser.add_argument("--dataset", default=None, help="dataset label (default: accession)")
+    run_parser.add_argument(
+        "--groups",
+        default=None,
+        metavar="FILE",
+        help="sample-group YAML ({group: [accessions]}) — labels every input (P2-11)",
+    )
     run_parser.add_argument("--force", action="store_true", help="ignore the cache and re-run")
     run_parser.add_argument(
         "--set",
@@ -85,8 +99,18 @@ def build_parser() -> argparse.ArgumentParser:
     propose_parser.add_argument("--level", default="family")
     propose_parser.add_argument("--per-tier", type=int, default=3)
     pin_parser = panel_actions.add_parser("pin", help="download and checksum the chosen genomes")
-    pin_parser.add_argument("--index", default=".panel/index.json")
-    pin_parser.add_argument("--accessions", required=True, help="comma-separated accessions")
+    pin_parser.add_argument(
+        "--index",
+        default=None,
+        help="panel index to take entries from; without it every accession is resolved from NCBI",
+    )
+    wanted = pin_parser.add_mutually_exclusive_group(required=True)
+    wanted.add_argument("--accessions", help="comma-separated accessions")
+    wanted.add_argument(
+        "--groups",
+        metavar="FILE",
+        help="sample-group YAML ({group: [accessions]}) — pins every accession in it",
+    )
     pin_parser.add_argument("--out", default=".panel/genomes")
     return parser
 
@@ -157,18 +181,53 @@ def _cmd_run(args: argparse.Namespace) -> int:
         return EXIT_ERROR
 
     try:
-        genome = read_genbank(args.input)
+        genomes = tuple(read_genbank(text) for text in args.input)
     except (OSError, ValueError) as error:
-        print(f"cannot read {args.input}: {error}", file=sys.stderr)
+        print(f"cannot read the input: {error}", file=sys.stderr)
         return EXIT_ERROR
+    if len(genomes) != spec.arity:
+        print(
+            f"module {spec.id!r} takes {spec.arity} genome(s), got {len(genomes)} — "
+            f"pass --input once per genome",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    genome = genomes[0]
     try:
         params = _parse_sets(args.set or [])
     except ValueError as error:
         print(str(error), file=sys.stderr)
         return EXIT_USAGE
 
+    if args.groups:
+        # Shared group labels for every comparison output (P2-11). Loaded here because a module
+        # never touches the filesystem; the module receives plain data in params.
+        try:
+            groups = load_groups(args.groups)
+        except (OSError, ValueError) as error:
+            print(f"cannot read {args.groups}: {error}", file=sys.stderr)
+            return EXIT_ERROR
+        labels: dict[str, str] = {}
+        unlabelled = []
+        for item in genomes:
+            key = item.accession or item.name
+            label = group_of(groups, key)
+            if label is None:
+                unlabelled.append(key)
+            else:
+                labels[key] = label
+        if unlabelled:
+            print(
+                f"{args.groups}: no group for {', '.join(unlabelled)} — every input needs one, "
+                f"or the comparison output would carry an unlabelled row",
+                file=sys.stderr,
+            )
+            return EXIT_ERROR
+        params["groups"] = labels
+
     overlay = json.dumps(params, sort_keys=True)
-    fingerprint = hashlib.sha256((genome.sequence + overlay).encode("ascii", "replace")).hexdigest()
+    sequences = "".join(item.sequence + "\x00" for item in genomes)  # ordered: order is meaning
+    fingerprint = hashlib.sha256((sequences + overlay).encode("ascii", "replace")).hexdigest()
     dataset = args.dataset or genome.accession or genome.name
     layout = RunLayout.create(args.out, dataset, fingerprint=fingerprint)
     layout.make_dirs()
@@ -176,16 +235,23 @@ def _cmd_run(args: argparse.Namespace) -> int:
     ctx = RunContext(layout=layout, params=params, module_id=spec.id, module_order=1)
     manifest = build_manifest(
         run_id=layout.run_id,
-        command=["plastid", "run", "--module", spec.id, "--input", str(args.input)],
+        command=[
+            "plastid",
+            "run",
+            "--module",
+            spec.id,
+            *[part for text in args.input for part in ("--input", text)],
+        ],
         package_version=__version__,
         started_at=datetime.now().isoformat(timespec="seconds"),
         params=params,
         inputs=[
             {
-                "path": str(args.input),
-                "sha256": _sha256_file(Path(args.input)),
-                "bytes": Path(args.input).stat().st_size,
+                "path": str(text),
+                "sha256": _sha256_file(Path(text)),
+                "bytes": Path(text).stat().st_size,
             }
+            for text in args.input
         ],
         coordinate_system={
             "name": "genbank",
@@ -198,22 +264,37 @@ def _cmd_run(args: argparse.Namespace) -> int:
     )
 
     if spec.requires_ir:
-        try:
-            ir = enforce_ir_gate(detect_ir(genome))
-        except (IRGateError, IRDetectionError) as error:
-            manifest["ir"] = {"gate_passed": False, "error": str(error)}
-            return _fail(manifest, layout, ctx, spec.version, f"IR gate: {error}", EXIT_USAGE)
-        ctx.ir = ir
+        gated: list[IRResult] = []
+        for candidate in genomes:
+            try:
+                gated.append(enforce_ir_gate(detect_ir(candidate)))
+            except (IRGateError, IRDetectionError) as error:
+                # every genome in a comparison must pass: one diverged IR corrupts them all
+                manifest["ir"] = {"gate_passed": False, "error": str(error)}
+                return _fail(manifest, layout, ctx, spec.version, f"IR gate: {error}", EXIT_USAGE)
+        ctx.ir = gated[0]
         manifest["ir"] = {
-            "source": ir.source,
-            "length": ir.length,
-            "identity": ir.identity,
-            "gate_passed": ir.gate_passed,
-            "mirror_constant": ir.mirror_constant,
-            "denovo_length": ir.denovo_length,
-            "denovo_delta": ir.denovo_delta,
+            "source": gated[0].source,
+            "length": gated[0].length,
+            "identity": gated[0].identity,
+            "gate_passed": gated[0].gate_passed,
+            "mirror_constant": gated[0].mirror_constant,
+            "denovo_length": gated[0].denovo_length,
+            "denovo_delta": gated[0].denovo_delta,
         }
-        manifest["coordinate_system"]["rotation_offset"] = normalize(genome, ir).rotation_offset
+        manifest["coordinate_system"]["rotation_offset"] = normalize(
+            genome, gated[0]
+        ).rotation_offset
+        if len(gated) > 1:
+            manifest["ir"]["genomes"] = [
+                {
+                    "accession": candidate.accession or candidate.name,
+                    "length": result.length,
+                    "identity": result.identity,
+                    "source": result.source,
+                }
+                for candidate, result in zip(genomes, gated, strict=True)
+            ]
 
     try:
         template = load_template(f"{spec.id}.en.md")
@@ -229,7 +310,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
             module_id=spec.id,
             module_version=spec.version,
             run_fn=spec.run,
-            genome=genome,
+            genomes=genomes,
+            arity=spec.arity,
             params=params,
             ctx=ctx,
             cache=Cache(layout.cache_dir),
@@ -294,13 +376,11 @@ def _panel_refresh(args: argparse.Namespace) -> int:
         print(f"NCBI: {error}", file=sys.stderr)
         return EXIT_ERROR
 
-    entries = []
-    for summary in summaries:
-        lineage = lineages.get(str(summary.get("taxid", "")), "")
-        try:
-            entries.append(entry_from_summary(summary, lineage))
-        except ValueError as error:
-            print(f"skipped: {error}", file=sys.stderr)
+    entries, problems = entries_from_summaries(
+        (summary, lineages.get(str(summary.get("taxid", "")), "")) for summary in summaries
+    )
+    for problem in problems:
+        print(f"skipped: {problem}", file=sys.stderr)
     snapshot = IndexSnapshot(
         retrieved_at=datetime.now().isoformat(timespec="seconds"), entries=tuple(entries)
     )
@@ -342,40 +422,92 @@ def _panel_propose(args: argparse.Namespace) -> int:
 
 
 def _panel_pin(args: argparse.Namespace) -> int:
-    try:
-        snapshot = load_index(args.index)
-    except (OSError, KeyError) as error:
-        print(
-            f"cannot read {args.index}: {error} — run 'plastid panel refresh' first",
-            file=sys.stderr,
-        )
-        return EXIT_ERROR
-    wanted = [accession.strip() for accession in args.accessions.split(",") if accession.strip()]
-    by_accession = {entry.accession: entry for entry in snapshot.entries}
-    missing = [accession for accession in wanted if accession not in by_accession]
-    if missing:
-        print(f"not in the index: {missing} — refresh the panel first", file=sys.stderr)
-        return EXIT_ERROR
+    """Pin chosen genomes; accessions a panel index cannot hold are resolved live from NCBI.
+
+    A RefSeq-only index can never contain a GenBank submission with no RefSeq twin, nor a
+    mitogenome — yet those are exactly the genomes a manuscript may need (measured 2026-10-03:
+    neither *Oldenlandia diffusa* nor *Coleus amboinicus* has a RefSeq plastome).
+    """
+    if args.groups:
+        try:
+            wanted = [a for group in load_groups(args.groups) for a in group.accessions]
+        except (OSError, ValueError) as error:
+            print(f"cannot read {args.groups}: {error}", file=sys.stderr)
+            return EXIT_ERROR
+    else:
+        wanted = [a.strip() for a in args.accessions.split(",") if a.strip()]
+    duplicates = sorted({a for a in wanted if wanted.count(a) > 1})
+    if duplicates:
+        print(f"panel pin: duplicated accession(s): {', '.join(duplicates)}", file=sys.stderr)
+        return EXIT_USAGE
+    if not wanted:
+        print("panel pin: no accession to pin", file=sys.stderr)
+        return EXIT_USAGE
+
+    by_accession: dict[str, PanelEntry] = {}
+    retrieved_at: str | None = None
+    if args.index:
+        try:
+            snapshot = load_index(args.index)
+        except (OSError, KeyError) as error:
+            print(f"cannot read {args.index}: {error}", file=sys.stderr)
+            return EXIT_ERROR
+        by_accession = {entry.accession: entry for entry in snapshot.entries}
+        retrieved_at = snapshot.retrieved_at
 
     client = NcbiClient()
+    entries: list[PanelEntry] = []
+    failed: list[str] = []
+    for accession in wanted:
+        entry = by_accession.get(accession)
+        if entry is None:
+            try:
+                summary, lineage = client.resolve(accession)
+            except (NcbiError, OSError) as error:
+                print(f"{accession}: {error}", file=sys.stderr)
+                failed.append(accession)
+                continue
+            resolved, problems = entries_from_summaries([(summary, lineage)])
+            for problem in problems:
+                print(f"{accession}: {problem}", file=sys.stderr)
+            if not resolved:
+                failed.append(accession)
+                continue
+            entry = resolved[0]
+            print(f"{accession}: not in the index — resolved live ({entry.organism})")
+        entries.append(entry)
+
+    if not entries:
+        print("panel pin: nothing resolved, nothing pinned", file=sys.stderr)
+        return EXIT_ERROR
     try:
-        pinned = pin(
-            (by_accession[accession] for accession in wanted),
-            client.fetch_genbank,
-            args.out,
-            retrieved_at=snapshot.retrieved_at,
-        )
+        pinned = pin(entries, client.fetch_genbank, args.out, retrieved_at=retrieved_at)
     except (NcbiError, OSError) as error:
         print(f"NCBI: {error}", file=sys.stderr)
         return EXIT_ERROR
+    problems = list(failed)
     for record in pinned:
-        detail = (
-            f"{record.length} bp, {record.cds} CDS"
-            if record.length is not None
-            else f"UNVERIFIED: {record.parse_error}"
-        )
         digest = record.sha256[:12]
-        print(f"pinned {record.accession}: {record.bytes} bytes · sha256 {digest}… ({detail})")
+        if record.parse_error is not None:
+            print(
+                f"pinned {record.accession}: {record.bytes} bytes · sha256 {digest}… "
+                f"(UNVERIFIED: {record.parse_error})"
+            )
+            problems.append(record.accession)
+            continue
+        genes = f"{record.cds} CDS + {record.trna} tRNA + {record.rrna} rRNA"
+        ir = (
+            f"IR {record.ir_length} bp {record.ir_source} @ {record.ir_identity * 100:.2f} %"
+            if record.ir_error is None
+            else f"IR: {record.ir_error}"
+        )
+        print(
+            f"pinned {record.accession}: {record.bytes} bytes · sha256 {digest}… "
+            f"({record.length} bp · {genes} · {record.topology} · {ir})"
+        )
+    if problems:
+        print(f"panel pin: {len(problems)} problem(s): {', '.join(problems)}", file=sys.stderr)
+        return EXIT_ERROR
     return EXIT_OK
 
 

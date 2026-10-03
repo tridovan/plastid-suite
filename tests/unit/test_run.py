@@ -124,6 +124,23 @@ def _stub_genome() -> Genome:
     return Genome(name="synthetic", sequence="ACGT" * 25)
 
 
+def test_runner_refuses_the_wrong_number_of_genomes(tmp_path: Path) -> None:
+    """API v0.2: a module's declared arity is enforced before anything runs."""
+    layout = RunLayout.create(tmp_path, "dataset", fingerprint="0" * 16, now=WHEN)
+    layout.make_dirs()
+    with pytest.raises(ValueError, match="at least 2 genomes"):
+        execute_step(
+            module_id="stub",
+            module_version="0.1.0",
+            run_fn=lambda genomes, params, ctx: _stub_result(),
+            genomes=(_stub_genome(),),
+            arity=2,
+            params={},
+            ctx=RunContext(layout=layout, params={}, module_id="stub", module_order=1),
+            cache=Cache(layout.cache_dir),
+        )
+
+
 def test_runner_caches_and_restores_files_byte_identically(tmp_path: Path) -> None:
     calls: list[int] = []
 
@@ -142,7 +159,8 @@ def test_runner_caches_and_restores_files_byte_identically(tmp_path: Path) -> No
         module_id="stub",
         module_version="0.1.0",
         run_fn=run_fn,
-        genome=_stub_genome(),
+        genomes=(_stub_genome(),),
+        arity=1,
         params={},
         ctx=context(),
         cache=cache,
@@ -157,7 +175,8 @@ def test_runner_caches_and_restores_files_byte_identically(tmp_path: Path) -> No
         module_id="stub",
         module_version="0.1.0",
         run_fn=run_fn,
-        genome=_stub_genome(),
+        genomes=(_stub_genome(),),
+        arity=1,
         params={},
         ctx=context(),
         cache=cache,
@@ -171,7 +190,8 @@ def test_runner_caches_and_restores_files_byte_identically(tmp_path: Path) -> No
         module_id="stub",
         module_version="0.1.0",
         run_fn=run_fn,
-        genome=_stub_genome(),
+        genomes=(_stub_genome(),),
+        arity=1,
         params={},
         ctx=context(),
         cache=cache,

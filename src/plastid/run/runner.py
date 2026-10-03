@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,6 +21,10 @@ from plastid.run.context import RunContext
 __all__ = ["StepOutcome", "execute_step"]
 
 ReportRenderer = Callable[[Result], str]
+
+# `run/` may not import `modules/` (layering), so the module callable is typed loosely here and
+# the arity check below is what keeps the two contracts honest.
+RunFn = Callable[..., Result]
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,8 +74,9 @@ def execute_step(
     *,
     module_id: str,
     module_version: str,
-    run_fn: Callable[[Genome, dict, RunContext], Result],
-    genome: Genome,
+    run_fn: RunFn,
+    genomes: Sequence[Genome],
+    arity: int,
     params: dict,
     ctx: RunContext,
     cache: Cache,
@@ -79,11 +84,22 @@ def execute_step(
     render_report: ReportRenderer | None = None,
 ) -> StepOutcome:
     """Run one module step, or restore it from the cache when nothing relevant changed."""
+    if arity == 1:
+        if len(genomes) != 1:
+            raise ValueError(
+                f"module {module_id!r} takes exactly one genome, got {len(genomes)} — "
+                f"the v0.1 contract is run(genome, …)"
+            )
+    elif len(genomes) < arity:
+        raise ValueError(
+            f"module {module_id!r} needs at least {arity} genomes, got {len(genomes)} — "
+            f"the v0.2 contract is run(genomes, …)"
+        )
     key = Cache.key(
         module_id=module_id,
         module_version=module_version,
         params_hash=_params_hash(params),
-        input_sha256s=(_input_hash(genome),),
+        input_sha256s=tuple(_input_hash(genome) for genome in genomes),
         ir_fingerprint=_ir_fingerprint(ctx.ir),
     )
     if not force:
@@ -91,7 +107,7 @@ def execute_step(
         if cached is not None:
             return StepOutcome(status="cached", key=key, files=_write(ctx, cached))
 
-    result = run_fn(genome, params, ctx)
+    result = run_fn(genomes[0], params, ctx) if arity == 1 else run_fn(genomes, params, ctx)
     if result.module != module_id:
         raise ValueError(f"module {module_id!r} returned a Result for {result.module!r}")
     payload = export_files(result, render_report)
