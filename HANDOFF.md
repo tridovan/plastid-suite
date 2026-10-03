@@ -7,39 +7,40 @@
 ## Resume point
 
 **Phase 1 — COMPLETE.** **D-04 (public stand-in dataset) — COMPLETE** (13 records pinned, sha256
-stable, PROJECT.md §8.6). **P2-01 — COMPLETE** (golden · 2nd genome · both diverged-IR genomes
-exit 2, in `tests/golden/test_e2e.py`).
+stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLETE.**
 
-**Phase 2 status:** P2-01 · P2-02 · P2-03 · P2-04 · P2-05 · P2-06 · P2-11 **DONE**.
-P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526** (absent here;
-`apt` would install a different version and §7.8 pins 7.526 — no number was measured with the
-wrong aligner). **P2-09 (Word gene table) and P2-10 (manuscript) are NOT started.**
+**Phase 2 status:** P2-01 … P2-06 · P2-09 · P2-11 **DONE**. P2-10 **draft produced and labelled**
+(PROJECT.md §8.8, `docs/P2-10_manuscript_draft.md`) — the real samples are still what makes it the
+team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
-**Next action: D2-04 + P2-09 (Word gene table).** Note the architectural point: a `.docx` is
-binary, while `runner._write` currently takes `dict[str, str]`. The export layer needs to accept
-bytes (seam 2: the export layer writes files, never a module), and the format should be requested
-explicitly at the CLI rather than emitted implicitly. Dependency per D2-04: `python-docx` +
-`openpyxl` as an **optional extra** so the minimum install stays pure Python.
+**Next action: nothing in Phase 2 is blocked on code — the next move is Phase 3** (annotation:
+PGA/GeSeq, gene-name normalisation, ORF checks, NCBI submission files), *or* collecting the five
+outstanding items below. Pick with the PI.
 
-Then **P2-10** — needs the team's real samples; the stand-in set (PROJECT.md §8.6) can produce a
-clearly labelled draft.
+Open sub-items inside Phase 2, in the order they matter:
 
-**Before P2-07/08 numbers are used for anything:** the alignment must come from MAFFT 7.526, and
-§6's golden Ts/Tv (2.686) has the narrower scope *CDS only · 76 shared genes · IR excluded* — the
-module's default whole-alignment scope is a different number and must never be quoted as that one.
+1. **P2-07/P2-08 real-data run.** Needs MAFFT **7.526** (§7.8 pins it; `apt` installs a different
+   version and §9.B-13 records that the aligner changes Ts/Tv). `PTS_REQUIRE_TOOLS=1` on a machine
+   that has it. π per **intron/IGS** is still missing from P2-08.
+2. **Nothing cross-checks the de-novo IR *length*** on an unannotated record — `PZ428230.1` passed
+   the gate on a 15,756 bp repeat while every congener is ~25.7 kb (PROJECT.md §9.A-8). A congener
+   length check is *not built*.
+3. **`--docx` on a machine without the extra** — verified by test (exit 3, named error), never yet
+   run on a machine that genuinely lacks python-docx.
 
-Open item deliberately left: for a record with **no annotation**, nothing cross-checks the de-novo IR
-length — `PZ428230.1` passed the gate on a 15,756 bp repeat while every congener is ~25.7 kb
-(PROJECT.md §9.A-8). A congener length check is *not built* — decide before P2-07/08 use the set.
+**Before any P2-07/08 number is quoted:** the alignment must come from MAFFT 7.526, and §6's golden
+Ts/Tv (2.686) has the narrower scope *CDS only · 76 shared genes · IR excluded* — the module's
+default whole-alignment scope is a different number and must never be quoted as that one.
 
-**Waiting on people:** real Oldenlandia/Coleus samples → P2-10 only (stand-ins now unblock
-P2-07/08/11 development) · real Illumina reads + nuclear genome → Phase 6/7 · item (c) → docs.
+**Waiting on people:** real Oldenlandia/Coleus samples → P2-10 (the stand-in set already contains
+both species, as *public records*, which is not the same as the team's specimens) · real Illumina
+reads + nuclear genome → Phase 6/7 · item (c) → docs.
 
 **Branches (all pushed to `origin`, 2026-10-03):** `main` = **Phase 1 complete** (fast-forwarded to
 the Phase-1 tip, no merge commit) · `feat/phase-1` · `feat/p1-02-core-model` · `feat/p1-04-result-schema`
 (the stacked Phase-1 branches, kept for reference; their commits are already in `main`) ·
-**`feat/phase-2` = current**, four commits on top of `main` — a PR from it to `main` shows exactly
-those four, which is why Phase 1 was fast-forwarded in first.
+**`feat/phase-2` = current**, nine commits on top of `main` (four of them from session 4) — a PR
+from it to `main` shows exactly those, which is why Phase 1 was fast-forwarded in first.
 
 Every commit on `feat/phase-2` was checked out and `make check`-verified individually, so
 `git bisect` is usable across the branch.
@@ -48,6 +49,39 @@ Every commit on `feat/phase-2` was checked out and `make check`-verified individ
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 4 (P2-09, D2-04, P2-10)
+
+- **Did:** finished Phase 2. **P2-09** — a categorised publication gene table
+  (`data/gene_groups.yaml` is the grouping, `modules/gene_table.py` builds it) plus a Word export
+  (`result/docx_export.py`, `plastid run … --docx`) that is **byte-reproducible** and pruned of the
+  template's dead weight. **D2-04** — `python-docx` as an optional extra, imported inside the
+  function, so the minimum install stays biopython + PyYAML. **P2-10** — `-m` is repeatable, so a
+  run holds several modules and writes one combined `report/report.docx`; draft produced for both
+  manuscript species from the stand-in set.
+- **Validation:** `make check` green — **208 fast + 28 golden**. Every document was rendered
+  (LibreOffice → PDF → PNG) and **looked at**, not just asserted on. Measured: two builds of one run
+  are byte-identical, and so is a fully cached re-run (including the merged document).
+- **Four real bugs found by this work, each now a regression test:**
+  1. the gene table's own reconciliation reported **0** on its Total row — `by_kind.get("Total")`
+     on a Counter holding only CDS/tRNA/rRNA returns the default. The column caught it on the
+     first run, which is the whole reason it exists (PROJECT.md §9.B-19).
+  2. the OOXML style pruner read styles as **attributes** (`element.get("w:pStyle")`) when they are
+     **child elements** (`<w:pStyle w:val="…"/>`), so it removed nearly every style the document
+     used — including `Title` and `Heading 1`. **LibreOffice still rendered something plausible**;
+     only a structural test ("every style the document references must still be defined") caught it
+     (PROJECT.md §9.C-20).
+  3. a table's own NUL-looking allocation bug: scaling every column by one factor starved the short
+     ones, so a header broke mid-word ("Gene / s"); columns now get a floor before the rest is
+     shared out.
+  4. `Table.emphasis` (a bold totals row) accepted any string — a typo would have been invisible in
+     every export except the Word document's font weight. It now must name an existing key.
+- **Residual risks:** the Word layout is verified by eye against LibreOffice; Word itself is not
+  installed here, so a Word-only rendering difference would not have been seen. The stand-in drafts
+  are labelled but are **public records of the same two species** — same species is not the same
+  specimen.
+- **Blocked:** P2-07/P2-08 numbers still need MAFFT 7.526 (absent).
+- **Next:** Phase 3, or collect the three open sub-items in the resume point.
 
 ### 2026-10-03 · Claude · dev WSL · session 3 (P2-03 … P2-08, P2-11, D2-01/02/03)
 
