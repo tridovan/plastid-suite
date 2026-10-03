@@ -13,9 +13,10 @@ stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLE
 (PROJECT.md §8.8, `docs/P2-10_manuscript_draft.md`) — the real samples are still what makes it the
 team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
-**Phase 3 — P3-01 · P3-02 · P3-03 DONE, P3-05 half done, P3-04's annotator blocked; branch
-`feat/phase-3` (stacked on `feat/phase-2`, which is not yet merged to `main`).** The board is
-`TASKS.md`.
+**Phase 3 — COMPLETE (5/5), branch `feat/phase-3` (stacked on `feat/phase-2`, which is not yet
+merged to `main`).** The board is `TASKS.md`; the one task that closed by *decision* rather than by
+code is P3-04's annotator (see below). **Next phase: Phase 4 — multi-genome comparison**
+(`ROADMAP.md`; M4.1–M4.6, of which M4.5 needs RNA data the team does not have yet).
 
 - **P3-01 ORF checks — DONE.** `core/orf.py` + `modules/orf.py`; `Gene` now carries the record's own
   `/transl_table` and `/codon_start`. Golden: 86 CDS, 81 `ok`, **5 `alternative_start`**
@@ -67,6 +68,14 @@ team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pend
   -e …`, which made PGA run with defaults — whose first act is `rm -rf gb` in the working directory
   (fixed: the probe never executes a Perl tool now). Also measured: 3 of the RefSeq Iris references
   use the **functional dialect** too, which strengthens D3-02. §8.15.
+- **P3-04 mito — DONE (03/10, late), with the annotator closed by decision.** The mito path works
+  and is measured (`mito_genes`: `OX459128.1` → 51 = 31 CDS + 17 tRNA + 3 rRNA, no IR gate). The
+  annotator itself is **PMGA on its web service, pinned** — because **this machine is not strong
+  enough to run the annotator**: the container is 3.18 GB → 11 GB unpacked and drives MAKER, the
+  WSL VM is capped at 8 GB, and the real C: drive had 42 GB free (14 GB of container was a third
+  of it, now deleted). `external/pmga.py` is deliberately **not written**; its trigger is the first
+  machine that can run the container, and the first number to measure then is peak RAM + wall
+  clock. `docs/tools/pmga.md`, PROJECT.md §3.
 - **P3-04 mito — the tool's two options are now in place (03/10, late).** The plan's backend rule
   (PROJECT.md §3 P1-12: a heavy step runs where it fits) was half-implemented — `panel pin` took
   only NCBI accessions, so a tool that ran elsewhere could not be pinned. `plastid panel pin
@@ -170,6 +179,28 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 11 (Phase 3 closed)
+
+- **Did:** closed P3-04 by decision — the mito annotator is PMGA on its web service, pinned
+  (`plastid panel pin --file`, §8.19), not a local adapter, because the machine cannot run the
+  annotator (11 GB unpacked + MAKER vs an 8 GB WSL cap and 42 GB free on C:). Deleted the 14 GB
+  container after reading its real CLI out of it. Board, ROADMAP M3.1, PROJECT.md §3 and
+  `docs/tools/pmga.md` all say so, with the trigger that would reopen the adapter.
+- **Validation:** `make check` green — 345 fast + 30 golden. Phase 3's own check (§13.3): every
+  run's output re-reads with our reader, the ORF checks pass, the gene recount uses the fixed rule
+  — all three hold for both the plastome and the mito path.
+- **Risks / notes:** (1) the mito **count check** against a real PMGA run has still never been
+  made — it needs one web-service run by the team; until then `mito_genes` is verified against a
+  downloaded record, not against an annotator's output; (2) the disk: deleting inside WSL returns
+  nothing to Windows (`ext4.vhdx` does not shrink; WSL refuses its own sparse mode) — a manual
+  `diskpart compact vdisk` from Windows is what gives the 14 GB back.
+- **Blocked:** nothing. Open for the PI: D3-06 (which gene name is printed in the manuscript) and
+  the `trnG` naming question (§10.10).
+- **Next:** Phase 4 — M4.1 Ka/Ks · M4.2 %identity + synteny · M4.3 barcodes · M4.4 population
+  genetics · M4.6 Ts/Tv (**scope fixed: CDS only · 76 shared genes · MAFFT · IR excluded**).
+  M4.5 (RNA editing) needs RNA data nobody has yet. Note MAFFT is not on this machine — Phase 4's
+  golden checks need it installed and pinned (`docs`/§7.8, measured earlier at 7.526).
 
 ### 2026-10-03 · Claude · dev WSL · session 10 (PMGA downloaded, and the backend rule completed)
 

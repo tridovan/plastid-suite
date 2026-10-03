@@ -138,7 +138,9 @@ relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined
 
 - [x] **M3.1 Annotation** (2026-10-03) — plastome: **Chloe** (PGA measured and replaced, §8.15/§8.17),
       **132 = 86 + 38 + 8** through our own reader, 0 CDS failing the ORF checks; mito path
-      (`mito_genes`, no IR gate) done and measured, the **PMGA annotator still blocked** on its container
+      (`mito_genes`, no IR gate) done and measured; the **mito annotator is PMGA on its web service,
+      pinned** — the local container needs 11 GB and MAKER, which this machine is not strong enough
+      to run (`docs/tools/pmga.md`, PROJECT.md §3 P1-12)
 - [x] **M3.2 Gene-name check & normalization** (2026-10-03) — one normalizer (`core/gene_names.py`), panel measured: 155 → 115 canonical, 0 unresolved, 0 unclassified
 - [x] **M3.3 ORF checks** (2026-10-03) — golden: 0 failures, 5 alternative starts; the truncated ycf1 reported as annotated-not-coding
 - [x] **M3.4 NCBI submission files** (2026-10-03) — `.fsa` + `.tbl` in pure Python, 265/265 features

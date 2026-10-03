@@ -78,9 +78,12 @@ service or a bigger server when it cannot. The same rule D3-01 applied to GeSeq 
    computer never holds the container. This is the route for the team's own machines, and the
    `--file` half was built on 2026-10-03 precisely because the rule requires it (PROJECT.md §8.19).
 
-**What an adapter would add, and when to write it:** nothing the pinned file does not already
-give, for question 1 above. `external/pmga.py` earns its place the first time a machine here can
-run the container — and it is a small job then, because the command line is known.
+**Decided 03/10 (dev, confirmed by anh Trí): route 2 is what this project uses, and
+`external/pmga.py` is not written.** The reason is measured, not a preference: the container is
+11 GB unpacked, it drives MAKER, the WSL VM here is capped at 8 GB and the C: drive had 42 GB
+free — **this machine is not strong enough to run the annotator.** The adapter stays open with a
+named trigger: the first machine that *can* run the container. It is a small job then, because the
+command line above is already read from the container itself.
 
 ## What is NOT yet measured — and what it needs
 

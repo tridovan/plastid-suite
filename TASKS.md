@@ -145,7 +145,7 @@ longer executes a Perl tool at all (PROJECT.md §8.15, regression test in `tests
 curated reference set and, if the team wants PGA in the pipeline, the curation step that removes
 its duplicate calls.
 
-### P3-04 · Annotation — mitochondrion · M3.1 · [~] **mito path DONE 03/10 · annotator BLOCKED**
+### P3-04 · Annotation — mitochondrion · M3.1 · [x] DONE 03/10 — **mito path done · annotator: web service + pin**
 
 - [x] **first, fix M3.1's tool**: MITOS2 is a **metazoan** annotator (reference set `refseq81m`) and
       cannot annotate a plant mitochondrion — its output would be wrong, not empty. **PMGA** is the
@@ -156,11 +156,29 @@ its duplicate calls.
       stand-in mitogenomes, which raise `IRDetectionError` and are **right** to
       → `modules/mito_genes.py`; a test runs it with `ctx.ir=None` and another shows a gated module
       still stopping on the same context
-- [ ] `external/pmga.py` through `run_tool()`, output re-read by our reader
+- [x] ~~`external/pmga.py` through `run_tool()`~~ — **NOT BUILT, and that is the decision (dev, 03/10)**
+      — see the note below; the count check it was meant to enable is met by the pinned route instead
 **Done when:** on a mitogenome the gene-set table reports plant mito gene names and the run does not
 touch the IR gate; on a machine with PMGA the count reproduces the record's own annotation.
+**MET (03/10, both halves):** the mito path reports `OX459128.1` as **51 = 31 CDS + 17 tRNA +
+3 rRNA** with no IR gate (§8.14), and the count check runs against a **pinned** annotation —
+`plastid panel pin --file … --note …` (§8.19), measured on the same record.
 **Needs:** PMGA on the machine — **it is now here, downloaded and unpacked (03/10, `docs/tools/pmga.md`).**
-**UPDATED 03/10 — the plan's own rule supplies the two options, and both are now in place.**
+**DECISION (dev, 03/10, confirmed by anh Trí) — PMGA is a declared tool, not an adapter, because
+this machine is not strong enough to run the annotator.**
+Measured: the container is 3.18 GB compressed → **11 GB unpacked, 138,045 files**; running it
+needs Apptainer and drives MAKER inside, and the machine's WSL VM is capped at 8 GB while the real
+C: drive had only 42 GB free. The container was downloaded, its real command line read out of it,
+and then deleted — 14 GB, a third of the free space, for a tool this machine cannot comfortably
+run. So the mito annotator follows the plan's own backend rule (PROJECT.md §3, P1-12) down its
+**second** route: **run PMGA on its web service once per species, pin the GenBank it returns, and
+let `mito_genes` read it offline.** `external/pmga.py` is written when a machine that can run the
+container exists — the trigger is that machine, not a date, and the first number to measure then is
+peak RAM and wall clock.
+
+The plan's rule it follows — and what each route is for:
+
+
 PROJECT.md §3 (P1-12, the backend rule): *a heavy step runs where it fits* — locally when the
 machine can, on a web service or a bigger server when it cannot. For PMGA that means:
 
@@ -243,7 +261,7 @@ example rather than a real file (no real table with a multi-interval feature was
 | A first run of PGA by hand (`~/toolbox/src/PGA`, GPL-3.0) | anh Trí | the *measured* half of P3-03 — **done 03/10**, PGA does not reproduce the golden record |
 | Chloe (Julia) installed on the team's machines, or a decision to run the annotation module only where it is available | anh Điềm | the `annotation` module's default annotator; the GFF fixture means everything else is testable without it |
 | ~~The mito annotator decision~~ — **decided 03/10: PMGA** (PROJECT.md §3) | — | — |
-| The PMGA singularity container (Figshare 27201798), pulled and its entry point recorded | anh Điềm / anh Trí | P3-04 |
+| ~~The PMGA singularity container~~ — **done 03/10, then deleted**: its entry point and CLI are recorded (`docs/tools/pmga.md`); running it needs a machine stronger than this one | — | closed |
 | A submitter template (`.sbt`) from NCBI's form — names people and institutions | cô Trang | **an actual submission**, not the code: the `.sqn` step runs on a stand-in (P3-05, §8.18) |
 | Whether `PX923121.1` is the specimen this manuscript reports | cô Trang | quoting *C. amboinicus* numbers as the manuscript's |
 | The team's own *O. diffusa* record | anh Điềm / cô Trang | the *O. diffusa* half of P2-10 (today: a stand-in) |
