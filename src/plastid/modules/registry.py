@@ -6,7 +6,7 @@ Adding an analysis = adding a file in ``modules/`` plus one import line in
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -14,9 +14,17 @@ from plastid.core.model import Genome
 from plastid.result.result import Result
 from plastid.run.context import RunContext
 
-__all__ = ["ModuleSpec", "UnknownModuleError", "all_modules", "get", "module"]
+__all__ = [
+    "ModuleSpec",
+    "UnknownModuleError",
+    "all_modules",
+    "get",
+    "module",
+]
 
-ModuleFn = Callable[[Genome, dict[str, Any], RunContext], Result]
+SingleGenomeFn = Callable[[Genome, dict[str, Any], RunContext], Result]
+MultiGenomeFn = Callable[[Sequence[Genome], dict[str, Any], RunContext], Result]
+ModuleFn = SingleGenomeFn | MultiGenomeFn
 
 
 class UnknownModuleError(KeyError):
@@ -25,11 +33,14 @@ class UnknownModuleError(KeyError):
 
 @dataclass(frozen=True, slots=True)
 class ModuleSpec:
+    """One registered module. ``arity`` is how many genomes its ``run`` takes (API v0.2)."""
+
     id: str
     version: str
     title: str
     run: ModuleFn
     requires_ir: bool = False
+    arity: int = 1
     citations: tuple[str, ...] = ()
 
 
@@ -42,19 +53,28 @@ def module(
     version: str,
     title: str,
     requires_ir: bool = False,
+    arity: int = 1,
     citations: tuple[str, ...] = (),
 ) -> Callable[[ModuleFn], ModuleFn]:
-    """Register a module's ``run`` function."""
+    """Register a module's ``run`` function.
+
+    ``arity=1`` keeps the frozen v0.1 contract ``run(genome, params, ctx)``; a larger arity
+    declares the v0.2 multi-genome contract ``run(genomes, params, ctx)``. A module never
+    receives genomes it does not use, so the two contracts stay separate.
+    """
 
     def decorate(run_fn: ModuleFn) -> ModuleFn:
         if module_id in _REGISTRY:
             raise ValueError(f"module {module_id!r} is already registered")
+        if arity < 1:
+            raise ValueError(f"module {module_id!r}: arity must be at least 1, got {arity}")
         _REGISTRY[module_id] = ModuleSpec(
             id=module_id,
             version=version,
             title=title,
             run=run_fn,
             requires_ir=requires_ir,
+            arity=arity,
             citations=citations,
         )
         return run_fn

@@ -113,17 +113,18 @@ tells you which file belongs to which job.
 **In-phase checks:** golden numbers — 153,724 bp · 132 = 86+38+8 · IR 26,214 (≥ 99.9 %) ·
 LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools available. Mismatch ⇒ stop.
 
-- [ ] **M2.1 Gene content & summary statistics** (per group, GC %, length)
-- [ ] **M2.2 Publication gene table** (Word export)
-- [ ] **M2.3 Genome structure** — LSC/SSC/IR boundaries · %GC per region · GC-skew
-- [ ] **M2.4 Codon usage** — RSCU · ENC · CAI · CBI · Fop
-- [ ] **M2.5 Amino acid composition** — + GRAVY · aromaticity
-- [ ] **M2.6 SNP / substitutions by position** — scope labels enforced
-- [ ] **M2.7 Introns** — count · length · position
-- [ ] **M2.8 SSR** — by region and motif
-- [ ] **M2.9 Nucleotide diversity π** — per gene/intron/IGS, sliding window
-- [ ] **M2.10 Manuscript deliverable** — tables + figures + draft Results (Oldenlandia, Coleus)
-- [ ] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
+- [x] **M2.1 Gene content & summary statistics** (per group, GC %, length)
+- [x] **M2.2 Publication gene table** (Word export) — categorised table + reproducible `.docx`
+- [x] **M2.3 Genome structure** — LSC/SSC/IR boundaries · %GC per region · GC-skew
+- [x] **M2.4 Codon usage** — RSCU · ENC · CAI · CBI · Fop
+- [x] **M2.5 Amino acid composition** — + GRAVY · aromaticity
+- [~] **M2.6 SNP / substitutions by position** — scope labels enforced
+- [x] **M2.7 Introns** — count · length · position
+- [x] **M2.8 SSR** — by region and motif
+- [~] **M2.9 Nucleotide diversity π** — per gene/intron/IGS, sliding window
+- [~] **M2.10 Manuscript deliverable** — tables + draft Results produced for both species from the
+  public stand-in set (labelled); real samples and figures outstanding
+- [x] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
   (moved here from M1.11, whose loader shipped in Phase 1: `core/samples.py`)
 
 ## Phase 3 — Annotation  *(§13.3)*

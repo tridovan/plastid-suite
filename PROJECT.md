@@ -48,6 +48,14 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 02/10 | **Report sinh từ `Result`** (§10.7): mọi số trong report trỏ về **đúng một ô bảng gốc**; template chỉ trỏ `{{bảng.cột}}` / `{{bảng[dòng].cột}}`, không gõ số; ref không giải được ⇒ **raise**, không in trống |
 | 02/10 | **Reference Panel** (§10.8): engine **gợi ý** qua cache RefSeq có ngày (làm mới được); khi người dùng chốt danh sách thì **tải về + ghim checksum**; chạy lại **không cần mạng**. Mục (c) điền sau, không chặn code |
 | 03/10 | **Backend (P1-12, dev quyết)**: giai đoạn 1–5 và 8 chạy **tại chỗ** trên máy phổ thông; giai đoạn 6 (thời gian phân kỳ) + 7 (lắp ráp) chạy **máy chủ từ xa** — máy 8 GB chỉ còn 1,5–2,5 GB trống mỗi việc (§9.14). Ghi lại theo luật phân quyết định trong CLAUDE.md |
+| 03/10 | **Bảng gen xuất bản (P2-09, dev quyết)**: bảng in ra bài báo là bảng **phân nhóm theo chức năng**, không phải bản dump từng feature; nhóm gen là **dữ liệu** (`src/plastid/data/gene_groups.yaml`), không phải code. tRNA/rRNA khớp theo **tiền tố tên** (`trn`, `rrn`) chứ không theo danh sách anticodon — bản Oldenlandia/Coleus thật sẽ mang anticodon khác, danh sách cứng sẽ **rơi im lặng**. Gen không nhóm nào nhận ⇒ một dòng *unclassified* + ghi tên trong notes, **không bao giờ bị bỏ** |
+| 03/10 | **Số đếm của bảng gen = số bản sao** (kể cả 2 bản IR), đúng quy ước 132 = 86 + 38 + 8, và bảng **tự đối chiếu với `count_genes()`** trong một bảng riêng — cùng kiểu đối chiếu đã bắt lỗi MISA ở P2-06. Một gen rơi giữa bộ đếm và bảng sẽ hiện ra thành *DISAGREES*, không phải thành một số nhỏ hơn không ai kiểm |
+| 03/10 | **Xuất Word (D2-04 + P2-09, dev quyết)**: `python-docx` là **extra tuỳ chọn** (`pip install 'plastid-suite[docx]'`), import **bên trong hàm** nên bản cài tối thiểu vẫn thuần Python; thiếu nó ⇒ `ExportDependencyError` + exit 3, không phải traceback ImportError. `openpyxl` **chưa thêm** — chưa có gì dùng (YAGNI); sẽ vào cùng extra khi làm Excel ở Giai đoạn 5 |
+| 03/10 | **Tài liệu Word phải tái lập được từng byte**: `python-docx` đóng dấu thời gian đồng hồ vào zip, nên gói được **dựng lại** với timestamp cố định (1980-01-01), entry sắp xếp, `create_system` ghim ⇒ cùng đầu vào ra cùng file. Đây là định nghĩa "Done when" của P2-09, không phải một lời hứa |
+| 03/10 | **Gói .docx được tỉa**: template của `python-docx` mang theo cả catalogue style của Word (164 style, ~350 kB) + `stylesWithEffects.xml` (438 kB) + thumbnail + `customXml`; bản xuất chỉ giữ style tài liệu **thực sự dùng** cùng tổ tiên và default của chúng, mọi quan hệ trỏ tới phần đã bỏ đều bị cắt. Đo được: ~800 kB → **13 kB**, có test cấu trúc canh |
+| 03/10 | **Đa genome (D2-01, dev quyết)**: giữ nguyên contract v0.1 `run(genome, params, ctx)`; thêm contract thứ hai `run(genomes, params, ctx)` chọn bằng `arity` khai báo lúc đăng ký — **không** nới rộng contract cũ, vì module một-genome sẽ phải nhận một dãy nó không dùng (seam 5). Runner cưỡng chế số genome trước khi chạy. Ghi ở `docs/API_v0.2.md` |
+| 03/10 | **π: cửa sổ 600 bp · bước 200 bp (D2-02)** — quy ước kiểu mVISTA; window/step vào params, manifest và report |
+| 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
 
 ## 4. Ai làm gì
 
@@ -324,7 +332,149 @@ Chạy đúng 20 genome Iridaceae của §8.3 qua `core/ir.py` của bộ công 
 | **Đo lại NC_063921** | với cách ghép cấu trúc C = a1 + b2 − 1: **98,87 %**, không phải 53,65 % như ghi ở §8.3. Kết luận cổng **không đổi** (98,87 < 99,9 ⇒ cắm cờ) |
 | Đối chiếu chéo annotation ↔ de novo | có: NC_063920 ghi nhận lệch **3.163 bp** (26.161 vs 22.998) — không im lặng; golden lệch 0 |
 
+### 8.6. Bộ dữ liệu công khai thay thế — Oldenlandia / Coleus (03/10/2026 — D-04)
+
+**Đây KHÔNG phải mẫu của nhóm** — là bản GenBank công khai tải về để dev (quy tắc: CLAUDE.md →
+"Data — real samples vs development stand-ins"). Lệnh tái lập (một lần; sau đó chạy offline):
+
+```
+plastid panel pin --groups data/oldenlandia-coleus.yaml      --out .panel/oldenlandia-coleus
+plastid panel pin --groups data/oldenlandia-coleus-mito.yaml --out .panel/oldenlandia-coleus-mito
+```
+
+Payload `.gb` **không commit** (`.panel/` bị gitignore); `PINNED.json` giữ ngày tải + sha256 từng file.
+Bảng dưới **sinh thẳng từ `PINNED.json`** (không gõ tay): `pin()` đọc lại từng file bằng
+`core/genbank.py` rồi đo bằng `core/ir.py` — cổng IR chỉ **ghi lại**, không chặn ở bước pin
+(seam 4: cổng chỉ có hiệu lực lúc chạy). GC% không nằm ở đây — nó là số của module `genome_stats`
+lúc chạy, không phải thuộc tính provenance.
+
+| Accession | Dài (bp) | CDS | tRNA | rRNA | Topology | IR (bp, identity) · cổng |
+|---|---|---|---|---|---|---|
+| `NC_057985.1` | 153.653 | 85 | 37 | 8 | circular | 26.286 (1,0000) PASS |
+| `PP078674.1` | 153.676 | 86 | 37 | 8 | circular | 26.323 (1,0000) PASS |
+| `PQ325515.1` | 153.640 | **0** | **0** | **0** | circular | 26.323 (1,0000) PASS |
+| `NC_057983.1` | 152.327 | 85 | 37 | 8 | circular | 25.286 (1,0000) PASS |
+| `PX977793.1` | 152.414 | 85 | 37 | 8 | circular | 25.308 (1,0000) PASS |
+| `PX923121.1` | 152.544 | 88 | 37 | 8 | circular | 25.711 (1,0000) PASS |
+| `PZ428230.1` | 152.510 | **0** | **0** | **0** | **linear** | **15.756** (1,0000) PASS |
+| `NC_069583.1` | 152.484 | 87 | 36 | 8 | circular | 25.709 (1,0000) PASS |
+| `AP045470.1` | 152.481 | **0** | **0** | **0** | circular | 25.709 (1,0000) PASS |
+| `NC_058328.1` | 152.190 | 88 | 37 | 8 | circular | 25.792 (1,0000) PASS |
+| `NC_057679.1` | 152.603 | 85 | 37 | 8 | circular | 25.716 (1,0000) PASS |
+| `OX459128.1` | 258.274 | 31 | 17 | 3 | circular | IRDetectionError |
+| `AP045469.1` | 313.585 | **0** | **0** | **0** | linear | IRDetectionError |
+
+**sha256 ổn định:** pin lại cùng ngày 03/10 — cả **13/13 sha256 không đổi**, tức NCBI trả đúng
+từng byte như lần tải đầu (bằng chứng bộ dữ liệu tái lập được).
+
+Số đo mới, phải nhớ:
+
+- **5 bản GenBank bị loại vì trùng khít RefSeq** (so chuỗi trực tiếp, không suy từ metadata):
+  `MT767006.1`≡`NC_057983.1` · `MT767008.1`≡`NC_057985.1` · `MT473748.1`≡`NC_058328.1` ·
+  `MW538954.1`≡`NC_057679.1` · `OP611428.1`≡`NC_069583.1`.
+- **3/11 plastome tải về không có annotation** (`PQ325515.1`, `PZ428230.1`, `AP045470.1` — 0 CDS):
+  dùng được cho phân tích theo vị trí (SNP · π · SSR), **không** dùng được cho phân tích theo gen.
+  Bài học: `entry_from_summary` cũ đặt `annotated=True` vô điều kiện — đã sửa thành chỉ tin RefSeq;
+  annotation của bản GenBank **đo sau khi tải**, không giả định.
+- **`PZ428230.1` — ĐÃ KẾT LUẬN: lỗi ở dữ liệu, không phải ở detector.** IR de novo ra **15.756 bp**
+  trong khi cả 5 loài Coleus còn lại đều ~25,7 kb, và bản ghi khai báo **`linear`**. Đo để phân biệt
+  "detector cắt cụt IR thật" với "bản ghi hỏng": mở rộng vùng IR ra mỗi bên rồi đo lại identity
+  — với `PZ428230.1`, identity **rơi ngay lập tức** (1,0000 → 0,9556 ở +500 bp → 0,9187 ở +1 kb),
+  tức **không hề có** cặp repeat ~25,7 kb nào bị bỏ sót; bản ghi này đúng là thiếu ~10 kb IR.
+  (Bản cùng loài `PX923121.1` cho cùng dạng đường rơi sau 25.711 bp — tức detector hành xử nhất quán.)
+  **Kết luận: loại `PZ428230.1` khỏi mọi phân tích theo vị trí** (và nó vốn đã trống annotation).
+  **Bài học:** khi bản ghi không có chú giải thì không có gì đối chiếu IR — cổng chỉ kiểm *identity*,
+  không kiểm *độ dài*, nên một repeat 15,7 kb vẫn PASS. Xem §9.A.
+- **IR của 12/13 plastome là de novo**, chỉ `NC_058328.1` có annotation để đối chiếu — nghĩa là cột IR
+  ở bảng trên chưa có cross-check từ chú giải cho phần lớn bản ghi (đúng loại chỗ §9A cảnh báo).
+- Đồng nghĩa taxonomy: *Oldenlandia diffusa* hiện mang tên **Scleromitrion diffusum** trong NCBI —
+  cột "genus" của panel theo lineage sẽ là `Scleromitrion`, không phải `Oldenlandia`.
+- Mito: cả hai đều `IRDetectionError: no valid IR pair found (annotation absent; de-novo scan failed)`
+  — **đúng**, mito không có IR canonical; module đòi cổng IR sẽ không chạy được trên mito cho tới khi
+  có đường riêng (Phase 3+).
+
+### 8.7. Bảng gen xuất bản + xuất Word (03/10/2026 — P2-09, D2-04)
+
+Chạy thật: `plastid run -m gene_table -i tests/data/NC_050833.1.gb --docx --dataset golden`.
+
+**Bảng phân nhóm, đo trên genome vàng** (132 bản sao, 18 nhóm, 112 tên phân biệt):
+
+| Nhóm | Bản sao | Ghi chú |
+|---|---|---|
+| Subunits of photosystem I / II | 5 · 15 | |
+| Subunits of cytochrome b/f · ATP synthase | 6 · 6 | |
+| Large subunit of rubisco | 1 | |
+| Subunits of NADH dehydrogenase | 12 | gồm **ndhL** (mảnh) |
+| Ribosomal RNA · Transfer RNA | 8 · 38 | khớp theo tiền tố `rrn` / `trn` |
+| Small · Large subunit of ribosome | 15 · 11 | |
+| DNA-dependent RNA polymerase | 4 | |
+| Other genes (6 nhóm) | 6 | infA · matK · cemA · accD · ccsA · clpP |
+| Genes of unknown function | 5 | ycf1, ycf2 (×2), ycf3, ycf4 |
+| **Total** | **132** | = 86 CDS + 38 tRNA + 8 rRNA, khớp `count_genes()` |
+
+Đối chiếu trong `gene_reconciliation`: CDS 86/86 · tRNA 38/38 · rRNA 8/8 · Total 132/132 — **`agrees` cả 4**.
+Gen không nhóm nào nhận: **0**.
+
+**Tài liệu Word — đo được, không phải cảm nhận:**
+
+- **Tái lập từng byte**: hai lần dựng cách nhau 2,1 giây cho **cùng sha256** (mốc thời gian zip là
+  2 giây/lần, nên khoảng cách đó thật sự vượt qua ngưỡng); chạy lại qua **cache** cũng ra **đúng byte đó**
+  (`e4a65ddf…` cho gene_table). Test canh: mọi entry mang `date_time = 1980-01-01`, thứ tự sắp xếp,
+  `create_system = 0`.
+- **Kích thước gói**: ~800 kB (template thô) → **13 kB**; style giữ lại **< 25** trên **164** của template.
+- **Render thật** bằng LibreOffice (`soffice --headless`) → PDF → PNG và **xem tận mắt**: tiêu đề theo
+  style `Title`, mục theo `Heading 1`, lưới provenance (Dataset · Run · Input + sha256 · Coordinates ·
+  Module · Generated by), bảng có caption ở trên + dòng scope, header tô nền **lặp lại ở mỗi trang**,
+  hàng không bị cắt ngang trang, cột số căn phải, dòng **Total in đậm**, chân trang
+  `PlastidToolSuite · <accession> · <module> · Page X of Y`.
+- **Bảng 16 cột** (`genome_stats`) tự chuyển sang **khổ ngang** theo **bề rộng nội dung ước lượng**, không
+  theo số cột — bản đầu chọn theo số cột nên đẩy một bảng 7 cột, 1 hàng sang trang ngang gần như trắng.
+
+### 8.8. Bản nháp bản thảo trên bộ dữ liệu thay thế (03/10/2026 — P2-10)
+
+Công thức ở `docs/P2-10_manuscript_draft.md`. Chạy thật **một lệnh cho mỗi loài**, 7 module:
+
+```
+plastid run -m genome_stats -m structure -m gene_table -m codon_usage -m amino_acid \
+            -m introns -m ssr -i <genome>.gb --docx --dataset standin-<loài>
+```
+
+**Phát hiện quan trọng — bộ "thay thế" chứa đúng hai loài bản thảo:**
+
+- `PP078674.1` = ***Scleromitrion diffusum*** — **tên hiện hành của *Oldenlandia diffusa***
+- `PX923121.1` = ***Coleus amboinicus*** — **đúng loài thứ hai**
+
+Tức hai bản ghi này **không phải loài họ hàng** mà là bản công khai **của chính hai loài** —
+khác mẫu của nhóm, nhưng cùng loài. Vì vậy nhãn vẫn là `standin-…` và **vẫn không được** dùng như
+số của nhóm: cùng loài không có nghĩa cùng mẫu (kiểu gen, quần thể, chất lượng chú giải đều khác).
+
+**Số đo được (mỗi số là một ô trong bảng của lần chạy, không gõ tay):**
+
+| | *S. diffusum* `PP078674.1` | *C. amboinicus* `PX923121.1` |
+|---|---|---|
+| Chiều dài · GC | 153.676 bp · 37,61 % | 152.544 bp · 37,75 % |
+| Gen | **131 = 86 CDS + 37 tRNA + 8 rRNA** | **133 = 88 CDS + 37 tRNA + 8 rRNA** |
+| LSC · SSC · IR | 83.835 · 17.195 · 26.323 | 83.404 · 17.718 · 25.711 |
+| Cổng IR | PASS 100,00 % (de novo) | PASS 100,00 % (de novo) |
+| Bảng gen ↔ `count_genes()` | 86/86 · 37/37 · 8/8 · 131/131 — `agrees` | 88/88 · 37/37 · 8/8 · 133/133 — `agrees` |
+| Codon | 26.085 codon · ENC 50,65 · CAI 0,5603 · CBI 0,2645 · Fop 0,5067 | 26.721 codon · ENC 49,80 · CAI 0,5343 · CBI 0,2794 · Fop 0,5170 |
+| Amino acid | GRAVY −0,0856 · aromaticity 0,1116 | GRAVY −0,0962 · aromaticity 0,1105 |
+| Intron | 16 intron / 11 gen · 12.287 bp · dài nhất 1.142 | 17 intron / 12 gen · 12.134 bp · dài nhất 1.022 |
+| Trans-splicing | 2 điểm nối, đều rps12 — `agrees` với chú giải | 2 điểm nối, đều rps12 — `agrees` |
+| SSR | 32 = mono 32 · di 0 · tri 0 (3 compound) | 32 = mono 31 · di 1 · tri 0 (2 compound) |
+| Internal stop | 0 | 0 |
+
+**Điểm đáng chú ý:** trans-splicing được nhận đúng trên **hai genome mới**, không chỉ genome vàng —
+`annotation_check` ghi `agrees` cả hai, tức logic tách intron/trans-splicing của P2-05 không phải
+may mắn trên một ca. **Số gen khác 132** (131 và 133) là **đúng**: 132 là con số của genome vàng
+*Iris domestica*, không phải hằng số cho mọi loài — quy ước đếm mới là hằng số.
+
+**Chưa có trong bản nháp:** mục π và Ts/Tv (cần MAFFT 7.526 — máy này không có), và **hình** (Giai
+đoạn 5). Bản nháp ghi rõ phần thiếu là phần vắng, không phải phần ngắn im lặng.
+
 ---
+
+## 9. Lỗi đã gặp & số đo (tổng hợp)
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
 
@@ -337,6 +487,12 @@ Chạy đúng 20 genome Iridaceae của §8.3 qua `core/ir.py` của bộ công 
 5. **Điểm bắt đầu genome**: 1/20 genome RefSeq bắt đầu ngoài LSC; tài liệu dẫn 27,67 % trên GenBank rộng.
 6. IR sai → phân vùng LSC/SSC sai → các phân tích theo vị trí (ranh giới, SNP, π, biểu đồ % tương đồng) sai theo, output không có dấu hiệu.
 7. Hiệu năng: 20 genome trong **4,7 giây**, RAM 331 MB.
+8. **Mới 03/10 (§8.6, `PZ428230.1`) — cổng PASS trên một IR sai độ dài.** Bản ghi không có chú giải,
+   detector de novo tìm được một cặp lặp **giống nhau 100 %** nhưng chỉ dài **15.756 bp**, trong khi cả
+   5 loài Coleus còn lại đều ~25,7 kb → cổng **PASS** (cổng chỉ kiểm *identity*, không kiểm *độ dài*).
+   Đo mở rộng vùng ra hai bên cho thấy identity rơi ngay lập tức ⇒ **dữ liệu sai**, không phải detector
+   bỏ sót. Hệ quả: **bản ghi không chú giải thì không có gì đối chiếu IR** — cần kiểm tra chéo độ dài IR
+   với các bản cùng chi trước khi dùng cho phân tích theo vị trí (ghi thành việc mở, chưa làm).
 
 ### B. Đếm gen, SSR, Ts/Tv
 
@@ -346,6 +502,31 @@ Chạy đúng 20 genome Iridaceae của §8.3 qua `core/ir.py` của bộ công 
 11. **"mono 10 · di 6 · tri 5 · tetra 4 · penta 4 · hexa 4" là ngưỡng MISA, không phải số lượng.** Phân loại thật: mono 31 · di 4 · tri 2.
 12. **Số SSR phụ thuộc ngưỡng**: ≥8 → 133 · ≥10 → 36 · ≥12 → 16. `misa.ini` của anh Điềm dùng `(1/10)(2/6)(3/5)(4/5)(5/5)(6/5)`; tài liệu MISA ghi mặc định 4 cho unit 5–6 bp.
 13. **Ts/Tv phụ thuộc cách căn**: difflib 2,667 vs MAFFT 2,686.
+14. **Mới 03/10/2026 — parser GFF của MISA đọc thiếu một nửa từ vựng (im lặng).** MISA ghi SSR
+    monomeric là `monomeric_repeat`, nhưng **mọi** unit dài hơn là `microsatellite` (lớp nằm
+    trong cột Note), và một cụm compound là **một** dòng `repeat_region` chứa nhiều thành phần.
+    Parser cũ chỉ nhận `monomeric_repeat` ⇒ **mất 7/37 SSR** (bảng per-SSR còn 30 dòng) trong khi
+    bảng tổng vẫn ghi 37 vì lấy từ file `.statistics` — hai bảng âm thầm lệch nhau.
+    Phát hiện bằng cột đối chiếu của P2-06. **Bài học:** fixture test cũ tự bịa type
+    `dinucleotide_repeat` mà MISA không bao giờ ghi ⇒ test xanh nhưng sai; fixture phải lấy
+    **hình dạng dòng thật**.
+15. **Mới 03/10/2026 — thứ tự các phần của CDS trans-spliced.** Sắp xếp lại các part, hoặc đọc
+    tất cả theo mạch của gen, đều cho ORF sai. Đo trên **cả hai** bản rps12 của genome vàng:
+    chỉ cách "đọc từng part theo mạch của chính nó, giữ nguyên thứ tự annotation" mới ra
+    `ATG…TAA` (sắp xếp lại → `AAT…TAT`; đọc xuôi hết → `ATA…ATT`).
+16. **Mới 03/10/2026 — khoá bảng trùng thì tham chiếu rơi vào một dòng bất kỳ.** Gen nằm trong IR
+    có 2 bản nên `intron_id`/tên gen lặp; `Table` đã được vá để **từ chối** khoá trùng.
+17. **Mới 03/10/2026 — `yaml.YAMLError` KHÔNG phải `ValueError`.** File YAML hỏng làm `load_groups`
+    ném traceback thay vì thông báo; đã dịch lỗi tại biên.
+18. **Mới 03/10/2026 — `annotated=True` là một lời khai chưa ai kiểm.** `entry_from_summary` cũ
+    đặt `annotated=True` cho mọi bản ghi; thực đo trên bộ dữ liệu thay thế: **3/11 plastome có
+    0 CDS** (GenBank không mặc nhiên có chú giải). Đã sửa: chỉ tin RefSeq, bản GenBank **đo sau
+    khi tải**.
+19. **Mới 03/10/2026 — dòng `Total` của bảng đối chiếu tự tố cáo chính nó.** Lần chạy đầu của
+    `gene_table`: CDS 86/86 · tRNA 38/38 · rRNA 8/8 đều `agrees`, nhưng dòng **Total ra
+    `in_table = 0`** — `by_kind.get("Total")` trên một `Counter` chỉ có ba khoá CDS/tRNA/rRNA.
+    Đúng loại lỗi mà cột đối chiếu sinh ra để bắt: nếu bảng chỉ in số mà không tự so, một dòng
+    tổng bằng 0 sẽ nằm giữa bảng và **không ai kiểm**. Đã sửa (`_in_table`), thành test.
 
 ### C. Môi trường & vận hành
 
@@ -366,6 +547,13 @@ Chạy đúng 20 genome Iridaceae của §8.3 qua `core/ir.py` của bộ công 
 17. Script gửi kèm **không tới được máy anh Điềm** — anh làm ở thư mục khác (`D:\diem\bai bao tool\ke_hoach_new\chạy Trí\probe`).
 18. `docker` không gọi được từ WSL trước khi bật WSL Integration (thông báo lỗi ở §8.4).
 19. Chuỗi phân tích trên máy 2,8 GB dùng 331 MB và 9,8 giây.
+20. **Mới 03/10/2026 — bộ tỉa style đọc sai chỗ, và bản render vẫn "trông ổn".** Style trong
+    OOXML được tham chiếu bằng **phần tử con** (`<w:pStyle w:val="Heading1"/>`), không phải
+    thuộc tính. Bản đầu đọc `element.get("w:pStyle")` ⇒ không thấy style nào được dùng ⇒ tỉa
+    gần hết, kể cả `Title` và `Heading 1`. **LibreOffice vẫn render ra hình như bình thường**
+    vì nó lùi về mặc định của chính nó — lỗi chỉ lộ ra khi mở PDF cạnh bản đúng, và chỉ bị bắt
+    vì có **test cấu trúc** ("mọi style tài liệu dùng phải còn trong styles.xml"). Bài học:
+    tỉa gói OOXML thì phải canh bằng cấu trúc, không bằng mắt.
 
 ---
 

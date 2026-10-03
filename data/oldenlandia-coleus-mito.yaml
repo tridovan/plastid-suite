@@ -1,0 +1,9 @@
+# Public stand-in mitogenomes for the Oldenlandia / Coleus work — NOT the team's samples.
+# Kept apart from the plastome file: a mitogenome must never enter a plastome comparison.
+#
+# Pin (once; every later run is offline):
+#   plastid panel pin --groups data/oldenlandia-coleus-mito.yaml --out .panel/oldenlandia-coleus-mito
+Oldenlandia:
+  - OX459128.1  # O. corymbosa var. corymbosa — annotated (31 CDS · 17 tRNA · 3 rRNA), circular
+Coleus:
+  - AP045469.1  # C. hadiensis — NO gene features, declared linear (measured 2026-10-03)

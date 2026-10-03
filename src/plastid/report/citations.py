@@ -7,9 +7,9 @@ from pathlib import Path
 
 import yaml
 
-__all__ = ["Citation", "default_citations_path", "format_citation", "load_citations"]
+from plastid.core.resources import data_file
 
-_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+__all__ = ["Citation", "default_citations_path", "format_citation", "load_citations"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,7 +21,7 @@ class Citation:
 
 
 def default_citations_path() -> Path:
-    return _DATA_DIR / "citations.yaml"
+    return data_file("citations.yaml")
 
 
 def load_citations(path: str | Path | None = None) -> dict[str, Citation]:

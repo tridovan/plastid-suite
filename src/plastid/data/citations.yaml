@@ -7,3 +7,6 @@ misa:
 biopython:
   text: "Cock PJA et al. Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics 25:1422–1423 (2009)."
   doi: "10.1093/bioinformatics/btp163"
+mafft:
+  text: "Katoh K, Standley DM. MAFFT multiple sequence alignment software version 7: improvements in performance and usability. Molecular Biology and Evolution 30:772–780 (2013)."
+  doi: "10.1093/molbev/mst010"

@@ -109,6 +109,20 @@ class NcbiClient:
             for taxon in root.findall("Taxon")
         }
 
+    def resolve(self, accession: str) -> tuple[dict, str]:
+        """One accession → ``(esummary record, lineage)`` — two calls: esummary, then taxonomy.
+
+        For genomes no search can return: esummary accepts the accession itself as ``id``
+        (measured 2026-10-03), so naming a record directly — a GenBank submission with no
+        RefSeq twin, a mitogenome — costs a lookup instead of a search.
+        """
+        records = self.summaries([accession])  # guards the uid-present-but-record-missing case
+        if not records:
+            raise NcbiError(f"nuccore has no record for accession {accession!r}")
+        summary = records[0]
+        taxid = str(summary.get("taxid", ""))
+        return summary, self.lineages([taxid]).get(taxid, "")
+
     def fetch_genbank(self, accession: str) -> str:
         """One GenBank record with its feature table (gbwithparts)."""
         return self._get(

@@ -11,5 +11,19 @@ ssr:
     unit_repeats: { 1: 10, 2: 6, 3: 5, 4: 5, 5: 5, 6: 5 }
     interruptions: 100
 
+codon:
+  # D2-03 (03/10/2026): plastids use NCBI table 1 (standard). The table itself is compiled into
+  # core/codon.py; a test keeps this record and that constant in step, so they cannot drift.
+  translation_table: 1
+  # CAI · CBI · Fop are only meaningful against a declared reference. Until a highly-expressed
+  # set is defined, the reference is the analysed CDS set itself — named in every output.
+  reference: self
+
+diversity:
+  # D2-02 (03/10/2026): the mVISTA-style convention. A π curve means nothing without its window,
+  # so both values travel into params, the manifest and the report.
+  window_bp: 600
+  step_bp: 200
+
 report:
   draft_banner: "*Draft — needs human review.*"

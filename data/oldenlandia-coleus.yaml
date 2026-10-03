@@ -1,0 +1,24 @@
+# Public stand-in plastomes for the Oldenlandia / Coleus manuscripts — NOT the team's samples.
+# Rule: CLAUDE.md -> "Data — real samples vs development stand-ins".
+#
+# Pin (once; every later run is offline):
+#   plastid panel pin --groups data/oldenlandia-coleus.yaml --out .panel/oldenlandia-coleus
+#
+# GenBank records left out because their sequence is byte-identical to the RefSeq kept here
+# (measured 2026-10-03): MT767006.1, MT767008.1, MT473748.1, MW538954.1, OP611428.1.
+#
+# "Oldenlandia" also holds records NCBI currently names Scleromitrion diffusum — the accepted
+# name of Oldenlandia diffusa; same plant, different taxonomy.
+Oldenlandia:
+  - NC_057985.1  # O. diffusa (as Scleromitrion diffusum) voucher H2200 — RefSeq
+  - PP078674.1   # Scleromitrion diffusum isolate ZXX201978
+  - PQ325515.1   # Scleromitrion diffusum
+  - NC_057983.1  # O. corymbosa voucher H2106 — RefSeq
+  - PX977793.1   # O. corymbosa
+Coleus:
+  - PX923121.1   # C. amboinicus
+  - PZ428230.1   # C. amboinicus isolate FIPIA-DEP135 — UNVERIFIED annotation
+  - NC_069583.1  # C. hadiensis — RefSeq
+  - AP045470.1   # C. hadiensis TCRDL — a different record, not the RefSeq source
+  - NC_058328.1  # C. xanthanthus — RefSeq
+  - NC_057679.1  # C. scutellarioides — RefSeq

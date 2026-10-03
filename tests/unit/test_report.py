@@ -151,11 +151,342 @@ def _ssr_result() -> Result:
                 ),
                 scope=Scope(label="whole plastome; MISA defaults"),
             ),
+            "ssr_by_region": Table(
+                id="ssr_by_region",
+                title="SSRs by plastid region",
+                columns=(
+                    Column("region", "Region"),
+                    Column("total", "Total", dtype="int"),
+                ),
+                rows=tuple(
+                    {"region": name, "total": total}
+                    for name, total in (("LSC", 27), ("IRa", 0), ("SSC", 10), ("IRb", 0))
+                ),
+                scope=Scope(label="whole plastome"),
+                key="region",
+            ),
         },
     )
 
 
-TEMPLATE_FIXTURES = {"genome_stats": _result, "ssr": _ssr_result}
+def _structure_result() -> Result:
+    return Result(
+        module="structure",
+        module_version="0.1.0",
+        tables={
+            "structure_summary": Table(
+                id="structure_summary",
+                title="Structure summary",
+                columns=(
+                    Column("accession", "Accession"),
+                    Column("organism", "Organism"),
+                    Column("window_bp", "Window", dtype="int", unit="bp"),
+                    Column("step_bp", "Step", dtype="int", unit="bp"),
+                    Column("n_windows", "Windows", dtype="int"),
+                    Column("rotation_offset", "Rotation offset", dtype="int", unit="bp"),
+                    Column("coord_system", "Coordinates"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "organism": "Iris domestica",
+                        "window_bp": 1000,
+                        "step_bp": 1000,
+                        "n_windows": 154,
+                        "rotation_offset": 0,
+                        "coord_system": "normalized",
+                    },
+                ),
+                scope=Scope(label="one row", coord_system="normalized"),
+            ),
+            "regions": Table(
+                id="regions",
+                title="Regions",
+                columns=(
+                    Column("region", "Region"),
+                    Column("start_1b", "Start", dtype="int"),
+                    Column("end_1b", "End", dtype="int"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("gc_pct", "GC", dtype="float", unit="%", precision=2),
+                    Column("gc_skew", "GC-skew (G−C)/(G+C)", dtype="float", precision=4),
+                ),
+                rows=tuple(
+                    {
+                        "region": name,
+                        "start_1b": 1,
+                        "end_1b": 83_127,
+                        "length_bp": 83_127,
+                        "gc_pct": 36.0,
+                        "gc_skew": -0.01,
+                    }
+                    for name in ("LSC", "IRa", "SSC", "IRb")
+                ),
+                scope=Scope(label="normalized frame", coord_system="normalized"),
+                key="region",
+            ),
+        },
+    )
+
+
+def _codon_usage_result() -> Result:
+    return Result(
+        module="codon_usage",
+        module_version="0.1.0",
+        tables={
+            "codon_usage": Table(
+                id="codon_usage",
+                title="Codon usage summary",
+                columns=(
+                    Column("accession", "Accession"),
+                    Column("organism", "Organism"),
+                    Column("n_cds", "CDS in the set", dtype="int"),
+                    Column("n_codons", "Codons counted", dtype="int"),
+                    Column("enc", "ENC", dtype="float", precision=2),
+                    Column("cai", "CAI", dtype="float", precision=4),
+                    Column("cbi", "CBI", dtype="float", precision=4),
+                    Column("fop", "Fop", dtype="float", precision=4),
+                    Column("internal_stops", "Internal stop codons", dtype="int"),
+                    Column("translation_table", "Translation table"),
+                    Column("reference", "Reference for CAI/CBI/Fop"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "organism": "Iris domestica",
+                        "n_cds": 86,
+                        "n_codons": 24_000,
+                        "enc": 51.23,
+                        "cai": 0.17,
+                        "cbi": 0.02,
+                        "fop": 0.45,
+                        "internal_stops": 0,
+                        "translation_table": "NCBI table 1 (standard)",
+                        "reference": "the analysed CDS set itself (self-reference)",
+                    },
+                ),
+                scope=Scope(label="CDS only"),
+            ),
+        },
+    )
+
+
+def _amino_acid_result() -> Result:
+    return Result(
+        module="amino_acid",
+        module_version="0.1.0",
+        tables={
+            "amino_acid": Table(
+                id="amino_acid",
+                title="Amino-acid summary",
+                columns=(
+                    Column("accession", "Accession"),
+                    Column("organism", "Organism"),
+                    Column("n_cds", "CDS in the set", dtype="int"),
+                    Column("n_residues", "Residues counted", dtype="int"),
+                    Column("ignored_symbols", "Stops and ambiguous symbols", dtype="int"),
+                    Column("gravy", "GRAVY (Kyte–Doolittle)", dtype="float", precision=4),
+                    Column("aromaticity", "Aromaticity (F+W+Y)", dtype="float", precision=4),
+                    Column("translation_table", "Translation table"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "organism": "Iris domestica",
+                        "n_cds": 86,
+                        "n_residues": 24_000,
+                        "ignored_symbols": 86,
+                        "gravy": -0.1234,
+                        "aromaticity": 0.0987,
+                        "translation_table": "NCBI table 1 (standard)",
+                    },
+                ),
+                scope=Scope(label="CDS only"),
+            ),
+        },
+    )
+
+
+def _introns_result() -> Result:
+    return Result(
+        module="introns",
+        module_version="0.1.0",
+        tables={
+            "intron_summary": Table(
+                id="intron_summary",
+                title="Intron summary",
+                columns=(
+                    Column("accession", "Accession"),
+                    Column("organism", "Organism"),
+                    Column("n_genes_with_introns", "Genes with introns", dtype="int"),
+                    Column("n_introns", "Introns", dtype="int"),
+                    Column("total_length_bp", "Total intron length", dtype="int", unit="bp"),
+                    Column("longest_bp", "Longest intron", dtype="int", unit="bp"),
+                    Column("n_trans_splicing", "Trans-splicing junctions", dtype="int"),
+                    Column("annotation_check", "Annotation cross-check"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "organism": "Iris domestica",
+                        "n_genes_with_introns": 12,
+                        "n_introns": 17,
+                        "total_length_bp": 12_547,
+                        "longest_bp": 1_055,
+                        "n_trans_splicing": 2,
+                        "annotation_check": "agrees — 1 gene marked trans-splicing",
+                    },
+                ),
+                scope=Scope(label="CDS only"),
+            ),
+        },
+    )
+
+
+def _diversity_result() -> Result:
+    return Result(
+        module="diversity",
+        module_version="0.1.0",
+        tables={
+            "diversity_summary": Table(
+                id="diversity_summary",
+                title="Nucleotide diversity summary",
+                columns=(
+                    Column("accession", "Reference accession"),
+                    Column("organism", "Reference organism"),
+                    Column("n_genomes", "Genomes aligned", dtype="int"),
+                    Column("alignment_length", "Alignment length", dtype="int", unit="bp"),
+                    Column("usable_columns", "Usable columns", dtype="int"),
+                    Column("pi", "π (whole alignment)", dtype="float", precision=6),
+                    Column("window_bp", "Window", dtype="int", unit="bp"),
+                    Column("step_bp", "Step", dtype="int", unit="bp"),
+                    Column("tool", "Aligner"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "organism": "Iris domestica",
+                        "n_genomes": 2,
+                        "alignment_length": 154_000,
+                        "usable_columns": 153_500,
+                        "pi": 0.004321,
+                        "window_bp": 600,
+                        "step_bp": 200,
+                        "tool": "MAFFT",
+                    },
+                ),
+                scope=Scope(label="whole aligned plastome", coord_system="normalized"),
+            ),
+        },
+    )
+
+
+def _substitutions_result() -> Result:
+    return Result(
+        module="substitutions",
+        module_version="0.1.0",
+        tables={
+            "substitutions_summary": Table(
+                id="substitutions_summary",
+                title="Substitutions summary",
+                columns=(
+                    Column("accession", "Reference accession"),
+                    Column("organism", "Reference organism"),
+                    Column("n_genomes", "Genomes compared", dtype="int"),
+                    Column("alignment_length", "Alignment length", dtype="int", unit="bp"),
+                    Column("compared_columns", "Comparable columns (all comparisons)", dtype="int"),
+                    Column("substitutions", "Substitutions", dtype="int"),
+                    Column("ts_tv", "Ts/Tv", dtype="float", precision=4),
+                    Column("tool", "Aligner"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "organism": "Iris domestica",
+                        "n_genomes": 2,
+                        "alignment_length": 154_000,
+                        "compared_columns": 153_500,
+                        "substitutions": 1_234,
+                        "ts_tv": 2.686,
+                        "tool": "MAFFT",
+                    },
+                ),
+                scope=Scope(label="whole aligned plastome", coord_system="normalized"),
+            ),
+        },
+    )
+
+
+def _gene_table_result() -> Result:
+    return Result(
+        module="gene_table",
+        module_version="0.1.0",
+        tables={
+            "gene_table_summary": Table(
+                id="gene_table_summary",
+                title="Publication gene table — summary",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("n_genes_total", "Genes", dtype="int"),
+                    Column("n_groups", "Functional groups", dtype="int"),
+                    Column("n_unique_names", "Distinct gene names", dtype="int"),
+                    Column("n_unclassified", "Unclassified", dtype="int"),
+                    Column("coord_system", "Coordinates"),
+                ),
+                rows=(
+                    {
+                        "organism": "Iris domestica",
+                        "accession": "NC_050833.1",
+                        "n_genes_total": 132,
+                        "n_groups": 18,
+                        "n_unique_names": 112,
+                        "n_unclassified": 0,
+                        "coord_system": "genbank",
+                    },
+                ),
+                scope=Scope(label="every counted gene, both IR copies; grouped by function"),
+            ),
+            "gene_reconciliation": Table(
+                id="gene_reconciliation",
+                title="Gene table reconciled against the genome-wide count",
+                columns=(
+                    Column("kind", "Kind"),
+                    Column("in_table", "In the gene table", dtype="int"),
+                    Column("counted", "count_genes()", dtype="int"),
+                    Column("agreement", "Agreement"),
+                ),
+                rows=tuple(
+                    {
+                        "kind": kind,
+                        "in_table": copies,
+                        "counted": copies,
+                        "agreement": "agrees",
+                    }
+                    for kind, copies in (
+                        ("CDS", 86),
+                        ("tRNA", 38),
+                        ("rRNA", 8),
+                        ("Total", 132),
+                    )
+                ),
+                scope=Scope(label="every counted gene, both IR copies; grouped by function"),
+                key="kind",
+            ),
+        },
+    )
+
+
+TEMPLATE_FIXTURES = {
+    "genome_stats": _result,
+    "gene_table": _gene_table_result,
+    "ssr": _ssr_result,
+    "structure": _structure_result,
+    "codon_usage": _codon_usage_result,
+    "amino_acid": _amino_acid_result,
+    "introns": _introns_result,
+    "diversity": _diversity_result,
+    "substitutions": _substitutions_result,
+}
 
 
 def test_shipped_templates_have_no_bare_digits_and_all_refs_resolve() -> None:

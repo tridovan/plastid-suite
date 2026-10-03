@@ -104,6 +104,23 @@ def test_cache_round_trip(tmp_path: Path) -> None:
     assert cache.get(key) == {"tables/x.csv": "a,b\n"}
 
 
+def test_cache_round_trips_bytes_without_touching_them(tmp_path: Path) -> None:
+    """A .docx is a zip: JSON has no bytes, and a cache hit has to restore the exact file.
+
+    The payload is stored as base64 — any lossy step here would show up as a document whose
+    bytes differ between a fresh run and a cached one, which is exactly what P2-09 forbids.
+    """
+    cache = Cache(tmp_path)
+    blob = bytes(range(256)) * 4
+    key = Cache.key(module_id="m", module_version="1", params_hash="p", input_sha256s=("a",))
+    cache.put(key, {"tables/x.csv": "a,b\n", "report.docx": blob})
+    restored = cache.get(key)
+    assert restored == {"tables/x.csv": "a,b\n", "report.docx": blob}
+    assert isinstance(restored["report.docx"], bytes)
+    # the cache file itself stays valid JSON — no bytes leaked into it
+    assert "report.docx" in (tmp_path / f"{key}.json").read_text(encoding="utf-8")
+
+
 def _stub_result() -> Result:
     return Result(
         module="stub",
@@ -124,6 +141,23 @@ def _stub_genome() -> Genome:
     return Genome(name="synthetic", sequence="ACGT" * 25)
 
 
+def test_runner_refuses_the_wrong_number_of_genomes(tmp_path: Path) -> None:
+    """API v0.2: a module's declared arity is enforced before anything runs."""
+    layout = RunLayout.create(tmp_path, "dataset", fingerprint="0" * 16, now=WHEN)
+    layout.make_dirs()
+    with pytest.raises(ValueError, match="at least 2 genomes"):
+        execute_step(
+            module_id="stub",
+            module_version="0.1.0",
+            run_fn=lambda genomes, params, ctx: _stub_result(),
+            genomes=(_stub_genome(),),
+            arity=2,
+            params={},
+            ctx=RunContext(layout=layout, params={}, module_id="stub", module_order=1),
+            cache=Cache(layout.cache_dir),
+        )
+
+
 def test_runner_caches_and_restores_files_byte_identically(tmp_path: Path) -> None:
     calls: list[int] = []
 
@@ -142,7 +176,8 @@ def test_runner_caches_and_restores_files_byte_identically(tmp_path: Path) -> No
         module_id="stub",
         module_version="0.1.0",
         run_fn=run_fn,
-        genome=_stub_genome(),
+        genomes=(_stub_genome(),),
+        arity=1,
         params={},
         ctx=context(),
         cache=cache,
@@ -157,7 +192,8 @@ def test_runner_caches_and_restores_files_byte_identically(tmp_path: Path) -> No
         module_id="stub",
         module_version="0.1.0",
         run_fn=run_fn,
-        genome=_stub_genome(),
+        genomes=(_stub_genome(),),
+        arity=1,
         params={},
         ctx=context(),
         cache=cache,
@@ -171,7 +207,8 @@ def test_runner_caches_and_restores_files_byte_identically(tmp_path: Path) -> No
         module_id="stub",
         module_version="0.1.0",
         run_fn=run_fn,
-        genome=_stub_genome(),
+        genomes=(_stub_genome(),),
+        arity=1,
         params={},
         ctx=context(),
         cache=cache,

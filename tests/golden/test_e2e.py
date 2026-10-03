@@ -6,9 +6,11 @@ cache hit on an identical second run; byte-identical restore after deleting an o
 
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 
+import pytest
 from Bio import SeqIO
 
 from plastid.cli import main
@@ -16,13 +18,17 @@ from plastid.run.manifest import validate
 
 
 def _run(
-    tmp_path: Path, source: Path, dataset: str = "iris_domestica", extra: list[str] | None = None
+    tmp_path: Path,
+    source: Path,
+    dataset: str = "iris_domestica",
+    extra: list[str] | None = None,
+    module: str | None = "genome_stats",
 ) -> int:
+    """``module=None`` leaves the module flags to ``extra`` — for multi-module runs."""
     return main(
         [
             "run",
-            "--module",
-            "genome_stats",
+            *(["--module", module] if module else []),
             "--input",
             str(source),
             "--out",
@@ -111,5 +117,195 @@ def test_failed_gate_stops_the_run_with_exit_2(tmp_path: Path, data_dir: Path) -
     assert not (run_dir / "01_genome_stats").exists(), "no module output after a failed gate"
 
 
+def test_golden_numbers_reach_the_report_and_the_csv(tmp_path: Path, data_dir: Path) -> None:
+    """P2-01's Done-when: length · 132 = 86+38+8 · GC, in both the report and the CSV."""
+    assert _run(tmp_path, data_dir / "NC_050833.1.gb") == 0
+    run_dir = _only_run_dir(tmp_path)
+
+    report = " ".join((run_dir / "01_genome_stats" / "report.md").read_text("utf-8").split())
+    assert "153724 bp" in report
+    assert "37.85 %" in report
+    assert "132 genes: 86 protein-coding, 38 tRNA and 8 rRNA genes." in report
+
+    lines = (run_dir / "01_genome_stats" / "tables" / "genome_stats.csv").read_text("utf-8")
+    assert "# scope:" in lines  # every exported number carries its scope label
+    header, row = [line for line in lines.splitlines() if not line.startswith("#")][:2]
+    assert header.split(",")[2:8] == ["Length (bp)", "GC (%)", "Genes", "CDS", "tRNA", "rRNA"]
+    assert row.split(",")[2:8] == ["153724", "37.85", "132", "86", "38", "8"]
+
+
+def test_second_golden_genome_runs_cleanly(tmp_path: Path, data_dir: Path) -> None:
+    """The comparison genome NC_024936.1 (Iris gatesii) must run end-to-end as well."""
+    assert _run(tmp_path, data_dir / "NC_024936.1.gb", dataset="iris_gatesii") == 0
+    run_dir = _only_run_dir(tmp_path, "iris_gatesii")
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "ok"
+    assert manifest["ir"]["gate_passed"] is True
+
+
+def test_both_diverged_ir_genomes_stop_with_exit_2(tmp_path: Path, data_dir: Path) -> None:
+    """Every genome whose two IR copies disagree must be stopped by the gate, loudly.
+
+    PROJECT.md §8.5: NC_063920.1 is 92.63 % and NC_063921.1 is 98.87 % — both below 99.9 %.
+    """
+    records = [
+        record
+        for record in SeqIO.parse(str(data_dir / "iridaceae_edge_cases.gb"), "genbank")
+        if record.id in {"NC_063920.1", "NC_063921.1"}
+    ]
+    assert len(records) == 2
+    for record in records:
+        single = tmp_path / f"{record.id}.gb"
+        SeqIO.write(record, str(single), "genbank")
+        label = record.id.lower()  # dataset labels are slugified (RunLayout)
+        assert _run(tmp_path, single, dataset=label) == 2
+        run_dir = _only_run_dir(tmp_path, label)
+        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["status"] == "failed"
+        assert not (run_dir / "01_genome_stats").exists(), "no module output after a failed gate"
+
+
+def test_structure_run_reports_regions_and_skew(tmp_path: Path, data_dir: Path) -> None:
+    """P2-02 end-to-end: the region table, its scope label, and the skew convention."""
+    assert _run(tmp_path, data_dir / "NC_050833.1.gb", module="structure") == 0
+    run_dir = _only_run_dir(tmp_path)
+
+    lines = (run_dir / "01_structure" / "tables" / "regions.csv").read_text("utf-8")
+    assert "coordinates: normalized" in lines
+    body = dict(
+        (fields[0], fields[1:])
+        for fields in (line.split(",") for line in lines.splitlines() if not line.startswith("#"))
+    )
+    assert body["LSC"][2] == "83127"
+    assert body["IRa"][2] == body["IRb"][2] == "26214"
+    assert body["SSC"][2] == "18169"
+    assert "GC-skew (G−C)/(G+C)" in lines  # the convention is in the header, not a footnote
+
+    report = " ".join((run_dir / "01_structure" / "report.md").read_text("utf-8").split())
+    assert "83127" in report and "18169" in report
+    assert "LSC → IRa → SSC → IRb" in report
+
+
 def test_unknown_module_exits_1(tmp_path: Path, data_dir: Path) -> None:
     assert _run(tmp_path, data_dir / "NC_050833.1.gb", extra=["--module", "nope"]) in (1, 2)
+
+
+def test_word_export_is_reproducible_and_carries_the_golden_numbers(
+    tmp_path: Path, data_dir: Path
+) -> None:
+    """P2-09's Done-when end-to-end: regenerate the document, get an identical file."""
+    import hashlib
+    import zipfile
+
+    if importlib.util.find_spec("docx") is None:
+        pytest.skip("the 'docx' extra is not installed — pip install 'plastid-suite[docx]'")
+
+    assert _run(tmp_path, data_dir / "NC_050833.1.gb", module="gene_table", extra=["--docx"]) == 0
+    run_dir = _only_run_dir(tmp_path)
+    document = run_dir / "01_gene_table" / "report.docx"
+    assert document.is_file()
+    first = hashlib.sha256(document.read_bytes()).hexdigest()
+
+    # the manifest indexes it like every other output, with its own checksum
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    entry = next(item for item in manifest["files"] if item["path"].endswith("report.docx"))
+    assert entry["sha256"] == first and entry["bytes"] > 0
+
+    # a second run is served from the cache and must restore the very same bytes
+    assert _run(tmp_path, data_dir / "NC_050833.1.gb", module="gene_table", extra=["--docx"]) == 0
+    again = sorted((tmp_path / "iris_domestica").iterdir())[-1]
+    assert (again / "manifest.json").read_text() != ""
+    cached = again / "01_gene_table" / "report.docx"
+    assert hashlib.sha256(cached.read_bytes()).hexdigest() == first
+
+    from docx import Document
+
+    with zipfile.ZipFile(document) as archive:
+        assert archive.testzip() is None
+    opened = Document(str(document))
+    text = [paragraph.text for paragraph in opened.paragraphs]
+    text += [cell.text for table in opened.tables for row in table.rows for cell in row.cells]
+    joined = "\n".join(text)
+    assert "Publication gene table" in joined
+    assert "132" in joined and "86" in joined and "38" in joined and "8" in joined
+    assert "agrees" in joined  # the reconciliation travelled with the document
+    assert "Draft — needs human review." in joined  # never mistaken for a checked result
+
+
+def test_one_run_carries_several_modules_and_combines_their_documents(
+    tmp_path: Path, data_dir: Path
+) -> None:
+    """The run — not the module — is the deliverable: one command, one report, all tables."""
+    if importlib.util.find_spec("docx") is None:
+        pytest.skip("the 'docx' extra is not installed — pip install 'plastid-suite[docx]'")
+
+    modules = ["genome_stats", "structure", "gene_table"]
+    assert (
+        _run(
+            tmp_path,
+            data_dir / "NC_050833.1.gb",
+            module=None,
+            extra=[part for name in modules for part in ("--module", name)] + ["--docx"],
+        )
+        == 0
+    )
+    run_dir = _only_run_dir(tmp_path)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    validate(manifest)
+    assert [entry["id"] for entry in manifest["modules"]] == modules
+    assert [entry["status"] for entry in manifest["modules"]] == ["ok"] * 3
+
+    # each module keeps its own numbered directory and its own outputs
+    for order, module in enumerate(modules, start=1):
+        assert (run_dir / f"{order:02d}_{module}" / "report.md").is_file()
+        assert (run_dir / f"{order:02d}_{module}" / "report.docx").is_file()
+
+    combined = run_dir / "report" / "report.docx"
+    assert combined.is_file()
+    assert any(entry["path"] == "report/report.docx" for entry in manifest["files"])
+
+    from docx import Document
+
+    opened = Document(str(combined))
+    text = [paragraph.text for paragraph in opened.paragraphs]
+    text += [cell.text for table in opened.tables for row in table.rows for cell in row.cells]
+    joined = "\n".join(text)
+    for probe in ("Genome statistics", "Genome structure", "Publication gene table"):
+        assert probe in joined
+    assert "153724" in joined and "83127" in joined and "132" in joined
+    # every result table reached the page, and each one got a caption (the document also
+    # carries the provenance grid and any pipe table the prose itself contains)
+    captioned = [line for line in text if line.startswith("Table ")]
+    result_tables = sum(
+        len(json.loads((run_dir / f"{order:02d}_{module}" / "result.json").read_text())["tables"])
+        for order, module in enumerate(modules, start=1)
+    )
+    assert len(captioned) == result_tables == 9
+    assert len(opened.tables) >= result_tables
+
+    # a fully cached second run reproduces the combined document byte for byte
+    first = combined.read_bytes()
+    assert (
+        _run(
+            tmp_path,
+            data_dir / "NC_050833.1.gb",
+            module=None,
+            extra=[part for name in modules for part in ("--module", name)] + ["--docx"],
+        )
+        == 0
+    )
+    again = sorted((tmp_path / "iris_domestica").iterdir())[-1]
+    assert (again / "report" / "report.docx").read_bytes() == first
+
+
+def test_naming_a_module_twice_is_a_usage_error(tmp_path: Path, data_dir: Path) -> None:
+    """Two runs of one module in a run would write one directory twice; refuse instead."""
+    assert (
+        _run(
+            tmp_path,
+            data_dir / "NC_050833.1.gb",
+            module=None,
+            extra=["--module", "structure", "--module", "structure"],
+        )
+        == 2
+    )

@@ -24,7 +24,8 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result: ...
 · `Table(id, title, columns, rows, scope, key=None)` · `Result(module, module_version, tables, notes,
 citations)`.
 
-- References: `table.column` (single-row table) and `table[rowkey].column` (multi-row, `key` set).
+- References, literally: `table.column` (single-row table) and `table.rowkey.column`
+  (multi-row, `key` set) — e.g. `regions.LSC.length_bp`, `ssr_by_unit.mono.n`.
 - An unresolvable reference raises `ResultRefError` — it never prints blank.
 - Names and ids may not contain a dot. Multi-row tables without a `key` cannot be addressed.
 

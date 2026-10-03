@@ -115,3 +115,55 @@ def test_entry_from_summary_maps_family_genus_order() -> None:
 def test_entry_from_summary_needs_an_accession() -> None:
     with pytest.raises(ValueError, match="accession"):
         entry_from_summary({"organism": "Iris"}, LINEAGE)
+
+
+def test_resolve_reads_one_accession_without_a_search() -> None:
+    """A named accession costs one esummary call plus its lineage — never an esearch."""
+    calls: list[str] = []
+
+    def transport(url: str) -> str:
+        calls.append(url)
+        if "esummary.fcgi" in url:
+            return json.dumps(
+                {
+                    "result": {
+                        "uids": ["3202415722"],
+                        "3202415722": {
+                            "accessionversion": "PX923121.1",
+                            "organism": "Coleus amboinicus",
+                            "taxid": 204180,
+                            "slen": 152544,
+                        },
+                    }
+                }
+            )
+        return (
+            "<TaxaSet><Taxon><TaxId>204180</TaxId>"
+            "<Lineage>Eukaryota; Lamiaceae; Coleus</Lineage></Taxon></TaxaSet>"
+        )
+
+    client = NcbiClient(transport=transport, sleep=lambda _: None)
+    summary, lineage = client.resolve("PX923121.1")
+
+    assert summary["accessionversion"] == "PX923121.1"
+    assert lineage.endswith("Coleus")
+    endpoints = [urllib.parse.urlparse(url).path.rsplit("/", 1)[-1] for url in calls]
+    assert endpoints == ["esummary.fcgi", "efetch.fcgi"]
+    assert _urls_of(calls)[0]["id"] == ["PX923121.1"]
+
+
+def test_resolve_names_an_accession_ncbi_does_not_have() -> None:
+    client = NcbiClient(
+        transport=lambda url: json.dumps({"result": {"uids": []}}), sleep=lambda _: None
+    )
+    with pytest.raises(NcbiError, match="XX_000000.1"):
+        client.resolve("XX_000000.1")
+
+
+def test_resolve_reports_a_uid_without_a_record_as_ncbi_error() -> None:
+    # esummary can list a uid the result block does not carry; that is an NCBI problem,
+    # not a KeyError leaking out of the client.
+    payload = json.dumps({"result": {"uids": ["123"]}})
+    client = NcbiClient(transport=lambda url: payload, sleep=lambda _: None)
+    with pytest.raises(NcbiError, match="XX_000000.1"):
+        client.resolve("XX_000000.1")

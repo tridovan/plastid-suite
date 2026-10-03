@@ -11,7 +11,7 @@ from typing import Any
 
 from plastid.core.ir import IRResult
 from plastid.core.model import Genome, Interval
-from plastid.external.misa import MisaResult, run_misa
+from plastid.external.misa import UNIT_LABELS, MisaResult, run_misa
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -46,6 +46,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "length_bp": span.length,
                 "region": _plastid_region(span, ir, len(genome)),
                 "context": _gene_context(span, genome),
+                "compound": "yes" if feature.compound else "no",
             }
         )
 
@@ -61,6 +62,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("compound", "In compound formation", dtype="int"),
             Column("tool", "Tool"),
             Column("thresholds", "Unit/repeat thresholds"),
+            Column("reconciliation", "GFF vs statistics"),
         ),
         rows=(
             {
@@ -72,6 +74,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "compound": misa.compound,
                 "tool": f"MISA {_misa_version(ctx)}",
                 "thresholds": _THRESHOLDS,
+                "reconciliation": _reconciliation(misa, rows),
             },
         ),
         scope=Scope(label="whole plastome; MISA defaults; both IR copies included"),
@@ -104,11 +107,34 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("length_bp", "Length", dtype="int", unit="bp"),
             Column("region", "Region"),
             Column("context", "Context"),
+            Column("compound", "In compound formation"),
         ),
         rows=tuple(rows),
         scope=Scope(
-            label="GenBank coordinates; region split from the IR pair", coord_system="genbank"
+            label=(
+                "GenBank coordinates; region split from the IR pair; a compound cluster's "
+                "components share the cluster's span"
+            ),
+            coord_system="genbank",
         ),
+    )
+
+    region_table = Table(
+        id="ssr_by_region",
+        title="SSRs by plastid region",
+        columns=(
+            Column("region", "Region"),
+            Column("total", "Total", dtype="int"),
+            Column("mono", "Monomeric", dtype="int"),
+            Column("di", "Dinucleotide", dtype="int"),
+            Column("tri", "Trinucleotide", dtype="int"),
+            Column("other", "Other unit sizes", dtype="int"),
+        ),
+        rows=tuple(_region_row(region, rows) for region in ("LSC", "IRa", "SSC", "IRb")),
+        scope=Scope(
+            label="whole plastome; counts from the per-SSR table, so the two always reconcile"
+        ),
+        key="region",
     )
 
     return Result(
@@ -117,14 +143,50 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         tables={
             summary.id: summary,
             by_unit.id: by_unit,
+            region_table.id: region_table,
             features_table.id: features_table,
         },
         notes=[
             f"MISA {_misa_version(ctx)} with its default thresholds {_THRESHOLDS}; "
             f"{misa.compound} SSRs in compound formation.",
+            "A compound cluster is one GFF line holding several SSRs: each component is listed "
+            "separately and they share the cluster's coordinates.",
         ],
         citations=("misa",),
     )
+
+
+def _region_row(region: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """One region's counts, taken from the per-SSR rows so the summary cannot drift from them."""
+    in_region = [row for row in rows if row["region"] == region]
+    return {
+        "region": region,
+        "total": len(in_region),
+        "mono": sum(1 for row in in_region if row["unit"] == "mono"),
+        "di": sum(1 for row in in_region if row["unit"] == "di"),
+        "tri": sum(1 for row in in_region if row["unit"] == "tri"),
+        "other": sum(1 for row in in_region if row["unit"] not in ("mono", "di", "tri")),
+    }
+
+
+def _reconciliation(misa: MisaResult, rows: list[dict[str, Any]]) -> str:
+    """MISA's own statistics against the SSRs actually parsed out of its GFF.
+
+    They disagreed once (2026-10-03): the parser read only ``monomeric_repeat`` lines and
+    silently lost every longer unit, leaving 30 of 37 SSRs. This column exists so that can
+    never pass unnoticed again.
+    """
+    problems: list[str] = []
+    if len(rows) != misa.total:
+        problems.append(f"GFF has {len(rows)} SSRs, statistics say {misa.total}")
+    for size, count in sorted(misa.by_unit.items()):
+        label = UNIT_LABELS.get(size, f"{size}-unit")
+        parsed = sum(1 for row in rows if row["unit"] == label)
+        if parsed != count:
+            problems.append(f"{label}: GFF {parsed} vs statistics {count}")
+    if problems:
+        return "DISAGREES — " + "; ".join(problems)
+    return f"agrees — {len(rows)} SSRs, every unit class matches"
 
 
 def _misa_version(ctx: RunContext) -> str:
@@ -135,8 +197,6 @@ def _misa_version(ctx: RunContext) -> str:
 
 
 def feature_label(unit_size: int) -> str:
-    from plastid.external.misa import UNIT_LABELS
-
     return UNIT_LABELS.get(unit_size, f"{unit_size}-unit")
 
 

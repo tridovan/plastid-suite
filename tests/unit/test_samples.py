@@ -39,3 +39,12 @@ def test_empty_group_is_rejected(tmp_path: Path) -> None:
     path.write_text("a: []\n", encoding="utf-8")
     with pytest.raises(ValueError, match="at least one"):
         load_groups(path)
+
+
+def test_malformed_yaml_is_reported_as_bad_input(tmp_path: Path) -> None:
+    # yaml.YAMLError is not a ValueError; the loader must translate it at the boundary
+    # so callers catching ValueError do not crash with a traceback.
+    path = tmp_path / "groups.yaml"
+    path.write_text("a: [\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="invalid YAML"):
+        load_groups(path)

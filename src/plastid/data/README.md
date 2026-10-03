@@ -1,8 +1,14 @@
 # Packaged data
 
 Resource files shipped inside the package (not a Python package — no `__init__.py`).
+Every path is resolved through `plastid.core.resources.data_file`, so no loader carries its
+own "one directory up" guess.
 
 - `defaults.yaml` — central default configuration (arrives in P1-05)
 - `citations.yaml` — citation registry: tool → reference (arrives in P1-07)
+- `gene_groups.yaml` — gene name → functional group, for the publication gene table (P2-09)
 
-Access from code with `importlib.resources.files("plastid") / "data" / "<name>"`.
+`gene_groups.yaml` is data, not code, on purpose: it holds external knowledge (the grouping
+plastome papers use) and the real Oldenlandia/Coleus records will bring gene names it has not
+seen yet. A name no group claims is reported as unclassified in the output table — never
+dropped, never folded into a neighbour.

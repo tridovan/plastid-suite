@@ -7,13 +7,13 @@ from typing import Any
 
 import yaml
 
-__all__ = ["default_defaults_path", "load_defaults"]
+from plastid.core.resources import data_file
 
-_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+__all__ = ["default_defaults_path", "load_defaults"]
 
 
 def default_defaults_path() -> Path:
-    return _DATA_DIR / "defaults.yaml"
+    return data_file("defaults.yaml")
 
 
 def load_defaults(path: str | Path | None = None) -> dict[str, Any]:

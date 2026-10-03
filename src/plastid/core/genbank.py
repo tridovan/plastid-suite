@@ -63,6 +63,7 @@ def _to_gene(feature: SeqFeature) -> Gene:
         parts=tuple(_to_interval(location) for location in locations),
         product=_first_qualifier(feature, "product"),
         pseudo="pseudo" in feature.qualifiers,
+        trans_splicing="trans_splicing" in feature.qualifiers,
     )
 
 

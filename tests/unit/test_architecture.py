@@ -24,7 +24,11 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[2] / "src" / "plastid"
 
 # Third-party top-level imports allowed inside the package (besides the stdlib).
-THIRD_PARTY_ALLOWED = frozenset({"Bio", "yaml"})
+#
+# ``docx`` and ``lxml`` are the optional Word-export extra (D2-04). They are imported inside
+# functions, never at module import time, so the minimum install still runs without them — the
+# allowlist is what says the dependency is deliberate rather than accidental.
+THIRD_PARTY_ALLOWED = frozenset({"Bio", "yaml", "docx", "lxml"})
 
 # layer -> allowed `plastid.*` import prefixes
 LAYERS: dict[str, frozenset[str]] = {

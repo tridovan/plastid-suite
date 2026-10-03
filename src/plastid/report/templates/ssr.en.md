@@ -7,4 +7,8 @@ formation.
 
 Thresholds used (unit size / minimum repeats): {{ssr_summary.thresholds}} — the MISA defaults.
 
-Every SSR is listed with its plastid region and gene context in the `ssrs` table.
+By region: LSC {{ssr_by_region.LSC.total}} · IRa {{ssr_by_region.IRa.total}} ·
+SSC {{ssr_by_region.SSC.total}} · IRb {{ssr_by_region.IRb.total}}.
+
+Every SSR is listed with its plastid region and gene context in the `ssrs` table, and the counts
+there are the ones the summary above is built from — the two can never disagree.

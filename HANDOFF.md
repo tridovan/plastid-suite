@@ -6,23 +6,135 @@
 
 ## Resume point
 
-**Phase 1 — COMPLETE** (2026-10-03). Every `TASKS.md` item is done or explicitly non-blocking:
-P1-01…P1-13 delivered, D-01/D-02 done, D-03 (item (c)) documentation only. `make check` green:
-**94 fast + 13 golden**, tier B included — tier A asserts every §6 number and tier B reproduces
-**SSR 37 = mono 31 · di 4 · tri 2** through the vendored MISA.
+**Phase 1 — COMPLETE.** **D-04 (public stand-in dataset) — COMPLETE** (13 records pinned, sha256
+stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLETE.**
 
-**Next action: Phase 2** — genome reading & statistics (ROADMAP M2.x). It slots into the frozen API
-(`docs/API_v0.1.md`): a new file in `modules/` + one registry line + a report template. Start with
-**M2.1** (gene content & summary statistics).
+**Phase 2 status:** P2-01 … P2-06 · P2-09 · P2-11 **DONE**. P2-10 **draft produced and labelled**
+(PROJECT.md §8.8, `docs/P2-10_manuscript_draft.md`) — the real samples are still what makes it the
+team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
-**Waiting on people (nothing else):** real Illumina reads + the nuclear genome → Phase 6/7 only
-(anh Điềm / cô Trang) · item (c) text → documentation only (cô Trang).
+**Next action: nothing in Phase 2 is blocked on code — the next move is Phase 3** (annotation:
+PGA/GeSeq, gene-name normalisation, ORF checks, NCBI submission files), *or* collecting the five
+outstanding items below. Pick with the PI.
 
-**Branches (all local, none pushed):** `main` = init commit · `feat/phase-1` = P1-01 ·
-`feat/p1-02-core-model` = P1-02 + P1-03 · `feat/p1-04-result-schema` = P1-04.
-Branches stack — consider merging the finished ones into `feat/phase-1` before it grows.
+Open sub-items inside Phase 2, in the order they matter:
+
+1. **P2-07/P2-08 real-data run.** Needs MAFFT **7.526** (§7.8 pins it; `apt` installs a different
+   version and §9.B-13 records that the aligner changes Ts/Tv). `PTS_REQUIRE_TOOLS=1` on a machine
+   that has it. π per **intron/IGS** is still missing from P2-08.
+2. **Nothing cross-checks the de-novo IR *length*** on an unannotated record — `PZ428230.1` passed
+   the gate on a 15,756 bp repeat while every congener is ~25.7 kb (PROJECT.md §9.A-8). A congener
+   length check is *not built*.
+3. **`--docx` on a machine without the extra** — verified by test (exit 3, named error), never yet
+   run on a machine that genuinely lacks python-docx.
+
+**Before any P2-07/08 number is quoted:** the alignment must come from MAFFT 7.526, and §6's golden
+Ts/Tv (2.686) has the narrower scope *CDS only · 76 shared genes · IR excluded* — the module's
+default whole-alignment scope is a different number and must never be quoted as that one.
+
+**Waiting on people:** real Oldenlandia/Coleus samples → P2-10 (the stand-in set already contains
+both species, as *public records*, which is not the same as the team's specimens) · real Illumina
+reads + nuclear genome → Phase 6/7 · item (c) → docs.
+
+**Branches (all pushed to `origin`, 2026-10-03):** `main` = **Phase 1 complete** (fast-forwarded to
+the Phase-1 tip, no merge commit) · `feat/phase-1` · `feat/p1-02-core-model` · `feat/p1-04-result-schema`
+(the stacked Phase-1 branches, kept for reference; their commits are already in `main`) ·
+**`feat/phase-2` = current**, nine commits on top of `main` (four of them from session 4) — a PR
+from it to `main` shows exactly those, which is why Phase 1 was fast-forwarded in first.
+
+Every commit on `feat/phase-2` was checked out and `make check`-verified individually, so
+`git bisect` is usable across the branch.
+
+**Data note:** `.panel/` is gitignored; re-fetch the stand-in set with the two `panel pin --groups`
+commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 4 (P2-09, D2-04, P2-10)
+
+- **Did:** finished Phase 2. **P2-09** — a categorised publication gene table
+  (`data/gene_groups.yaml` is the grouping, `modules/gene_table.py` builds it) plus a Word export
+  (`result/docx_export.py`, `plastid run … --docx`) that is **byte-reproducible** and pruned of the
+  template's dead weight. **D2-04** — `python-docx` as an optional extra, imported inside the
+  function, so the minimum install stays biopython + PyYAML. **P2-10** — `-m` is repeatable, so a
+  run holds several modules and writes one combined `report/report.docx`; draft produced for both
+  manuscript species from the stand-in set.
+- **Validation:** `make check` green — **208 fast + 28 golden**. Every document was rendered
+  (LibreOffice → PDF → PNG) and **looked at**, not just asserted on. Measured: two builds of one run
+  are byte-identical, and so is a fully cached re-run (including the merged document).
+- **Four real bugs found by this work, each now a regression test:**
+  1. the gene table's own reconciliation reported **0** on its Total row — `by_kind.get("Total")`
+     on a Counter holding only CDS/tRNA/rRNA returns the default. The column caught it on the
+     first run, which is the whole reason it exists (PROJECT.md §9.B-19).
+  2. the OOXML style pruner read styles as **attributes** (`element.get("w:pStyle")`) when they are
+     **child elements** (`<w:pStyle w:val="…"/>`), so it removed nearly every style the document
+     used — including `Title` and `Heading 1`. **LibreOffice still rendered something plausible**;
+     only a structural test ("every style the document references must still be defined") caught it
+     (PROJECT.md §9.C-20).
+  3. a table's own NUL-looking allocation bug: scaling every column by one factor starved the short
+     ones, so a header broke mid-word ("Gene / s"); columns now get a floor before the rest is
+     shared out.
+  4. `Table.emphasis` (a bold totals row) accepted any string — a typo would have been invisible in
+     every export except the Word document's font weight. It now must name an existing key.
+- **Residual risks:** the Word layout is verified by eye against LibreOffice; Word itself is not
+  installed here, so a Word-only rendering difference would not have been seen. The stand-in drafts
+  are labelled but are **public records of the same two species** — same species is not the same
+  specimen.
+- **Blocked:** P2-07/P2-08 numbers still need MAFFT 7.526 (absent).
+- **Next:** Phase 3, or collect the three open sub-items in the resume point.
+
+### 2026-10-03 · Claude · dev WSL · session 3 (P2-03 … P2-08, P2-11, D2-01/02/03)
+
+- **Did:** completed seven Phase-2 tasks. `core/codon.py` + `modules/codon_usage.py` (RSCU · ENC ·
+  CAI · CBI · Fop), `core/protein.py` + `modules/amino_acid.py` (GRAVY · aromaticity),
+  `modules/introns.py`, SSR by region + motif, `modules/diversity.py` (π) and
+  `modules/substitutions.py` (Ts/Tv), plus group labels on comparison output.
+  D2-01 (multi-genome contract, `docs/API_v0.2.md`), D2-02 (π 600/200), D2-03 (NCBI table 1).
+- **Validation:** `make check` green — **169 fast + 22 golden**. Every new number is either a
+  §6 golden number or an analytic check (ENC = 61 unbiased / 20 at the extreme; CAI = Fop = CBI = 1
+  for a self-referenced sequence; π of a known alignment; the two IR copies' skew mirrors exactly).
+- **Six real bugs found by the new work, each now a regression test:**
+  1. `_parse_gff` read only `monomeric_repeat` — MISA writes every longer unit as `microsatellite`
+     and a compound as one `repeat_region` line, so **7 of 37 SSRs were silently dropped**. The old
+     test fixture invented a type MISA never writes, which is why it passed. P2-06's reconciliation
+     column caught it.
+  2. `coding_sequence` — re-sorting a trans-spliced gene's parts or reading them all forward gives
+     a wrong ORF; only per-part strand + annotation order yields rps12's `ATG…TAA`.
+  3. Two independent copies of a `Table` key were allowed (`rpl2.1` twice) — references resolved
+     silently to one row. `Table` now rejects a repeated key.
+  4. `load_groups` let `yaml.YAMLError` through (not a `ValueError`) — a malformed file crashed
+     with a traceback instead of a message.
+  5. `NcbiClient.resolve` could leak a `KeyError` where `NcbiError` belongs.
+  6. `entry_from_summary` claimed `annotated=True` for every record; GenBank submissions are not
+     annotated by default — 3 of the 11 stand-in plastomes have zero gene features.
+- **Residual risks:** the comparison modules are unit-verified but **no real-data number was
+  measured** — MAFFT is absent and installing a different version than the pinned 7.526 would
+  measure the wrong thing. π per intron/IGS is still missing from P2-08.
+- **Blocked:** nothing. P2-10 still needs the team's real samples.
+- **Next:** P2-09 (see the binary-export note in the resume point), then P2-10.
+
+### 2026-10-03 · Claude · dev WSL · session 2 (stand-in data, P2-01, P2-02)
+
+- **Did:** **D-04** — a public stand-in dataset for Oldenlandia/Coleus: `data/*.yaml` definitions
+  (13 records), `panel pin --groups` (new) + `--index` now optional + live accession resolution via
+  the new `NcbiClient.resolve`; `PinnedGenome` measures gene counts · topology · IR outcome at pin
+  time, so `PINNED.json` *is* the verification table. Hardened what the first cut got wrong
+  (all found by a review pass): malformed YAML raised a traceback (`yaml.YAMLError` is not a
+  `ValueError`), `resolve` could leak a `KeyError`, `annotated=True` was assumed for GenBank
+  records. **P2-01** done (e2e tests: golden numbers in report *and* CSV · 2nd golden genome ·
+  both diverged-IR genomes exit 2). **P2-02** done — `modules/structure.py` + `gc_skew()` +
+  `structure.en.md` + `tests/unit/test_structure.py`.
+- **Validation:** `make check` green — **124 fast + 18 golden**. All 13 sha256 re-verified
+  byte-identical on a second pin. Structure on the golden genome reproduces LSC 83,127 ·
+  IRa = IRb = 26,214 · SSC 18,169 · tiling 153,724, and the two IR copies skew exactly opposite
+  (reverse complements) — a real correctness signal for the sign convention.
+- **Residual risks:** `PZ428230.1` is a bad record (15,756 bp IR, `linear`) — excluded from
+  position-based analysis, and nothing in the tool would have caught it automatically (§9.A-8).
+  The API doc said `table[rowkey].column` but the implementation parses `table.rowkey.column`;
+  no template had used a row key until now — docs corrected to the tested syntax, code unchanged.
+  3 of 11 stand-in plastomes have no annotation (0 CDS) — sequence-level analyses only.
+- **Blocked:** nothing. P2-10 still needs the team's real samples.
+- **Next:** P2-03 (decide D2-03 first), then P2-04 … P2-11.
 
 ### 2026-10-03 · Claude · dev WSL
 

@@ -1,0 +1,73 @@
+# Gene-name → functional group for the publication gene table (P2-09, milestone M2.2).
+#
+# This file is the source of truth for the grouping: it is data, not code, because it is
+# external knowledge (the conventional grouping used in plastome papers), and because the
+# real Oldenlandia/Coleus records will need names this list has not seen yet.
+#
+# How a group claims genes — evaluated in the order written, first match wins:
+#
+#   genes:  [psaA, psaB]   exact gene names
+#   prefix: trn            every name that starts with this string
+#   kind:   rRNA           every feature of this kind (CDS / tRNA / rRNA)
+#
+# tRNA and rRNA claim by prefix on purpose. Anticodon suffixes differ between species
+# (trnL-CAA here, trnL-TAA elsewhere), so an enumerated list would silently drop the
+# difference — exactly the failure mode the SSR parser had in P2-06.
+#
+# A gene no group claims is reported as its own "Unclassified" row in the output table.
+# It is never dropped, and never quietly folded into a neighbour.
+#
+# Counting convention: "Number" counts COPIES, both inverted-repeat copies included, so the
+# table totals the fixed 132 = 86 CDS + 38 tRNA + 8 rRNA and reconciles with count_genes().
+# A gene name is listed once per group and marked "(x2)" when the record carries two copies.
+
+categories:
+  - name: Photosynthesis
+    groups:
+      - name: Subunits of photosystem I
+        genes: [psaA, psaB, psaC, psaI, psaJ]
+      - name: Subunits of photosystem II
+        genes: [psbA, psbB, psbC, psbD, psbE, psbF, psbH, psbI, psbJ, psbK, psbL, psbM, psbN, psbT, psbZ]
+      - name: Subunits of cytochrome b/f complex
+        genes: [petA, petB, petD, petG, petL, petN]
+      - name: Subunits of ATP synthase
+        genes: [atpA, atpB, atpE, atpF, atpH, atpI]
+      - name: Large subunit of rubisco
+        genes: [rbcL]
+      - name: Subunits of NADH dehydrogenase
+        genes: [ndhA, ndhB, ndhC, ndhD, ndhE, ndhF, ndhG, ndhH, ndhI, ndhJ, ndhK, ndhL]
+
+  - name: Self-replication
+    groups:
+      - name: Ribosomal RNA genes
+        prefix: rrn
+      - name: Transfer RNA genes
+        prefix: trn
+      - name: Small subunit of ribosome
+        genes: [rps2, rps3, rps4, rps7, rps8, rps11, rps12, rps14, rps15, rps16, rps18, rps19]
+      - name: Large subunit of ribosome
+        genes: [rpl2, rpl14, rpl16, rpl20, rpl21, rpl22, rpl23, rpl32, rpl33, rpl36]
+      - name: DNA-dependent RNA polymerase
+        genes: [rpoA, rpoB, rpoC1, rpoC2]
+
+  - name: Other genes
+    groups:
+      - name: Translational initiation factor
+        genes: [infA]
+      - name: Maturase
+        genes: [matK]
+      - name: Envelope membrane protein
+        genes: [cemA]
+      - name: Acetyl-CoA carboxylase
+        genes: [accD]
+      - name: c-type cytochrome synthesis
+        genes: [ccsA]
+      - name: Protease
+        genes: [clpP]
+
+  - name: Genes of unknown function
+    groups:
+      - name: Conserved open reading frames
+        prefix: ycf
+      - name: Open reading frames
+        prefix: orf

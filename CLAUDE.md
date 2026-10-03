@@ -40,6 +40,19 @@ Golden sample: **Iris domestica NC_050833.1** (comparison genome: Iris gatesii N
 
 Changing any of these requires fresh measured evidence. Full provenance: PROJECT.md §6.
 
+## Data — real samples vs development stand-ins
+
+Real datasets arrive from anh Điềm / cô Trang. Until one exists, **development and testing may use
+public stand-in data** (GenBank records of the same genus, or the nearest available relative):
+choosing a *suitable* stand-in is a dev call, not a PI call.
+
+A stand-in never stops being a stand-in:
+
+- fetch it through `plastid panel pin` — accession · date · sha256 recorded, never by hand;
+- label every output made from it; never let a stand-in number reach a manuscript table as if it
+  were the team's sample;
+- when the real dataset arrives, re-run — do not patch numbers.
+
 ## Reading guide — consult, don't consume
 
 | File / section | Read when |
@@ -168,6 +181,8 @@ make check    # lint + test + golden
 
 ## Workflow for a task
 
+0. Planning or refreshing a phase's tasks? Follow the **`make-tasks`** skill
+   (`.claude/skills/make-tasks/SKILL.md`) — it defines what a task must carry.
 1. Pick a task in `TASKS.md`; mark it `[~]`. It is done only when its **Done when** check passes.
 2. Non-trivial work (multi-file, new module, schema change): plan first and get approval before coding.
 3. Verify as you go — write the check first where the Testing discipline applies (below); every step
@@ -209,7 +224,8 @@ Commits are authored by the team only.
 
 ## Don't
 
-- Don't run tests that hit the network — golden data is vendored in the repo.
+- Don't run tests that hit the network — golden data is vendored in the repo. (Fetching a dataset
+  once with `plastid panel pin` is a data step, not a test.)
 - Don't commit raw data dumps, credentials, or API keys.
 - Don't restructure PROJECT.md; append to §8/§9 and update the §3 decisions table.
 
