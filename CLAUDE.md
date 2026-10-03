@@ -168,6 +168,8 @@ make check    # lint + test + golden
 
 ## Workflow for a task
 
+0. Planning or refreshing a phase's tasks? Follow the **`make-tasks`** skill
+   (`.claude/skills/make-tasks/SKILL.md`) — it defines what a task must carry.
 1. Pick a task in `TASKS.md`; mark it `[~]`. It is done only when its **Done when** check passes.
 2. Non-trivial work (multi-file, new module, schema change): plan first and get approval before coding.
 3. Verify as you go — write the check first where the Testing discipline applies (below); every step
