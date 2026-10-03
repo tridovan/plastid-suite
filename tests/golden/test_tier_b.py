@@ -68,6 +68,28 @@ def test_ssr_reproduces_the_golden_numbers(
     assert values["Dinucleotide"] == "4"
     assert values["Trinucleotide"] == "2"
     assert values["In compound formation"] == "3"
+    # P2-06: the per-SSR table must reconcile with MISA's own statistics. They disagreed once
+    # (30 vs 37) until the parser learned MISA's second vocabulary — see tests/unit/test_misa.py.
+    assert values["GFF vs statistics"].startswith("agrees")
+
+    per_ssr = (run_dir / "01_ssr" / "tables" / "ssrs.csv").read_text(encoding="utf-8")
+    ssr_rows = [line for line in per_ssr.splitlines() if line.strip() and not line.startswith("#")][
+        1:
+    ]
+    assert len(ssr_rows) == 37  # every SSR is listed, compounds included component by component
+
+    by_region = (run_dir / "01_ssr" / "tables" / "ssr_by_region.csv").read_text(encoding="utf-8")
+    region_rows = dict(
+        (fields[0], fields[1:])
+        for fields in (
+            line.split(",")
+            for line in by_region.splitlines()
+            if line.strip() and not line.startswith("#")
+        )
+    )
+    assert set(region_rows) == {"Region", "LSC", "IRa", "SSC", "IRb"}
+    region_totals = sum(int(region_rows[name][0]) for name in ("LSC", "IRa", "SSC", "IRb"))
+    assert region_totals == 37  # the regions account for every SSR, none lost
 
     report = (run_dir / "01_ssr" / "report.md").read_text(encoding="utf-8")
     assert "**37 SSRs**" in report

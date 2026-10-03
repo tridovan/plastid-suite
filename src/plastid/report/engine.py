@@ -1,6 +1,6 @@
 """Sentence-report engine (decision §10.7, PROJECT.md §3).
 
-Templates reference table cells (``{{table.column}}`` / ``{{table[row].column}}``) and never
+Templates reference table cells (``{{table.column}}`` / ``{{table.rowkey.column}}``) and never
 contain literal numbers — the scan test enforces that. An unresolvable reference raises; the
 draft banner is appended by the engine so no report can be mistaken for a checked result.
 """

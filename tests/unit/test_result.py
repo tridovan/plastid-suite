@@ -50,6 +50,19 @@ def _result() -> Result:
     )
 
 
+def test_a_repeated_key_is_rejected() -> None:
+    """A repeated key would make every reference to it silently resolve to one of the rows."""
+    with pytest.raises(ValueError, match="repeats"):
+        Table(
+            id="repeated",
+            title="Repeated",
+            columns=(Column("k", "K"), Column("v", "V", dtype="int")),
+            rows=({"k": "a", "v": 1}, {"k": "a", "v": 2}),
+            scope=Scope(label="x"),
+            key="k",
+        )
+
+
 def test_single_row_table_addresses_by_column() -> None:
     assert _single_row_table().value("gc_pct") == 37.8536
 

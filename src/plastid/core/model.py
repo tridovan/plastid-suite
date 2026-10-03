@@ -11,7 +11,18 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 
-__all__ = ["GENE_KINDS", "Gene", "GeneCounts", "Genome", "Interval", "count_genes"]
+from plastid.core.sequence import reverse_complement
+
+__all__ = [
+    "GENE_KINDS",
+    "Gene",
+    "GeneCounts",
+    "Genome",
+    "Interval",
+    "cds_features",
+    "coding_sequence",
+    "count_genes",
+]
 
 # The feature kinds counted as "genes" — the fixed rule is 132 = 86 CDS + 38 tRNA + 8 rRNA.
 GENE_KINDS: tuple[str, ...] = ("CDS", "tRNA", "rRNA")
@@ -60,6 +71,8 @@ class Gene:
     parts: tuple[Interval, ...]
     product: str | None = None
     pseudo: bool = False
+    # the record's own /trans_splicing qualifier — the annotation's word, not our inference
+    trans_splicing: bool = False
 
     def __post_init__(self) -> None:
         if not self.parts:
@@ -127,6 +140,30 @@ class GeneCounts:
     @property
     def total(self) -> int:
         return self.cds + self.trna + self.rrna
+
+
+def cds_features(genome: Genome) -> tuple[Gene, ...]:
+    """The counted CDS set: every ``CDS`` feature, both IR copies, pseudogenes excluded.
+
+    One source of truth for the gene-based analyses (P2-03 codon usage, P2-04 composition) — the
+    golden genome's set is 86, the number ``count_genes`` reports.
+    """
+    return tuple(gene for gene in genome.genes if gene.kind == "CDS" and not gene.pseudo)
+
+
+def coding_sequence(genome: Genome, gene: Gene) -> str:
+    """A feature's sequence 5'→3': every part read on **its own** strand, in annotation order.
+
+    A trans-spliced CDS may mix strands and GenBank writes a join() in transcript order, so
+    neither re-sorting the parts nor reading them all on the gene's strand is safe. Measured on
+    both golden rps12 copies (2026-10-03): only this reading yields the canonical ``ATG…TAA``
+    ORF — re-sorting gives ``AAT…TAT``, reading everything forward gives ``ATA…ATT``.
+    """
+    chunks = [
+        genome.subseq(part) if part.strand > 0 else reverse_complement(genome.subseq(part))
+        for part in gene.parts
+    ]
+    return "".join(chunks)
 
 
 def count_genes(genome: Genome) -> GeneCounts:

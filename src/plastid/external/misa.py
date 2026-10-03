@@ -25,7 +25,7 @@ MISA_VERSION = "2.1"
 VENDOR_DIR = Path(__file__).resolve().parents[1] / "vendor" / "misa"
 
 UNIT_LABELS = {1: "mono", 2: "di", 3: "tri", 4: "tetra", 5: "penta", 6: "hexa"}
-_TYPE_UNITS = {
+_CLASS_UNITS = {
     "monomeric_repeat": 1,
     "dinucleotide_repeat": 2,
     "trinucleotide_repeat": 3,
@@ -37,12 +37,18 @@ _TYPE_UNITS = {
 
 @dataclass(frozen=True, slots=True)
 class SsrFeature:
-    """One SSR from the GFF (1-based inclusive coordinates, as MISA reports them)."""
+    """One SSR from the GFF (1-based inclusive coordinates, as MISA reports them).
+
+    ``compound`` marks a component of a compound cluster. MISA writes such a cluster as a
+    single ``repeat_region`` line that does not separate its components, so every component
+    carries the cluster's span — the coordinates are the cluster's, not the component's.
+    """
 
     unit_size: int
     motif: str
     start: int
     end: int
+    compound: bool = False
 
     @property
     def unit_label(self) -> str:
@@ -120,27 +126,56 @@ def _parse_statistics(text: str) -> tuple[int, dict[int, int], int]:
 
 
 def _parse_gff(text: str) -> tuple[SsrFeature, ...]:
+    """Every SSR in MISA's GFF — including the ones its two vocabularies hide.
+
+    MISA writes monomeric SSRs as ``monomeric_repeat`` but every longer unit as a generic
+    ``microsatellite``, with the class only inside the Note; a compound cluster is one
+    ``repeat_region`` line whose Note lists all of its components. Reading the type column
+    alone therefore drops **every** di/tri/… SSR and one component of every cluster — measured
+    2026-10-03 on the golden genome: only 30 of the 37 SSRs survived, silently (found by P2-06's
+    reconciliation against MISA's own statistics).
+    """
     features: list[SsrFeature] = []
     for line in text.splitlines():
         if not line.strip() or line.startswith("#"):
             continue
         fields = line.split("\t")
-        if len(fields) != 9 or fields[2] not in _TYPE_UNITS:
+        if len(fields) != 9:
             continue
-        note = fields[8]
-        motif = ""
-        if "Note=" in note:
-            value = note.split("Note=", 1)[1].split(";", 1)[0]
-            motif = value.split(",", 1)[1] if "," in value else value
-        features.append(
+        components = _note_components(fields[2], fields[8])
+        start, end = int(fields[3]), int(fields[4])
+        features.extend(
             SsrFeature(
-                unit_size=_TYPE_UNITS[fields[2]],
+                unit_size=unit_size,
                 motif=motif,
-                start=int(fields[3]),
-                end=int(fields[4]),
+                start=start,
+                end=end,
+                compound=len(components) > 1,
             )
+            for unit_size, motif in components
         )
     return tuple(features)
+
+
+def _note_components(feature_type: str, note: str) -> list[tuple[int, str]]:
+    """``(unit size, motif)`` for every SSR one GFF line stands for."""
+    if feature_type == "region" or "Note=" not in note:
+        return []
+    tokens = [token.strip() for token in note.split("Note=", 1)[1].split(";", 1)[0].split(",")]
+    components: list[tuple[int, str]] = []
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        unit_size = _CLASS_UNITS.get(token)
+        if unit_size is None and token.endswith("_microsatellite_feature"):
+            unit_size = _CLASS_UNITS.get(token.removesuffix("_microsatellite_feature"))
+        if unit_size is None:
+            index += 1
+            continue
+        motif = tokens[index + 1] if index + 1 < len(tokens) else ""
+        components.append((unit_size, motif))
+        index += 2
+    return components
 
 
 def _int_after(text: str, marker: str) -> int:
