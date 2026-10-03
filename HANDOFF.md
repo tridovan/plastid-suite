@@ -14,7 +14,23 @@ stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLE
 team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
 **Phase 3 — STARTED, branch `feat/phase-3` (stacked on `feat/phase-2`, which is not yet merged to
-`main`).** The board is `TASKS.md`; nothing in it is done yet.
+`main`).** The board is `TASKS.md`; nothing in it is done yet. **Blockers were cleared first — read
+`docs/PHASE3_BLOCKERS.md` before touching anything.**
+
+Blocker state, short version:
+
+- **Cleared:** MAFFT **7.526** is installed and verified against §7.8's pin (tarball md5
+  `cf3b2acf649bc31e576ed43a2fa4aaa3`, byte-identical) — so **P2-07/P2-08 can finally be measured**
+  instead of staying "implemented, run pending". BLAST+ 2.17.0 and Perl 5.32.1 present.
+- **Two "blockers" were wrong blockers:** MITOS2 **cannot** annotate a plant mitochondrion (it is a
+  metazoan tool, reference set `refseq81m`) — PMGA is the tool that fits; and the gene-naming
+  question was a dev call, not the PI's.
+- **Still open, each with a named owner and a one-line ask:** `docs/PHASE3_BLOCKERS.md`.
+- **New invariant in CLAUDE.md:** a tool that exists only on one machine is not part of the toolkit.
+  It must be declared in the repo — `environment.yml` (version pinned), `vendor/` + `SOURCE.json`
+  (small scripts), or `docs/` — **in the same session as the install**. `environment.yml` was
+  repinned because it listed a bare `mafft`, and §9.B-13 had already measured that the aligner
+  changes Ts/Tv.
 
 **Next action: P3-01 (ORF checks).** It is pure Python, fully verifiable on this machine, and it is
 the phase's core value. The measurement that shapes it is already made: **5 of the golden genome's
@@ -72,6 +88,28 @@ Every commit on `feat/phase-2` was checked out and `make check`-verified individ
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 6 (blocker clearance)
+
+- **Did:** cleared what could be cleared before Phase 3 starts. Installed **MAFFT 7.526** from
+  conda-forge and verified it byte-for-byte against §7.8's pin, plus BLAST+ 2.17.0. Found that two
+  named blockers were not blockers, and that one tool in the plan is the wrong kingdom. Wrote
+  `docs/PHASE3_BLOCKERS.md`.
+- **Validation:** the MAFFT tarball is 2,610,460 B with md5 `cf3b2acf649bc31e576ed43a2fa4aaa3` —
+  both numbers are §7.8's, so this is the pinned build and not merely a 7.526. `environment.yml`
+  dry-runs clean and the solver picks `mafft 7.526 h4bc722e_0` from conda-forge rather than
+  bioconda's 7.525.
+- **A mistake I made and fixed:** I installed tools on this machine and changed nothing in the repo.
+  Every number measured here would have been reproducible by nobody. Worse, the repo's own
+  `environment.yml` listed a **bare `mafft`** while §9.B-13 had already measured that the aligner
+  changes Ts/Tv (2.667 vs 2.686) — so following our own install file produced a different golden
+  number. Both fixed; the rule is now an invariant in CLAUDE.md.
+- **Residual risks:** `table2asn` is only partly downloaded (NCBI's FTP timed out twice). PGA is
+  cloned nowhere useful — running freshly-cloned third-party code was refused by the permission
+  classifier, correctly, since no one had named the source in-session; one manual `perl PGA.pl`
+  clears it. PMGA's benchmark numbers come from a web summary, **not the paper**.
+- **Blocked:** `docs/PHASE3_BLOCKERS.md` — four asks, each with a named owner.
+- **Next:** Phase 3 A→Z. Start with P3-01 and P3-02 (both pure Python, nothing blocks them).
 
 ### 2026-10-03 · Claude · dev WSL · session 5 (Phase 2 closed, Phase 3 board)
 
