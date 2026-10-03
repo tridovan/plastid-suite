@@ -159,7 +159,23 @@ its duplicate calls.
 - [ ] `external/pmga.py` through `run_tool()`, output re-read by our reader
 **Done when:** on a mitogenome the gene-set table reports plant mito gene names and the run does not
 touch the IR gate; on a machine with PMGA the count reproduces the record's own annotation.
-**Needs:** PMGA on the machine.
+**Needs:** PMGA on the machine — **it is now here, downloaded and unpacked (03/10, `docs/tools/pmga.md`).**
+**UPDATED 03/10 — the blocker moved, and it is now a permission decision, not information.**
+The container is at `~/toolbox/src/pmga_dl/PMGA_tools/` (3.18 GB download → >6 GB unpacked,
+sha256 `81a23743…`), Apptainer 1.5.4 is installed (`~/.local/share/mamba/envs/pmga`), and **the
+real command line is read from the container's own POD** — no more guessing:
+
+```
+mgavas -pid <id> -in <fasta> -db <1|2|4> [-conf <file>] [-ref <genbank>] [-outdir <dir>]
+```
+
+`apptainer exec PMGA_tools/ …` was **refused by the permission classifier** (third-party code the
+user has not named in-session — the same boundary that stopped PGA, cleared then by naming it).
+**The exact ask:** either name PMGA/its Figshare record as a source to run (or add a `Bash(apptainer
+exec *)`-style rule to `.claude/settings.local.json`), or run the one command by hand. Then
+`external/pmga.py` follows the same shape as `external/pga.py`, and the first thing to measure is
+**peak RAM + wall clock on one mitogenome** — that number decides whether PMGA can ever be a
+requirement for the team's own machines, or only a web-service step whose output we pin.
 **Why nothing was written this session — the honest reason.** PMGA is not on conda and has no git
 repository: the paper distributes it as a **singularity container** (Figshare 27201798) and a web
 server, and no command-line usage is published anywhere retrievable. An adapter written against an
