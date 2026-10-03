@@ -26,6 +26,28 @@ install (pip only) runs the pure-Python analyses without any external tools.
 **Current state: Phase 1 in progress.** Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
 checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
 
+## Supreme objective — the deliverables decide, not the tools
+
+The project exists to produce the three deliverables above (PROJECT.md §1–§2), for a research group
+of biologists who are not command-line experts and work on ordinary computers. Everything else in
+this file — the seams, the golden numbers, the layering, the tool declarations — serves those
+deliverables. **Assembling a particular set of existing tools is not the goal, and never was.**
+
+So:
+
+- A tool named in `ROADMAP.md` / `TASKS.md` / PROJECT.md is a **hypothesis** until it is measured on
+  this project's own data. Measured behaviour beats reputation: PGA was picked on a published
+  benchmark and had to be re-examined the moment it was actually run on the golden genome
+  (PROJECT.md §8.15: 147 genes where the golden has 132, plus three silent failure modes).
+- When a tool is unsuitable, buggy, unmaintained, unlicensable, or simply not there, **replace it —
+  or write that part ourselves**. Record what was measured that forced the change (§8/§9) and the
+  decision (§3). "The plan says tool X" is never a reason to keep a tool that fails.
+- The replacement must meet the same non-negotiables: offline, provenance recorded (name · version ·
+  argv), declared in the repo, and no step whose version nobody can name.
+- **Never bend a number to fit a tool.** If the tool cannot reproduce the golden numbers, that *is*
+  the finding: say it, and change the tool. A pipeline that produces plausible numbers nobody can
+  reproduce is the failure this project exists to avoid.
+
 ## Golden numbers — the contract
 
 Golden sample: **Iris domestica NC_050833.1** (comparison genome: Iris gatesii NC_024936.1).
