@@ -118,10 +118,17 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
 - [x] **M2.3 Genome structure** — LSC/SSC/IR boundaries · %GC per region · GC-skew
 - [x] **M2.4 Codon usage** — RSCU · ENC · CAI · CBI · Fop
 - [x] **M2.5 Amino acid composition** — + GRAVY · aromaticity
-- [~] **M2.6 SNP / substitutions by position** — scope labels enforced
+- [x] **M2.6 SNP / substitutions by position** (2026-10-03) — scope labels enforced; the **CDS
+      scope now reproduces §6's golden Ts/Tv exactly**: 317 Ts / 118 Tv = **2.686** over **76**
+      shared genes and **66,066** columns, with MAFFT 7.526 (§8.25). The whole-alignment default is
+      a *different* number (1.8416) and every table says which scope it is
 - [x] **M2.7 Introns** — count · length · position
 - [x] **M2.8 SSR** — by region and motif
-- [~] **M2.9 Nucleotide diversity π** — per gene/intron/IGS, sliding window
+- [~] **M2.9 Nucleotide diversity π** — **real-data run done 03/10** (§8.25): π 0.007181 whole,
+      LSC 0.009185 · IRa 0.001682 · IRb 0.001681 · SSC 0.014066, per gene and 600/200 sliding
+      window. **Still missing: per intron/IGS** — those spans need the intron derivation extracted
+      from `modules/introns.py` into the shared layer first (DRY: it would be its second copy), so
+      it is named in `TASKS.md` rather than half-built here
 - [~] **M2.10 Manuscript deliverable** — tables + draft Results produced for both species from the
   public stand-in set (labelled); real samples and figures outstanding
 - [x] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label

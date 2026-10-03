@@ -1293,6 +1293,41 @@ editing. Bốn gen không tìm thấy **không** được suy đoán là "không
 
 ---
 
+### 8.25. Chạy thật hai module so sánh — và một lỗi im lặng sống sót vì chưa từng chạy dữ liệu thật (P2-07/P2-08, 03/10/2026)
+
+**Bối cảnh.** P2-07 (π) và P2-08 (Ts/Tv) được viết và kiểm bằng unit test từ Phase 2, nhưng chưa
+bao giờ chạy trên dữ liệu thật vì thiếu MAFFT 7.526. Hôm nay MAFFT đã cài và pin đúng §7.8, nên
+đây là lần chạy thật đầu tiên — và nó tìm ra một lỗi.
+
+**Lỗi đo được: MAFFT 7.526 in căn thẳng ra CHỮ THƯỜNG.** Bộ đếm phân loại cột theo `_DNA =
+{"A","C","G","T"}` (chữ hoa), nên **mọi cột của một alignment chữ thường bị tính là "skipped"**:
+lần chạy Ts/Tv thật đầu tiên báo **0 cột so sánh được và Ts/Tv để trống** — không phải một con số
+sai, mà là *không có con số nào*, trong khi mọi bảng vẫn ra bình thường. Unit test không thấy được
+vì chúng tự dựng `Alignment` bằng chữ hoa; adapter MAFFT **chưa từng có test nào**. Đã sửa hai đầu:
+adapter **upper-case** khi đọc output (kèm comment ghi rõ số đo), và `Alignment` **từ chối** một
+hàng có chữ thường — fail loud thay vì đếm ra số 0.
+
+**Ts/Tv — tái lập đúng số vàng §6, bằng chính đường của toolkit:** thêm scope `cds` (các gen hai
+genome dùng chung, mỗi gen một bản — IR tính một lần, align từng gen):
+
+| | Lần chạy này | §6 |
+|---|---|---|
+| Gen dùng chung | **76** | 76 |
+| Cột căn | **66.066** | 66.066 |
+| Ts / Tv | **317 / 118** | 317 / 118 |
+| Ts/Tv | **2,686** | 2,686 |
+
+Scope mặc định (cả bộ gen) cho **1,8416** trên 152.338 cột — một con số khác, và mọi bảng đều ghi
+rõ scope nào. Đây là lý do module có hẳn hai scope: §6 chỉ đúng trong scope hẹp.
+
+**π — lần chạy thật đầu tiên:** π toàn alignment **0,007181**; theo vùng **LSC 0,009185 · IRa
+0,001682 · IRb 0,001681 · SSC 0,014066**; kèm π theo gen và cửa sổ trượt 600/200. Tín hiệu đúng
+sinh học: **hai bản IR gần như trùng nhau và thấp hơn hẳn** hai vùng đơn bản — một phép kiểm hình
+dạng mà một lỗi "đếm ra 0" sẽ xoá sạch. **Còn thiếu:** π theo **intron/IGS** (H-07) — cần tách phép
+suy intron ra tầng dùng chung trước.
+
+---
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
@@ -1457,6 +1492,17 @@ editing. Bốn gen không tìm thấy **không** được suy đoán là "không
 3. **23 call vẫn cho 13 CDS không qua phép kiểm ORF** (9 `no_start`, 3 `no_stop`, 1
    `internal_stop`) — trên một genome chưa ai chú giải thì đó là *thông tin*, không phải lỗi: nó
    nói chỗ nào alignment không xác lập được đầu gen.
+
+### G. So sánh chuỗi — lỗi chỉ hiện ra khi chạy dữ liệu thật (P2-07/P2-08)
+
+1. **MAFFT 7.526 in chữ thường** ⇒ bộ đếm chỉ nhận `ACGT` hoa ⇒ **mọi cột bị bỏ qua trong im
+   lặng**: Ts/Tv ra *trống* (không phải sai), π ra 0. Unit test xanh vì chúng dựng alignment bằng
+   tay; **adapter MAFFT chưa từng có test**. Bài học: một adapter không có test thì hành vi thật
+   của công cụ chưa từng được kiểm — "đã kiểm bằng unit test" không đồng nghĩa với "đã chạy thật".
+   Đã sửa: upper-case ở biên, và model **từ chối** chữ thường.
+2. **Hai scope, hai con số, không được lẫn**: Ts/Tv 2,686 (chỉ CDS, 76 gen, bỏ IR) so với 1,8416
+   (cả bộ gen). Cùng một cặp genome. Mọi bảng phải mang nhãn scope — đây là ca chứng minh vì sao
+   luật đó tồn tại.
 
 ## 10. Câu hỏi còn treo
 

@@ -114,3 +114,21 @@ def test_variable_and_informative_sites() -> None:
     assert variable_sites(three) == (1, 0)
     four = Alignment(names=("a", "b", "c", "d"), sequences=("AAT", "AAG", "AAT", "AAG"))
     assert variable_sites(four) == (1, 1)
+
+
+def test_an_alignment_with_lowercase_bases_is_refused() -> None:
+    """Measured 03/10/2026: MAFFT 7.526 prints lowercase, and a lowercase row made every column
+    count as "skipped" — the first real-data Ts/Tv run reported zero comparable columns instead
+    of an error. The boundary upper-cases (external/mafft.py); the model refuses the rest."""
+    with pytest.raises(ValueError, match="lowercase"):
+        Alignment(names=("ref", "other"), sequences=("ACGT", "acgt"))
+
+
+def test_the_mafft_parser_upper_cases_what_the_aligner_prints() -> None:
+    """The sample is verbatim from the measured run: MAFFT 7.526's own output, lowercase."""
+    from plastid.external.mafft import _parse_fasta
+
+    aligned = _parse_fasta(">NC_050833.1\n------cccgatatcttact\n>NC_024936.1\nACGTACGTACGTACGTAC\n")
+
+    assert aligned["NC_050833.1"] == "------CCCGATATCTTACT"
+    assert aligned["NC_024936.1"] == "ACGTACGTACGTACGTAC"

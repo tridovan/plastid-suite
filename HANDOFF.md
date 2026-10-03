@@ -17,7 +17,8 @@ team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pend
 `feat/phase-3` (stacked on `feat/phase-2`, which is not yet merged to `main`).** The one task that
 closed by *decision* rather than by code is P3-04's annotator (see below).
 
-**Phase 3A — COMPLETE 03/10, branch `feat/phase-3a`** (stacked on `feat/phase-3`). A mito annotator
+**Phases 2, 3 and 3A — MERGED to `main` 03/10** (fast-forward; the three `feat/phase-*` branches
+are now labels with 0 commits outside `main`). A mito annotator
 this project builds itself, because PMGA cannot run here and its web service is down. **P3A-01 …
 P3A-07 are all DONE** and the phase check is met (§8.20–§8.24): on `OX459128.1` the annotator's own
 output re-reads, drives `orf` + `mito_genes` unchanged, and recounts to **31 CDS · 17 tRNA ·
@@ -192,6 +193,46 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 16 (P2-07/08 run for real — and the bug that was hiding there)
+
+**Did.** Merged the three-deep branch stack into `main` (fast-forward, pushed). Then closed the
+last Phase-2 leftovers, which had been waiting on MAFFT since Phase 2: **P2-08 (Ts/Tv)** and
+**P2-07 (π)** now run on real data.
+
+**The run found a real bug, and it is this project's favourite kind.** MAFFT 7.526 prints its
+alignment in **lowercase**; the counters classify a column by `_DNA = {"A","C","G","T"}`, so every
+column was silently "skipped": the first real Ts/Tv run reported **zero comparable columns and a
+blank ratio** — not a wrong number, no number — while every table still rendered. It survived
+because the unit tests build `Alignment` objects by hand (uppercase) and the **MAFFT adapter had no
+test at all**. Fixed at both ends: the adapter upper-cases on read (with the measurement in a
+comment), and `Alignment` now **refuses** a lowercase row — fail loud instead of counting zeros.
+
+**Validation.** `make check` green: **443 fast + 41 golden** (with the tool env; the 4 remaining
+skips are tools this shell lacks). New tier-B checks: the CDS-scope Ts/Tv and the whole-alignment
+one, plus π.
+
+**The golden number reproduces exactly, through the toolkit's own path** — §6 is 2.686 = 317 Ts /
+118 Tv over 76 shared CDS and 66,066 columns, and that is what the run printed, to the base. The
+whole-alignment default is a different number (**1.8416**) over 152,338 columns, and every table
+labels its scope. π: **0.007181** whole; **LSC 0.009185 · IRa 0.001682 · IRb 0.001681 · SSC
+0.014066**; per gene and a 600/200 sliding window.
+
+**Residual risks.** (1) **π per intron/IGS is still missing** (M2.9's last piece) — named as
+**H-07**: intron spans are derived inside `modules/introns.py` and IGS spans nowhere, so the
+shared layer needs that derivation extracted first (DRY's second real copy). (2) The
+whole-alignment Ts/Tv aligns two circular genomes without normalizing their origins first; the
+number is honest for the alignment it describes and its label says so, but a per-region view of a
+wider scope would be the more useful shape. (3) M2.10 (manuscript draft) still waits on the team's
+real samples — unchanged.
+
+**Blocked.** Nothing.
+
+**Next.** **Phase 4 — multi-genome comparison.** Build the board with the `make-tasks` skill, then
+M4.1 Ka/Ks · M4.2 mVISTA-style %identity + synteny · M4.3 barcodes · M4.4 population genetics ·
+M4.6 Ts/Tv (whose module now exists and reproduces its golden number) · M4.5 RNA editing stays
+blocked on RNA data. MAFFT 7.526 is installed and pinned, so Phase 4's alignment path is already
+proven by this session's runs.
 
 ### 2026-10-03 · Claude · dev WSL · session 15 (Phase 3A closed — the CLI, the golden check, the first real sample)
 

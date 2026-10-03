@@ -49,6 +49,15 @@ class Alignment:
             raise ValueError(f"alignment rows differ in length: {sorted(lengths)}")
         if not self.sequences[0]:
             raise ValueError("alignment is empty")
+        # Fail loud rather than count nothing: a column is classified by ``_DNA``, so a lowercase
+        # row would have *every* column skipped and report zero comparable columns instead of an
+        # error. Measured 03/10/2026 — MAFFT 7.526 prints lowercase, and the adapters are the
+        # boundary that upper-cases it (external/mafft.py).
+        if any(character.islower() for sequence in self.sequences for character in sequence):
+            raise ValueError(
+                "an alignment row carries lowercase bases — the counters read ACGT only, so "
+                "every column would be skipped in silence; upper-case it at the boundary"
+            )
 
     @property
     def n_rows(self) -> int:

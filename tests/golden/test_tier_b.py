@@ -98,6 +98,130 @@ def test_ssr_reproduces_the_golden_numbers(
     assert "Draft — needs human review." in report
 
 
+def test_the_cds_scope_reproduces_the_golden_ts_tv(
+    tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """PROJECT.md §6, measured by the toolkit's own path: **2.686 = 317 Ts / 118 Tv** over the
+    **76** shared CDS and **66,066** alignment columns, IR excluded.
+
+    This check is why the module's CDS scope exists at all — §6's number is *not* the
+    whole-alignment one (measured 03/10/2026: 1.8416 over 152,338 comparable columns), and the two
+    must never be quoted as one another.
+
+    It is also the check whose absence hid a real bug: MAFFT 7.526 prints its alignment in
+    lowercase, the counters read ``ACGT``, and the first real-data run reported **zero comparable
+    columns and a blank ratio** — the unit tests had only ever built uppercase alignments by hand.
+    """
+    require_tools(tools, "mafft")
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "substitutions",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-i",
+                str(data_dir / "NC_024936.1.gb"),
+                "-o",
+                str(tmp_path / "runs"),
+                "--set",
+                "scope=cds",
+            ]
+        )
+        == 0
+    )
+    summary = _table(tmp_path / "runs", "substitutions_summary")
+    row = next(summary)
+    assert row["Shared genes"] == "76"
+    assert row["Alignment columns (bp)"] == "66066"
+    assert (row["Transitions"], row["Transversions"]) == ("317", "118")
+    assert row["Ts/Tv"] == "2.6864"
+
+
+def test_the_whole_alignment_scope_is_a_different_number_and_says_so(
+    tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """The default scope is not wrong — it is *wider*, and its label has to keep it apart from
+    §6's. Measured 03/10/2026: 1.8416 over the whole aligned plastome."""
+    require_tools(tools, "mafft")
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "substitutions",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-i",
+                str(data_dir / "NC_024936.1.gb"),
+                "-o",
+                str(tmp_path / "runs"),
+            ]
+        )
+        == 0
+    )
+    summary = _table(tmp_path / "runs", "substitutions_summary")
+    row = next(summary)
+    assert row["Ts/Tv"] == "1.8416"
+    assert "not the CDS-only scope" in _scope_label(tmp_path / "runs", "substitutions_summary")
+
+
+def test_nucleotide_diversity_runs_on_real_data_and_keeps_its_shape(
+    tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """P2-07's real-data run, measured 03/10/2026 with MAFFT 7.526: π 0.007181 over the whole
+    alignment, and the region split the plastome predicts — the **inverted repeat is the most
+    conserved part and its two copies diverge by the same amount** (IRa 0.001682 · IRb 0.001681),
+    while the single-copy regions are several times more diverse (LSC 0.009185 · SSC 0.014066).
+
+    There is no §6 golden value for π, so this check holds the *relationships* — which is what
+    makes it worth having: a regression that quietly stopped counting columns (the lowercase bug
+    of `external/mafft.py`) would make every number zero and every relationship vanish.
+    """
+    require_tools(tools, "mafft")
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "diversity",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-i",
+                str(data_dir / "NC_024936.1.gb"),
+                "-o",
+                str(tmp_path / "runs"),
+            ]
+        )
+        == 0
+    )
+    summary = next(_table(tmp_path / "runs", "diversity_summary"))
+    assert float(summary["π (whole alignment)"]) == pytest.approx(0.007181, rel=1e-3)
+    assert summary["Usable columns"] != "0"
+
+    regions = {
+        row["Region"]: float(row["π"]) for row in _table(tmp_path / "runs", "diversity_regions")
+    }
+    assert set(regions) == {"LSC", "IRa", "SSC", "IRb"}
+    assert regions["IRa"] == pytest.approx(regions["IRb"], rel=0.05), "the IR copies must mirror"
+    assert regions["IRa"] < regions["LSC"] < regions["SSC"]
+
+
+def _table(root: Path, table_id: str) -> csv.DictReader:
+    """A module table as rows: the exports carry their provenance as ``#`` comments."""
+    path = next(root.rglob(f"{table_id}.csv"))
+    body = [
+        line for line in path.read_text(encoding="utf-8").splitlines() if not line.startswith("#")
+    ]
+    return csv.DictReader(io.StringIO("\n".join(body)))
+
+
+def _scope_label(root: Path, table_id: str) -> str:
+    path = next(root.rglob(f"{table_id}.csv"))
+    return next(line for line in path.read_text(encoding="utf-8").splitlines() if "scope:" in line)
+
+
 def test_pga_reproduces_the_golden_gene_counts(
     tools: dict[str, str | None], data_dir: Path, tmp_path: Path
 ) -> None:
