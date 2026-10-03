@@ -61,6 +61,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **ORF: đọc bảng mã của chính bản ghi, từ chối thay vì đoán (D3-03 + P3-01)**: `Gene` mang `/transl_table` và `/codon_start` của bản ghi; bảng mã ngoài {1, 11} ⇒ `OrfError` (hai bảng này chia sẻ toàn bộ axit amin, chỉ khác mã khởi đầu), `/codon_start` ≠ 1 ⇒ `OrfError` — dịch sai khung là kiểu "sai mà không báo". **ACG được nhận là mã khởi đầu nhưng xếp lớp riêng `non_canonical`**: nó *không* có trong danh sách của bảng 11, nhưng bản ghi đã công bố dùng nó cho rpl2/ndhD (RNA editing ACG→AUG); xếp vào `no_start` sẽ là báo động giả trên 2/86 CDS của genome vàng (§8.11) |
 | 03/10 | **Lớp "annotated, not coding" khớp cả TÊN lẫn VỊ TRÍ (P3-01)**: ycf1 cụt chồng lấn 21 bp với CDS của `ndhF`, nên khớp theo vị trí không thôi thì ndhF "phủ" nó, còn khớp theo tên không thôi thì CDS ycf1 thật ở chỗ khác "phủ" nó — mỗi cách hỏng một kiểu im lặng (§8.11) |
 | 03/10 | **File nộp NCBI: `.fsa` + `.tbl` thuần Python, luôn luôn; `.sqn` chỉ khi có `table2asn` *và* có template `.sbt` (D3-04, P3-05)**: web submission của NCBI nhận thẳng cặp `.fsa`+`.tbl`, nên bản cài tối thiểu vẫn nộp được. `.tbl` mang **tên gốc của bản ghi** (đổi tên là đổi nội dung nộp — D3-06 chỉ nói về *chữ in trong bản thảo*); toạ độ partial đi theo bản ghi, partial ở interval giữa ⇒ **từ chối**, không bỏ im lặng (§8.13) |
+| 03/10 | **Chú giải: Chloe là annotator của pipeline; PGA còn lại cho genome ngoài angiosperm (D3-01 — sửa lại sau khi ĐO, dev quyết)**: ràng buộc cũ vẫn nguyên (offline, ghi được tên · phiên bản · đường dẫn · argv), nhưng *"công cụ offline nào"* chỉ là **giả thuyết cho tới khi chạy thật**. PGA trên genome vàng ra **147 gen** (7 reference) và **130** (1 reference) so với **132**, kèm ba kiểu hỏng im lặng (§8.15) ⇒ **thay bằng Chloe**: offline, có bộ reference chuẩn hoá của chính nó, và **đo qua reader của mình ra đúng 132 = 86 + 38 + 8, 0 CDS lỗi ORF** (§8.17). Giữ `--set annotator=pga` cho plastome không phải thực vật có hoa (Chloe chỉ làm angiosperm). GeSeq vẫn là kiểm tra chéo ghim một lần. **Bài học ghi lại:** công cụ thắng không nằm trong danh sách khảo sát ban đầu | Dev | `docs/D3-01_annotator.md`, `docs/tools/chloe.md` |
 | 03/10 | **Nối công cụ chú giải mito (P3-04) — PMGA**, không phải MITOS2 (annotator của động vật có vú, bộ tham chiếu `refseq81m`). PMGA phân phối dạng **singularity container** (Figshare 27201798) + web server, không có repo git và không có tài liệu CLI công khai ⇒ **chưa viết adapter**: viết theo CLI tự nghĩ ra sẽ là một placeholder trông như thật. Cần: kéo container, ghi entry point vào `docs/` |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
 
@@ -897,6 +898,80 @@ annotator là bước tuỳ chọn và Docker image chứa được.
 **Chưa chốt vội:** cần đọc lại output bằng reader của mình và đếm lại sau khi gộp rps12 — nếu ra
 đúng 132 thì D3-01 được sửa thành **Chloe là pipeline offline, GeSeq ghim là kiểm tra chéo**.
 
+**Đính chính (03/10/2026, sau khi đọc lại GFF bằng reader của mình — §8.17):** hai điều ở trên
+phải sửa. (1) **134/88 là do cách đếm, không phải do Chloe**: gộp các dòng exon theo `parent` mà
+chúng chia sẻ thì file ra **86 CDS** — đúng số vàng, và **không cần "gộp rps12"** như dự kiến.
+(2) Bảng trên đo trên GFF **mặc định**, tức GFF có **biến đổi trình tự** — số gen vẫn đúng nhưng
+toạ độ nằm ở hệ khác; xem §8.17.
+
+### 8.17. Chloe chạy thật qua pipeline của mình — P3-03 chốt (03/10/2026)
+
+**Kết quả: 132 = 86 + 38 + 8, và 0 CDS hỏng ORF** (80 `ok` + 6 `alternative_start`). Đây là
+Done-when của P3-03, đo bằng **reader của mình** (`core/gff.py`) trên **file GFF thật của Chloe**,
+rồi chạy lại lần nữa end-to-end qua CLI với Chloe thật.
+
+| | |
+|---|---|
+| Gen chú giải được | **132** = 86 CDS + 38 tRNA + 8 rRNA (khớp số vàng) |
+| Kiểm tra ORF | **80 ok + 6 alternative_start, 0 lỗi** (bản ghi vàng: 81 + 5, 0 lỗi) |
+| Tên gen | 5 tên có tên đồng nghĩa, **0 tên không xếp được nhóm** |
+| Chạy end-to-end | 22 giây (10 giây chú giải + ~12 giây Julia khởi động/biên dịch) |
+| Provenance ghi được | `chloe 0.1.18` (pinned) · `julia version 1.13.0` · argv đầy đủ · rc 0 |
+
+**File thật được lưu vào repo:** `tests/data/chloe_NC_050833.1.gff` (sha256 `c8b660b7…`, ghi ở
+`tests/data/PROVENANCE.md`). Nhờ nó, ba con số trên kiểm lại được **trên máy không có Julia** —
+đúng tinh thần "công cụ chỉ nằm trên một máy thì không phải một phần của bộ công cụ" (§7.8c).
+
+**Phát hiện lớn nhất — Chloe mặc định BIẾN ĐỔI trình tự, và đếm gen không thấy điều đó.**
+`--no-transform` được chính Chloe mô tả là *"do not flip and orient sequence to standard
+configuration"*. Đo trên genome vàng, hai lần chạy chỉ khác đúng cờ đó:
+
+| | Mặc định (có biến đổi) | Có `--no-transform` |
+|---|---|---|
+| Số gen | **132** — y hệt | **132** |
+| Tên gen | y hệt | y hệt |
+| Kiểm tra ORF | **12/86 CDS hỏng** (8 `no_start`, 4 `no_stop`) | **0 hỏng** |
+| Trình tự viết kèm | `.chloe.fa` khác input ở **13.001 vị trí**, đúng dải **109.342–127.510** | không viết file nào |
+
+Dải đó **chính là SSC** (18.169 bp): Chloe **đảo ngược chiều vùng sao chép đơn** rồi chú giải hệ
+toạ độ đó. Ví dụ cụ thể: `ndhH` trong file mặc định nằm ở **114.734–115.915 (+)** — dịch xuôi vùng
+đó ra `IPTPITGRKIQIETNSSRGPESIKLEFWTLNSLYP…`, không phải ndhH; còn ndhH thật ở 120.937–122.118 (−),
+dịch ngược ra `MTVPATRKDFMIVNMGPHHPSMHGVLRLILTLDGE…`. Vì **số gen và tên gen không đổi**, một
+pipeline chỉ đếm gen sẽ báo "khớp số vàng" trong khi một phần ba bộ gen nằm sai khung — đúng loại
+"sai mà không báo" mà dự án này tồn tại để chặn.
+
+⇒ Adapter **luôn truyền `--no-transform`**, và **từ chối mọi lần chạy có viết file FASTA biến đổi**
+(so từng base với input đã đưa vào). Có test cho cả hai đường: stub (không cần công cụ) và chạy
+thật với Chloe (tier B, đo lại đúng hiện tượng trên).
+
+**Hai khác biệt tên gen lộ ra khi đối chiếu với bản ghi vàng:**
+
+1. **`ndhI` (Chloe) vs `ndhL` (bản ghi vàng) — cùng locus, đã chốt.** Cùng vị trí, **cùng
+   protein** (543 bp, dịch ra một chuỗi y hệt); `/product` của chính bản ghi vàng ghi *"NADH-
+   plastoquinone oxidoreductase subunit I"*; họ ndh của plastome có tiểu đơn vị A–K, **không có L**
+   ⇒ thêm cặp alias thứ năm vào `data/gene_aliases.yaml` (canonical `ndhI`, synonym `ndhL`).
+2. **`trnG-GCC` (Chloe) vs `trnG-UCC` (bản ghi vàng) — CHƯA chốt, và không tự chốt.** Bản ghi vàng
+   dùng tên `trnG-UCC` cho **cả hai** bản tRNA glycine, dù hai bản **khác trình tự**; Chloe gọi bản
+   không intron là `trnG-GCC`. Bộ tRNA chuẩn của plastome thực vật có hoa có **cả hai** gen
+   (`trnG-UCC` có intron và `trnG-GCC`), nên khả năng cao bản ghi vàng đặt trùng tên — nhưng **đo
+   không đủ để kết luận**: đọc anticodon theo offset cố định chỉ khớp **11/38** tRNA của bản ghi
+   vàng (đúng như ghi chú của bộ chuẩn hoá), nên không có cách đọc máy móc nào đủ tin ở đây. Đây là
+   **câu hỏi cho cô Trang** (§10): tên nào in trong bảng bản thảo.
+
+**Phạm vi & giấy phép (cho M9.3 và cho phần Methods):** Chloe chỉ chú giải **thực vật có hoa**
+(angiosperm) — đúng phạm vi ba loài bản thảo, nhưng phải nói rõ trong tài liệu; plastome ngoài
+nhóm này thì dùng `--set annotator=pga`. Checkout **không có file LICENSE**; bản công bố trên
+Zenodo (doi:10.5281/zenodo.18194040, v0.1.18) ghi **MIT** — hai chuyện khác nhau, đã ghi cả hai
+vào `docs/tools/chloe.md` để đợt rà soát M9.3 quyết.
+
+**Một lỗi nhỏ của chính mình, ghi lại vì cùng loại:** helper `_length()` trong test tier B đọc
+độ dài ở `LOCUS.split()[1]` — đúng với bản ghi tự chế mà nó được viết ra để phục vụ, **sai** với
+bản ghi thật (`LOCUS NC_050833 153724 bp`, vị trí 1 là tên bản ghi). Nó chỉ lộ ra khi test Chloe
+chạy trên genome vàng, vì máy này không có PGA nên nhánh test kia chưa từng chạy. Một helper chỉ
+được chạy với đúng fixture nó sinh ra thì chưa phải là helper đã được kiểm.
+
+---
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
@@ -951,6 +1026,20 @@ annotator là bước tuỳ chọn và Docker image chứa được.
     Đúng loại lỗi mà cột đối chiếu sinh ra để bắt: nếu bảng chỉ in số mà không tự so, một dòng
     tổng bằng 0 sẽ nằm giữa bảng và **không ai kiểm**. Đã sửa (`_in_table`), thành test.
 
+20. **Mới 03/10/2026 — biến đổi trình tự làm đúng SỐ GEN mà sai TOÀN BỘ KHUNG (§8.17).**
+    Chloe mặc định đảo chiều vùng sao chép đơn rồi chú giải hệ toạ độ đó. Hệ quả đo được: **132 gen
+    — y hệt, tên y hệt**, nhưng **12/86 CDS hỏng ORF** khi đọc với trình tự người dùng đưa vào, và
+    vị trí các gen ở SSC lệch hẳn (ndhH ở 114.734–115.915 (+) thay vì 120.937–122.118 (−)).
+    **Bài học:** một con số đếm được không chứng minh được hệ toạ độ; phải có một phép kiểm *theo
+    vị trí* (ở đây: dịch ORF) mới thấy. Đây là lý do P3-03 bắt buộc "đọc lại bằng reader của mình"
+    chứ không tin output của annotator.
+21. **Mới 03/10/2026 — annotator và bản ghi vàng gọi CÙNG một locus bằng hai tên khác nhau.**
+    `ndhI` (Chloe) = `ndhL` (bản ghi vàng): cùng vị trí, **cùng protein**, và `/product` của bản
+    ghi vàng ghi "subunit I" ⇒ thành cặp alias thứ năm. Ca thứ hai **chưa chốt**: `trnG-GCC` vs
+    `trnG-UCC` — bản ghi vàng dùng **một tên cho hai bản tRNA khác trình tự**, mà bộ gen chuẩn có
+    cả hai gen. Không tự sửa: đo anticodon bằng offset cố định chỉ khớp 11/38 tRNA ⇒ **không đủ
+    bằng chứng**, đưa vào §10 cho PI quyết.
+
 ### C. Môi trường & vận hành
 
 20. **`chloroplast[filter]` của NCBI bỏ sót bản ghi ghi "plastid"** (đo 03/10/2026, khi chạy
@@ -990,7 +1079,13 @@ annotator là bước tuỳ chọn và Docker image chứa được.
 6. ~~Hệ toạ độ sau chuẩn hoá~~ — **ĐÃ CHỐT 02/10**: bảng theo từng genome ghi **toạ độ GenBank**; hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá** (các vùng thẳng hàng nhau); mọi bảng ghi rõ hệ đang dùng; `rotation_offset` lưu trong `00_run_info`.
 7. ~~Cách sinh report~~ — **ĐÃ CHỐT 02/10**: sinh từ đối tượng `Result`. Mỗi số trong report trỏ về **đúng một ô** bảng gốc; template chỉ trỏ (`{{bảng.cột}}`, `{{bảng[dòng].cột}}`), không gõ số; ref không giải được ⇒ **raise**, không in trống. Yêu cầu "kiểm thử truy vấn số" (§13.5) được thoả bằng cấu trúc, không bằng kỷ luật.
 8. ~~Reference Panel: snapshot hay truy vấn sống~~ — **ĐÃ CHỐT 02/10**: engine gợi ý qua **cache RefSeq có ngày** (lệnh làm mới tường minh); người dùng chốt danh sách thì **tải + ghim checksum**; chạy lại offline, tái lập được.
-9. Mục **(c)** của Reference Panel còn thiếu — đoạn văn bản nguồn bị cụt.
+9. Mục **(c)** của Reference Panel còn thiếu
+10. **Tên gen `trnG` in trong bảng bản thảo là tên nào (§8.17).** Bản ghi vàng NC_050833.1
+    dùng `trnG-UCC` cho **cả hai** bản tRNA glycine (hai bản khác trình tự), Chloe gọi bản không
+    intron là `trnG-GCC`, và bộ tRNA chuẩn của plastome có **cả hai** gen. Đây là chuyện *chữ in
+    trong bản thảo / bản nộp*, tức việc của cô Trang (D3-06), không phải việc dev tự quyết — dev
+    đã ghi lại đủ bằng chứng để cô Trang quyết trong một lần xem.
+ — đoạn văn bản nguồn bị cụt.
 
 ## 11. Nguồn tài liệu (ngoài file này)
 

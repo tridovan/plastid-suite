@@ -88,30 +88,44 @@ required `len(genomes) == arity`, refusing an 11-record panel for an `arity=2` m
 Modules whose gene column is a *per-record key* (introns, diversity, substitutions) still print the
 name the record arrived with — Phase 4 keys its comparisons on the canonical name and must wire them.
 
-### P3-03 · Annotation — plastome · M3.1 · [~] **ĐANG ĐỔI CÔNG CỤ: PGA → Chloe**
+### P3-03 · Annotation — plastome · M3.1 · [x] DONE 03/10 — **annotator: Chloe**
 
 > **03/10 — PGA đã đo và không đạt** (§8.15): 147 gen (7 reference) / 130 gen (1 reference) so với
 > **132 = 86 + 38 + 8**; ba lỗi im lặng đã thành lỗi có tên. Theo nguyên tắc "sản phẩm quyết định,
-> không phải bộ công cụ" (CLAUDE.md), công cụ được thay. **Chloe** (Ian Small, Julia, CLI, có bộ
-> reference chuẩn hoá sẵn) đo được **134 = 88 CDS + 38 tRNA + 8 rRNA** — tRNA/rRNA khớp tuyệt đối,
-> CDS lệch 2 vì cách ghi `rps12` (4 dòng gen thay vì 2), tức khác biệt biểu diễn chứ không phải lỗi
-> chú giải (§8.16).
+> không phải bộ công cụ" (CLAUDE.md), công cụ được thay bằng **Chloe** (Ian Small, Julia, CLI, có
+> bộ reference chuẩn hoá sẵn).
 >
-> **Việc còn lại của P3-03:** `external/chloe.py` (chạy `julia --project=. chloe.jl annotate`, ghi
-> provenance qua `run_tool`) · đọc GFF bằng reader của mình và đưa qua đúng bộ kiểm tra ORF +
-> chuẩn hoá tên · gộp rps12 theo exon rồi đếm lại (kỳ vọng **132 = 86 + 38 + 8**) · ghi giấy phép
-> (không có file LICENSE) vào mục rà soát M9.3 · test `PTS_REQUIRE_TOOLS=1`-gated như cũ.
-> **Đã cài trên máy này:** Julia ở `~/.local/share/mamba/envs/chloe`, code ở `~/toolbox/src/chloe`
-> (+ `chloe_references`), chạy hết 11 giây/genome.
+> **Đã xong (§8.17): `132 = 86 + 38 + 8`, 0 CDS hỏng ORF** (80 `ok` + 6 `alternative_start`), đo
+> bằng `core/gff.py` trên **file GFF thật** của Chloe, lưu vào `tests/data/` (sha256 ghim) nên
+> kiểm lại được **không cần Julia**; chạy end-to-end qua CLI 22 giây, manifest ghi
+> `chloe 0.1.18` + `julia version 1.13.0` + argv đầy đủ. Con số **134/88 của §8.16 là do cách
+> đếm** — gộp dòng exon theo `parent` ra đúng **86 CDS**, không cần "gộp rps12".
+>
+> **Phát hiện phải nhớ: Chloe mặc định BIẾN ĐỔI trình tự** (đảo chiều SSC rồi chú giải hệ toạ độ
+> đó) — số gen và tên gen y hệt, nhưng **12/86 CDS hỏng ORF** khi đọc với trình tự người dùng đưa
+> vào. Adapter luôn truyền `--no-transform` và từ chối mọi lần chạy có viết FASTA biến đổi.
+>
+> **Còn treo (không chặn):** tên `trnG-GCC` vs `trnG-UCC` — bản ghi vàng dùng một tên cho hai bản
+> tRNA khác trình tự; **cô Trang quyết** tên in trong bảng bản thảo (PROJECT.md §10.10). Giấy phép:
+> checkout không có LICENSE, bản Zenodo ghi MIT — vào đợt M9.3 (`docs/tools/chloe.md`).
+> **Máy này:** Julia ở `~/.local/share/mamba/envs/chloe`, code ở `~/toolbox/src/chloe`; test tier B
+> đọc đường dẫn qua `PTS_CHLOE` / `PTS_JULIA`.
 
 - [x] `external/pga.py` through `run_tool()`; path, version and argv land in the run info
 - [x] the annotator's GenBank output is read back by **our own reader** and must round-trip
 - [x] `modules/annotation.py`: the resulting gene set, its ORF status (P3-01) and its name mapping (P3-02)
       go through the same pipeline as a downloaded record — no second code path
-**Done when:** on a machine with PGA, annotating a de-annotated golden FASTA reproduces the golden's
-gene counts by the fixed rule (86 CDS + 38 tRNA + 8 rRNA) and the output re-reads clean. Here:
-implemented and `PTS_REQUIRE_TOOLS=1`-gated, **no number claimed from a run that did not happen**.
-**Needs:** D3-01, and PGA on the machine.
+- [x] `core/gff.py`: a GFF3 reader (BioPython has none) — rows grouped by id, parts in transcript
+      order, malformed rows refused by line number
+- [x] `external/chloe.py`: `--no-transform`, the released version and the reference set both pinned
+      and both checked, a transformed run refused by name
+- [x] the annotator's own file kept as an artifact and vendored as a fixture — the three numbers
+      above are checkable on a machine without Julia
+- [x] tier B: the golden counts against the real tool, plus the transform trap measured live
+**Done when:** annotating a de-annotated golden FASTA reproduces the golden's gene counts by the
+fixed rule (86 CDS + 38 tRNA + 8 rRNA) and the output re-reads clean. **Met 03/10 with Chloe**
+(§8.17); the PGA path stays in the module for genomes Chloe does not cover, `PTS_REQUIRE_TOOLS=1`-gated.
+**Needs:** D3-01 (revised 03/10), and Chloe (or PGA) on the machine.
 **Measured 03/10 — PGA RUNS HERE NOW (PROJECT.md §8.15).** Clone at `~/toolbox/src/PGA`, BLAST+
 and MAFFT in `~/toolbox/env/pts/bin`. De-annotated golden genome in, and the answer to the Done-when
 above is **no**: with **7 Iris references** PGA produced **147 = 95 CDS + 44 tRNA + 8 rRNA**; with
@@ -194,7 +208,8 @@ example rather than a real file (no real table with a multi-interval feature was
 | What | Who | Blocks |
 |---|---|---|
 | Which gene name the manuscript and the NCBI submission print (D3-06) | cô Trang | the *wording* of the gene table, not the pipeline |
-| A first run of PGA by hand (`~/toolbox/src/PGA`, GPL-3.0) | anh Trí | the *measured* half of P3-03 |
+| A first run of PGA by hand (`~/toolbox/src/PGA`, GPL-3.0) | anh Trí | the *measured* half of P3-03 — **done 03/10**, PGA does not reproduce the golden record |
+| Chloe (Julia) installed on the team's machines, or a decision to run the annotation module only where it is available | anh Điềm | the `annotation` module's default annotator; the GFF fixture means everything else is testable without it |
 | ~~The mito annotator decision~~ — **decided 03/10: PMGA** (PROJECT.md §3) | — | — |
 | The PMGA singularity container (Figshare 27201798), pulled and its entry point recorded | anh Điềm / anh Trí | P3-04 |
 | A submitter template (`.sbt`) from NCBI's form — names people and institutions | cô Trang | the `.sqn` half of P3-05 (table2asn itself is installed and declared) |

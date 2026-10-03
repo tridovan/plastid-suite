@@ -13,8 +13,9 @@ stable, PROJECT.md §8.6). **D2-04 (Word writer as an optional extra) — COMPLE
 (PROJECT.md §8.8, `docs/P2-10_manuscript_draft.md`) — the real samples are still what makes it the
 team's draft. P2-07 · P2-08 **implemented and unit-verified, real-data run pending MAFFT 7.526**.
 
-**Phase 3 — five of six tasks closed, branch `feat/phase-3` (stacked on `feat/phase-2`, which is not
-yet merged to `main`).** The board is `TASKS.md`.
+**Phase 3 — P3-01 · P3-02 · P3-03 DONE, P3-05 half done, P3-04's annotator blocked; branch
+`feat/phase-3` (stacked on `feat/phase-2`, which is not yet merged to `main`).** The board is
+`TASKS.md`.
 
 - **P3-01 ORF checks — DONE.** `core/orf.py` + `modules/orf.py`; `Gene` now carries the record's own
   `/transl_table` and `/codon_start`. Golden: 86 CDS, 81 `ok`, **5 `alternative_start`**
@@ -31,13 +32,23 @@ yet merged to `main`).** The board is `TASKS.md`.
   **265/265** golden features; `.sqn` is opt-in and needs both `table2asn` and a `.sbt` template.
   The `.tbl` rules came from NCBI's docs, not memory (`join()` does not exist — intervals stack;
   minus-strand intervals reverse; `<` in column 1, `>` in column 2, both as prefixes). §8.13.
-- **P3-03 — TOOL BEING REPLACED (03/10, late).** PGA was run and measured; it does not reproduce the
-  golden counts, so per CLAUDE.md's supreme-objective rule the tool changes. **Chloe** (Ian Small,
-  Julia, CLI, curated reference set) was installed here and run on the same de-annotated golden:
-  **134 = 88 CDS + 38 tRNA + 8 rRNA** in 11 s — tRNA/rRNA exact, CDS +2 explained by how it writes
-  `rps12` (4 gene rows vs the record's 2 trans-spliced copies). **Next: `external/chloe.py`, GFF
-  read-back through our reader, merge rps12, recount (expect 132).** Julia lives at
-  `~/.local/share/mamba/envs/chloe`, code at `~/toolbox/src/chloe`. PROJECT.md §8.16.
+- **P3-03 plastome annotation — DONE (03/10, late).** Annotator replaced: PGA → **Chloe**.
+  Written: `core/gff.py` (a GFF3 reader — BioPython has none), `external/chloe.py`,
+  `modules/annotation.py` grown an `annotator` parameter (`chloe` default, `pga` for genomes
+  Chloe does not cover), `docs/tools/chloe.md`, a real GFF fixture in `tests/data/`, tier-B tests
+  for the real tool. **Measured through our own reader: 132 = 86 + 38 + 8, 0 CDS failing the ORF
+  checks** (80 `ok` + 6 `alternative_start`; the golden record itself is 81 + 5) — §8.17. The
+  earlier "134 / 88 CDS" was a *counting* artefact: group the exon rows by the `parent` they
+  share and the file carries 86 CDS, so no rps12 merge was ever needed.
+  **The finding to remember: Chloe transforms the sequence by default.** With the transform on,
+  the single-copy region is reverse-complemented and the run returns the *same 132 genes under the
+  same names* — while 12 of 86 CDS stop translating and ndhH sits where ndhH is not. The adapter
+  always passes `--no-transform` and refuses any run that writes a transformed FASTA. Also
+  resolved: `ndhI` (Chloe) = `ndhL` (golden record) — same position, identical protein, so a fifth
+  alias entered `gene_aliases.yaml`. Open for the PI: `trnG-GCC` vs `trnG-UCC`, where the golden
+  record uses one name for two different tRNA sequences (PROJECT.md §10.10).
+  Julia: `~/.local/share/mamba/envs/chloe`; Chloe: `~/toolbox/src/chloe`. Tier-B tests find both
+  through `PTS_CHLOE` / `PTS_JULIA`.
 - **P3-03 PGA annotation — RUN FOR REAL, and the Done-when does not hold.** The "waiting on anh Trí"
   item was a *permission* boundary, not a capability one: same machine, and once anh Trí granted
   `Bash(perl *)` in `.claude/settings.local.json` (gitignored), PGA ran. Measured: 7 Iris references
@@ -144,6 +155,26 @@ Every commit on `feat/phase-2` and `feat/phase-3` was `make check`-verified on i
 commands in PROJECT.md §8.6.
 
 ## Log
+
+### 2026-10-03 · Claude · dev WSL · session 8 (Chloe adapter — P3-03 closes)
+
+- **Did:** `core/gff.py` (GFF3 reader), `external/chloe.py`, `modules/annotation.py` (annotator
+  selection: `chloe` default · `pga` for non-angiosperms), `tests/unit/test_gff.py`,
+  `tests/unit/test_chloe.py`, two tier-B tests, a real GFF fixture + provenance, `docs/tools/chloe.md`,
+  D3-01 updated, PROJECT.md §8.17 · §9.B.20-21 · §10.10 · §3.
+- **Validation:** `make check` green — **333 fast + 30 golden** + the two Chloe tier-B tests run for
+  real (`PTS_CHLOE`/`PTS_JULIA`). Measured through our reader on Chloe's own file:
+  **132 = 86 + 38 + 8**, ORF **80 `ok` + 6 `alternative_start`, 0 failures**; end-to-end CLI 22 s,
+  manifest carries `chloe 0.1.18` · `julia version 1.13.0` · the full argv with `--no-transform`.
+- **Risks / notes:** (1) the transform guard is a FASTA comparison — a future Chloe that transforms
+  without writing that file would slip past it (the release pin and the reference-set pin are the
+  second line); (2) `--no-transform` is measured on one genome; (3) `core/gff.py` is ours because
+  BioPython has no GFF3 parser — strict, but it has met one producer's output shape.
+- **Blocked:** nothing. Open for the PI: the `trnG` name (§10.10). Licence review (M9.3): the
+  checkout has no LICENSE file, the Zenodo deposit declares MIT.
+- **Next:** P3-04's annotator (PMGA container — its entry point must be recorded, not invented) ·
+  P3-05's `.sqn` (needs the team's `.sbt`) · Phase 4 comparison modules, which can now key on the
+  canonical names.
 
 ### 2026-10-03 · Claude · dev WSL · session 7 (Phase 3: P3-01 · P3-02 · P3-05 · P3-03)
 
