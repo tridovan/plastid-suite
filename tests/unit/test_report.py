@@ -711,11 +711,50 @@ def _gene_names_result() -> Result:
     )
 
 
+def _submission_result() -> Result:
+    return Result(
+        module="submission",
+        module_version="0.1.0",
+        tables={
+            "submission_summary": Table(
+                id="submission_summary",
+                title="Submission files",
+                columns=(
+                    Column("organism", "Organism"),
+                    Column("accession", "Accession"),
+                    Column("sequence_id", "Sequence id in the files"),
+                    Column("n_features", "Features written", dtype="int"),
+                    Column("n_cds", "CDS", dtype="int"),
+                    Column("n_trna", "tRNA", dtype="int"),
+                    Column("n_rrna", "rRNA", dtype="int"),
+                    Column("n_problems", "First-pass problems", dtype="int"),
+                    Column("sqn", "ASN.1 (.sqn)"),
+                ),
+                rows=(
+                    {
+                        "organism": "Iris domestica",
+                        "accession": "NC_050833.1",
+                        "sequence_id": "NC_050833.1",
+                        "n_features": 265,
+                        "n_cds": 86,
+                        "n_trna": 38,
+                        "n_rrna": 8,
+                        "n_problems": 0,
+                        "sqn": "not requested",
+                    },
+                ),
+                scope=Scope(label="every counted feature, both IR copies"),
+            ),
+        },
+    )
+
+
 TEMPLATE_FIXTURES = {
     "genome_stats": _result,
     "gene_table": _gene_table_result,
     "gene_names": _gene_names_result,
     "orf": _orf_result,
+    "submission": _submission_result,
     "ssr": _ssr_result,
     "structure": _structure_result,
     "codon_usage": _codon_usage_result,

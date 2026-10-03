@@ -17,6 +17,7 @@ from plastid.modules import (  # noqa: F401  (importing registers them)
     orf,
     ssr,
     structure,
+    submission,
     substitutions,
 )
 
@@ -31,5 +32,6 @@ __all__ = [
     "orf",
     "ssr",
     "structure",
+    "submission",
     "substitutions",
 ]
