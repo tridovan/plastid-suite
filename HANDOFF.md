@@ -6,21 +6,17 @@
 
 ## Resume point
 
-**Phase 1 — in progress.** P1-01…P1-09 DONE (all except the blocked ones). `make check` green
-(75 fast + 13 golden, tier-B included). **Both golden tiers now run on this machine** — tier A
-asserts every §6 number and tier B reproduces **SSR 37 = mono 31 · di 4 · tri 2** via the vendored
-MISA (perl 5.38.2).
+**Phase 1 — COMPLETE** (2026-10-03). Every `TASKS.md` item is done or explicitly non-blocking:
+P1-01…P1-13 delivered, D-01/D-02 done, D-03 (item (c)) documentation only. `make check` green:
+**94 fast + 13 golden**, tier B included — tier A asserts every §6 number and tier B reproduces
+**SSR 37 = mono 31 · di 4 · tri 2** through the vendored MISA.
 
-**Phase 1 is complete except the blocked/partial items:** P1-10 (needs §10.8/§10.9), P1-11 (loader
-shipped; its Done-when needs Phase 2 comparison tables), P1-12 (**your call**: local vs remote for
-heavy steps), D-03 (needs cô Trang's text).
+**Next action: Phase 2** — genome reading & statistics (ROADMAP M2.x). It slots into the frozen API
+(`docs/API_v0.1.md`): a new file in `modules/` + one registry line + a report template. Start with
+**M2.1** (gene content & summary statistics).
 
-**Next actions:** `P1-10` slices (b) live NCBI client behind an explicit refresh, and (c) CLI wiring
-(`plastid panel refresh | propose | pin`) — slice (a), the tier/proposal/pinning core, is done and
-green. After that: **Phase 2** (genome reading & statistics), which slots into the frozen API
-(`docs/API_v0.1.md`) — a new file in `modules/` + one registry line.
-
-**Still needs a human:** `P1-12` (local vs remote for heavy steps) · `D-03` (cô Trang's item (c)).
+**Waiting on people (nothing else):** real Illumina reads + the nuclear genome → Phase 6/7 only
+(anh Điềm / cô Trang) · item (c) text → documentation only (cô Trang).
 
 **Branches (all local, none pushed):** `main` = init commit · `feat/phase-1` = P1-01 ·
 `feat/p1-02-core-model` = P1-02 + P1-03 · `feat/p1-04-result-schema` = P1-04.
