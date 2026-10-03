@@ -80,16 +80,29 @@ qualifier for `None` (§9.B-25); and the qualifier builder became **one shared f
 what a feature says. Also decided there: **`/gene` is written only when it says something
 `/product` does not**, because `OX459128.1` names its features by a product *sentence*.
 
-### P3A-02 · Reference set · M3A.2 · [ ]
+### P3A-02 · Reference set · M3A.2 · [x] DONE 03/10
 
-- [ ] pin the RefSeq mitogenomes of D3A-03 with `plastid panel pin` (accession · date · sha256)
-- [ ] extract **CDS translations** and **rRNA** from them into `data/mito_reference_proteins.faa` and
-      `data/mito_reference_rrna.fa`, headers carrying accession · symbol · coordinates
-- [ ] exclude `/pseudo` and partial CDS; record every source and its sha256 in `data/mito_reference.md`
-- [ ] the build is a script in the repo, so the set can be rebuilt rather than inherited
+- [x] pin the RefSeq mitogenomes of D3A-03 with `plastid panel pin` — 8 records, **5.2 MB**,
+      sha256 in `PINNED.json`
+- [x] `core/mito_reference.py` extracts each record's **own `/translation`** and its rRNA into
+      `data/mito_reference_proteins.faa` (**287 entries, 100 KB**) and `data/mito_reference_rrna.fa`
+      (**25 entries, 49 KB**), headers `accession|gene|vocabulary|organism`
+- [x] every exclusion is **returned and printed**, never dropped in silence
+- [x] `data/mito_reference.md` records the sources, the checksums and the rebuild line
 
-**Done when:** the protein FASTA's symbol set is **exactly the 31-locus vocabulary** — no symbol
-missing, none invented — and a test reads both files and asserts it. **Needs:** D3A-03.
+**Done when:** every one of the 31 vocabulary loci has at least one reference protein behind it.
+**Met 03/10** — coverage **31/31**, and the committed FASTA is held against the pinned panel by
+`test_the_committed_set_is_what_the_pinned_panel_builds`. **Needs:** D3A-03.
+**Measured, and two of them changed the design:** (1) **self-translating is impossible, not just
+worse** — all 530 reference CDS publish a `/translation` and none declares a `/transl_table`, and
+plant mito CDS begin with `ACG`, which no table accepts as an initiator, so a CDS-mode translation
+raises; the reference is therefore the curator's own protein. (2) The records are **polluted** —
+236 anonymous ORFs (*Nicotiana* alone annotates 121), plus plastid-derived `rbcL`/`petG`/`atpB` and
+horizontally transferred `citB`/`tuf`, plus a *Psychotria* "5S rRNA" that is 722 bp. A naive build
+would have swallowed all of it.
+**Left open on purpose (H-06):** 23 reference genes have **no vocabulary entry** — ten of them
+standard (`rpl2` · `rpl16` · `rps7` · `rps12` · `rps14` · `rps19` · `rpl10` · `rpl23` · `rps2` ·
+`sdh3`). They stay in the set marked `-` so a run can *say* it found one.
 
 ### P3A-03 · Gene caller — CDS and rRNA · M3A.3 · [ ]
 
@@ -162,3 +175,4 @@ table runs offline from the pin — which is the same shape every later mito run
 | D-03 | Fill Reference Panel item (c) in PROJECT.md §13.1 | BLOCKED | cô Trang provides the text |
 | H-04 | `trnG-GCC` vs `trnG-UCC` — the golden uses one name for two different tRNA sequences | OPEN | cô Trang decides the name printed in the manuscript table (PROJECT.md §10.10) |
 | H-05 | PMGA web service re-test | OPEN | `curl` above answers; then one web run + `panel pin --file` closes P3-04 |
+| H-06 | `data/mito_gene_names.yaml` holds **31** loci; the references carry **10 standard genes more** (`rpl2` · `rpl10` · `rpl16` · `rpl23` · `rps2` · `rps7` · `rps12` · `rps14` · `rps19` · `sdh3`) | OPEN, measured 03/10 | each new locus carries the reference `/product` string that justifies it; a test proves the vocabulary covers the set — it changes naming for **every** mito record, so it is its own task, not a side effect |

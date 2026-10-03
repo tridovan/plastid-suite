@@ -1124,6 +1124,44 @@ nói thẳng trong docstring thay vì để người đọc tự phát hiện.
 
 ---
 
+### 8.21. Bộ tham chiếu mito — dựng từ 8 bản ghi RefSeq, và cái bẫy nằm trong chính bộ tham chiếu (P3A-02, 03/10/2026)
+
+**Nguồn:** 8 mitogenome RefSeq ghim bằng `panel pin` (5,2 MB, sha256 trong `PINNED.json`), chọn
+theo **đúng luật taxonomy của Reference Panel** — cùng họ trước: 3 họ Lamiaceae (*Salvia
+miltiorrhiza* · *Ajuga reptans* · *Rotheca serrata*) cho *Coleus*, 3 họ Rubiaceae (*Psychotria
+viridis* · *Scyphiphora hydrophyllacea*) cho *Oldenlandia*, cộng 3 loài mẫu (Arabidopsis ·
+Nicotiana · Oryza) làm outgroup. Kết quả: `mito_reference_proteins.faa` (**287 protein, 100 KB**)
++ `mito_reference_rrna.fa` (**25 rRNA, 49 KB**).
+
+**Đo được — tự dịch protein là KHÔNG THỂ, không phải chỉ kém chính xác.** Cả **530/530** CDS tham
+chiếu đều có `/translation` và **không bản nào khai `/transl_table`**; và CDS mito thực vật mở đầu
+bằng codon như `ACG` mà **không bảng mã nào nhận làm codon khởi đầu** — dịch ở chế độ CDS thì
+BioPython **ném lỗi trước khi ra được protein nào**. Nên bộ tham chiếu lấy **chính `/translation`
+của người chú giải**: nó cũng xử lý luôn trans-splicing và các đầu do RNA editing, những thứ module
+này không có việc phải suy diễn lại.
+
+**Đo được — chính bộ tham chiếu bị ô nhiễm, và đây là cái bẫy lớn nhất của task.** Bản ghi mito
+thực vật chú giải **ORF vô danh như CDS**: *Nicotiana* **121 cái**, *Salvia* **97**, *Oryza* **22**
+— tổng **236**. Thêm 7 feature tên là cả câu (`hypothetical protein`, `LAGLIDADG endonuclease`).
+Thêm gen **nguồn gốc lục lạp** nằm trong mito: `rbcL` · `petG` · `petL` · `atpB` · `atpE` (cả 5
+trong bản ghi *Salvia*), và gen chuyển ngang `citB` · `epd` · `ltrA` · `rnhA` · `tuf` (*Psychotria*).
+Thêm rRNA **sai kích thước**: *Psychotria* gọi một feature **722 bp** là "5S" và một **1112 bp** là
+"18S" (khoảng thật: 5S 107–122 · 18S 1692–1935 · 26S 2907–3507). Một build ngây thơ sẽ nuốt hết.
+Nên builder **trả về và in ra** mọi thứ bị loại, không bỏ im lặng.
+
+**Kết quả:** phủ **31/31** locus của vocabulary, và artifact được **giữ đúng** bằng một test dựng
+lại từ panel đã ghim rồi so với file đã commit — tức FASTA là **bằng chứng**, không phải file sót
+lại. Đường pin (`panel pin` → `PINNED.json`) giữ sha256 của cả 8 nguồn.
+
+**Lỗ hổng đo được, để mở có tên (H-06):** tham chiếu còn **23 gen mà toolkit chưa có tên**, trong
+đó **10 gen mito chuẩn** — `rpl2` · `rpl10` · `rpl16` · `rpl23` · `rps2` · `rps7` · `rps12` ·
+`rps14` · `rps19` · `sdh3`. `mito_gene_names.yaml` chỉ có 31 locus vì nó được dựng từ **một** bản
+ghi; đây đúng là phép kiểm chéo mà chính file đó ghi là còn thiếu. Chúng **được giữ lại trong bộ
+tham chiếu** với dấu `-` ở cột vocabulary, để một lần chạy có thể **nói ra** là nó tìm thấy `rps12`
+thay vì im lặng về một gen nó không có tên.
+
+---
+
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
 
 ### A. Lỗi "sai mà không báo" ở khâu nhận diện IR
