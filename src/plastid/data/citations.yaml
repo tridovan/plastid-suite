@@ -1,0 +1,9 @@
+# Citation registry — reports pull from here; nobody types a reference by hand.
+# Keys are used in Result.citations.
+
+misa:
+  text: "Beier S, Thiel T, Münch T, Scholz U, Mascher M. MISA-web: a web server for microsatellite prediction. Bioinformatics 33:2583–2585 (2017)."
+  doi: "10.1093/bioinformatics/btx198"
+biopython:
+  text: "Cock PJA et al. Biopython: freely available Python tools for computational molecular biology and bioinformatics. Bioinformatics 25:1422–1423 (2009)."
+  doi: "10.1093/bioinformatics/btp163"

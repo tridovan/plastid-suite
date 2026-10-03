@@ -1,0 +1,30 @@
+# Tool-equipped environment (tier B and the later phases).
+# The minimum install is `pip install -e .` — pure-Python analyses need none of this.
+# Verified install lines live in PROJECT.md §12 (corrected 2026-10-02).
+name: plastid-suite
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.10
+  - perl # MISA 2.1 is a Perl script
+  - mafft # Ts/Tv golden number (Phase 4)
+  - blast
+  - mummer4 # nucmer + repeat-match
+  - mreps
+  - trf
+  - vmatch
+  - cpstools # bioconda only — NOT on conda-forge (PROJECT.md §7.8)
+  - pycirclize # conda-forge
+  - getorganelle
+  - spades
+  - sibelia
+  - bandage
+  - oatk
+  - raven-assembler
+  - novoplasty
+  - minimap2
+  - samtools
+  - wgsim
+  - paml
+  - beast2

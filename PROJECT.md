@@ -1,0 +1,624 @@
+# PlastidToolSuite — ngữ cảnh dự án
+
+> Nguồn ngữ cảnh duy nhất của dự án. Đọc trước khi làm bất cứ việc gì.
+> Cập nhật: 02/10/2026. Toàn bộ nội dung là **dữ kiện đã kiểm tra / đã chạy thật**.
+> Mục lục nhanh: §1 bối cảnh · §2 mục tiêu & yêu cầu đầu ra · §3 quyết định · §4 vai trò · §5 nền tảng · §6 số vàng · §7 công cụ (nguồn tải: §7.8) · §8 nhật ký đã chạy · §9 lỗi đã gặp · §10 câu hỏi treo · §11 nguồn tài liệu · §12 lệnh cài · **§13 ROADMAP — mô-đun & thứ tự triển khai**.
+
+---
+
+## 1. Bối cảnh
+
+Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty thể** cho một nhóm nghiên cứu thực vật. **Công cụ học thuật, không thương mại.**
+
+- Người dùng cuối: nhà sinh học, **không rành kỹ thuật**, dùng **máy tính phổ thông**.
+- ~20 mô-đun, mỗi mô-đun là một việc phân tích: cấu trúc genome, nội dung gen, mã bộ ba (codon/RSCU), SSR, lặp lại phân tán/palindromic, chú giải, lắp ráp, so sánh nhiều genome, RNA editing, ước tính thời gian phân kỳ, chuyển gen giữa các bào quan (NUPT/MTPT)…
+- Nguồn gốc: kế hoạch 22/9/2026 của cô Trang + 2 báo cáo kiểm tra công cụ của anh Điềm (cài thật — chạy thật).
+
+## 2. Mục tiêu & sản phẩm đầu ra
+
+| Sản phẩm | Nội dung |
+|---|---|
+| 2 bản thảo loài | Oldenlandia và Coleus — cần bảng số + hình + **bản nháp mục Results** |
+| 1 bài báo công cụ | Eleutherine bulbosa (đang phản biện) — phần chính: NUPT/MTPT và cấu trúc đa hình ty thể |
+| Phát hành | Bộ công cụ chạy trên máy phổ thông, có mã trích dẫn (DOI) |
+
+### Yêu cầu bắt buộc cho đầu ra (đã chốt 02/10)
+
+1. **Report ngắn gọn về các công cụ đã chạy kèm thông số.** Mỗi lần chạy phải xuất một bản ngắn: công cụ · phiên bản · tham số/ngưỡng đã dùng · thời gian chạy · dữ liệu vào.
+2. **Output chia theo thư mục** để người dùng truy lại được — tách theo lần chạy / công việc / loại kết quả (bảng số, hình, dữ liệu trung gian, report), thay vì để chung một chỗ.
+3. **Khắc phục nhược điểm của CGAS về đầu ra** (hiện trạng CGAS ghi ở §7.7): thư mục output tên cố định `ModuleN_...` nằm trong thư mục làm việc hiện tại ⇒ chạy lại cùng dữ liệu thì kết quả lẫn/đè lên lần trước; tên file phần lớn cố định; không có cấp "lần chạy" hay "dataset"; không có file mục lục và không có report công cụ + thông số.
+
+## 3. Quyết định đã chốt
+
+| Ngày | Quyết định |
+|---|---|
+| 22/9 | Xây bộ công cụ; mục tiêu máy phổ thông |
+| 26/9 | Công cụ bị chặn → thay bằng bản local đã chạy thật (không còn phụ thuộc web) |
+| 26/9 | PGA = GPL-3.0; Vmatch = chỉ miễn phí học thuật |
+| 01/10 | **Làm phần phân tích trước, phần lắp ráp sau** (cô Trang đồng ý) |
+| 01/10 | Đích: **Linux native + Windows thông qua Docker**; **macOS để sau** |
+| 02/10 | Đầu ra phải có **report công cụ + thông số**; **output chia theo thư mục** để truy lại; **khắc phục nhược điểm đầu ra của CGAS** (§2 và §7.7) |
+| 02/10 | ROADMAP chốt: **khung/hạ tầng là Giai đoạn 1** (làm trước tiên) · **phạm vi Ts/Tv = chỉ CDS, không tính IR** · `misa.ini` dùng **mặc định MISA** |
+| 02/10 | Nguồn MISA đóng bằng md5 đối chiếu bản tải lại từ IPK (§7.8); MAFFT = conda-forge 7.526 (§7.8) |
+| 02/10 | **MISA đóng gói kèm** bộ công cụ — pin đúng byte: zip 4.946 B · md5 `cf9d3579f7caacd02f99830b329c7d9c`; image phải có **perl** (bản anh Điềm dùng: 5.32.1). Giấy phép MISA: **không nêu rõ** (zip không kèm file giấy phép; trang IPK chỉ ghi trích dẫn Beier và cs. 2017) ⇒ đưa vào rà soát giấy phép Giai đoạn 9 |
+| 02/10 | **Bộ số vàng tách 2 tầng**: tầng A — thuần Python, không cần công cụ ngoài, luôn chạy; tầng B — cần MISA/cpstools/MAFFT, thiếu công cụ thì **skip kèm lý do**, không im lặng bỏ qua |
+| 02/10 | **Không dùng Snakemake** ở giai đoạn đầu (kế hoạch 22/9 mục 0.14 vốn chỉ là "cân nhắc"); chỉ xem lại khi pipeline vượt ~20 bước hoặc cần chạy lại từng phần |
+| 02/10 | **Reference Panel**: chốt định nghĩa 4 tầng taxonomy (nguyên văn kế hoạch 22/9, mục 0.7 chế độ B) + 2 chế độ A/B — ghi ở §13.1 |
+| 02/10 | **Hệ toạ độ** (§10.6): bảng theo từng genome ghi **toạ độ GenBank** (truy ngược về bản nộp NCBI); hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá**; **mọi bảng ghi rõ đang ở hệ nào**; `rotation_offset` lưu trong `00_run_info` |
+| 02/10 | **Report sinh từ `Result`** (§10.7): mọi số trong report trỏ về **đúng một ô bảng gốc**; template chỉ trỏ `{{bảng.cột}}` / `{{bảng[dòng].cột}}`, không gõ số; ref không giải được ⇒ **raise**, không in trống |
+| 02/10 | **Reference Panel** (§10.8): engine **gợi ý** qua cache RefSeq có ngày (làm mới được); khi người dùng chốt danh sách thì **tải về + ghim checksum**; chạy lại **không cần mạng**. Mục (c) điền sau, không chặn code |
+| 03/10 | **Backend (P1-12, dev quyết)**: giai đoạn 1–5 và 8 chạy **tại chỗ** trên máy phổ thông; giai đoạn 6 (thời gian phân kỳ) + 7 (lắp ráp) chạy **máy chủ từ xa** — máy 8 GB chỉ còn 1,5–2,5 GB trống mỗi việc (§9.14). Ghi lại theo luật phân quyết định trong CLAUDE.md |
+
+## 4. Ai làm gì
+
+| Người | Vai trò |
+|---|---|
+| **Vũ Thị Huyền Trang** (cô Trang) | Trưởng nhóm, không rành kỹ thuật; quyết định nội dung khoa học |
+| **Nguyễn Thanh Điềm** (anh Điềm) | Sinh tin; đã cài thật và chạy thật 84 công cụ trên WSL2 Ubuntu 22.04 (RAM 3,7 GB); giữ dữ liệu đề tài và các env công cụ |
+| **Người dùng (dev)** | Phát triển sản phẩm |
+| Hermes | Điều phối, đo đạc, viết tài liệu |
+| Claude Code | Viết code |
+
+Xưng hô trong tài liệu tiếng Việt: **cô Trang**, **anh Điềm**.
+
+## 5. Nền tảng kỹ thuật
+
+- Đích phát hành: **Linux native** + **Windows thông qua Docker** (Docker chạy nhân Linux, cùng một codebase). **macOS để sau.**
+- Không phát hành native Windows: đo được **win-64: 0/24 công cụ** biên dịch được; linux-64: 24/24; osx-64: 24/24; osx-arm64: 19/24 (thiếu bandage, sibelia, vmatch, oatk, mafft).
+- GetOrganelle **không có** trên usegalaxy.org; có trên **usegalaxy.eu** (1.7.7.0+galaxy1) và usegalaxy.org.au (1.7.6.1 và 1.7.7.0+galaxy1); usegalaxy.fr không có.
+- Máy dev: Windows 16 GB RAM, WSL2 Ubuntu 24.04; `.wslconfig`: memory=8GB, processors=6, swap=8GB, sparseVhd=true, autoMemoryReclaim=gradual. Docker Desktop + Antigravity đã kết nối; code nằm trong ext4 của WSL.
+- Đo tốc độ ghi: `/mnt/d` **183 MB/s** · ext4 trong WSL **1,5 GB/s**.
+
+## 6. Bộ SỐ VÀNG (dùng để đối chiếu)
+
+Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
+
+| Chỉ số | Số vàng | Nguồn |
+|---|---|---|
+| Độ dài | **153.724 bp** | GenBank |
+| GC | **37,85 %** | GenBank |
+| Số gen | **132** = 86 CDS + 38 tRNA + 8 rRNA | khớp bài công bố Ai và cs. 2019 (PubMed 33366388) |
+| Feature `gene` trong GenBank | **133** (thừa 1 bản `ycf1` cụt, không có CDS) | tự đếm |
+| Tên gen duy nhất / gen lặp trong IR | 112 / 21 | tự đếm |
+| Vùng lặp đảo IR | **26.214 bp**, hai bản giống **100,00 %** | tự tính; chú giải GenBank (`repeat_region` 83.128–109.341 và 127.511–153.724) khớp |
+| LSC / SSC | **83.127 / 18.169 bp** (tổng 4 vùng = 153.724) | tự tính |
+| SSR | **37** = mono 31 · di 4 · tri 2 | MISA standalone 2.1 **và** cpstools 3.0 (2 công cụ độc lập, cùng ra 37) |
+| Ts/Tv (so với Iris gatesii NC_024936.1) | **2,686** = 317 Ts / 118 Tv; **chỉ vùng CDS** (76 gen dùng chung, không tính vùng lặp IR); MAFFT; 66.066 cột căn — phạm vi chốt 02/10 | tự đo |
+| Số công bố của loài này | *Iris domestica* 153.729 bp, 132 gen; *Belamcanda chinensis* 153.735 bp, 132 gen | 2 bài công bố |
+
+---
+
+## 7. Danh mục công cụ
+
+### 7.1. Bảng tổng
+
+| Việc | Công cụ | Trạng thái test |
+|---|---|---|
+| SSR | MISA standalone 2.1 (`misa.pl`) + cpstools 3.0 `SSRs` | đã chạy thật — 37 SSR (cả hai công cụ) |
+| Repeat phân tán + palindromic | repeat-match (MUMmer3) + Vmatch 2.3.1 | đã chạy thật — 9 match ≥30 bp, có cặp đảo IR 26.214 bp |
+| So sánh nhiều genome (khối LCB, synteny) | Sibelia 3.0.7 | đã chạy thật — 3 plastome |
+| Biểu đồ % tương đồng theo toạ độ | nucmer (MUMmer4) `--maxmatch` → `delta-filter` → `show-coords` + matplotlib | đã chạy thật — 21 khối, %IDY 83,7–98,2 (mean 91,5) |
+| Chú giải plastome | plann.pl (`github.com/daisieh/plann`) + PGA.pl | đã chạy thật, offline theo reference GenBank |
+| Vẽ bản đồ vòng genome | pycirclize 1.10.1 | đã chạy thật — PNG 494.859 B @300 dpi |
+| Lắp ráp từ reads ngắn | GetOrganelle 1.7.7.1 + SPAdes 4.3.0 | đã chạy với reads **mô phỏng** — 127.679 bp |
+| Lắp ráp long-read (ít RAM) | raven-assembler 1.8.3 (+ OATK 1.0) | đã chạy thật — badread 150x ONT → 2 contig, dài nhất 107.394 bp |
+| Lắp ráp long-read + DB HMM | OATK 1.0 + `embryophyta_pltd.fam` (OatkDB) | đã chạy thật — 126.660 bp, identity 100,00 %; file `.annot_pltd.txt` **rỗng** |
+| Vẽ + thống kê đồ thị assembly (headless) | Bandage 0.9.0 | đã chạy thật — PNG 103.289 B trên GFA thật của OATK |
+| Mạng haplotype | PyPopART | đã chạy thật — 13 trình tự matK → mafft → mjn/analyze/visualize, rc=0 |
+| Ước tính thời gian phân kỳ | PAML mcmctree 4.10.10 · BEAST2 2.7.7 | xác nhận chương trình chạy; **chưa** chạy phân tích thật |
+| RNA editing (đo từ RNA) | minimap2 + samtools mpileup (+ wgsim sinh dữ liệu) | đã chạy mô phỏng — 20 vị trí C→U: ngoài IR đúng 14/14 (recall 100 %), precision 74 %; 6 vị trí sót trong IR |
+| Phân tích so sánh plastome (IR/Pi/RSCU/SSRs/KaKs) | cpstools 3.0 + CGAS | đã cài, đã dùng |
+
+### 7.2. Không cài được / không chạy được (đã thử cả env nhóm và env cách ly)
+
+| Công cụ | Kênh đã thử | Lệnh cài | Kết quả thô (log thật) |
+|---|---|---|---|
+| progressiveMauve | bioconda (env `~/toolbox/env`) | `conda install -c bioconda progressivemauve` | **KHONG-CHAY-DUOC** — segfault với cả input tối thiểu 40 bp; tái hiện 2 lần |
+| PMAT2 | GitHub release (tar.gz 90 MB) | tải `pmat2.tar.gz` | **CAN-THU-CONG** — release là ảnh SIF (Apptainer/Singularity); máy không có Apptainer |
+| PopART | web/GUI | ứng dụng GUI Java | **KHONG-CAI-DUOC** — chỉ có GUI, không có CLI |
+| BandageNG | GitHub release (AppImage + `--appimage-extract`) | tải `.AppImage` | **KHONG-CHAY-DUOC** — binary đòi GLIBC 2.38 + libOpenGL; máy là Ubuntu 22.04, glibc 2.35 |
+| r8s | nguồn (không có trên conda/conda-forge/PyPI/CRAN) | `curl` `r8s1.81.tar.gz` → `make -f Makefile.linux` | **KHONG-CAI-DUOC** — source 1.81 build lỗi (Makefile trỏ `/usr/include/sys/errno.h`); binary kèm theo là Mach-O của macOS |
+
+### 7.3. Cài được nhưng chạy lỗi
+
+| Công cụ | Kênh | Lệnh cài | Kết quả thô | Đã dùng thay bằng |
+|---|---|---|---|---|
+| flye 2.9.6 | conda | `conda install -p toolbox -c conda-forge -c bioconda flye` | **CAI-DUOC-TEST-LOI (RAM)** — assembly chết vì hết RAM (cần ≥8 GB; máy 3,7 GB) | raven-assembler 1.8.3 / OATK |
+| Chloroplot 0.2.4 | conda (env R riêng `~/toolbox/r_bio`) + GitHub | `conda create -p ~/toolbox/r_bio -c conda-forge -c bioconda r-base bioconductor-biostrings bioconductor-genbankr bioconductor-cordon r-reutils r-circlize r-dplyr r-magrittr` rồi `remotes::install_github("shuyuzheng/Chloroplot")` | **CAI-DUOC-TEST-LOI** — env trộn hai dòng Bioconductor (Biostrings 2.70.3 của Bioc 3.19 cạnh GenomicFeatures 1.52.1 của Bioc 3.18) → `genbankr::readGenBank` lệch seqlevels; hạ cấp Biostrings 2.66 không được vì bản đó cần R < 4.3 | circlize trong chính env đó (PDF 6,1 KB) hoặc pycirclize |
+| Deepred-Mt | GitHub clone | `git clone aedera/deepredmt` | **CAI-DUOC-THI-THIEU-DEP** — cần TensorFlow (~2 GB), RAM máy 3 GB | minimap2 + samtools mpileup (đo trực tiếp từ RNA-seq) |
+
+### 7.4. Công cụ web (12: 7 còn sống, 5 đã chết) → bản local đã chạy thật
+
+| Web | Trạng thái | Việc | Bản local dùng thay |
+|---|---|---|---|
+| GeSeq | sống | chú giải | plann.pl + PGA.pl |
+| CPGAVAS2 | sống | chú giải + phân tích | plann.pl / PGA.pl |
+| Chloe | sống | chú giải theo loài họ hàng | plann.pl |
+| mVISTA | sống | biểu đồ % tương đồng | nucmer + matplotlib (21 khối, PNG 243.787 B) |
+| MISA-web | sống | SSR | MISA standalone — 37 SSR |
+| REputer | sống | repeat phân tán + palindromic | repeat-match (MUMmer3) + vmatch 2.3.1 |
+| GetOrganelle (Galaxy) | sống | lắp ráp reads ngắn | GetOrganelle 1.7.7.1 local + SPAdes 4.3.0 |
+| DOGMA | **chết** (DNS không phân giải) | chú giải | plann.pl |
+| CpGAVAS bản 1 | **chết** | chú giải + phân tích | plann.pl |
+| Verdant | **chết** | pipeline chú giải | plann.pl |
+| CGAP | **chết** | phân tích so sánh | cpstools 3.0 + CGAS |
+| PREP-Cp | **chết** | dự đoán RNA editing | không còn web tương đương (PREPACT, CURE-Chloroplast cũng `http=000`) → đo từ RNA-seq |
+
+### 7.5. Ghi chú kỹ thuật đã gặp khi cài/chạy
+
+- **Krait**: bản hiện tại là ứng dụng GUI (Python/PyQt), README khuyên dùng Krait2 ⇒ không chạy headless được.
+- **`plann` trên PyPI** là ứng dụng lịch CalDAV (plann.no), không phải Plann chú giải plastome; Plann thật ở `github.com/daisieh/plann` (Perl).
+- **OATK**: cần DB HMM ngoài (`embryophyta_pltd.fam`, 15,2 MB) và `nhmmscan` của HMMER ≥3.4. Lần chạy thật: assembly + GFA tốt nhưng `.annot_pltd.txt` rỗng.
+- **treePL**: không có gói conda; phải tự build nlopt (nguồn trong `deps/`) và ADOL-C (không có trên conda). Đã build được cả hai.
+- **REputer**: mreps và TRF tìm *tandem repeat* (khác lớp); REputer tìm *exact repeat* kể cả sợi đảo/palindromic ⇒ dùng repeat-match hoặc vmatch.
+- **RNA editing**: PREP-Cp, PREPACT, CURE-Chloroplast đều không truy cập được (`http=000`) tại thời điểm kiểm 26/09.
+
+### 7.6. Việc chưa chạy thử (giới hạn đã biết)
+
+- NovoPlasty đã cài nhưng **chưa** chạy với seed thật.
+- BEAST2/mcmctree mới xác nhận chương trình chạy, **chưa** chạy một phân tích phân kỳ thật (cây + hiệu chuẩn).
+- GetOrganelle mới chạy với reads **mô phỏng**; chưa có reads Illumina thật của đề tài.
+- OATK hmmannot chưa ra chú giải (file rỗng) — chưa kiểm `nhmmscan`/DB.
+- Ngưỡng gọi RNA editing mới tối ưu trên dữ liệu mô phỏng.
+- **macOS chưa kiểm lần nào**; mọi kết quả hiện tại là trên Ubuntu/WSL2.
+- PMAT2 bản gốc chưa thử lại (cần Apptainer/Singularity — máy chưa có).
+- Chưa có genome nhân (cần cho NUPT/MTPT).
+
+---
+
+### 7.7. Đầu ra của CGAS — hiện trạng (đọc trực tiếp mã nguồn 02/10/2026)
+
+Nguồn: repo `github.com/abdullah30/Chloroplast-Genome-Analysis-Suite-CGAS` — 19 file `.py`, 21.369 dòng, license MIT.
+
+| Điều quan sát được trong code | Bằng chứng |
+|---|---|
+| Thư mục output **đặt cứng theo module** | module3 `module_3` · module5 `Module5_Gene_Comparative_Analysis` · module6 `Module6_Gene_Content_Tables` · module7 `Module7_Comparative_Analysis` · module8 `Module8_Codon_Usage_Analysis` · module9 `Module9_Amino_Acid_Analysis` · module10 `Module10_SNP_Analysis` · module11 `Module11_Intron_Analysis` · module12 `Module12_SSR_Analysis` |
+| Input mặc định là **thư mục hiện tại**, output mặc định là tên cứng | module12: `parser.add_argument('-i','--input', default='.')` và `parser.add_argument('-o','--output', default=OUTPUT_FOLDER)`; `OUTPUT_FOLDER = "Module12_SSR_Analysis"` |
+| CLI chỉ parse `-m/--modules/--all/--list`; `-i`/`-o` truyền xuống module dưới dạng tham số tự do | `cli.py` dùng `parse_known_args()`; dòng hướng dẫn in ra: *"Results are saved in Module<number>_ folders"* |
+| Tên file **phần lớn cố định**, không mang tên dataset hay lần chạy | `ssr_summary.xlsx` · `ssr_by_species.xlsx` · `all_ssrs_detailed.xlsx` · `comparison_results.xlsx` · `nucleotide_diversity_results.txt` · `nucleotide_diversity_by_position.txt` · `complete_matrix.fasta` · `genes_only.fasta` · `introns_only.fasta` · `intergenic_only.fasta` · `genes_for_R_plot.txt` · `noncoding_for_R_plot.txt` |
+| Chỉ một số ít file có timestamp | module5: `Chloroplast_Gene_Analysis_{TIMESTAMP}.xlsx` |
+| **Module 1 là ngoại lệ**: có cây thư mục con đánh số | `01_QC` → `07_assembled_genomes` (mô tả trong `USAGE.md`); trong code: `self.reports_dir = self.output_dir / "06_reports"` |
+| Không thấy **file mục lục / manifest** mô tả "file nào ở đâu" | tìm `manifest`/`index.txt`/`README.txt` trong `cgas/*.py`: không có; mỗi module tự in/ghi thống kê riêng (ví dụ module14 có `summary_file`) |
+| Tài liệu có mô tả output theo từng module | `USAGE.md` có mục "Output Structure" ở nhiều chỗ (module 1 rõ nhất); README lưu ý "Keep the output directory outside of the input directory" |
+
+Kết luận về câu hỏi "CGAS có phải output ra một đống không truy được?": **đúng phần cốt lõi** — không có cấp "lần chạy"/"dataset", tên file cố định nên chạy lại là lẫn/đè kết quả cũ, không có file mục lục và không có report về công cụ + thông số. **Không hoàn toàn đúng ở chỗ "không có gì"**: CGAS vẫn tách thư mục theo từng module và module 1 có cây thư mục con đánh số.
+
+### 7.8. Nguồn tải / cách cài từng công cụ
+
+Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / địa chỉ; **CHƯA GHI** = tài liệu chỉ có tên công cụ, chưa ghi nguồn.
+
+**Qua conda (conda-forge + bioconda)** — lệnh gộp đầy đủ ở §12:
+
+| Công cụ | Kênh | Trạng thái |
+|---|---|---|
+| sibelia (3.0.7) · bandage (0.9.0) · oatk (1.0) · raven-assembler (1.8.3) · flye (2.9.6) · spades (4.3.0) · getorganelle (1.7.7.1) · novoplasty · mummer4 (nucmer) · mreps · trf · vmatch (2.3.1) · minimap2 · samtools · wgsim · blast · paml (mcmctree 4.10.10) · beast2 (2.7.7) · perl-bioperl · perl-xml-simple | bioconda | ĐÃ GHI |
+| pycirclize (1.10.1) | conda-forge | ĐÃ GHI (kiểm 02/10: conda-forge 27 file, tới 1.10.1) |
+| cpstools (3.0) | **bản đang chạy: pip/PyPI** (site-packages python3.12 của base env, tác giả Xu Wenbo, MIT) — trong `~/miniconda3/pkgs/` có tarball bioconda `cpstools-3.0-pyhdfd78af_0.tar.bz2` nhưng **không phải bản đang chạy** | Sửa lại: cpstools **không có trên conda-forge**; bioconda có (22 file, tới 3.0) |
+| Vmatch — trang gốc của tác giả Kurtz | `http://www.vmatch.de` (bản đóng gói: `anaconda.org/bioconda/vmatch`) | ĐÃ GHI (kiểm 02/10) |
+| GetOrganelle — cần tải bộ seed 1 lần (cần mạng) | `get_organelle_config.py -a embplant_pt,embplant_mt` | ĐÃ GHI |
+| OATK — cần DB HMM ngoài | `github.com/c-zhou/OatkDB` → `v20230921/embryophyta_pltd.fam` (15,2 MB) | ĐÃ GHI |
+
+**Qua git / pip:**
+
+| Công cụ | Nguồn | Trạng thái |
+|---|---|---|
+| plann.pl (chú giải plastome, Perl) | `github.com/daisieh/plann` | ĐÃ GHI |
+| PyPopART | `github.com/Adamtaranto/pypopart` → `pip install -e '.[viz]'` | ĐÃ GHI |
+| Deepred-Mt | `github.com/aedera/deepredmt` (cần TensorFlow ~2 GB) | ĐÃ GHI |
+| treePL | `github.com/blackrim/treePL` → phải tự build nlopt (nguồn trong `deps/`) + ADOL-C | ĐÃ GHI |
+| PGA / PGA.pl | `github.com/quxiaojian/PGA` (bản 2.0: `github.com/quxiaojian/PGA2`); CGAS `INSTALL.md` cũng ghi PGA phải cài tay từ GitHub | ĐÃ GHI (kiểm 02/10) |
+| Chloroplot + env R | `remotes::install_github("shuyuzheng/Chloroplot")`; env: r-base · bioconductor-biostrings · bioconductor-genbankr · bioconductor-cordon · r-reutils · r-circlize · r-dplyr · r-magrittr | ĐÃ GHI |
+| CGAS | `github.com/abdullah30/Chloroplast-Genome-Analysis-Suite-CGAS` (19 file `.py`, 21.369 dòng, MIT) | ĐÃ GHI (kiểm 02/10) |
+
+**CHƯA GHI nguồn trong tài liệu của nhóm** (chỉ có tên hoặc chỉ có vị trí trên máy):
+
+| Công cụ | Hiện biết | Nguồn chính thức |
+|---|---|---|
+| MISA standalone (`misa.pl` + `misa.ini`) | nằm ở `~/toolbox/src/misa/`, không có trong PATH → gọi `perl ~/toolbox/src/misa/misa.pl <fasta>` (perl 5.32.1); `misa.ini` phải cùng thư mục | **ĐÃ ĐÓNG (kiểm 02/10, đối md5 với bản tải lại từ nguồn):** https://webblast.ipk-gatersleben.de/misa/ → `misa_sourcecode_25082020.zip` · 4.946 B · md5 `cf9d3579f7caacd02f99830b329c7d9c` · bản **v2.1 (25/08/2020)** · `misa.pl` 20.148 B md5 `cfebc1d1a36fddfd6e0d897c96babd12` · `misa.ini` 158 B md5 `49a1c56048631647c0364532a6964cf9` · tác giả Thomas Thiel & Sebastian Beier (IPK) · trích dẫn Beier và cs. 2017, Bioinformatics 33:2583–2585 (doi:10.1093/bioinformatics/btx198) · Quyết định 02/10: **đóng gói kèm** (xem §3); image cần perl. |
+| repeat-match | "có sẵn trong env toolbox" | thuộc **MUMmer3**: `https://mummer.sourceforge.net` (MUMmer3.23 tarball trên SourceForge); MUMmer4 (`nucmer`) thì qua bioconda |
+| MAFFT | bản đang chạy: `/home/nthanhdiem/miniconda3/bin/mafft` → `v7.526 (2024/Apr/26)` | **ĐÃ ĐÓNG (kiểm 02/10):** cài từ **conda-forge** — `mafft 7.526` build `h4bc722e_0` (2.610.460 B, md5 `cf3b2acf649bc31e576ed43a2fa4aaa3`); conda-forge cũng có build `h4ab18f5_0` và `ha3fa977_0` của cùng 7.526; bioconda chỉ tới 7.525. Máy còn bản apt: **7.490-1 trên Ubuntu 22.04** (Ubuntu 24.04 là **7.505-1**) ⇒ report/log phải ghi **đường dẫn + phiên bản**, không ghi trần "MAFFT". Chạy lại hàm Ts/Tv bằng cả 2 bản mafft → cùng ra 2,686 ⇒ số vàng không phụ thuộc bản mafft |
+| Krait | đã thử, là GUI nên không dùng | chưa ghi nguồn |
+| PGA — giấy phép | PGA = GPL-3.0 | (đã ghi ở §3) |
+
+### 7.9. Bài học từ mã nguồn CGAS (đọc trực tiếp 02/10/2026 — 18.353 dòng, 14 mô-đun + CLI)
+
+Đọc để học cách tổ chức, và để không lặp lại lỗi của họ.
+
+**Giữ lại được:** entry point theo tên việc (`cgas-ssr`, `cgas-codon`…) · module 1–2 đếm lỗi theo mẫu
+và ghi file mẫu hỏng · class có tham số tiêm được (module 12) · `SUMMARY_REPORT.txt` của module 14
+(có ngày, thư mục vào/ra, tham số — thiếu đúng phiên bản công cụ, dòng lệnh, thời gian) · header
+docstring mỗi module · `test_files/` có dữ liệu thật.
+
+**Phải tránh (kèm bằng chứng trong mã):**
+
+| Bệnh | Bằng chứng | Bộ công cụ này làm khác |
+|---|---|---|
+| Sai mà không báo | CLI trả `False` nhưng `main()` bỏ qua → luôn exit 0; bare `except:` 5 chỗ ở module 8, 5 chỗ ở module 9; R lỗi vẫn in "ANALYSIS COMPLETE" | exit code thật · lần chạy hỏng vẫn để lại manifest ghi lý do · không bare except |
+| Phân loại IR bằng substring | module12:223 `any(term in combined for term in ["inverted","ir",…])` — chuỗi `"ir"` khớp cả "pair", "circular", "direct" | nhận diện theo **cấu trúc** (độ dài, cặp, ranh giới) + cổng ≥ 99,9 % (§9A) |
+| Không thấy IR ⇒ coi cả genome là LSC | module12:259-260 `return {'LSC': (1, seq_len)}` | "IR không xác định" là trạng thái riêng, chặn phân tích theo vị trí |
+| SSR vắt ranh giới exon/intron ⇒ dán nhãn "intergenic" | `is_in_parts` đòi SSR nằm trọn trong 1 phần (module12:376-380) → rơi xuống nhánh IGS | có test cho ca vắt ranh giới |
+| Không lưu phiên bản công cụ | có chạy `Rscript --version`, `blastn -version`… nhưng chỉ để kiểm tra rồi vứt | `run_tool()` ghi tên · phiên bản · nguồn · đường dẫn · argv · cwd · thời gian · exit code · log |
+| Chạy lại là đè | `os.makedirs(exist_ok=True)` + tên file cố định; 12/14 module không có bảo vệ | mỗi lần chạy một thư mục riêng + `manifest.json` |
+| Đường dẫn cứng | PGA dò `~/PGA`, `C:\PGA\…`, `f"/home/{username}/PGA/PGA.pl"`; `java -Xmx8g` cứng | đường dẫn công cụ ghi vào run info; không hardcode |
+| Tài liệu nói dối | USAGE.md mô tả cây output của module 5/10/12: **0 tên file khớp code**; README dạy lệnh không tồn tại (`--module 5-14`, `--version`) | bộ vàng chạy trong CI — tài liệu trôi là build đỏ |
+| Copy-paste | ~2.400 dòng keo R lặp ở 6 module; `find_genbank_files` 3 bản không tương thích (module 3 bỏ sót `.gbff`); 14 hàm wrapper CLI y hệt | engine chung + test chặn tầng import (`tests/unit/test_architecture.py`) |
+| Không test được | 0 unit test; pyproject trỏ `tests/` không tồn tại; logic dính `os.getcwd()` lúc import, `os.chdir()`, `sys.exit` trong thư viện | hàm thuần `run(genome, params, ctx) -> Result`; test là hợp đồng |
+
+**Hai chỗ trùng khớp đáng sợ với rủi ro mình đã đo:** (1) họ phân loại IR bằng substring và im lặng
+coi cả genome là LSC — đúng loại lỗi IR âm thầm mình đo được 2/9 ca; (2) họ dán nhãn SSR vắt ranh giới
+thành "intergenic" — mình đã có test cho ca này.
+
+## 8. Nhật ký các lần đã chạy thật
+
+### 8.1. Cài đặt công cụ — môi trường đã dùng
+
+| | |
+|---|---|
+| Máy | WSL2 Ubuntu 22.04, glibc 2.35, 8 nhân, RAM 3,7 GB |
+| Conda | 24.11.3, kênh conda-forge + bioconda |
+| Env | `~/toolbox/env/toolbox` (có sẵn) · `~/toolbox/env/thaythe` (cài mới đợt 26/9) · `~/toolbox/pyenv` (Python cho docx) · `~/toolbox/r_bio` (R cho Chloroplot) |
+| Dữ liệu & log | `ke_hoach_new/_thay_the/` |
+| Kết quả cài | **84 công cụ đã thử · 64 chạy được · 2 cài được nhưng test lỗi · 17 không cài được/không chạy** (trong 17: 7 công cụ web còn sống, 5 web đã chết) |
+| Vị trí không nằm trong PATH | `misa.pl` + `misa.ini` ở `~/toolbox/src/misa/` · `nucmer`, `repeat-match` trong env `mummer4` (phải activate) · `trf` không có |
+
+### 8.2. Chạy chuỗi trên máy anh Điềm (26/09/2026 — 15 giây, 18/19 mốc đạt)
+
+| Mốc | Kết quả thô |
+|---|---|
+| Độ dài / GC | 153.724 bp · 37,85 % |
+| Gen | 132 = 86 CDS + 38 tRNA + 8 rRNA (feature `gene` = 133; tên duy nhất 112; gen lặp IR 21) |
+| IR (tự tính) | 26.214 bp · hai bản giống 100,00 % |
+| IR (chú giải GenBank) | 26.214 bp — `repeat_region` 83.128–109.341 và 127.511–153.724 |
+| 4 vùng | IRa 26.214 + IRb 26.214 + LSC 83.127 + SSC 18.169 = 153.724 |
+| Xoay chiều | điểm xoay đặt giữa vùng LSC; IR vẫn 26.214 bp |
+| SSR — MISA standalone 2.1 | **37** (1 bp: 31 · 2 bp: 4 · 3 bp: 2; "SSRs present in compound formation: 3"; file `.misa` có 34 dòng) |
+| SSR — cpstools 3.0 | **37**; `NC_050833_SSRs_loc_results.txt` có cột vị trí gen: `Gene`/`IGS`/`Intron` |
+| Ts/Tv | 317 Ts / 118 Tv = **2,686** (MAFFT, 76 gen CDS dùng chung với Iris gatesii) |
+| Công cụ dò được | `misa.pl`+`misa.ini` = có · `cpstools` 3.0 = có · `mafft` = có · `blastn` = có · `nucmer` = không (phải activate env mummer4) · `trf` = không |
+| Spike RAM | **chưa chạy** — trong `D:\diem\bai bao tool` không có read thô; trên ổ D: chỉ có `D:\diem\Huy_genome\RO0172510A19_010.fastq.gz` (45 MB, nghi amplicon 16S). GetOrganelle có trong env `verify_plastid` và `cgas`; RAM trống 1,9 GB / 3,7 GB |
+| Ts/Tv đã có trong bộ Eleutherine | `KQ_THONG_NHAT\08_SNP\Complete_Substitution_Analysis.csv` — dải **1,095–1,777** (33 taxon × *E. bulbosa*; × *I. domestica* = 1,471 · × *I. gatesii* = 1,548), tính trên **cả plastome** |
+
+### 8.3. Đo trên máy Hermes (26/09/2026 — Python thuần, không thư viện ngoài)
+
+| Việc | Lệnh / cách làm | Kết quả thô |
+|---|---|---|
+| Lấy danh sách genome | NCBI E-utilities `esearch` (`db=nuccore&term=Iridaceae[Organism] AND refseq[filter] AND chloroplast`) | 76 plastome RefSeq |
+| Tải genome | `efetch` (`id=NC_050833.1&rettype=gbwithparts&retmode=text`) | 302 KB trong **2,3 giây**; gộp 20 genome = 5,9 MB |
+| Nhận diện IR — cách viết đơn giản (k-mer + mở rộng khớp chính xác) | so với chú giải `repeat_region` của NCBI | **đúng 7/9, sai 2/9 (22 %) và không ca nào báo lỗi**: NC_063920 đo 22.998 bp (thật 26.162) · NC_063921 đo 7.727 bp (thật 26.183) |
+| Nguyên nhân 2 ca sai | đo mức giống nhau của 2 bản IR | NC_063920: khớp tổng 92,63 % (1.929 base khác), lõi hoàn hảo 22.998 bp · NC_063921: khớp tổng 53,65 %, lõi 9.179 bp |
+| Hằng số ghép cặp | c = (cuối gen rRNA bản 1) + (đầu gen rRNA bản 2); phép 0-based | **K = c − 2** → IR = **26.214 bp (lệch 0 bp)**; K = c − 1 → khớp 28,56 % (ra 1 bp) |
+| Cổng kiểm tra | "hai bản IR giống ≥ 99,9 %" | bắt **2/2** ca sai · **báo oan 0/7** ca lành; ngưỡng 95 % chỉ bắt 1/2 |
+| Điểm bắt đầu genome | đối chiếu 20 genome RefSeq | 19/20 bắt đầu ở LSC; 1/20 (NC_085783.1) bắt đầu trong IR. Tài liệu dẫn 27,67 % trên GenBank rộng (CPJSdraw, 8.229 genome) |
+| Hiệu năng | chạy trên 20 genome | **4,7 giây**, RAM 331 MB (máy WSL 2,8 GB) |
+| Chuỗi end-to-end bản Python thuần | `chain_e2e.py` | 8 mốc, **9,8 giây**: 153.724 bp · GC 37,85 % · IR 26.214 / 100,00 % · 4 vùng khớp · xoay chiều về 109.341 → IR không đổi · SSR tự viết **36** (1bp:30 · 2bp:4 · 3bp:2) · Ts/Tv difflib = **2,667** · máy này không có công cụ chuẩn |
+| Chỗ lệch 1 SSR | so danh sách với cpstools | cụm compound **48.659–48.679 = `(TA)6` + `(A)10`**; bản tự viết cắt mất cái `(A)10` |
+| Bảng độ nhạy theo ngưỡng mono | cùng dữ liệu | ngưỡng ≥8 → **133** SSR · ≥10 → **36** · ≥12 → **16** |
+| Phân bố SSR theo vùng (cpstools) | `_SSRs_loc_results.txt` | IGS 18 · Intron 8 · Gene 11; motif: A 16 · T 14 · TA 3 · AT 1 · C 1 · CTT 1 · TCT 1 |
+| So sánh cách căn | difflib vs MAFFT | **2,667** (304 Ts/114 Tv) vs **2,686** (317 Ts/118 Tv) |
+
+### 8.4. Môi trường dev (01/10/2026)
+
+| Hạng mục | Kết quả đo |
+|---|---|
+| Máy Windows | RAM **15,7 GB** (trống 6,2 GB) · C: 62,3 GB trống / 363,8 GB · D: 60,6 GB trống / 97,7 GB |
+| WSL | Ubuntu 24.04.2 · WSL 2.7.14.0 · nhân 6.18.33.2 · WSLg 1.0.73.2. Trước khi sửa `.wslconfig`: RAM 2,8 GB, 8 core |
+| `.wslconfig` | memory=8GB, processors=6, swap=8GB, sparseVhd=true, autoMemoryReclaim=gradual (bản cũ lưu `.wslconfig.bak`) |
+| Docker | Có Docker Desktop trên Windows; `docker` gọi từ WSL báo *"The command 'docker' could not be found in this WSL 2 distro"* trước khi bật WSL Integration |
+| Công cụ trong WSL (máy này, trước khi cài gì) | `misa.pl`, `cpstools`, `mafft`, `blastn`, `mummer`, `trf` = **đều không có** |
+| Python | có sẵn `uv` 0.11.16 + CPython **3.11.15** (`/root/.local/bin/python3.11`) |
+| Claude Code | bản Linux **2.1.286** tại `/root/.local/bin/claude` (installer `https://claude.ai/install.sh`); `which claude` trỏ bản Linux |
+| Cấu hình Claude Code | khối `env` chuyển từ `C:\Users\ADMIN\.claude\settings.json` sang `/root/.claude/settings.json` (quyền 600): `ANTHROPIC_BASE_URL=https://opencode.ai/zen/go`, `ANTHROPIC_MODEL=deepseek-v4.1-flash`, `CLAUDE_CODE_EFFORT_LEVEL`, `ANTHROPIC_API_KEY` |
+| Chạy thử Claude Code | tự gọi `make golden` → báo đúng 6/6 chỉ số của bộ số vàng; tự gọi `make test` → đọc đúng lý do các test bị skip |
+| Cảnh báo đã gặp | *"Ignoring 17 permissions … this workspace has not been trusted"* (đã đặt `projects["/root/work/plastid-suite"].hasTrustDialogAccepted = true`) · `[claude-code:unrecognized_model] deepseek-v4.1-flash` (vẫn gọi được; API 2,2 giây/lần) |
+
+### 8.5. Đo lại bằng implementation trong repo (02/10/2026 — P1-03)
+
+Chạy đúng 20 genome Iridaceae của §8.3 qua `core/ir.py` của bộ công cụ:
+
+| Việc | Kết quả đo |
+|---|---|
+| Detector de novo (port `strict_best` từ `ir_probe.py`) | khớp GenBank **7/9**, sai đúng 2 ca như §8.3: NC_063921 → không ra kết quả (**fail ồn ào**), NC_063920 → 22.998 bp (**im lặng** — lõi khớp chính xác) |
+| Cổng IR trên cặp chú giải | bắt **2/2** ca sai · **báo oan 0/7** ca lành — tái lập đúng §8.3 |
+| NC_085783.1 (không chú giải, bắt đầu trong IR) | de novo ra **21.148 bp @ 100,00 %**, cổng đạt; chuẩn hoá xoay được về đầu LSC |
+| **Phát hiện mới — `detect_v2` nở quá**: `ir_probe_v2.py` (mở rộng chịu mismatch) không phải bản đã kiểm chứng | NC_086581: ra **27.601 bp** trong khi GenBank và `strict_best` là **26.217 bp**. Nguyên nhân: nó nhận từng khối 100 bp theo *tỉ lệ giống của toàn vùng đã mở rộng*, nên vượt ranh giới IR mà không dừng. **Bản đã kiểm chứng là `strict_best` trong `ir_probe.py`** (đường chéo mirror K=20 + run khớp chính xác + cửa sổ hợp lệ 10–35 kb, ≥ 95 %) — đã port đúng bản này |
+| **Đo lại NC_063921** | với cách ghép cấu trúc C = a1 + b2 − 1: **98,87 %**, không phải 53,65 % như ghi ở §8.3. Kết luận cổng **không đổi** (98,87 < 99,9 ⇒ cắm cờ) |
+| Đối chiếu chéo annotation ↔ de novo | có: NC_063920 ghi nhận lệch **3.163 bp** (26.161 vs 22.998) — không im lặng; golden lệch 0 |
+
+---
+
+## 9. Lỗi đã gặp & số đo (tổng hợp)
+
+### A. Lỗi "sai mà không báo" ở khâu nhận diện IR
+
+1. Cách viết đơn giản khớp chú giải NCBI **7/9** ca, **sai 2/9** và **không báo lỗi** (số ở §8.3).
+2. **2/9 IR có hai bản đã phân hoá** (khớp tổng 92,63 % và 53,65 %) ⇒ phép so khớp **không cho phép gap** sai ở nhóm này.
+3. Ranh giới IR trong chú giải GenBank là **quy ước của người chú giải**, không phải kết quả so khớp.
+4. **Hằng số ghép cặp phải là c − 2**; lệch 1 base → IR đo ra **1 bp** mà chương trình **không báo lỗi**.
+5. **Điểm bắt đầu genome**: 1/20 genome RefSeq bắt đầu ngoài LSC; tài liệu dẫn 27,67 % trên GenBank rộng.
+6. IR sai → phân vùng LSC/SSC sai → các phân tích theo vị trí (ranh giới, SNP, π, biểu đồ % tương đồng) sai theo, output không có dấu hiệu.
+7. Hiệu năng: 20 genome trong **4,7 giây**, RAM 331 MB.
+
+### B. Đếm gen, SSR, Ts/Tv
+
+8. **"135 gen" không tái lập được** từ bất kỳ cách đếm nào: 132 (CDS+tRNA+rRNA) · 133 (feature `gene`) · 112 (tên duy nhất) · 21 (gen lặp IR).
+9. **1 bản `ycf1` cụt** gây lệch cách đếm: tại 108.448–109.347 chỉ có `gene` + `misc_feature` (không CDS); bản thật ở 122.984–128.404 mới có CDS.
+10. Bản tự viết đếm SSR ra **36** (thiếu 1); MISA và cpstools đều ra **37**.
+11. **"mono 10 · di 6 · tri 5 · tetra 4 · penta 4 · hexa 4" là ngưỡng MISA, không phải số lượng.** Phân loại thật: mono 31 · di 4 · tri 2.
+12. **Số SSR phụ thuộc ngưỡng**: ≥8 → 133 · ≥10 → 36 · ≥12 → 16. `misa.ini` của anh Điềm dùng `(1/10)(2/6)(3/5)(4/5)(5/5)(6/5)`; tài liệu MISA ghi mặc định 4 cho unit 5–6 bp.
+13. **Ts/Tv phụ thuộc cách căn**: difflib 2,667 vs MAFFT 2,686.
+
+### C. Môi trường & vận hành
+
+20. **`chloroplast[filter]` của NCBI bỏ sót bản ghi ghi "plastid"** (đo 03/10/2026, khi chạy
+    Reference Panel thật): `Iridaceae[Organism] AND refseq[filter] AND chloroplast[filter]` → **71**;
+    đổi sang `plastid[filter]` (hoặc `(chloroplast OR plastid)`) → **76**, khớp con số §8.3. Ca cụ thể:
+    **NC_024936.1** (*Iris gatesii* — chính genome so sánh của bộ số vàng) có title
+    *"Iris gatesii voucher T06-52 plastid, complete genome"*: khớp `refseq[filter]` và
+    `Iridaceae[Organism]` nhưng **không** khớp `chloroplast[filter]`. Bài học: lọc theo `[filter]`
+    của NCBI phải kiểm bằng số đếm, không tin tên filter.
+    *Xác nhận kèm (cùng lần chạy):* `plastid panel pin` tải lại NC_050833.1 từ NCBI ra sha256
+    `a946f23e…` — **khớp đúng byte** với dữ liệu vàng đang vendor trong repo; NC_024936.1 ra
+    `fd441727…` cũng khớp. Nguồn dữ liệu vàng được xác nhận lại end-to-end.
+
+14. **Máy 8 GB không đủ cho phần lắp ráp:** WSL2/Docker mặc định ~50 % RAM host → còn **1,5–2,5 GB mỗi việc**; 120.000 cặp read là hết RAM (phải hạ còn 20.000); flye cần ≥8 GB.
+15. **Dò công cụ theo PATH là không đủ**: `misa.pl` ở `~/toolbox/src/misa/`; `nucmer`/`repeat-match` phải activate env `mummer4`; `trf` không có.
+16. **Đường dẫn có dấu tiếng Việt** gây lệch đường dẫn giữa hai máy (thư mục "chạy Trí").
+17. Script gửi kèm **không tới được máy anh Điềm** — anh làm ở thư mục khác (`D:\diem\bai bao tool\ke_hoach_new\chạy Trí\probe`).
+18. `docker` không gọi được từ WSL trước khi bật WSL Integration (thông báo lỗi ở §8.4).
+19. Chuỗi phân tích trên máy 2,8 GB dùng 331 MB và 9,8 giây.
+
+---
+
+## 10. Câu hỏi còn treo
+
+1. ~~Phạm vi con số Ts/Tv~~ — **ĐÃ CHỐT 02/10**: cổng dùng **chỉ vùng CDS · 76 gen dùng chung · căn bằng MAFFT**, **không tính vùng lặp IR** ⇒ mốc **2,686** (317 Ts / 118 Tv). Số Ts/Tv của bộ Eleutherine (1,095–1,777) là phạm vi khác (SNP cả plastome) — chỉ dùng cho nội dung riêng của bộ đó và **phải dán nhãn phạm vi** ở mọi chỗ xuất ra.
+2. ~~Ngưỡng `misa.ini`~~ — **ĐÃ ĐÓNG 02/10**: file `misa.ini` đang dùng trên máy anh Điềm **chính là file gốc trong zip của IPK** (md5 `49a1c56048631647c0364532a6964cf9` khớp bản tải lại): `1-10 2-6 3-5 4-5 5-5 6-5`, interruptions 100, GFF true ⇒ **dùng đúng mặc định của MISA**, không phải tuỳ chỉnh.
+3. Ai có máy Mac để kiểm.
+4. **Dữ liệu còn thiếu:** có lấy được reads Illumina thật của 1 mẫu không (để đo ngưỡng bộ nhớ — hiện mới có read mô phỏng).
+5. **Dữ liệu còn thiếu:** có lấy được **genome nhân** của mẫu không — NUPT/MTPT cần genome nhân để chạy (hiện chưa có).
+6. ~~Hệ toạ độ sau chuẩn hoá~~ — **ĐÃ CHỐT 02/10**: bảng theo từng genome ghi **toạ độ GenBank**; hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá** (các vùng thẳng hàng nhau); mọi bảng ghi rõ hệ đang dùng; `rotation_offset` lưu trong `00_run_info`.
+7. ~~Cách sinh report~~ — **ĐÃ CHỐT 02/10**: sinh từ đối tượng `Result`. Mỗi số trong report trỏ về **đúng một ô** bảng gốc; template chỉ trỏ (`{{bảng.cột}}`, `{{bảng[dòng].cột}}`), không gõ số; ref không giải được ⇒ **raise**, không in trống. Yêu cầu "kiểm thử truy vấn số" (§13.5) được thoả bằng cấu trúc, không bằng kỷ luật.
+8. ~~Reference Panel: snapshot hay truy vấn sống~~ — **ĐÃ CHỐT 02/10**: engine gợi ý qua **cache RefSeq có ngày** (lệnh làm mới tường minh); người dùng chốt danh sách thì **tải + ghim checksum**; chạy lại offline, tái lập được.
+9. Mục **(c)** của Reference Panel còn thiếu — đoạn văn bản nguồn bị cụt.
+
+## 11. Nguồn tài liệu (ngoài file này)
+
+Nằm trong `D:\business\pts\`:
+
+| File | Nội dung |
+|---|---|
+| `Ke_hoach_xay_dung_bo_cong_cu_phan_tich_bo_gen_luc_lap_22.9.2026_VuThiHuyenTrang.docx` | Kế hoạch gốc (91.729 ký tự) |
+| `Bao_cao_tool_thay_the_NguyenThanhDiem.docx` | 5 + 3 + 12 công cụ bị chặn đều có thay thế đã chạy thật |
+| `Danh_sach_tool_khong_cai_duoc_NguyenThanhDiem.docx` | 84 công cụ đã thử · 64 chạy · 17 không chạy |
+| `REVIEW_2026-09-26_3_tai_lieu_va_muc_tieu_may_pho_thong.docx` | Bản kỹ thuật đầy đủ: mục 9 (khả thi theo khối) · mục 10–12 (đo rủi ro đường nối, chạy thử liền mạch, đóng vòng bằng công cụ chuẩn) |
+| `BAO_CAO_4_CAU_HOI_PlastidToolSuite_2026-09-26.docx` | Bản cho người không chuyên (khả thi / vấn đề / giải quyết được không / giải quyết thế nào) + mục 8 chiến lược tích hợp |
+| `KE_HOACH_TRIEN_KHAI_PlastidToolSuite_2026-09-26.docx` | Kế hoạch triển khai (môi trường dev, kiểm thử, đóng gói, lộ trình 8 tuần) |
+| `HUONG_DAN_SETUP_MOI_TRUONG_CODE_2026-10-01.docx` | Hướng dẫn setup WSL / Claude Code / Docker |
+| `thanhdiem_result/` | Trả lời phiếu việc của anh Điềm + kết quả thô (`.misa`, `.statistics`, cpstools, MAFFT per-gene) |
+| `probe/` | Script + dữ liệu dùng để đo các lỗi ở §8–9 (`chain_e2e.py`, `chain_tools.py`, `ir_gate.py`, `iridaceae20.gb`) |
+
+## 12. Lệnh cài gọn cho máy mới (nguyên văn từ báo cáo anh Điềm)
+
+```bash
+conda create -y -p ~/toolbox/env/thaythe -c conda-forge -c bioconda \
+  sibelia bandage getorganelle spades oatk mummer4 mreps trf vmatch \
+  raven-assembler novoplasty minimap2 samtools wgsim blast paml beast2 \
+  mafft perl perl-bioperl perl-xml-simple
+conda install -y -c conda-forge pycirclize
+conda install -y -c bioconda cpstools        # SỬA 02/10: cpstools KHÔNG có trên conda-forge (§7.8)
+git clone https://github.com/daisieh/plann ~/toolbox/src/plann
+git clone https://github.com/Adamtaranto/pypopart ~/toolbox/src/pypopart \
+  && pip install -e '~/toolbox/src/pypopart[viz]'
+curl -L -o embryophyta_pltd.fam \
+  https://github.com/c-zhou/OatkDB/raw/main/v20230921/embryophyta_pltd.fam
+get_organelle_config.py -a embplant_pt,embplant_mt   # 1 lần, cần mạng
+# MISA standalone (misa.pl + misa.ini) — nguồn IPK, kiểm md5 trước khi dùng:
+curl -L -o misa_sourcecode_25082020.zip \
+  https://webblast.ipk-gatersleben.de/misa/misa_sourcecode_25082020.zip
+md5sum misa_sourcecode_25082020.zip    # phải ra cf9d3579f7caacd02f99830b329c7d9c
+unzip misa_sourcecode_25082020.zip -d ~/toolbox/src/misa
+```
+
+**Sửa 02/10/2026:** thêm `mafft` và `perl` (thiếu thì không ra được số vàng Ts/Tv 2,686 và SSR 37);
+tách `cpstools` sang kênh bioconda; thêm lệnh tải MISA kèm md5. Lệnh cũ trong báo cáo anh Điềm giữ
+nguyên ở §8.1 để đối chiếu.
+
+---
+
+## 13. ROADMAP — thứ tự phát triển
+
+**Thứ tự đã đổi theo quyết định 01/10: phân tích trước, lắp ráp sau.** Làm từ trên xuống; mỗi giai đoạn ra một thứ dùng được ngay.
+
+**Điều kiện chung cho mọi giai đoạn** (đọc trước khi làm bất kỳ giai đoạn nào):
+
+- **Áp dụng cho cả lục lạp và ty thể** — trừ phần ước tính thời gian phân kỳ (chỉ cần cho bài báo công cụ).
+- **Cổng bắt buộc ở mọi phân tích theo vị trí: hai bản IR phải giống ≥ 99,9 %.** Không đạt ⇒ cờ đỏ, **dừng**, không cho phân tích theo vị trí chạy tiếp. Lý do đo được: cách nhận diện IR thông thường sai âm thầm **2/9 ca (22 %)**, cổng này bắt đúng 2/2 ca sai và báo oan 0/7 ca lành (chi tiết §9 mục A).
+- **Cách đếm gen (không ghi trần "132 gen"):** **132 = 86 CDS + 38 tRNA + 8 rRNA**, không dùng feature `gene` (feature `gene` = 133, thừa 1 bản `ycf1` cụt; tên gen duy nhất = 112; gen lặp trong IR = 21). Khớp bài công bố Ai và cs. 2019.
+- **Phạm vi con số Ts/Tv dùng làm cổng:** **chỉ vùng CDS · 76 gen dùng chung · căn bằng MAFFT** ⇒ 2,686 (317 Ts / 118 Tv, 66.066 cột căn). Số của bộ Eleutherine (1,095–1,777) là **khác phạm vi** (SNP của cả plastome) — không được lấy ra đối chiếu trực tiếp. **Phạm vi này đã chốt 02/10** (chỉ CDS, không tính IR).
+- Mỗi lần chạy phải xuất **report công cụ + thông số** (tên công cụ · phiên bản · đường dẫn · tham số/ngưỡng · thời gian) và **chia output theo thư mục** để người dùng truy lại — yêu cầu đã chốt 02/10 (§2). Đây là điểm CGAS đang thiếu (§7.7).
+- **Chuẩn hoá bộ gen dùng chung**: xác định điểm bắt đầu/chiều và tách 4 vùng LSC/IRa/SSC/IRb — làm ở giai đoạn 1 rồi mọi giai đoạn dùng lại.
+- **Chạy ở đâu**: các giai đoạn 1–5 và 8 chạy trên **máy phổ thông**; giai đoạn 6 (thời gian phân kỳ) và giai đoạn 7 (lắp ráp) cần **máy chủ từ xa** (máy 8 GB không đủ — §9 mục 14).
+- **Ca kiểm thử chuẩn**: bộ dữ liệu **Eleutherine bulbosa** + **bộ số vàng** ở §6.
+- **Kiểm thử ngay trong từng giai đoạn, không dồn về cuối**: mỗi giai đoạn phải có mục *“Kiểm tra trong giai đoạn”* và chỉ được coi là xong khi số kiểm tra khớp; sai thì **dừng lại sửa ngay trong giai đoạn đó**, không để lỗi trôi sang giai đoạn sau. Giai đoạn 8 chỉ làm phần **kiểm thử chéo**.
+- **Chưa chốt (dev tự quyết khi lập kế hoạch với Claude)**: cách tổ chức mô-đun/plugin, định dạng dữ liệu trung gian giữa các bước, và quy trình chạy tự động nhiều bước.
+
+### 13.1. Giai đoạn 1 — Khung chạy & dữ liệu dùng chung
+
+Làm trước tiên: đây là thứ mọi giai đoạn sau phụ thuộc, nếu không làm thì giai đoạn 2 không có cổng nào để thi hành.
+
+**Ba thứ bắt buộc phải có trong khung (chốt khi duyệt plan Giai đoạn 1, 02/10)** — thiếu một thứ là Giai đoạn 2 không có cổng để chạy:
+
+1. Bộ số vàng chạy **một lệnh** ra đủ số §6 (153.724 bp · 132 gen · IR 26.214 · LSC/SSC · 37 SSR) — theo 2 tầng ở §3.
+2. **Cổng IR ≥ 99,9 % nằm trong khung ngay từ đầu**, không phải thêm sau.
+3. **Quy ước output theo yêu cầu 02/10**: mỗi lần chạy có report công cụ + thông số, thư mục tách theo lần chạy/dataset (điểm CGAS thiếu — §7.7).
+
+- Mô hình dữ liệu lõi (bộ gen · gen · vùng) dùng chung cho mọi phần
+- Cơ chế cắm thêm phần (plugin) cho từng mô-đun
+- Schema kết quả chuẩn hoá (một kiểu kết quả chung, xuất được nhiều định dạng)
+- **Engine sinh report diễn giải dạng câu**: điền số thật vào template câu soạn sẵn (không dùng mô hình ngôn ngữ tự suy diễn), luôn gắn nhãn *“bản nháp — cần người kiểm tra”*
+- Log & provenance: thư mục `00_run_info` ghi phiên bản công cụ, tham số, checksum đầu vào (dùng cho Materials & Methods)
+- File cấu hình mặc định tập trung (`defaults.yaml`)
+- **Citation registry dùng chung**: tên công cụ + bài trích dẫn, để report tự lấy (không gõ tay từng report)
+- **Bộ dữ liệu mẫu + bộ kiểm thử vàng**: chạy một lệnh ra đúng bộ số vàng §6 (2 tầng A/B — §3)
+- **Reference Panel & tìm bộ gen so sánh** (4 tầng taxonomy) + cơ chế tải/đệm dữ liệu NCBI — engine này **chỉ đề xuất**, người dùng vẫn là bên chốt danh sách genome đưa vào chạy (định nghĩa 4 tầng + 2 chế độ: xem khối ngay dưới)
+- Metadata nhóm mẫu dùng chung (nhãn nhóm cho mọi hình/bảng so sánh)
+- **Chuẩn hoá điểm bắt đầu & chiều** cho mọi bộ gen (mới lắp ráp lẫn tải về) trước khi vào bất kỳ so sánh nào
+- Xử lý gia tăng: chỉ chạy phần mới, không chạy lại từ đầu
+- Cách đóng gói dự án (`pyproject.toml` + conda)
+- Execution backend cho bước nặng RAM (chạy tại chỗ hay đẩy ra máy chủ từ xa)
+- Cân nhắc dùng engine điều phối có sẵn (Snakemake) thay vì tự viết
+
+#### Reference Panel — định nghĩa 4 tầng taxonomy (nguyên văn kế hoạch 22/9, mục 0.7 chế độ B)
+
+| Tầng | Là gì | Dùng cho |
+|---|---|---|
+| Tầng 0 | các accession khác của cùng loài | C.8 di truyền quần thể · phần "trong loài" của C.6 |
+| Tầng 1 | cùng chi | nhánh B · cặp Ka/Ks gần (C.2) · lớp mVISTA gần (C.4) |
+| Tầng 2 | cùng họ, khác chi | lớp mVISTA xa (C.4) · ancestral state (C.9) |
+| Tầng 3 | cùng bộ, khác họ | đối chứng Ka/Ks tránh bão hoà site đồng nghĩa — **không dùng để gợi ý outgroup** |
+
+Engine có **2 chế độ**, không phải 1:
+
+- **Chế độ A — "lấy hết trong 1 cấp phân loại"** (mặc định cấp họ): lọc RefSeq trước, rồi lọc tay theo 3 tiêu chí — toàn vẹn genome · đầy đủ chú giải · đúng vị trí phân loại. Dùng cho phát sinh loài C.5 và tổng quan cấp họ/chi.
+- **Chế độ B — "phân tầng đại diện"**: 4 tầng ở bảng trên.
+
+Điều dễ hiểu sai:
+(a) engine có **2 chế độ**, không phải 1 — A và B ở trên;
+(b) **outgroup phát sinh loài do người dùng tự chọn hoàn toàn** — tầng 3 không được dùng để gợi ý;
+(c) *chưa ghi — đoạn văn bản nguồn bị cụt, cần bổ sung.*
+
+**Kiểm tra trong giai đoạn:** `make test` + `make golden` chạy **một lệnh** ra đủ bộ số vàng §6 · report của lần chạy thử có đủ tên công cụ + phiên bản + tham số · mở thư mục output là biết file nào của việc gì.
+
+### 13.2. Giai đoạn 2 — Đọc và thống kê bộ gen
+
+Dữ liệu vào: file GenBank (kể cả tải từ NCBI). Chưa cần dữ liệu đọc thô.
+
+- Nội dung gen & thống kê (số gen theo nhóm, GC%, độ dài)
+- Bảng gen xuất bản (Word)
+- Cấu trúc bộ gen: ranh giới LSC/SSC/IR, %GC theo vùng, GC-skew
+- Codon usage bias (RSCU, ENC, CAI, CBI, Fop…)
+- Thành phần amino acid (kèm GRAVY/Aromaticity)
+- SNP / thay thế theo từng vị trí
+- Intron: số lượng, độ dài, vị trí
+- SSR (vi vệ tinh): phân loại theo vùng và motif
+- Đa dạng nucleotide (π) theo gen/intron/vùng liên gen, sliding-window
+
+**Áp dụng cho:** cả **lục lạp** và **ty thể**.
+
+**Ra được:** bảng số + hình cho **2 bản thảo Oldenlandia / Coleus** (bản nháp mục Results).
+
+**Kiểm tra trong giai đoạn:** bộ số vàng §6 — độ dài **153.724 bp** · **132 gen = 86 CDS + 38 tRNA + 8 rRNA** (cách đếm ở điều kiện chung) · IR **26.214 bp** (2 bản giống ≥ 99,9 %) · LSC **83.127** / SSC **18.169** · **37 SSR** (mono 31 · di 4 · tri 2) khi có MISA/cpstools (tầng B — §3). Lệch ⇒ dừng, sửa ngay tại đây.
+
+### 13.3. Giai đoạn 3 — Chú giải bộ gen
+
+Chạy được trên bộ gen đã có sẵn.
+
+- Chú giải: PGA (lục lạp), MITOS2/GeSeq (ty thể)
+- Kiểm tra & chuẩn hoá tên gen
+- Kiểm tra khung đọc (start/stop/internal codon)
+- Chuẩn bị hồ sơ nộp NCBI (FASTA/TBL/SQN)
+
+**Kiểm tra trong giai đoạn:** đọc lại file kết quả bằng chính bộ đọc GenBank (không hỏng định dạng) · kiểm tra khung đọc · đếm lại gen theo cách đếm đã chốt (132). *Riêng bộ gen tự lắp ráp* (chỉ có ở giai đoạn 7): phải đối chiếu họ hàng gần hoặc read bắc qua ranh giới LSC–IR / SSC–IR, nếu không thì dán nhãn *chưa xác định* — ở giai đoạn 3 phần này bỏ qua.
+
+### 13.4. Giai đoạn 4 — So sánh nhiều bộ gen
+
+- Áp lực chọn lọc Ka/Ks
+- Synteny/collinearity kiểu mVISTA: % tương đồng theo toạ độ
+- Ứng viên DNA barcode & vùng biến động cao
+- Di truyền quần thể kiểu DnaSP (Hd, θ, Tajima's D, Fu & Li, Fst…)
+- Dự đoán RNA editing (cần dữ liệu RNA)
+
+**Áp dụng cho:** cả **lục lạp** và **ty thể**.
+
+**Ra được:** nội dung so sánh cho 2 bản thảo.
+
+**Kiểm tra trong giai đoạn:** Ts/Tv = **2,686** cho cặp *Iris domestica* × *Iris gatesii* (**chỉ CDS · 76 gen · MAFFT** — đúng phạm vi ở điều kiện chung) · biểu đồ tương đồng phải ra **21 khối**, %IDY 83,7–98,2 (mean 91,5). Số không khớp ⇒ dừng, kiểm lại dữ liệu vào và tham số.
+
+### 13.5. Giai đoạn 5 — Hình và báo cáo
+
+- Thống nhất theme màu/font; các loại hình: bản đồ plastome vòng · RSCU heatmap · π sliding window (có tô nền LSC/SSC/IR) · sơ đồ IR junction · mVISTA-style %IDY + synteny tuyến tính · phân bố SSR/repeat theo vùng & motif · cây có annotation · NUPT/MTPT theo vị trí gen · mạng haplotype · cấu hình đa hình ty thể · **đánh giá DNA barcode ứng viên**; xuất vector (SVG/PDF/EPS); **quy tắc mở rộng hình theo số bộ gen**
+- Thống kê: mô tả, kiểm định phi tham số, tương quan, hiệu chỉnh đa kiểm định (FDR/Bonferroni), diễn giải dạng câu
+- Xuất bản: Excel tổng hợp đa sheet · Word (bảng gen/SSR/thống kê) · gói Supplementary Materials · báo cáo PDF 1 trang/bộ gen · báo cáo QC kỹ thuật khách quan
+- **Yêu cầu 02/10:** mỗi lần chạy xuất **report công cụ + thông số**, và **output chia theo thư mục** để người dùng truy lại (§2)
+
+**Kiểm tra trong giai đoạn:** sinh lại được bảng/hình từ dữ liệu trung gian (không làm tay) · **kiểm thử truy vấn số**: mỗi số trong report phải trỏ được về **đúng một ô** trong bảng gốc (nếu không, lỗi “số trông hợp lý nhưng sai” vẫn lọt) · report công cụ + thông số có đủ tên, phiên bản, đường dẫn, ngưỡng.
+
+### 13.6. Giai đoạn 6 — Nội dung bài báo công cụ
+
+- NUPT/MTPT — chuyển gen giữa nhân, lục lạp, ty thể (trọng tâm)
+- Cấu trúc đa hình ty thể + tái tổ hợp qua trình tự lặp (Chimeric ORF/CMS)
+- So sánh song song lục lạp – ty thể trong cùng loài
+- Ancestral state reconstruction
+- Ước tính thời gian phân kỳ (rất nặng; cần máy chủ)
+
+**Kiểm tra trong giai đoạn:** phần cấu hình ty thể **có mốc công bố để đối chiếu ngay tại đây** — các mitogenome có cấu trúc phức tạp đã công bố: *Damnacanthus indicus* (qua trình tự lặp trực tiếp), *Salvia* (S. officinalis 2023 · S. splendens 2025 · S. miltiorrhiza 2022), *Hemiboea*, *Coffea arabica* (2023) — đều là mốc trong kế hoạch 22/9. Riêng **NUPT/MTPT chưa có số công bố** ⇒ mốc kiểm duy nhất hiện có là đối chiếu với bài Oldenlandia/Coleus, thực hiện ở giai đoạn 8. Giai đoạn này **chạy trên dữ liệu đã công bố / GenBank**; phần cần đồ thị lắp ráp thì chuyển sang giai đoạn 7.
+
+### 13.7. Giai đoạn 7 — Lắp ráp (đã chuyển xuống sau)
+
+Cần dữ liệu đọc thô; nặng về bộ nhớ.
+
+- Lắp ráp + QC hàng loạt (fastp → GetOrganelle)
+- Kiểm tra đồ thị assembly (Bandage)
+- Cấp dữ liệu cho phần cấu hình ty thể ở giai đoạn 6
+- **Đường chạy từ xa** cho máy yếu: usegalaxy.eu (`get_organelle_from_reads`) — cắt bớt read (subsample) trước khi upload, **pin phiên bản công cụ + ghi lại history ID**
+- **Ca read Illumina thật**: hiện **chưa có** dữ liệu read của đề tài (đang nợ) ⇒ mới chỉ có cổng dựa trên read mô phỏng
+
+**Kiểm tra trong giai đoạn:** so với kết quả đã chạy thật — GetOrganelle + SPAdes cho **127.679 bp** từ 20.000 cặp read mô phỏng · OATK: 126.660 bp, identity **100,00 %** · Bandage ra PNG (103.289 B). Khi có read thật: bổ sung mục đo **đỉnh RAM**.
+
+### 13.8. Giai đoạn 8 — Kiểm thử chéo, hiệu năng và tự động hoá
+
+**Không phải nơi test lần đầu.** Mỗi giai đoạn đã tự kiểm bằng mục *“Kiểm tra trong giai đoạn”*. Giai đoạn này chỉ làm phần không thể làm sớm hơn:
+
+- **Đối chiếu chéo với công cụ khác** trên cùng bộ dữ liệu: CGAS · CPStools · CPGview
+- **Đối chiếu phần NUPT/MTPT** với bài Oldenlandia/Coleus (mốc duy nhất hiện có cho phần này)
+- **Kiểm thử batch lớn** (10–50+ bộ gen) để biết giới hạn bộ nhớ và thời gian
+- **Tự động hoá**: CI chạy test mỗi khi sửa code; bộ vàng §6 chạy lại tự động
+
+### 13.9. Giai đoạn 9 — Đóng gói, giấy phép & công bố
+
+- README / hướng dẫn dùng nhanh / tài liệu sử dụng
+- Đóng gói pip/conda + Dockerfile (Windows chạy qua Docker)
+- **Giấy phép**: `LICENSE.md` + rà soát công khai các công cụ có ràng buộc (PGA = GPL-3.0; Vmatch chỉ miễn phí học thuật; **MISA = không nêu rõ** — zip không kèm giấy phép, chỉ có trích dẫn Beier và cs. 2017) và cách ly nếu cần — làm **trước khi phát hành**
+- **Bảng mô-đun × nền tảng × RAM** + tuyên bố **3 mức hỗ trợ**: Linux native (chính thức) · Windows qua Docker (chính thức) · macOS (thực nghiệm, chưa kiểm)
+- **Tuyên bố “thứ không làm”** (không Windows native; không lắp ráp dưới ngưỡng RAM; không dự đoán RNA editing nếu không có dữ liệu RNA-seq) — để chặn kỳ vọng sai
+- Video hướng dẫn ngắn · bản thảo công bố công cụ · DOI (Zenodo) + CITATION.cff
+- Giao diện web: để ngỏ, làm sau khi lõi ổn định
+
+**Kiểm tra trong giai đoạn:** chạy lại bộ số vàng **trong Docker trên Windows** — cùng dữ liệu vào phải ra cùng số (3 môi trường: WSL · CI · Docker).
+
+
+---
+
+### 13.10. Đã chạy thử được gì (chỉ ghi chỗ có bằng chứng — nguồn §7.1, §8)
+
+| Việc | Kết quả thô |
+|---|---|
+| Reading/thống kê gen | 132 gen = 86 CDS + 38 tRNA + 8 rRNA trên NC_050833.1 |
+| Cấu trúc bộ gen | IR 26.214 bp (2 bản giống 100,00 %) · LSC 83.127 · SSC 18.169 · xoay chiều giữ nguyên IR |
+| SNP/thay thế | Ts/Tv = 2,686 (76 gen CDS, MAFFT); bộ Eleutherine (cả plastome) có dải 1,095–1,777 |
+| SSR | 37 SSR — MISA standalone 2.1 **và** cpstools 3.0 cùng ra 37; mono 31 · di 4 · tri 2; IGS 18 · Intron 8 · Gene 11 |
+| Synteny/mVISTA | nucmer → 21 khối, %IDY 83,7–98,2 (mean 91,5); PNG 243.787 B |
+| RNA editing | mô phỏng 20 vị trí C→U: recall 100 % ngoài IR, precision 74 %; 6 vị trí sót trong IR |
+| Mạng haplotype | PyPopART trên 13 trình tự matK → rc=0 |
+| Bản đồ vòng genome | pycirclize 1.10.1 → PNG 494.859 B @300 dpi |
+| Chú giải | plann.pl + PGA.pl chạy offline theo reference GenBank |
+| Lắp ráp (giai đoạn 6) | GetOrganelle + SPAdes: 20.000 cặp read mô phỏng → 127.679 bp · raven 1.8.3: 2 contig, dài nhất 107.394 bp · OATK 1.0: 126.660 bp, identity 100,00 % · flye: chết vì hết RAM (máy 3,7 GB) |
+| Đồ thị assembly | Bandage 0.9.0 → PNG 103.289 B |
+| Thời gian phân kỳ | mcmctree (PAML 4.10.10) + BEAST2 2.7.7 chạy được, **chưa** chạy phân tích thật; treePL đã build nlopt + ADOL-C |
+| **Chưa chạy thử lần nào** | Bảng gen Word · codon usage · amino acid · intron · π · Ka/Ks · DNA barcode · di truyền quần thể · NUPT/MTPT · cấu trúc ty thể · ancestral state · thời gian phân kỳ (phân tích thật) · kiểm tra khung đọc · nộp NCBI · thống kê · xuất bản · kiểm thử · đóng gói |
+
+### 13.11. Bảng tra để đối chiếu với kế hoạch 22/9 (chỉ dùng khi cần tra ngược tài liệu gốc)
+
+| Giai đoạn mới | Mã trong kế hoạch 22/9 |
+|---|---|
+| 1 — Khung chạy & dữ liệu dùng chung | 0.1 · 0.2 · 0.3 · 0.3b · 0.4 · 0.5 · 0.6 · 0.7 · 0.8 · 0.9 · 0.10 · 0.11 · 0.12 · 0.13 · 0.14 |
+| 2 — Đọc và thống kê bộ gen | B.1 · B.2 · B.3 · B.4 · B.5 · B.6 · B.7 · B.8 · B.9 |
+| 3 — Chú giải bộ gen | A.2 · A.3 · A.4 · A.5 |
+| 4 — So sánh nhiều bộ gen | C.2 · C.4 · C.6 · C.8 · C.3 |
+| 5 — Hình và báo cáo | E.1–E.14 · D.1–D.5 · F.1–F.5 |
+| 6 — Nội dung bài báo công cụ | C.1 · C.10 · C.7 · C.9 · C.5 · C.5b |
+| 7 — Lắp ráp | A.1 · A.1b |
+| 8 — Kiểm thử chéo & tự động hoá | G.1–G.5 |
+| 9 — Đóng gói, giấy phép & công bố | H.1–H.6 |
+
+*Ghi chú: kế hoạch 22/9 định nghĩa đủ các mã 0.1–0.14, E.1–E.14, D.1–D.5, G.1–G.5 (đã kiểm bằng cách đếm mã trong file kế hoạch). Bảng công cụ 17/09 chỉ định nghĩa tới E.13, D.1–D.3 và không có G.3 — đây là bảng cũ hơn, dùng bảng 22/9 làm chuẩn.*
