@@ -31,6 +31,13 @@ yet merged to `main`).** The board is `TASKS.md`.
   **265/265** golden features; `.sqn` is opt-in and needs both `table2asn` and a `.sbt` template.
   The `.tbl` rules came from NCBI's docs, not memory (`join()` does not exist — intervals stack;
   minus-strand intervals reverse; `<` in column 1, `>` in column 2, both as prefixes). §8.13.
+- **P3-03 — TOOL BEING REPLACED (03/10, late).** PGA was run and measured; it does not reproduce the
+  golden counts, so per CLAUDE.md's supreme-objective rule the tool changes. **Chloe** (Ian Small,
+  Julia, CLI, curated reference set) was installed here and run on the same de-annotated golden:
+  **134 = 88 CDS + 38 tRNA + 8 rRNA** in 11 s — tRNA/rRNA exact, CDS +2 explained by how it writes
+  `rps12` (4 gene rows vs the record's 2 trans-spliced copies). **Next: `external/chloe.py`, GFF
+  read-back through our reader, merge rps12, recount (expect 132).** Julia lives at
+  `~/.local/share/mamba/envs/chloe`, code at `~/toolbox/src/chloe`. PROJECT.md §8.16.
 - **P3-03 PGA annotation — RUN FOR REAL, and the Done-when does not hold.** The "waiting on anh Trí"
   item was a *permission* boundary, not a capability one: same machine, and once anh Trí granted
   `Bash(perl *)` in `.claude/settings.local.json` (gitignored), PGA ran. Measured: 7 Iris references
@@ -55,7 +62,9 @@ yet merged to `main`).** The board is `TASKS.md`.
   exit 3, named). What the `.sqn` still needs is the **team's `.sbt`**: a hand-written one is
   rejected (`Error loading template file`, measured twice), so it comes from NCBI's web form.
 
-**Next action:** the two remaining asks are a **curated PGA reference set** (the annotator's
+**Immediate next action:** write `external/chloe.py` + the GFF read-back and finish P3-03 with Chloe
+(the measurement is done; the adapter is not). Then: the two remaining asks are a **curated PGA
+reference set** (the annotator's
 over-calling is a property of its references — with 7 uncurated Iris references it returns 147
 genes for a 132-gene genome) and the **team's `.sbt`** (`cô Trang`) for the `.sqn` half; PMGA's
 container is now documented (`singularity exec … mgavas_m -pid … --in … --db 1 --outdir …`, from the
