@@ -21,7 +21,7 @@ caller uses three programs:
 |---|---|
 | Software | BLAST+ **2.17.0** (`blastx: 2.17.0+`, build 2026-08-22) |
 | Binaries | `blastx` 260,632 B · `blastn` 264,728 B · `makeblastdb` 207,384 B (the `bin/` tree is 52 MB) |
-| Path here | `/root/toolbox/env/pts/bin/` — **not on `PATH`**, so a run is pointed at it with `--set blast=<directory>` |
+| Path here | `/root/toolbox/env/pts/bin/` — **not on `PATH`**, so a run is pointed at it with `--set tools=<directory>` |
 | Checked by | `external/blast.py` refuses a different release by name: a different BLAST is a different annotation |
 
 **Install line** (the route this machine used; also the route `environment.yml` encodes):

@@ -25,6 +25,9 @@ dependencies:
   - cpstools=3.0 # bioconda only — NOT on conda-forge (§7.8)
 
   # --- Phase 3: annotation --------------------------------------------------------------
+  - aragorn=1.2.41 # the mito tRNA caller (P3A-04): 147 kB on bioconda, GPLv3, and the tool PMGA
+                   # itself runs inside. Upstream ansikte.se answers HTTP 455 (blocked), so
+                   # bioconda is the route — docs/tools/aragorn.md
   - blast=2.17.0 # our own mito caller (P3A-03) transfers annotations with it, so the version is
                  # part of the result — measured 03/10/2026 (docs/tools/blast.md). Also satisfies
                  # PGA's "BLAST+ 2.8.1 or newer".

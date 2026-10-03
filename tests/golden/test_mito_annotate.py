@@ -62,7 +62,7 @@ def _run(panel: Path, tmp_path: Path, blast: dict[str, str | None]):
     layout.make_dirs()
     ctx = RunContext(layout=layout, params={}, module_id="mito_annotate", module_order=1)
     directory = str(Path(blast["blastx"]).parent)  # the fixture found the binaries in one place
-    result = mito_annotate.run(genome, {"blast": directory}, ctx)
+    result = mito_annotate.run(genome, {"tools": directory}, ctx)
     return genome, result, ctx
 
 
@@ -171,6 +171,81 @@ def test_the_coordinates_agree_within_the_measured_bound(tmp_path: Path, blast_t
         f"{len(differences)} differ: {'; '.join(sorted(differences))}"
     )
     assert exact == EXACT_SPANS, "the measured agreement changed — read the printed differences"
+
+
+# Measured 03/10/2026 with ARAGORN 1.2.41 on OX459128.1. The two sets have the same size and are
+# not the same set — each difference is a finding (PROJECT.md §9), printed by the test and never
+# adjusted away here.
+TRNA_MISSING = 1  # trnA-UGC 13244-13348: in the record, not called by ARAGORN
+TRNA_EXTRA = 1  # trnL-AAG 36355-36427: called by ARAGORN, not in the record
+TRNA_RENAMED = 1  # the tRNA-His at 11741-11819: the record says trnH-GUG, ARAGORN reads trnH-AUG
+
+
+def _spans(row: dict, genome_length: int) -> list[tuple[int, int]]:
+    """A row's 1-based spans — a wrapped call is two of them, exactly as its Gene is."""
+    if row["crosses_origin"] == "yes":
+        return [(row["start"], genome_length), (1, row["end"])]
+    return [(row["start"], row["end"])]
+
+
+def _touches(spans: list[tuple[int, int]], gene) -> bool:
+    return any(start <= gene.span[1] and gene.span[0] <= end for start, end in spans)
+
+
+@NEEDS_PANEL
+def test_the_trna_count_is_reported_against_the_published_one(tmp_path: Path, blast_tools) -> None:
+    """P3A-04's Done-when: the count next to the published one, with every difference — extra or
+    missing — listed by name, position and anticodon.
+
+    **Per feature, never per name.** Measured: the record's 17 tRNAs carry only 14 distinct names
+    (``trnH-GUG``, ``trnK-UUU`` and ``trnM-CAU`` each appear twice), so a comparison that
+    deduplicates by name reports 14 and is wrong.
+
+    What it measured on this record: **17 = 17, but not the same 17** — one locus the record
+    annotates and ARAGORN does not call, one the other way round, and one whose anticodon the two
+    disagree about. The test asserts those counts so a change is noticed, and prints the detail.
+    """
+    require_tools(blast_tools, "blastx", "blastn", "makeblastdb", "aragorn")
+    genome, result, _ = _run(PANEL, tmp_path, blast_tools)
+    published = [gene for gene in genome.genes if gene.kind == "tRNA"]
+    ours = result.tables["trna_calls"].rows
+
+    missing: list[str] = []
+    extra: list[str] = []
+    renamed: list[str] = []
+    moved: list[str] = []
+    claimed: set[tuple[int, int]] = set()
+    for row in ours:
+        spans = _spans(row, len(genome))
+        overlaps = [gene for gene in published if _touches(spans, gene)]
+        if not overlaps:
+            extra.append(f"{row['gene']} {row['start']}-{row['end']}")
+            continue
+        gene = max(overlaps, key=lambda gene: gene.length)
+        claimed.add(gene.span)
+        if row["gene"] != gene.name:
+            renamed.append(
+                f"{row['start']}-{row['end']}: ARAGORN says {row['gene']} "
+                f"({row['anticodon']}), the record says {gene.name}"
+            )
+        elif (row["start"], row["end"]) != gene.span:
+            moved.append(
+                f"{row['gene']}: {row['start']}-{row['end']} vs {gene.span[0]}-{gene.span[1]}"
+            )
+    missing = [
+        f"{gene.name} {gene.span[0]}-{gene.span[1]}"
+        for gene in published
+        if gene.span not in claimed
+    ]
+    print(
+        f"\nP3A-04: ARAGORN called {len(ours)} tRNA; the record has {len(published)}. "
+        f"missing: {missing or 'none'}; extra: {extra or 'none'}; "
+        f"name or anticodon differs: {renamed or 'none'}; "
+        f"span differs: {moved or 'none'}"
+    )
+
+    assert len(published) == 17 and len(ours) == 17
+    assert (len(missing), len(extra), len(renamed)) == (TRNA_MISSING, TRNA_EXTRA, TRNA_RENAMED)
 
 
 @NEEDS_PANEL

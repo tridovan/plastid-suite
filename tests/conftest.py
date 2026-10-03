@@ -68,7 +68,9 @@ def blast_tools() -> dict[str, str | None]:
     """
     directory = os.environ.get("PTS_BLAST_DIR")
     extra = [Path(directory)] if directory else []
-    return {name: which(name, extra=extra) for name in ("blastx", "blastn", "makeblastdb")}
+    return {
+        name: which(name, extra=extra) for name in ("blastx", "blastn", "makeblastdb", "aragorn")
+    }
 
 
 @pytest.fixture(scope="session")

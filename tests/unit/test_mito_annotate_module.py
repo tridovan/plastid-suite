@@ -47,6 +47,10 @@ GENOME = Genome(
 BLASTX_HITS = (
     f"{SEQ_ID}\tNC_999999.1|ccmB|ccmB|Testus testus\t99.0\t9\t0\t0\t1\t27\t1\t9\t1e-50\t200\t1\n"
 )
+# One tRNA in ARAGORN's measured batch shape (the real lines live in test_aragorn.py).
+ARAGORN_HITS = (
+    f">{SEQ_ID}\n1 genes found\n1   tRNA-Phe                     [181,250]\t35  \t(gaa)\n"
+)
 BLASTN_HITS = (
     f"{SEQ_ID}\tNC_999999.1|rrn5|rrn5|Testus testus\t96.0\t116\t0\t0\t61\t176\t1\t116\t1e-60\t300\n"
 )
@@ -61,22 +65,37 @@ def _ctx(tmp_path: Path) -> RunContext:
 def _stub(directory: Path, name: str, output: str) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     script = directory / name
-    script.write_text(
-        "#!/bin/sh\n"
-        'case "$1" in\n'
-        f"  --version|-version) echo '{name}: {BLAST_VERSION}+'; exit 0;;\n"
-        "esac\n"
-        f"cat <<'HITS'\n{output}HITS\n",
-        encoding="utf-8",
-    )
+    if name == "aragorn":
+        script.write_text(
+            "#!/bin/sh\n"
+            'if [ "$1" = "-h" ]; then echo "ARAGORN v1.2.41 Dean Laslett"; exit 0; fi\n'
+            f"cat <<'HITS'\n{output}HITS\n",
+            encoding="utf-8",
+        )
+    else:
+        script.write_text(
+            "#!/bin/sh\n"
+            'case "$1" in\n'
+            f"  --version|-version) echo '{name}: {BLAST_VERSION}+'; exit 0;;\n"
+            "esac\n"
+            f"cat <<'HITS'\n{output}HITS\n",
+            encoding="utf-8",
+        )
     script.chmod(script.stat().st_mode | stat.S_IXUSR)
 
 
-def _binaries(tmp_path: Path, *, blastx: str = BLASTX_HITS, blastn: str = BLASTN_HITS) -> Path:
+def _binaries(
+    tmp_path: Path,
+    *,
+    blastx: str = BLASTX_HITS,
+    blastn: str = BLASTN_HITS,
+    aragorn: str = ARAGORN_HITS,
+) -> Path:
     directory = tmp_path / "bin"
     _stub(directory, "makeblastdb", "")
     _stub(directory, "blastx", blastx)
     _stub(directory, "blastn", blastn)
+    _stub(directory, "aragorn", aragorn)
     return directory
 
 
@@ -104,7 +123,7 @@ def _reference(tmp_path: Path) -> Path:
 def _params(tmp_path: Path, **extra: object) -> dict[str, object]:
     params: dict[str, object] = {
         "reference": str(_reference(tmp_path)),
-        "blast": str(_binaries(tmp_path)),
+        "tools": str(_binaries(tmp_path)),
     }
     params.update(extra)
     return params
@@ -124,7 +143,14 @@ def test_the_module_calls_what_the_hits_support_and_lists_what_it_did_not(tmp_pa
     assert called == {"ccmB", "rrn5"}
     # the other 30 vocabulary loci and the other two rRNA have no reference in this tiny set
     assert {row["gene"] for row in result.tables["not_called"].rows} >= {"nad1", "rrn18"}
-    assert result.tables["mito_annotation_summary"].rows[0]["n_calls"] == 2
+    summary = result.tables["mito_annotation_summary"].rows[0]
+    assert (summary["n_calls"], summary["n_cds"], summary["n_trna"], summary["n_rrna"]) == (
+        3,
+        1,
+        1,
+        1,
+    )
+    assert [row["gene"] for row in result.tables["trna_calls"].rows] == ["trnF-GAA"]
 
 
 def test_every_table_carries_a_scope_label(tmp_path: Path) -> None:
@@ -138,7 +164,7 @@ def test_the_summary_states_the_floors_the_reference_and_the_tool(tmp_path: Path
     row = _run(tmp_path).tables["mito_annotation_summary"].rows[0]
 
     assert (row["min_identity_pct"], row["min_coverage_pct"]) == (50.0, 0.5)
-    assert row["blast"] == f"BLAST+ {BLAST_VERSION}"
+    assert (row["blast"], row["aragorn"]) == (f"BLAST+ {BLAST_VERSION}", "ARAGORN 1.2.41")
     assert "rebuilt from 1 GenBank record" in row["reference"]
     assert row["transl_table"] == 1
 
@@ -159,7 +185,7 @@ def test_a_called_gene_carries_no_product_text(tmp_path: Path) -> None:
 
     for gene in read_back(result).genes:
         assert gene.product is None
-        assert gene.name in {"ccmB", "rrn5"}
+        assert gene.name in {"ccmB", "rrn5", "trnF-GAA"}
 
 
 def test_a_reference_gene_without_a_vocabulary_entry_is_reported_not_named(tmp_path: Path) -> None:
@@ -182,7 +208,7 @@ def test_a_reference_gene_without_a_vocabulary_entry_is_reported_not_named(tmp_p
 
     result = mito_annotate.run(
         GENOME,
-        {"reference": str(directory), "blast": str(binaries)},
+        {"reference": str(directory), "tools": str(binaries)},
         _ctx(tmp_path),
     )
 
@@ -220,14 +246,14 @@ def test_the_artifact_re_reads_and_carries_only_the_calls(tmp_path: Path) -> Non
     result = _run(tmp_path, genome=annotated)
     back = read_back(result)
 
-    assert sorted(gene.name for gene in back.genes) == ["ccmB", "rrn5"]
+    assert sorted(gene.name for gene in back.genes) == ["ccmB", "rrn5", "trnF-GAA"]
     assert back.sequence == annotated.sequence
     assert "old_annotation" not in result.artifacts["mito_annotation.gb"]
 
 
 def test_the_raw_search_output_travels_with_the_run(tmp_path: Path) -> None:
     result = _run(tmp_path)
-    assert result.artifacts["blast_hits.tsv"] == BLASTX_HITS + BLASTN_HITS
+    assert result.artifacts["blast_hits.tsv"] == BLASTX_HITS + BLASTN_HITS + ARAGORN_HITS
 
 
 # --------------------------------------------------------------------------- refusals
@@ -241,7 +267,7 @@ def test_a_search_that_finds_nothing_is_a_failed_run_not_an_empty_annotation(
     with pytest.raises(ToolError, match="empty annotation is a failed annotation"):
         mito_annotate.run(
             GENOME,
-            {"reference": str(_reference(tmp_path)), "blast": str(directory)},
+            {"reference": str(_reference(tmp_path)), "tools": str(directory)},
             _ctx(tmp_path),
         )
 
@@ -267,7 +293,7 @@ def test_a_reference_directory_that_holds_no_record_is_refused(tmp_path: Path) -
     empty.mkdir()
     with pytest.raises(ValueError, match="no \\*.gb records"):
         mito_annotate.run(
-            GENOME, {"reference": str(empty), "blast": str(_binaries(tmp_path))}, _ctx(tmp_path)
+            GENOME, {"reference": str(empty), "tools": str(_binaries(tmp_path))}, _ctx(tmp_path)
         )
 
 
@@ -276,7 +302,7 @@ def test_a_missing_blast_is_named_the_way_the_cli_reports_it(tmp_path: Path) -> 
     missing = tmp_path / "no-tools"
     with pytest.raises(ToolError, match="docs/tools/blast.md"):
         mito_annotate.run(
-            GENOME, {"reference": str(_reference(tmp_path)), "blast": str(missing)}, _ctx(tmp_path)
+            GENOME, {"reference": str(_reference(tmp_path)), "tools": str(missing)}, _ctx(tmp_path)
         )
 
 
@@ -288,7 +314,14 @@ def test_the_module_does_not_ask_for_an_ir_result(tmp_path: Path) -> None:
     assert ctx.ir is None
     result = mito_annotate.run(GENOME, _params(tmp_path), ctx)
 
-    assert result.tables["mito_annotation_summary"].rows[0]["n_calls"] == 2
+    summary = result.tables["mito_annotation_summary"].rows[0]
+    assert (summary["n_calls"], summary["n_cds"], summary["n_trna"], summary["n_rrna"]) == (
+        3,
+        1,
+        1,
+        1,
+    )
+    assert [row["gene"] for row in result.tables["trna_calls"].rows] == ["trnF-GAA"]
     assert any("never asks for one" in note for note in result.notes)
 
 
@@ -297,4 +330,4 @@ def test_the_notes_state_the_scope_and_the_tool_that_is_not_here(tmp_path: Path)
 
     assert "no de-novo gene discovery" in notes
     assert "ORF-walking" in notes
-    assert "tRNA is not this module's job" in notes
+    assert "ARAGORN 1.2.41" in notes and "no second naming rule" in notes

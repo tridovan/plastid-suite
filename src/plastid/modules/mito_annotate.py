@@ -48,9 +48,10 @@ from plastid.core.mito_reference import (
     read_reference,
     render_fasta,
 )
-from plastid.core.model import Genome, count_genes
+from plastid.core.model import Gene, Genome, count_genes
 from plastid.core.orf import ORF_STATUSES, check_genome
 from plastid.core.resources import data_file
+from plastid.external.aragorn import AragornResult, run_aragorn
 from plastid.external.blast import (
     BLAST_VERSION,
     MAX_HSPS,
@@ -139,7 +140,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     min_coverage = float(params.get("min_coverage", defaults["min_coverage"]))
     evalue = float(params.get("evalue", defaults["evalue"]))
     table = int(params.get("transl_table", defaults["translation_table"]))
-    blast_dir = params.get("blast")
+    tools_dir = params.get("tools")
     seq_id = genome.accession or genome.name
 
     vocabulary = tuple(locus.canonical for locus in load_mito_aliases().loci)
@@ -156,7 +157,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             reference.proteins,
             ctx,
             seq_id=seq_id,
-            directory=blast_dir,
+            directory=tools_dir,
             evalue=evalue,
             max_hsps=MAX_HSPS,
         )
@@ -165,10 +166,19 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             reference.rrna,
             ctx,
             seq_id=seq_id,
-            directory=blast_dir,
+            directory=tools_dir,
             evalue=evalue,
             max_hsps=MAX_HSPS,
         )
+
+        trna_run = run_aragorn(genome, ctx, seq_id=seq_id, directory=tools_dir)
+        if not trna_run.hits:
+            findings_trna = (
+                "ARAGORN found no tRNA gene at all — for a plant mitogenome that is worth a look "
+                "before the annotation is trusted"
+            )
+        else:
+            findings_trna = ""
 
         if not protein_run.hits and not rrna_run.hits:
             raise ToolError(
@@ -203,7 +213,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "belongs to this plant before loosening a floor."
             )
 
-        annotated = _annotated(genome, cds_result, rrna_result, table)
+        annotated = _annotated(genome, cds_result, rrna_result, trna_run.genes, table)
         text = to_genbank(annotated)
         _verify_round_trip(text, annotated, seq_id)
 
@@ -211,19 +221,34 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         genome=annotated,
         cds=cds_result,
         rrna=rrna_result,
+        trna=trna_run,
         reference=reference,
         floors=(min_identity, min_coverage),
         evalue=evalue,
         table=table,
         text=text,
-        raw=(protein_run.raw, rrna_run.raw),
-        notes=(*cds_result.findings, *rrna_result.findings),
+        raw=(protein_run.raw, rrna_run.raw, trna_run.raw),
+        notes=(
+            *cds_result.findings,
+            *rrna_result.findings,
+            *([findings_trna] if findings_trna else []),
+        ),
     )
 
 
-def _annotated(genome: Genome, cds: CallResult, rrna: CallResult, table: int) -> Genome:
-    """The calls as a genome: the calls only, never the input's own features (module docstring)."""
-    genes = tuple(call.to_gene() for call in (*cds.calls, *rrna.calls))
+def _annotated(
+    genome: Genome,
+    cds: CallResult,
+    rrna: CallResult,
+    trna: Sequence[Gene],
+    table: int,
+) -> Genome:
+    """The calls as a genome: the calls only, never the input's own features (module docstring).
+
+    ``table`` is unused here but named in the signature on purpose — every CDS' table travels on
+    the call itself (:meth:`GeneCall.to_gene`), so this function cannot stamp a different one.
+    """
+    genes = (*[call.to_gene() for call in (*cds.calls, *rrna.calls)], *trna)
     return Genome(
         name=genome.name,
         sequence=genome.sequence,
@@ -255,12 +280,13 @@ def _result(
     genome: Genome,
     cds: CallResult,
     rrna: CallResult,
+    trna: AragornResult,
     reference: _Reference,
     floors: tuple[float, float],
     evalue: float,
     table: int,
     text: str,
-    raw: tuple[str, str],
+    raw: tuple[str, ...],
     notes: Sequence[str],
 ) -> Result:
     calls = (*cds.calls, *rrna.calls)
@@ -284,6 +310,7 @@ def _result(
             Column("n_calls", "Genes called", dtype="int"),
             Column("n_cds", "CDS", dtype="int"),
             Column("n_rrna", "rRNA", dtype="int"),
+            Column("n_trna", "tRNA", dtype="int"),
             Column("n_not_called", "Vocabularies not called", dtype="int"),
             Column("n_cds_failing_orf", "Called CDS failing the ORF checks", dtype="int"),
             Column("n_dropped", "Hits not used", dtype="int"),
@@ -293,6 +320,7 @@ def _result(
             Column("evalue", "E-value ceiling"),
             Column("transl_table", "Translation table", dtype="int"),
             Column("blast", "BLAST"),
+            Column("aragorn", "ARAGORN"),
             Column("reference", "Reference set"),
         ),
         rows=(
@@ -300,9 +328,10 @@ def _result(
                 "organism": genome.name,
                 "accession": genome.accession or "",
                 "length_bp": len(genome),
-                "n_calls": len(calls),
+                "n_calls": len(calls) + len(trna.hits),
                 "n_cds": sum(1 for call in calls if call.kind == "CDS"),
                 "n_rrna": sum(1 for call in calls if call.kind == "rRNA"),
+                "n_trna": len(trna.hits),
                 "n_not_called": len(not_called),
                 "n_cds_failing_orf": sum(1 for check in checks if check.is_failure),
                 "n_dropped": len(dropped),
@@ -312,6 +341,7 @@ def _result(
                 "evalue": f"{evalue:g}",
                 "transl_table": table,
                 "blast": f"BLAST+ {BLAST_VERSION}",
+                "aragorn": f"ARAGORN {trna.version}",
                 "reference": reference.label,
             },
         ),
@@ -345,7 +375,51 @@ def _result(
         key="gene_id",
     )
 
-    tables: dict[str, Table] = {summary.id: summary, called.id: called}
+    trna_table = Table(
+        id="trna_calls",
+        title="tRNA genes — ARAGORN's calls, named through the shared normalizer",
+        columns=(
+            Column("gene_id", "Gene id"),
+            Column("gene", "Gene"),
+            Column("as_reported", "As ARAGORN named it"),
+            Column("anticodon", "Anticodon (RNA)"),
+            Column("start", "Start", dtype="int"),
+            Column("end", "End", dtype="int"),
+            Column("strand", "Strand"),
+            Column("length_bp", "Length", dtype="int", unit="bp"),
+            Column("score", "Score", dtype="int"),
+            Column("crosses_origin", "Crosses the origin"),
+        ),
+        rows=tuple(
+            {
+                "gene_id": f"{hit.name}:{hit.start}-{hit.end}",
+                "gene": hit.name,
+                "as_reported": hit.source_name,
+                "anticodon": hit.anticodon,
+                "start": hit.start,
+                "end": hit.end,
+                "strand": "+" if hit.strand > 0 else "-",
+                "length_bp": sum(part.length for part in hit.parts(len(genome))),
+                "score": hit.score,
+                "crosses_origin": "yes" if hit.wrapped else "no",
+            }
+            for hit in trna.hits
+        ),
+        scope=Scope(
+            label=(
+                "tRNA genes called by ARAGORN on this record, both strands; a gene crossing the "
+                "origin is written as the two parts a join() needs"
+            ),
+            coord_system="genbank",
+        ),
+        key="gene_id",
+    )
+
+    tables: dict[str, Table] = {
+        summary.id: summary,
+        called.id: called,
+        trna_table.id: trna_table,
+    }
     if not_called:
         tables["not_called"] = Table(
             id="not_called",
@@ -504,7 +578,7 @@ def _result(
         module=MODULE_ID,
         module_version=MODULE_VERSION,
         tables=tables,
-        notes=tuple(_notes(genome, cds, rrna, reference, floors, evalue, table, notes)),
+        notes=tuple(_notes(genome, cds, rrna, trna, reference, floors, evalue, table, notes)),
         artifacts={"mito_annotation.gb": text, "blast_hits.tsv": _hit_lines(*raw)},
     )
 
@@ -513,6 +587,7 @@ def _notes(
     genome: Genome,
     cds: CallResult,
     rrna: CallResult,
+    trna: AragornResult,
     reference: _Reference,
     floors: tuple[float, float],
     evalue: float,
@@ -551,11 +626,29 @@ def _notes(
         "product wording is the submitter's and this toolkit's mito vocabulary was derived from "
         "the very record the calls are checked against."
     )
+    yield (
+        f"tRNA genes come from ARAGORN {trna.version} (`-w -gc1`, circular or linear as the "
+        f"record says), and their names go through `core/gene_names.normalize_name` — the same "
+        f"normalizer a downloaded record gets, so there is no second naming rule. A tRNA whose "
+        f"coordinates wrap the origin is written as the two parts a join() needs, and a gene "
+        f"ARAGORN reports that is not a tRNA (a tmRNA, say) is listed in the notes rather than "
+        f"parsed as one."
+    )
+    if trna.others:
+        yield (
+            f"{len(trna.others)} gene line(s) from ARAGORN were not tRNAs and are reported here "
+            f"rather than dropped: {'; '.join(trna.others)}"
+        )
+    if trna.declared is not None and trna.declared != len(trna.hits):
+        yield (
+            f"ARAGORN's own summary says {trna.declared} genes and this reader kept "
+            f"{len(trna.hits)} tRNAs — the difference is a finding, not a rounding"
+        )
     yield NO_IR_NOTE
     yield (
-        f"tRNA is not this module's job (P3A-04 runs ARAGORN); the gene count here is "
-        f"{len(cds.calls)} CDS + {len(rrna.calls)} rRNA, and it is not comparable to a published "
-        f"record's 132 = 86 + 38 + 8 rule until the tRNA caller lands."
+        f"Gene count here: {len(cds.calls)} CDS + {len(trna.hits)} tRNA + {len(rrna.calls)} "
+        f"rRNA. The counting rule is the fixed one (CDS + tRNA + rRNA); the numbers are this "
+        f"record's, not a constant."
     )
     if reference.exclusions:
         sample = "; ".join(

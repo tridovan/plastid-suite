@@ -226,7 +226,7 @@ def resolve_binary(
     if found is None:
         raise ToolError(
             f"{tool} not found — install the pinned BLAST+ {BLAST_VERSION}, or point the run at "
-            f"one with --set blast=<directory>. See docs/tools/blast.md."
+            f"one with --set tools=<directory>. See docs/tools/blast.md."
         )
     return found
 
