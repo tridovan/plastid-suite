@@ -22,6 +22,7 @@ __all__ = [
     "cds_features",
     "coding_sequence",
     "count_genes",
+    "gene_qualifiers",
 ]
 
 # The feature kinds counted as "genes" — the fixed rule is 132 = 86 CDS + 38 tRNA + 8 rRNA.
@@ -117,6 +118,42 @@ class Gene:
     def length(self) -> int:
         """Sum of part lengths — exons only for spliced features."""
         return sum(part.length for part in self.parts)
+
+
+def gene_qualifiers(gene: Gene) -> dict[str, str | None]:
+    """The qualifiers this toolkit writes for a feature, in a stable order.
+
+    Shared by both writers — the five-column table and GenBank — so one feature cannot come out
+    differently in the two formats. Two of the choices here are decisions rather than formatting:
+
+    * **``/gene`` is written only when it says something ``/product`` does not.** Measured
+      2026-10-03: the stand-in mitogenome ``OX459128.1`` carries no ``/gene`` on any feature, so
+      our reader names those features by their product sentence. Writing both would put a
+      sentence where a gene *symbol* belongs; writing only the product reads back identically.
+    * **``None`` means a bare qualifier** (``/pseudo``, ``/trans_splicing``). Every real record
+      writes those with no value, and BioPython writes them bare for ``None`` — an empty string
+      comes out as ``=""``, which is a different file.
+
+    ``/locus_tag``, ``/protein_id`` and ``/translation`` are deliberately absent: the first is a
+    submitter's assignment this toolkit does not make, and the other two are NCBI's to assign.
+    """
+    qualifiers: list[tuple[str, str | None]] = []
+    if gene.product is None or gene.name != gene.product:
+        qualifiers.append(("gene", gene.name))
+    if gene.product:
+        qualifiers.append(("product", gene.product))
+    if gene.exception:
+        qualifiers.append(("exception", gene.exception))
+    if gene.kind == "CDS":
+        if gene.transl_table is not None:
+            qualifiers.append(("transl_table", str(gene.transl_table)))
+        if gene.codon_start != 1:
+            qualifiers.append(("codon_start", str(gene.codon_start)))
+    if gene.trans_splicing:
+        qualifiers.append(("trans_splicing", None))
+    if gene.pseudo:
+        qualifiers.append(("pseudo", None))
+    return dict(qualifiers)
 
 
 @dataclass(slots=True)

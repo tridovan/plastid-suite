@@ -1082,6 +1082,48 @@ cân nhắc đường không-cần-cài (web service + `panel pin --file`) trư�
 
 ---
 
+### 8.20. Writer GenBank — mảnh còn thiếu để một annotator tự viết có đầu ra dùng được (P3A-01, 03/10/2026)
+
+**Vì sao cần.** Tới giờ cả toolkit chỉ **đọc** GenBank (`core/genbank.py`); chưa có đường nào
+**ghi** ra. Đường `.fsa` + `.tbl` của P3-05 đủ cho NCBI nộp bài, nhưng `panel pin --file` và mọi
+bước sau đó đều đọc bằng **reader của mình** — nên một annotator tự viết (Phase 3A) mà không có
+writer thì sản phẩm của nó không vào được pipeline.
+
+**Đo hình dạng bản ghi vàng trước khi viết** (không đoán):
+* **265/265** feature gen đều có `/gene`, và với cả CDS · tRNA · rRNA thì **tên khác `/product`**;
+  feature `gene` chỉ có `/gene`.
+* **0 partial** trên toàn bản ghi · 2 `repeat_region` · 3 `misc_feature` (model không mang).
+* Qualifier model **không giữ**, nên writer không ghi lại: `locus_tag` (268) · `db_xref` (266) ·
+  `protein_id` (86) · `translation` (86) · `note` (51) · `rpt_type` (2).
+
+**Cái bẫy đo được — BioPython viết qualifier trần SAI.** `/pseudo` và `/trans_splicing` trong mọi
+bản ghi thật **không có giá trị**; BioPython gặp `{"pseudo": [""]}` thì ghi `/pseudo=""` — một file
+khác — còn gặp `None` mới ghi `/pseudo` trần. Đối chiếu chính file vàng: nó viết `/trans_splicing`
+trần, `/codon_start=1` và `/transl_table=11` (**số, không trích dẫn**) — đúng những gì BioPython
+sinh ra với `None` và với `str`. Từ đó thành quy ước trong model: **`None` nghĩa là qualifier trần**
+(§9.B-25).
+
+**Một hàm qualifier dùng chung.** Đường `.tbl` (P3-05) đã có `_qualifiers_of`; writer GenBank cần
+đúng thứ đó ⇒ theo luật DRY-sau-lần-trùng-thứ-hai nó thành `model.gene_qualifiers()`, **cả hai
+đường gọi chung một hàm** — một feature không thể ra hai kiểu ở hai định dạng. Nhân đó chốt thêm
+một quy tắc: **`/gene` chỉ ghi khi nó nói điều `/product` chưa nói** — đo trên `OX459128.1` (không
+có `/gene` nào, tên feature là cả câu `/product`), ghi cả hai sẽ gán cho bản ghi một *ký hiệu gen*
+là một câu văn.
+
+**Kết quả đo:** đọc → ghi → đọc lại trên genome vàng cho **265/265** feature trùng khớp
+(kind · tên · các part **theo đúng thứ tự transcript** · mạch · cờ partial · product ·
+`transl_table` · `codon_start` · `exception` · `pseudo` · `trans_splicing`), trình tự và `source`
+nguyên vẹn. Thêm 8 test cho writer (join mạch trừ, partial, tên-trùng-product, qualifier trần,
+`source`, và ca từ chối ghi feature vượt quá độ dài trình tự). **324 test unit vẫn xanh** — đường
+`.tbl` của P3-05 (đối chiếu byte-với-byte với bảng thật của NCBI) **không đổi hành vi**.
+
+**Writer này KHÔNG phải trình sửa GenBank bất tổn thất** — nó ghi *model*, không ghi lại file gốc:
+các qualifier kể trên rơi mất, `misc_feature` không có trong model, và phần LOCUS (division `PLN`,
+ngày hôm nay) được sinh lại. Điều đó đúng cho thứ nó phục vụ — đầu ra của annotator mình — và được
+nói thẳng trong docstring thay vì để người đọc tự phát hiện.
+
+---
+
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
 
 ### A. Lỗi "sai mà không báo" ở khâu nhận diện IR
@@ -1162,6 +1204,13 @@ cân nhắc đường không-cần-cài (web service + `panel pin --file`) trư�
     `GeneXrefStrandProblem` trông như lỗi của mình cho tới khi chạy **cùng validator** trên một
     bảng nộp đã được chấp nhận (Dioscorea) và thấy nó cũng đúng 7 lỗi cùng lớp. Không có đối
     chứng thì hoặc là sửa những thứ không hỏng, hoặc là bỏ qua những thứ hỏng thật.
+25. **Mới 03/10/2026 — thư viện viết GenBank ghi ra cú pháp không ai dùng, và round-trip bằng
+    chính nó thì vẫn xanh.** BioPython gặp qualifier trần (`/pseudo`, `/trans_splicing`) dưới dạng
+    **chuỗi rỗng** thì ghi `=""`; gặp `None` mới ghi `/pseudo` trần. File `=""` vẫn đọc lại được
+    bằng chính BioPython, nên một test kiểu "ghi rồi đọc bằng thư viện đã ghi" **xanh trong khi
+    file khác cú pháp NCBI**. Bắt được chỉ vì có **bản ghi vàng thật** để đối chiếu cú pháp và vì
+    **reader của mình** mới là thứ đọc lại. Bài học: round-trip bằng chính thư viện đã ghi không
+    phải bằng chứng — phải đối chiếu với một file do NCBI viết (§8.20).
 
 ### C. Môi trường & vận hành
 

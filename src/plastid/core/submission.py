@@ -22,7 +22,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 
-from plastid.core.model import Gene, Genome
+from plastid.core.model import Gene, Genome, gene_qualifiers
 from plastid.core.orf import (
     START_CLASS_INVALID,
     START_CLASS_NON_CANONICAL,
@@ -216,7 +216,9 @@ def _feature_of(gene: Gene) -> TblFeature:
             start, end = end, start
             partial_start, partial_end = partial_end, partial_start
         parts.append((start, end, partial_start, partial_end))
-    return TblFeature(kind=gene.kind, parts=tuple(parts), qualifiers=_qualifiers_of(gene))
+    # the same qualifiers the GenBank writer emits — one function, so a feature cannot come out
+    # one way in the table and another way in the file submitted alongside it
+    return TblFeature(kind=gene.kind, parts=tuple(parts), qualifiers=gene_qualifiers(gene))
 
 
 def _feature_lines(feature: TblFeature) -> list[str]:
@@ -249,25 +251,6 @@ def _check_partial(gene: Gene, index: int, last: int, partial: bool) -> bool:
             f"written truthfully"
         )
     return partial
-
-
-def _qualifiers_of(gene: Gene) -> dict[str, str | None]:
-    """The qualifiers this toolkit writes, in a stable order — the order they appear in the file."""
-    qualifiers: list[tuple[str, str | None]] = [("gene", gene.name)]
-    if gene.product:
-        qualifiers.append(("product", gene.product))
-    if gene.exception:
-        qualifiers.append(("exception", gene.exception))
-    if gene.kind == "CDS":
-        if gene.transl_table is not None:
-            qualifiers.append(("transl_table", str(gene.transl_table)))
-        if gene.codon_start != 1:
-            qualifiers.append(("codon_start", str(gene.codon_start)))
-    if gene.trans_splicing:
-        qualifiers.append(("trans_splicing", None))
-    if gene.pseudo:
-        qualifiers.append(("pseudo", None))
-    return dict(qualifiers)
 
 
 def parse_tbl(text: str) -> tuple[TblRecord, ...]:

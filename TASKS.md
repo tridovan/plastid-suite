@@ -62,17 +62,23 @@ disk**, seconds of runtime, no MAKER. PMGA was 14 GB.
 | Quoting a count as "the answer" | **31 · 17 · 3 is *this record's*** — another mitogenome gets its own numbers, and the module already says so |
 | A tool that exists only on this machine | ARAGORN ships in the **same session** as the `environment.yml` line and `docs/tools/aragorn.md` — otherwise no number here is reproducible by anh Điềm |
 
-### P3A-01 · GenBank writer · M3A.1 · [ ]
+### P3A-01 · GenBank writer · M3A.1 · [x] DONE 03/10
 
-- [ ] `to_genbank(genome) -> str` beside the reader in `core/genbank.py` — the source feature, every
+- [x] `to_genbank(genome) -> str` beside the reader in `core/genbank.py` — the source feature, every
       gene kind, qualifiers, partial flags in the location, wrapped sequence
-- [ ] partials (`<` / `>`) and `transl_table` written the way NCBI writes them — checked against a
-      real published record, not memory
+- [x] partials (`<` / `>`) and `transl_table` written the way NCBI writes them — checked against the
+      golden record's own text, not memory
 
 **Done when:** `NC_050833.1` read → written → read back gives the same `Genome`: **265/265**
 features with the same kind, name, span, product, translation table and partial flags, and the
-sequence byte-identical. Test written **before** the writer (TDD — the golden shape is known).
-**Needs:** nothing.
+sequence byte-identical. **Met 03/10** (§8.20), 10 tests in `tests/unit/test_genbank.py`, 324 unit
+tests green — the `.tbl` path is untouched. **Needs:** nothing.
+**Measured, and it changed the design twice:** `/pseudo` and `/trans_splicing` are **bare**
+qualifiers in every real record, and BioPython writes `=""` for an empty string but a bare
+qualifier for `None` (§9.B-25); and the qualifier builder became **one shared function**
+(`model.gene_qualifiers`) because the table writer already had it — two writers, one decision about
+what a feature says. Also decided there: **`/gene` is written only when it says something
+`/product` does not**, because `OX459128.1` names its features by a product *sentence*.
 
 ### P3A-02 · Reference set · M3A.2 · [ ]
 
