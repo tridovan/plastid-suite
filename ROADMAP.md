@@ -216,6 +216,31 @@ inputs and is recorded as a finding, §9.H.* Mismatch ⇒ stop, re-check inputs.
       the three alias loci (§8.27) is what the manuscript tables quote: **2.6917 = 323 Ts / 120 Tv
       over 79 shared genes**, with the whole-alignment scope a different, labelled number
 
+## Phase 4a — The Điềm corpus as the test dataset  *(opened 04/10/2026)*
+
+**Goal:** the phases so far were tested on data this project picked itself. anh Điềm's corpus — **34
+Iridaceae plastomes × 2 annotations** (published NCBI · PGA) **+ the bare sequences**, 28 MB in
+`.data/thanhdiem_data/` (gitignored, in the working tree) — is the first dataset nobody here chose,
+and it carries its own answer key three ways. It is a **test corpus**: Iridaceae, not the manuscript
+species, so nothing from it becomes a manuscript table.
+
+**In-phase checks (all measured 04/10/2026):** the golden genome's own file is **in the corpus**
+(set 01 `Iris_domestica_NC_050833.1.gb`, sha256 `a946f23e…` — byte-identical to the vendored
+fixture) · set 02 is the *same sequence* annotated by PGA, **85 CDS where the contract says 86**,
+with **3/34 records failing the IR gate at 26–29 %** while de-novo finds 100.00 % on every one ·
+**34/34** records spell at least one locus differently between the two annotations — §8.27's lesson
+at 34× scale.
+
+- [x] **M4a.0 Corpus in the working tree** (2026-10-04) — `.data/thanhdiem_data/`, 136 files, every
+      sha256 identical to `D:\business\pts\thanhdiem_data`; gitignored; ~100× faster than `/mnt/d`
+      on the small-file writes a run is made of (measured)
+- [ ] **M4a.1 Pinned** — both annotation sets as panels (`PINNED.json` as the verification table),
+      the `.fasta` half as a sha256 manifest (the pin route is GenBank-only, measured)
+- [ ] **M4a.2 Vendored fixtures + Phase-1 checks** — three pairs in `tests/data/corpus/`, the
+      golden's PASS / FAIL twin (*Iris hermona*), and the `ndhI`↔`ndhL` alias
+- [ ] **M4a.3 Scale (M8.3)** — wall clock and peak RSS per module at N = 34
+- [ ] **M4a.4 Annotator at scale** — Chloe over the 34 bare sequences, three annotations compared
+
 ## Phase 5 — Figures & reports  *(§13.5)*
 
 **Goal:** publication-grade output, regenerable from intermediates (never by hand).

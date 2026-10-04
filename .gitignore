@@ -9,4 +9,5 @@ dist/
 .runs/
 .cache/
 .panel/
+.data/
 .claude/settings.local.json

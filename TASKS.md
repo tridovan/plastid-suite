@@ -1,6 +1,7 @@
 # TASKS.md — active tasks
 
-> **Current phase only.** Progress: `ROADMAP.md` · session log: `HANDOFF.md` · rules: `CLAUDE.md`.
+> **Phase 4a is active; Phase 4 is kept above it as instructed (all five tasks DONE).** Progress:
+> `ROADMAP.md` · session log: `HANDOFF.md` · rules: `CLAUDE.md`.
 > Markers: `[ ]` todo · `[~]` doing · `[x]` done · **BLOCKED** = a named decision or dataset missing.
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**
 > How this file is produced: the `make-tasks` skill (`.claude/skills/make-tasks/SKILL.md`).
@@ -135,6 +136,102 @@ mito run found **no** shared gene because one record names its CDS by `/product`
 comparison modules were passing the plastid vocabulary explicitly (`core.gene_names.aliases_for`
 picks by `/organelle` now); and the run cache served a **stale payload** after a behaviour change
 whose module version had not moved (H-08, §9.C-21).
+
+## Phase 4a — The Điềm corpus as the test dataset  *(opened 04/10/2026)*
+
+**Goal:** Phases 1–4 were built and tested on data this project picked for itself. The corpus anh
+Điềm provided — **34 Iridaceae plastomes, each in two annotations, plus the bare sequences** — is
+the first dataset nobody here chose: it is big enough to fail, it carries its own answer key in
+three forms (published · PGA · the sequence itself), and one of its records is the group's own.
+**This phase makes it the test corpus; it produces no manuscript tables** — Iridaceae is not
+Oldenlandia or Coleus.
+
+**What the corpus is — every row measured 04/10/2026, none read off a website:**
+
+| | |
+|---|---|
+| Files | 68 `.gb` + 68 unannotated `.fasta` · 28 MB · 34 genomes × 2 annotation sets |
+| Where | `.data/thanhdiem_data/` — **in the working tree, gitignored**; copied from `D:\business\pts\thanhdiem_data`, 136/136 sha256 identical to the source |
+| Set 01 | the published NCBI annotation |
+| Set 02 | **PGA** re-annotation of the *same* sequences (34/34 identical) — the two sets cannot differ by sequence, only by annotation |
+| The golden genome is in it | `01_…/Iris_domestica_NC_050833.1.gb` is byte-identical to `tests/data/NC_050833.1.gb` (sha256 `a946f23e…`) |
+| The group's own record is in it | `PX516262.1` *Eleutherine bulbosa* (Vu,H.-T.) — the tool-paper species; set 01 **133 = 87+38+8**, set 02 **131 = 85+38+8** |
+| IR gate | set 01 **0/34 fail** · set 02 **3/34 fail** — *Chasmanthe* 29.24 % · *Iris hermona* 26.36 % · *Trimezia* 27.78 %, all `ir_source: annotation`, while **de-novo on the same sequence finds 100.00 %** every time |
+| Gene totals | set 01 **2,924** CDS + 1,292 tRNA + 272 rRNA · set 02 **2,887** CDS (37 fewer) |
+| Gene names | **34/34** records spell at least one locus differently between the annotations |
+| The differences, categorised (04/10) | **vocabulary** — `clpP1`→`clpP` 23/34 · `pbf1`→`psbN` 21/34 · `ndhL`→`ndhI` 8/34 · `atpL`/`psaL`/`bspB`→`atpI`/`psaI`/`psbB` 7/34 (§8.27's trio) · `lhbA`→`psbZ` 1/34 · bare tRNA names 8/34 · the rRNA dialect 1/34. **A call difference** — `ycf1` is a CDS in the published record and has none in PGA's in **24/34** (71 % of the corpus); `rps12` loses a copy in 12/34. Spelling aside, the two annotations disagree about whether a gene *exists* |
+| Read speed (why it lives in WSL) | 300 small files: **7 ms** here vs **700 ms** on `/mnt/d` (~100×); one cold 28 MB parse only 0.38 s vs 0.55 s (~1.4×) — a run is thousands of small writes, so the copy pays for itself there, not in the bulk read |
+
+**In-phase checks:** the vendored fixtures decide Phase 1's gate offline · both panels pin with
+every sha256 re-readable · M8.3 carries measured numbers, not extrapolations · Chloe annotates
+**34/34** bare sequences and every count difference from the published record is itemized.
+
+### Decisions to make before the tasks that need them
+
+| ID | Decision | Recommended default (evidence) | Who | Recorded in |
+|---|---|---|---|---|
+| D4a-01 | Is this corpus a stand-in, or the team's data? | **A test corpus.** 34 public Iridaceae records, none a manuscript species — but one (`PX516262.1`) *is* the group's own, so the label is **per record**, and no output from here is ever a manuscript table | Dev | PROJECT.md §3 |
+| D4a-02 | Which records are vendored into `tests/data/` | **Three pairs ≈ 1.8 MB** — the golden genome (set 01 costs nothing, it is already vendored; set 02 is the golden re-annotated by PGA: **85 CDS where the contract says 86**), *Iris hermona* (gate PASS / gate FAIL on one sequence), the group's own *E. bulbosa*. The smallest subset where every file carries a written-down expected answer | Dev | PROJECT.md §3 |
+| D4a-03 | How the 34 `.fasta` get pinned | **A sha256 manifest**, not `panel pin` — measured: a FASTA pins under its file stem with `parse_error: no GenBank records found` and the CLI exits 1 (UNVERIFIED). A FASTA door in `pin_files` is the alternative, and waits for a second caller (YAGNI) | Dev | PROJECT.md §3 |
+| D4a-04 | Which annotation is the answer key for the annotator test | **Set 01, the published record.** Set 02 is a third opinion to compare against, never truth — §8.15 measured PGA at 147 genes where the golden has 132 | Dev | PROJECT.md §3 |
+| D4a-05 | `ndhL` (published) vs `ndhI` (PGA) | **The same locus** — on the golden genome both annotations place it at `118156-118698(-)` with the identical 543 bp `ATGTTCCCT…TAA`. Fourth of §8.27's class (a locus hidden by spelling); add the alias with that evidence | Dev | `data/gene_aliases.yaml` + §8 |
+
+### Pitfalls for this phase
+
+| Trap | Instead |
+|---|---|
+| two files, one genome | pin each annotation set into its **own** directory: a pinned file is keyed by the record's own id, and PGA keys a record `Aristea_ecklonii_voucher_KK2022_1_NC_072561` where NCBI keys it `NC_072561.1` — one directory holds one genome twice under two names with nothing pairing them. The pairing is the **shared file stem** |
+| a name difference read as a gene difference | 34/34 records differ in spelling (measured) — an alias needs **coordinates and sequence**, or it is a guess |
+| trusting an annotation's IR | 3/34 PGA records carry IR copies at 26–29 % while the sequence is 100 %; on *Chasmanthe* de-novo returns PGA's own 26,440 bp span at 100.00 %, so the span is right and the pairing is not — exactly what the gate exists for |
+| a `.fasta` through `panel pin` | measured: UNVERIFIED + exit 1; the sequence half needs its own route (D4a-03) |
+| extrapolating the time budget from 11 records | the 11-record barcodes run took ~15 min (measured 04/10) — measure at 34, never multiply |
+| the run cache serving a stale payload | H-08: a behaviour change without a version bump is invisible; `--force` or bump the version |
+| the corpus drifting into a manuscript table | it is Iridaceae — every run from it is a test run and labelled as one |
+
+### P4a-01 · The corpus in the tree, and pinned · M4a.1 · [ ]
+
+- [x] copy into the working tree, gitignored — `.data/thanhdiem_data/`, 136 files · 28 MB · every sha256 matching the source (04/10; a `tar` stream, under a second)
+- [ ] pin set 01 → `.panel/iridaceae-34/` and set 02 → `.panel/iridaceae-34-pga/`, one `--file` per record, `--note` naming the source directory and the date
+- [ ] pin the 34 `.fasta` as a sha256 manifest (D4a-03), not through `panel pin`
+- [ ] `PINNED.json` is the verification table: sha256 · length · gene counts · topology · IR outcome, measured at pin time for every record
+
+**Done when:** both `PINNED.json` files hold 34 records, every pinned file's sha256 re-reads as
+recorded, and set 02's file shows the three gate failures as `ir_identity` < 0.999 with each record
+named. **Needs:** D4a-01, D4a-03.
+
+### P4a-02 · Vendored fixtures + the Phase-1 checks · M4a.2 · [ ]
+
+- [ ] vendor the three pairs (D4a-02) under `tests/data/corpus/` + `SHA256SUMS` + PROVENANCE
+- [ ] tier-A checks: `NC_050833.1.gb`'s sha256 is still `a946f23e…` · set 02's golden measures **85 CDS** with `rps12`'s second copy absent · *Iris hermona* set 01 normalizes while set 02 raises `IRGateError`
+- [ ] the `ndhI` ↔ `ndhL` alias into `data/gene_aliases.yaml` with the measured evidence (D4a-05)
+- [ ] every vendored record through the CLI's gate + normalize, exit code asserted per record (0 / 2)
+
+**Done when:** `make test` covers the corpus offline with no network, the golden fixture's sha256 is
+unchanged, and the hermona pair gives PASS / `IRGateError` (exit 2). **Needs:** D4a-02, D4a-05.
+
+### P4a-03 · Scale — what a 34-genome run costs · M4a.3 (M8.3) · [ ]
+
+- [ ] wall clock and **peak RSS** per module over the pinned panel, one module at a time (`/usr/bin/time -v`)
+- [ ] the two heavy costs named separately: whole-genome MAFFT, and Ka/Ks's per-gene MAFFT + yn00 (≈80 + 80 calls **per pair**, × 33 pairs)
+- [ ] the batching rule for an ordinary machine — the largest N actually measured, and what fits the 8 GB cap
+- [ ] the numbers into PROJECT.md §8; M8.3 ticks only once they exist
+
+**Done when:** a module × N × wall clock × peak RSS table exists with the largest N **measured** for
+each module, and a stated batch size for a 34-genome run. **Needs:** the pinned panel (P4a-01).
+**Pitfall:** H-08 — run every timed module with `--force`, or the clock measures nothing.
+
+### P4a-04 · Chloe on the 34 bare sequences — three annotations of one sequence · M4a.4 · [ ]
+
+- [ ] `-m annotation` (Chloe) over the 34 `.fasta` — the annotator's first real n = 34
+- [ ] every output re-read with our own reader · ORF checks · the fixed counting rule (never "133 genes")
+- [ ] the three annotations side by side per record — published · PGA · Chloe
+- [ ] every difference categorised: **vocabulary** (`clpP1`/`clpP` · `pbf1`/`psbN` · `lhbA`/`psbZ` · `ndhL`/`ndhI` · the rRNA dialects · bare vs anticodon tRNA) versus a **different call** (the `ycf1` CDS, the lost `rps12` copy) versus a **different span** — the first two categories already have counts (see the corpus table)
+- [ ] §8.15's PGA verdict re-measured at n = 34 instead of n = 1
+
+**Done when:** 34/34 annotate and re-read, every count difference from the published record is
+itemized per record, and the vocabulary-versus-call split is a number. **Needs:** P4a-01 (the panel)
+and P4a-02's answer key. **Pitfall:** a name is not a gene — this corpus is where that distinction
+*is* the result.
 
 ## Waiting on data / people
 
