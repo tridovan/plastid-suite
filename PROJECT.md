@@ -1774,11 +1774,26 @@ hai bản thảo trích dẫn. Đo ở N = 34: **5 ph 24 s · 179 MB · xong** �
 xong sau 11 phút trên đúng 34 chuỗi đó. Scope CDS tốn RAM hơn (179 MB so với 97 MB, vì giữ 79
 alignment theo gen trong bộ nhớ) và là cái duy nhất chạy xong: trên máy 8 GB, **RAM là thứ rẻ hơn**.
 
+**Hai module theo từng cặp, ở N = 34** — và đây là chỗ một dự đoán đọc từ code bị số đo cãi:
+
+| Module | Lượt gọi tool | Thời gian | RAM đỉnh |
+|---|---|---|---|
+| `synteny` (`nucmer` → `delta-filter` → `show-coords` mỗi query) | 99 | **19,6 s** | 145 MB |
+| `kaks` (MAFFT + `yn00` mỗi gen dùng chung, mỗi cặp) | 5.202 MAFFT + 4.766 yn00 = **9.968** | **8 ph 26 s** | 98 MB |
+
+**Số lượt gọi tool không phải thứ đắt — kích thước một alignment mới là.** 9.968 alignment hai
+chuỗi ngắn xong trong 8 ph 26 s; **một** alignment 34 plastome nguyên vẹn thì 11 phút chưa xong.
+Và 33 lượt `nucmer` — thứ được đoán là nửa chậm — hoá ra là phần nhanh nhất: **19,6 giây**. Đây
+đúng là lý do phép đo này tồn tại: giá của một module **không đọc được từ vòng lặp của nó** (con số
+viết tay ở bản nháp đầu nói "khoảng 2.600 mỗi loại"; đo được là 5.202 và 4.766).
+
 **Quy tắc chia lô, viết ra để dùng:**
 
 - Việc một-genome **không cần chia lô**: 34 genome × 9 module dưới 4 phút, dưới 100 MB.
 - Align **cả bộ gen** thoải mái tới **8 genome** (2 ph 44 s), quá 16 là vượt 7 phút ⇒ trên mức đó
   dùng scope theo gen.
+- Thiết kế **theo từng cặp** (nhiều lượt gọi nhỏ) chạy tốt ở N = 34: `kaks` 9.968 lượt gọi vẫn
+  xong trong 8,5 phút.
 - **Ngoại suy bị cấm**: mọi con số ở đây đo trên máy này (i7-1165G7, WSL2, trần 8 GB). Chúng chặn
   một *hình dạng* chi phí, không phải một lời hứa cho máy khác.
 
