@@ -6,12 +6,29 @@
 
 ## Resume point
 
-**Phases 1, 2, 3, 3A — COMPLETE and merged to `main`.** **Phase 4 (multi-genome comparison) —
-COMPLETE on branch `feat/phase-4`** (five tasks, each committed and pushed): P4-01 synteny,
-P4-02 Ka/Ks, P4-03 population genetics, P4-04 barcodes, P4-05 the deliverable runs. All of
-§13.4's milestones except **M4.5 (RNA editing), which is BLOCKED on one RNA-seq sample**.
+**Phases 1, 2, 3, 3A, 4 — COMPLETE and merged to `main`.** **Phase 4a (the Điềm corpus as the test
+dataset) — OPEN, P4a-01 DONE and pushed.** The corpus is 34 Iridaceae plastomes × 2 annotations of
+the same sequences (published NCBI · PGA) + 34 bare FASTAs, living in **`.data/thanhdiem_data/`**
+(in the working tree, **gitignored**, 136 files · 28 MB, every sha256 matching `D:\`); both
+annotation sets are pinned as panels and the FASTAs as a manifest (§8.31).
 
-**The numbers this phase moved** — read `TASKS.md` (the board) and PROJECT.md §8.26–§8.30 first:
+**Immediate next action:** **P4a-02** — vendor three pairs (the golden genome both ways, *Iris
+hermona* both ways, the group's own *E. bulbosa* both ways) into `tests/data/corpus/` with
+`SHA256SUMS` + PROVENANCE, add the tier-A checks (the golden's sha256 unchanged · set 02 measures
+**85 CDS** · hermona set 01 normalizes while set 02 raises `IRGateError`), and add the measured
+`ndhI`↔`ndhL` alias. Then P4a-03 (scale, M8.3) and P4a-04 (Chloe over 34 bare sequences — which
+needs a FASTA door in `plastid run`, measured: `-i` reads GenBank only).
+
+**The corpus in one table (§8.31):** the golden genome's own file is *in* it (sha256 `a946f23e…`,
+byte-identical to the vendored fixture) · set 02 is the same sequence annotated by PGA — **85 CDS
+where the contract says 86**, and **3/34 records fail the IR gate at 26–29 %** while de-novo finds
+100.00 % on the very same sequence · **34/34 records differ in gene spelling**, and the differences
+split into vocabulary (`clpP1`/`clpP` 23 · `pbf1`/`psbN` 21 · `ndhL`/`ndhI` 8 · the §8.27 trio 7)
+and **calls** (`ycf1` has no CDS in PGA's annotation in **24/34**; `rps12` loses a copy in 12) ·
+`ndhL` and `ndhI` are the same locus (same coordinates, identical sequence — the golden pair is
+unaffected, both NCBI records say `ndhL`).
+
+**What Phase 4 moved** — read `TASKS.md` (the board) and PROJECT.md §8.26–§8.31 first:
 
 * **§6's golden Ts/Tv is now 2.6917** = 323 Ts / 120 Tv over **79** shared genes, 68,448 columns
   (was 2.686 over 76). The scope never changed; the shared *set* did — atpI/psaI/psbB are spelled
@@ -28,8 +45,8 @@ P4-02 Ka/Ks, P4-03 population genetics, P4-04 barcodes, P4-05 the deliverable ru
 label (`--label` writes it into each table's scope line and each report's header).
 
 **Merged to `main` 04/10** (fast-forward; `feat/phase-4` was stacked on nothing), per the
-established pattern for a closed phase. **Immediate next action:** Phase 5 (figures & reports —
-the plots the two manuscripts need) or the team's own data, whichever arrives first.
+established pattern for a closed phase. Phase 5 (figures & reports — the plots the two manuscripts
+need) is **still the phase after Phase 4a**.
 
 **Open for the PI (wording only, nothing blocks):** `trnG-GCC` vs `trnG-UCC` (§10.10, H-04) and
 which gene name the manuscript/NCBI submission prints (D3-06).
@@ -44,6 +61,67 @@ which gene name the manuscript/NCBI submission prints (D3-06).
 | A curated PGA reference set (P3-03) · the team's `.sbt` (P3-05 `.sqn` half) | anh Điềm / cô Trang | nothing in Phase 4 |
 
 ## Log
+
+### 2026-10-04 · Claude · dev WSL · session 18 (Phase 4a opened — the Điềm corpus becomes the test dataset)
+
+**Did.** Opened **Phase 4a** (board + ROADMAP milestones M4a.0–M4a.4) and closed **P4a-01**.
+
+* **The corpus, in the tree.** 34 Iridaceae plastomes × 2 annotations of the same sequences
+  (published NCBI · PGA) + 34 bare FASTAs = 68 `.gb` + 68 `.fasta`, 136 files, 28 MB. Copied from
+  `D:\business\pts\thanhdiem_data` into **`.data/thanhdiem_data/`** (working tree, **`.data/`
+  gitignored**), 136/136 sha256 verified. Measured why it belongs in WSL: 300 small files
+  7 ms vs 700 ms on `/mnt/d` (**~100×**), while one cold 28 MB bulk read is only 0.38 s vs 0.55 s
+  (**1.4×**) — a run is thousands of small writes, so that is the number that matters.
+* **Both sets pinned, verified.** `.panel/iridaceae-34/` and `.panel/iridaceae-34-pga/`, 34 records
+  each, every sha256 · md5 · byte count and measured value re-read (`PINNED.json` is the table).
+  Set 01: **0** gate failures, 2,924 CDS. Set 02: **3** — *Chasmanthe* 29.24 % · *Iris hermona*
+  26.36 % · *Trimezia* 27.78 %, each named — 2,887 CDS.
+* **The FASTA half needed its own route.** Measured: `panel pin --file` on a `.fasta` pins it under
+  the file stem with `parse_error: no GenBank records found`, prints UNVERIFIED and **exits 1** — the
+  pin path is GenBank-only. Pinned instead as `fasta.json` (68 entries: sha256 · bytes · length ·
+  the paired record's sha256), **and every one of the 68 sequences was proven identical to its
+  pinned record**, so the manifest records bytes while the sequence's provenance is the panel.
+* **Pinning the two sets into one directory would have been wrong** — `panel pin --file` keys a
+  record by its own id, and PGA keys one `Aristea_ecklonii_voucher_KK2022_1_NC_072561` where NCBI
+  keys it `NC_072561.1`: one genome, two names, nothing pairing them. A directory per set; the
+  pairing is the **shared file stem**.
+
+**What the corpus measured (all new, §8.31).**
+
+* **The golden genome is in it**: `01_…/Iris_domestica_NC_050833.1.gb` is byte-identical to the
+  vendored fixture (`a946f23e…`) — the corpus contains the contract it is testing.
+* **Set 02 = PGA on the same sequence**: the golden reads **85 CDS where the contract says 86**
+  (the second `rps12` copy is gone), and the group's own *E. bulbosa* goes 133 → 131 the same way.
+* **3/34 PGA records fail the IR gate** at 26–29 % — and de-novo detection on the **very same
+  sequence** finds **100.00 %** every time. On *Chasmanthe*, de-novo returns PGA's own 26,440 bp
+  span at 100 % ⇒ the span is right and the pairing is not. 8.8 % of the corpus would be
+  silently wrong if anyone trusted the annotation's IR.
+* **34/34 records spell at least one locus differently** — and the split matters: **vocabulary**
+  (`clpP1`/`clpP` 23 · `pbf1`/`psbN` 21 · `ndhL`/`ndhI` 8 · the §8.27 trio 7 · `lhbA`/`psbZ` 1 ·
+  bare tRNA 8 · the rRNA dialect 1) versus **a different call** (`ycf1` has no CDS in PGA's
+  annotation in **24/34**; `rps12` loses a copy in 12/34). §8.27's lesson at 34× scale.
+* **`ndhL` (published) and `ndhI` (PGA) are the same locus** — same coordinates
+  (`118156-118698(-)`), identical 543 bp sequence, on the golden genome itself. D4a-05; the golden
+  pair is unaffected (both NCBI records say `ndhL`), so **no golden number moves**.
+* **A gap that belongs to P4a-04**: `plastid run -i` reads **GenBank only** (`read_fasta` exists
+  solely on the `mito annotate` path) — running Chloe over 34 bare sequences needs a FASTA door, or
+  the de-annotated-GenBank route P3A-07 already used (the two carry the same sequence, 68/68
+  verified).
+
+**Validation.** `make check` green (**533 fast + 30 golden**; tier-B skips name their missing tool —
+this shell has no tool env). Both panels re-read clean; `fasta.json` re-reads clean; the corpus
+measurements above are all scripts run in this session, not readings.
+
+**Residual risks.** (1) The corpus is **gitignored and re-fetchable only from anh Điềm's disk** —
+the durable record is §8.31 plus `PINNED.json`; a re-fetch must re-produce the same sha256s.
+(2) The two panels are keyed differently by construction, so anything joining them must join on the
+**file stem**, never on the accession. (3) PGA is present only as pinned output, never as a runnable
+tool here — unchanged from Phase 3.
+
+**Blocked.** Nothing in Phase 4a.
+
+**Next.** P4a-02 — vendor the three pairs into `tests/data/corpus/` with `SHA256SUMS` + PROVENANCE,
+the tier-A gate checks, and the measured `ndhI`↔`ndhL` alias.
 
 ### 2026-10-04 · Claude · dev WSL · session 17 (Phase 4 complete — five tasks, and the numbers they moved)
 

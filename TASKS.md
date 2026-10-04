@@ -188,16 +188,21 @@ every sha256 re-readable · M8.3 carries measured numbers, not extrapolations ·
 | the run cache serving a stale payload | H-08: a behaviour change without a version bump is invisible; `--force` or bump the version |
 | the corpus drifting into a manuscript table | it is Iridaceae — every run from it is a test run and labelled as one |
 
-### P4a-01 · The corpus in the tree, and pinned · M4a.1 · [ ]
+### P4a-01 · The corpus in the tree, and pinned · M4a.1 · [x]
 
 - [x] copy into the working tree, gitignored — `.data/thanhdiem_data/`, 136 files · 28 MB · every sha256 matching the source (04/10; a `tar` stream, under a second)
-- [ ] pin set 01 → `.panel/iridaceae-34/` and set 02 → `.panel/iridaceae-34-pga/`, one `--file` per record, `--note` naming the source directory and the date
-- [ ] pin the 34 `.fasta` as a sha256 manifest (D4a-03), not through `panel pin`
-- [ ] `PINNED.json` is the verification table: sha256 · length · gene counts · topology · IR outcome, measured at pin time for every record
+- [x] pin set 01 → `.panel/iridaceae-34/` and set 02 → `.panel/iridaceae-34-pga/`, one `--file` per record, `--note` naming the source directory and the date
+- [x] pin the 34 `.fasta` as a sha256 manifest (D4a-03), not through `panel pin` — `fasta.json`, 68 entries
+- [x] `PINNED.json` is the verification table: sha256 · length · gene counts · topology · IR outcome, measured at pin time for every record
 
 **Done when:** both `PINNED.json` files hold 34 records, every pinned file's sha256 re-reads as
 recorded, and set 02's file shows the three gate failures as `ir_identity` < 0.999 with each record
 named. **Needs:** D4a-01, D4a-03.
+**Done 04/10 — §8.31.** Both panels re-read clean (sha256 · md5 · bytes · the measured values), 34
+records each; set 01 **0** gate failures · 2,924 CDS, set 02 **3** — *Chasmanthe* 29.24 % · *Iris
+hermona* 26.36 % · *Trimezia* 27.78 %, each named — · 2,887 CDS. The `.fasta` half: every one of the
+68 sha256s re-reads, and **68/68 sequences are identical to the pinned record's** — so the manifest
+records bytes, while the sequence's provenance is the panel itself.
 
 ### P4a-02 · Vendored fixtures + the Phase-1 checks · M4a.2 · [ ]
 

@@ -73,6 +73,10 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 04/10 | **Di truyền quần thể: tự viết bằng Python thuần (D4-03, dev quyết có đo)**: DnaSP là GUI Windows (không script được, không vào Docker), pixy/libsequence đòi VCF hoặc dữ liệu read; các estimator là công thức đóng đã công bố, kiểm được bằng vector giải tích, và bản cài tối thiểu vẫn thuần Python (CLAUDE.md). Bằng chứng: Tajima's D · π · θ(S) khớp **scikit-allel 1.3.13** đến 6 chữ số trên 4 vector; Fu & Li D*/F* khoá bằng vector tính tay (EggLib build trên máy này hỏng, `gestimator` không có trên bioconda — đo và ghi lại). **Fst = Nei's Gst**: bản Hudson viết trước cho **−1** với hai nhóm cùng thành phần ở n nhỏ ⇒ bỏ, có ghi lý do | Dev | §8.28 |
 | 04/10 | **Nhãn dữ liệu thay thế đi vào MỌI bảng (`--label`, dev quyết)**: một bộ dữ liệu thay thế không bao giờ được đi mà không có nhãn (CLAUDE.md). Nhãn được áp **một lần** trong runner — nơi duy nhất biến `Result` thành file — bằng cách ghép tiền tố vào `scope.label` của từng bảng, nên nó có mặt ở header CSV, JSON và report mà không module nào phải nhớ. Không có nhãn thì không đổi gì | Dev | §8.30, `docs/P4-05_comparison_tables.md` |
 | 04/10 | **Nửa mito của pha 4 là bản phác khác chi (D4-05, dev quyết)**: hai mitogenome từ hai chi khác nhau, một trong hai là **chú giải nguyên mẫu của chính dự án** (§8.24) ⇒ chạy `kaks` + `popgen`, dán nhãn *cross-genus sketch*, đọc như minh hoạ máy móc chứ không phải kết quả về loài. Một so sánh mito đáng vào bản thảo phải đợi bản ghi thứ hai cùng chi | Dev | §8.30 |
+| 04/10 | **Bộ dữ liệu anh Điềm gửi là BỘ TEST — không phải stand-in, cũng không phải mẫu bản thảo (D4a-01, dev quyết)**: 34 plastome họ Iridaceae × 2 bản chú giải (công bố NCBI · PGA) + 34 chuỗi trần, đặt tại `.data/thanhdiem_data/` (**trong cây làm việc, đã ignore git**; 136 file · 28 MB · sha256 khớp từng file với `D:\business\pts\thanhdiem_data`). Không loài nào là loài bản thảo ⇒ **không đầu ra nào từ đây vào bảng bản thảo**; nhưng `PX516262.1` *E. bulbosa* **là bản ghi của chính nhóm** ⇒ nhãn theo **từng bản ghi**, không theo cả bộ. Đây là bộ dữ liệu đầu tiên không do dự án tự chọn, và nó mang sẵn ba dạng đáp án: bản công bố · PGA · chính chuỗi | Dev | §8.31, `TASKS.md` Phase 4a |
+| 04/10 | **Ghim bộ test: mỗi bộ chú giải một thư mục panel riêng, `.fasta` đi đường manifest (D4a-03, dev quyết có đo)**: `panel pin --file` khoá bản ghi theo **id của chính bản ghi**, mà PGA đặt id theo voucher (`Aristea_ecklonii_voucher_KK2022_1_NC_072561`) còn NCBI đặt theo accession (`NC_072561.1`) ⇒ ghim chung một thư mục thì **một genome nằm hai lần dưới hai tên, không có gì ghép cặp**; tách `.panel/iridaceae-34/` và `.panel/iridaceae-34-pga/`, cặp được nhận ra bằng **tên file dùng chung**. Chuỗi trần **không** đi được đường GenBank: đo trên một `.fasta` ⇒ pin theo tên file, `parse_error: no GenBank records found`, CLI in UNVERIFIED và **exit 1**; thay bằng `fasta.json` (68 mục: sha256 · bytes · độ dài · sha256 của bản ghi đã pin) — và mỗi chuỗi FASTA **được kiểm là trùng khít** chuỗi của bản ghi đã pin, nên bộ FASTA không mang thêm thông tin nào ngoài cái panel đã có | Dev | §8.31 |
+| 04/10 | **`ndhI` (PGA) và `ndhL` (công bố) là cùng một locus (D4a-05, dev quyết có đo)**: trên chính genome vàng, hai bản chú giải đặt locus ở **cùng toạ độ `118156-118698(-)` với chuỗi 543 bp giống hệt** ⇒ thêm alias kèm bằng chứng. Locus thứ tư cùng loại với ba locus ở §8.27. Cặp genome vàng **không đổi số** (cả hai bản NCBI đều viết `ndhL`) | Dev | §8.31, `data/gene_aliases.yaml` |
+| 04/10 | **Bản công bố (bộ 01) là ĐÁP ÁN cho bài kiểm annotator; PGA là ý kiến thứ ba (D4a-04, dev quyết)**: bộ 01 là bản NCBI đã công bố, dùng làm chuẩn để đối chiếu; PGA đã bị thay ở §8.15/§8.16 sau khi đo **147 gen** trên genome vàng (so với 132) ⇒ chỉ dùng làm đối tượng so sánh, **không bao giờ làm chuẩn** | Dev | §8.31 |
 
 ## 4. Ai làm gì
 
@@ -1603,6 +1607,91 @@ trống kèm lý do, **19/19 dòng Fst không tính được** — đúng như t
 1 trình tự, đa dạng trong nhóm bằng 0 theo cấu trúc và Fst luôn ra đúng **1,0** cho hai nhóm khác
 nhau (một con số trông như "khác biệt hoàn toàn" nhưng chỉ là artifact cỡ mẫu). Từ chối thay vì
 đưa số, kèm lý do trong cột Note.
+
+### 8.31. Bộ dữ liệu anh Điềm gửi — bộ test đầu tiên không do dự án tự chọn (P4a-01, 04/10/2026)
+
+**Bối cảnh.** Giai đoạn 1–4 được dev và test trên dữ liệu **tự chọn**. Anh Điềm gửi hai bộ — một
+bộ tải trực tiếp từ database (chưa xử lý), một bộ đã qua xử lý sơ bộ — mỗi bộ ở hai dạng input
+(`.gb` đã chú thích, `.fasta` chỉ có chuỗi) vì mỗi công cụ cần một loại input khác nhau. Đo ra:
+**34 plastome họ Iridaceae × 2 bản chú giải** = 68 `.gb` + 68 `.fasta` · 28 MB · 136 file.
+
+**Chỗ đặt và tốc độ.** Đặt trong cây làm việc tại `.data/thanhdiem_data/`, thêm `.data/` vào
+`.gitignore` (28 MB không commit); **136/136 sha256 khớp bản gốc** trên `D:\`. Lý do đặt trong WSL
+là tốc độ, và con số đo được nói rõ nó đến từ đâu:
+
+| Việc | `/mnt/d` | trong WSL |
+|---|---|---|
+| đọc một lượt 28 MB | 0,55 s | 0,38 s (**1,4×**) |
+| 300 file nhỏ (ghi / đọc) | 700 / 614 ms | 7 / 3 ms (**~100×**) |
+
+Đọc thô nhanh hơn **không đáng kể** — thứ đáng kể là **thao tác file nhỏ**, và một run chính là
+hàng nghìn file nhỏ (run Phase 4 có 616 lượt MAFFT ⇒ 1.232 file log). Đây là lý do thật, không
+phải "copy cho nhanh".
+
+**Hai bộ chú giải là hai cách đọc CÙNG MỘT chuỗi.** Đo: **34/34 chuỗi giống nhau từng byte** giữa
+hai bộ. Nghĩa là mọi khác biệt giữa hai bộ **chỉ có thể là khác biệt chú giải** — một phép thử tự
+nhiên mà dự án chưa từng có: cùng đầu vào, hai đường ống, so thẳng kết luận.
+
+**Bản ghi vàng nằm trong bộ dữ liệu.** `01_…/Iris_domestica_NC_050833.1.gb` có sha256
+`a946f23e6e5f6a886eea93c52d72497209531aaf855ec08853dbef7997638493` — **trùng khít** file fixture
+đang vendored ở `tests/data/NC_050833.1.gb`. Bộ test chứa luôn chính cái hợp đồng nó kiểm.
+
+**Bộ 02 = PGA chú giải lại genome vàng:** 153.724 bp · GC 37,85 % · IR 26.214 bp @ 100,00 % — nhưng
+**85 CDS, không phải 86**, thiếu đúng **bản sao thứ hai của `rps12`**. Trên bộ 01, *E. bulbosa*
+`PX516262.1` (bản ghi của chính nhóm) đọc ra **133 = 87 + 38 + 8**; bộ 02 ra **131 = 85 + 38 + 8**
+— cùng một kiểu mất bản sao.
+
+**Gate IR bắt được 3/34 bản ghi của PGA:**
+
+| Bản ghi | IR theo annotation (PGA) | de-novo trên **cùng chuỗi đó** |
+|---|---|---|
+| *Chasmanthe floribunda* | 26.440 bp @ **29,24 %** | 26.440 bp @ **100,00 %** |
+| *Iris hermona* | 26.180 bp @ **26,36 %** | 26.132 bp @ **100,00 %** |
+| *Trimezia steyermarkii* | 26.169 bp @ **27,78 %** | 26.169 bp @ **100,00 %** |
+
+*Chasmanthe* là ca rõ nhất: de-novo trả về **đúng span PGA đã ghi** nhưng ở 100 % ⇒ PGA chọn đúng
+đoạn, **ghép cặp sai**. Bộ 01 của cả ba bản ghi đều qua gate ở 100 % ⇒ đây là lỗi của **bản chú
+giải**, không phải của chuỗi. Tức **3/34 = 8,8 %** số bản ghi sẽ hỏng im lặng nếu ai đó tin IR
+trong annotation — đúng lý do gate tồn tại (§9.A).
+
+**34/34 bản ghi viết tên gen khác nhau giữa hai chú giải.** Phân loại:
+
+| Khác biệt | Số bản ghi | Loại |
+|---|---|---|
+| `clpP1` → `clpP` | 23/34 | từ vựng |
+| `pbf1` → `psbN` | 21/34 | từ vựng |
+| `ndhL` → `ndhI` | 8/34 | từ vựng (cùng locus — xem dưới) |
+| `atpL`/`psaL`/`bspB` → `atpI`/`psaI`/`psbB` (bộ ba của §8.27) | 7/34 | từ vựng |
+| `lhbA` → `psbZ` | 1/34 | từ vựng |
+| tRNA viết tên trần (không anticodon) | 8/34 | từ vựng |
+| rRNA kiểu `16S ribosomal RNA` vs `rrn16` | 1/34 | từ vựng |
+| **`ycf1` có CDS ở bản công bố, KHÔNG có ở PGA** | **24/34** | **khác kết luận** |
+| **`rps12` mất một bản sao** | 12/34 | **khác kết luận** |
+
+Hai dòng cuối **không phải khác cách viết mà khác kết luận**: ở **71 %** bộ dữ liệu, hai chú giải
+bất đồng về việc một gen **có tồn tại hay không**. Đây là bài học của §8.27 ở quy mô 34 bản ghi —
+và là lý do mọi so sánh theo tên phải nói ra nó đang khoá theo tên ai.
+
+**`ndhI` (PGA) và `ndhL` (công bố) là cùng một locus (D4a-05).** Trên chính genome vàng, hai bản
+chú giải đặt locus ở **cùng toạ độ `118156-118698(-)` với chuỗi 543 bp giống hệt**
+(`ATGTTCCCT…TAA`) — locus thứ tư cùng loại với ba locus ở §8.27. Cặp genome vàng **không đổi số**:
+cả hai bản ghi NCBI đều viết `ndhL`, nên không có số vàng nào dịch chuyển.
+
+**Đã ghim — P4a-01, Done-when đạt:**
+
+| Panel | Nội dung | Kiểm lại |
+|---|---|---|
+| `.panel/iridaceae-34/` | 34 bản công bố + `fasta.json` | 34 bản ghi · integrity OK (sha256 · md5 · bytes · số đo đọc lại) · **0** rớt gate · 2.924 CDS + 1.292 tRNA + 272 rRNA |
+| `.panel/iridaceae-34-pga/` | 34 bản PGA | 34 bản ghi · integrity OK · **3** rớt gate, từng bản ghi được nêu tên · 2.887 CDS |
+| `fasta.json` | 68 mục (2 × 34) | mỗi sha256 đọc lại đúng · **68/68 chuỗi FASTA trùng khít bản ghi đã pin** |
+
+**Một khoảng trống đo được, thuộc P4a-04:** `plastid run -i` **chỉ đọc GenBank**
+(`cli.py` → `read_genbank`); `read_fasta` mới chỉ có ở đường `mito annotate`. Muốn chạy Chloe trên
+34 chuỗi trần thì `plastid run` cần một cửa FASTA — hoặc chạy trên bản ghi đã bóc chú giải (cách
+P3A-07 đã làm), vì hai đường mang **cùng chuỗi** (đã kiểm 68/68).
+
+**Còn lại của pha:** vendor fixture + test Giai đoạn 1 (P4a-02) · đo quy mô N = 34 cho M8.3
+(P4a-03) · chạy annotator trên 34 chuỗi trần (P4a-04).
 
 ---
 

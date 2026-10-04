@@ -234,8 +234,11 @@ at 34× scale.
 - [x] **M4a.0 Corpus in the working tree** (2026-10-04) — `.data/thanhdiem_data/`, 136 files, every
       sha256 identical to `D:\business\pts\thanhdiem_data`; gitignored; ~100× faster than `/mnt/d`
       on the small-file writes a run is made of (measured)
-- [ ] **M4a.1 Pinned** — both annotation sets as panels (`PINNED.json` as the verification table),
-      the `.fasta` half as a sha256 manifest (the pin route is GenBank-only, measured)
+- [x] **M4a.1 Pinned** (2026-10-04) — `.panel/iridaceae-34/` (0 gate failures) and
+      `.panel/iridaceae-34-pga/` (3, named) with `PINNED.json` as the verification table, every
+      sha256 · md5 · byte count and measured value re-read; the `.fasta` half as `fasta.json`
+      (68 entries) because the pin route is GenBank-only (measured), with all 68 sequences proven
+      identical to the pinned records. §8.31
 - [ ] **M4a.2 Vendored fixtures + Phase-1 checks** — three pairs in `tests/data/corpus/`, the
       golden's PASS / FAIL twin (*Iris hermona*), and the `ndhI`↔`ndhL` alias
 - [ ] **M4a.3 Scale (M8.3)** — wall clock and peak RSS per module at N = 34
