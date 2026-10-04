@@ -232,18 +232,24 @@ exit **0** and **2**, with no module output after the failed gate. `make check` 
 each module, and a stated batch size for a 34-genome run. **Needs:** the pinned panel (P4a-01).
 **Pitfall:** H-08 — run every timed module with `--force`, or the clock measures nothing.
 
-### P4a-04 · Chloe on the 34 bare sequences — three annotations of one sequence · M4a.4 · [ ]
+### P4a-04 · Chloe on the 34 bare sequences — three annotations of one sequence · M4a.4 · [x]
 
-- [ ] `-m annotation` (Chloe) over the 34 `.fasta` — the annotator's first real n = 34
-- [ ] every output re-read with our own reader · ORF checks · the fixed counting rule (never "133 genes")
-- [ ] the three annotations side by side per record — published · PGA · Chloe
-- [ ] every difference categorised: **vocabulary** (`clpP1`/`clpP` · `pbf1`/`psbN` · `lhbA`/`psbZ` · `ndhL`/`ndhI` · the rRNA dialects · bare vs anticodon tRNA) versus a **different call** (the `ycf1` CDS, the lost `rps12` copy) versus a **different span** — the first two categories already have counts (see the corpus table)
-- [ ] §8.15's PGA verdict re-measured at n = 34 instead of n = 1
+- [x] `-m annotation` (Chloe) over the 34 `.fasta` — the annotator's first real n = 34; this needed a **FASTA door** in `plastid run` first (`-i` read GenBank only, measured), which in turn exposed a third bug of the same family (`orf` could not analyse a record with no CDS, though its own comment said that was a legitimate input)
+- [x] every output re-read with our own reader · ORF checks · the fixed counting rule (never "133 genes") — **0 CDS failing** across 2,922, 201 alternative starts, 0 unclassified
+- [x] the three annotations side by side per record — published · PGA · Chloe, paired **by sequence** (the two panels key one genome differently, so a name-based match silently drops a record)
+- [x] every difference categorised — **vocabulary**: 4/34 records differ in tRNA spelling only (`trmA-UGC`/`trnA-UGC`, `trnL-CAU`/`trnI-CAU`, bare `trnL`/`trnL-UAG`, `trnG-UCC`/`trnG-GCC`) · **different calls**: `ycf1` **24/34**, the trans-spliced `rps12` copy **22/34**, `pafII` 2/34, `rps19` 1/34, `rps16` 1/34
+- [x] §8.15's PGA verdict re-measured at n = 34 instead of n = 1
 
 **Done when:** 34/34 annotate and re-read, every count difference from the published record is
 itemized per record, and the vocabulary-versus-call split is a number. **Needs:** P4a-01 (the panel)
 and P4a-02's answer key. **Pitfall:** a name is not a gene — this corpus is where that distinction
 *is* the result.
+**Done 04/10 — §8.33.** 34/34 annotated, none failed. Totals: published 2,924 CDS · PGA 2,887 ·
+**Chloe 2,922** (+1,292 tRNA +272 rRNA each). **No record has all three agreeing on the gene set
+(0/34)** — and the differences cluster on the two hardest loci of a plastome rather than scattering:
+`ycf1` at the IR/SSC boundary (24/34) and the trans-spliced `rps12` with its two IR copies (22/34).
+**`132 = 86 + 38 + 8` is not a constant**: published 84–87, Chloe 84–87, PGA 84–85 here — the P2-10
+trap, which is why no check hard-codes 86.
 
 ## Waiting on data / people
 

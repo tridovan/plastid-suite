@@ -100,13 +100,26 @@ Both modules → **0.2.0** (H-08: the cache keys on `module_version`). Regressio
 offline and synthetic; PROJECT.md **§9.I** carries the lesson — *neither fixture could have come
 from data this project picked for itself, because it picks records that work.*
 
-**The scale numbers so far** (34 records, `/usr/bin/time -v`, every run `--force`): the nine
-single-genome modules cost **13–26 s for all 34 genomes each**, peak RSS **≈ 87 MB** (51 MB for the
-lighter four) — a whole panel of them is a coffee break, not a batch job. The expensive shape is the
-**whole-genome MAFFT** that `substitutions`' default scope needs: at N = 34 it ran past 10 minutes on
-one core (measured, still running when this was written); the **CDS scope returns before that
-alignment** and is the affordable path. Numbers, curve and batching rule go into §8.32 when the
-measurement lands.
+**P4a-04 · Chloe over the 34 bare sequences — DONE (§8.33).** Running the annotator on a bare FASTA
+needed a **FASTA door in `plastid run`** first (`-i` read GenBank only), and opening it exposed a
+third bug of the same family: `orf` could not analyse a record with no CDS, though its own comment
+says that is a legitimate input — the per-CDS table was built *before* the branch that guards it.
+
+34/34 annotated, none failed. Totals: published 2,924 CDS · PGA 2,887 · **Chloe 2,922**, with
+**0 CDS failing the ORF checks** and 201 alternative starts. **No record has all three agreeing on
+the gene set (0/34)**, and the differences are not scattered — they cluster on the two hardest loci
+of a plastome: **`ycf1`** (a CDS in 24/34 published records that neither other annotator calls — the
+IR/SSC boundary gene §8.11 already flagged) and the **trans-spliced `rps12`** (Chloe calls 2 copies
+where 22/34 published records carry 1 — the number of IR copies is an annotator's decision, not the
+sequence's). The rest is vocabulary (4/34 differ in tRNA spelling only). And **132 = 86 + 38 + 8 is
+not a constant**: published and Chloe both range 84–87 CDS here — the P2-10 trap.
+
+**The scale numbers** (34 records, `/usr/bin/time -v`, every run `--force`): the nine single-genome
+modules cost **13–26 s for all 34 genomes each**, peak RSS **≈ 87 MB** (51 MB for the lighter four) —
+a whole panel of them is a coffee break, not a batch job. The expensive shape is the **whole-genome
+MAFFT** that `substitutions`' default scope needs: 4 genomes 72 s, 8 genomes 2 min 44 s, **16 genomes
+over 7 minutes**, **34 over 11 minutes**; peak RSS stays **under 100 MB**, so what runs out is time,
+not memory. The full table, the machine's specs and the batching rule are in `docs/M8.3_scale.md`.
 
 **Validation.** `make check` green after each commit — **550 fast + 42 golden** at the last run
 (tier-B skips name their missing tool; this shell has no tool env unless `PATH` carries

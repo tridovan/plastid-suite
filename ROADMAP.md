@@ -247,7 +247,11 @@ at 34× scale.
       `ndhI`/`ndhL` alias resolving both spellings to one key. A `SHA256SUMS` completeness check
       now guards every vendored file. §8.31
 - [ ] **M4a.3 Scale (M8.3)** — wall clock and peak RSS per module at N = 34
-- [ ] **M4a.4 Annotator at scale** — Chloe over the 34 bare sequences, three annotations compared
+- [x] **M4a.4 Annotator at scale** (2026-10-04) — 34/34 bare sequences annotated by Chloe, 0 CDS
+      failing the ORF checks, and three annotations of one sequence side by side: **no record has
+      all three agreeing (0/34)**, and the differences cluster on `ycf1` (24/34) and the
+      trans-spliced `rps12` (22/34). Needed a FASTA door in `plastid run`, which exposed a third
+      bug of the same family. §8.33
 
 ## Phase 5 — Figures & reports  *(§13.5)*
 

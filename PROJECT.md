@@ -1722,8 +1722,128 @@ khi Chloe chú giải genome vàng — cùng toạ độ, cùng 543 bp, và ph�
 Hôm nay chỉ là đo lại ở quy mô 34 bản ghi, **không có mục alias mới nào được thêm** — việc phải
 làm là một test canh nó, và test đó đã có.
 
-**Còn lại của pha:** đo quy mô N = 34 cho M8.3 (P4a-03) · chạy annotator trên 34 chuỗi trần
-(P4a-04).
+### 8.32. Quy mô: 34 bản ghi tốn bao nhiêu (P4a-03, 04/10/2026)
+
+**Máy đo — phải nói ra, vì một con số quy mô không có máy thì không phải là con số:** Intel
+i7-1165G7 @ 2,80 GHz · 6 vCPU trong WSL2 · **8.135.488 kB RAM** (~7,8 GB), ~4 GB trống. Đúng lớp
+máy phổ thông mà dự án nhắm tới, và đúng trần bộ nhớ đã ghi ở §9.14.
+
+**Cách đo:** mỗi lần một module, `plastid run -m <module> -i <genome…>`, tham chiếu đứng đầu, và
+**`--force` mọi lượt** — cache của run layer khoá theo `module_version` chứ không theo mã nguồn
+(H-08), nên một lượt ăn cache là một lượt đo … việc tra cache. Số là `Elapsed` và `Maximum
+resident set size` của `/usr/bin/time -v`; đã kiểm GNU time **có** tính RSS đỉnh của tiến trình
+con (đo bằng một tiến trình con ngốn 300 MB: báo 317 MB).
+
+**Chín module một-genome, cả 34 bản ghi:**
+
+| Module | 34 lượt | RAM đỉnh |
+|---|---|---|
+| `genome_stats` | 20,5 s | 87 MB |
+| `structure` | 21,6 s | 87 MB |
+| `introns` | 21,9 s | 87 MB |
+| `ssr` (MISA kèm theo) | 25,5 s | 87 MB |
+| `codon_usage` | 22,8 s | 87 MB |
+| `amino_acid` | 23,9 s | 87 MB |
+| `orf` | 12,9 s | 51 MB |
+| `gene_table` | 15,3 s | 51 MB |
+| `submission` | 12,7 s | 52 MB |
+
+**Cả một panel chỉ là chuyện vài phút, không cần chia lô.** 87 MB không phải ngẫu nhiên: đó là
+giá của một lần BioPython đọc một bản ghi ~300 kB, và nó giống nhau ở mọi module có đọc gen.
+
+**Hình dạng đắt tiền: một phép align cả bộ gen.** Ba module align **tham chiếu + mọi genome, cả
+chuỗi**: `substitutions` (scope mặc định `whole`), `diversity` và `barcodes` — cùng một phép toán
+trên cùng đầu vào, nên một đường cong mô tả cả ba:
+
+| Số genome | Thời gian | RAM đỉnh | Kết cục |
+|---|---|---|---|
+| 4 | 1 ph 12 s | 91 MB | xong |
+| 8 | 2 ph 44 s | 97 MB | xong |
+| 16 | — | — | **vượt 7 phút**, dừng |
+| 34 | — | — | **vượt 11 phút**, dừng |
+
+**Giới hạn ở đây là sự kiên nhẫn, không phải RAM.** Align cả bộ gen của 34 plastome đỉnh dưới
+100 MB trên máy 8 GB — trần bộ nhớ mà dự án lo (§9.14) **không phải** thứ chặn nó. Thứ chặn nó là
+thời gian: MAFFT căn tiến dần trên 5,2 Mbp ở độ phân kỳ này tốn hàng chục phút một lõi, và chi phí
+tăng **nhanh hơn** số genome — 4 → 8 genome gấp đôi thời gian, 8 → 16 gấp hơn hai lần nữa.
+
+**Đường rẻ là đường mà hai bản thảo vốn đã dùng.** `substitutions --set scope=cds` thoát **trước**
+khi dựng alignment cả bộ gen (mã module: `if scope == "cds": return _cds_scope(...)`) và align theo
+từng gen. Đó đúng là scope **chỉ CDS · gen dùng chung · không tính IR** của số vàng §6, và là con số
+hai bản thảo trích dẫn. Đo ở N = 34: **5 ph 24 s · 179 MB · xong** — trong khi scope cả bộ gen chưa
+xong sau 11 phút trên đúng 34 chuỗi đó. Scope CDS tốn RAM hơn (179 MB so với 97 MB, vì giữ 79
+alignment theo gen trong bộ nhớ) và là cái duy nhất chạy xong: trên máy 8 GB, **RAM là thứ rẻ hơn**.
+
+**Quy tắc chia lô, viết ra để dùng:**
+
+- Việc một-genome **không cần chia lô**: 34 genome × 9 module dưới 4 phút, dưới 100 MB.
+- Align **cả bộ gen** thoải mái tới **8 genome** (2 ph 44 s), quá 16 là vượt 7 phút ⇒ trên mức đó
+  dùng scope theo gen.
+- **Ngoại suy bị cấm**: mọi con số ở đây đo trên máy này (i7-1165G7, WSL2, trần 8 GB). Chúng chặn
+  một *hình dạng* chi phí, không phải một lời hứa cho máy khác.
+
+### 8.33. Ba cách đọc một chuỗi — công bố · PGA · Chloe trên 34 plastome (P4a-04, 04/10/2026)
+
+**Bối cảnh.** Bộ dữ liệu có 34 chuỗi trần (`.fasta`) và hai bản chú giải của **chính 34 chuỗi đó**.
+P4a-04 cho annotator của dự án (Chloe 0.1.18) chạy trên 34 chuỗi trần — lần đầu annotator gặp một
+bộ dữ liệu thật ở n = 34 — rồi đặt ba cách đọc cạnh nhau. Chuỗi giống nhau từng byte ở cả ba
+(đã kiểm: 34/34 cặp, và 68/68 FASTA khớp bản ghi đã pin, §8.31), nên **mọi khác biệt dưới đây là
+khác biệt chú giải, không phải khác biệt dữ liệu.**
+
+**Một điều kiện phải mở trước.** `plastid run -i` chỉ đọc GenBank, nên không trỏ được vào một
+`.fasta` trần. Đã thêm cửa FASTA (chọn reader theo **dòng đầu của file**, không theo đuôi file —
+`.fa`/`.fasta`/`.fna`/`.fas` đều có ngoài kia), và việc đó làm lộ ra lỗi thứ ba cùng họ: `orf`
+**nói** trong comment rằng bản ghi không có CDS là input hợp lệ, nhưng bảng per-CDS được dựng
+**trước** dòng bảo vệ nó, nên đường đó chưa từng chạy (§9.I.3).
+
+**Kết quả: 34/34 chú giải được, không bản ghi nào lỗi.**
+
+| | CDS | tRNA | rRNA |
+|---|---|---|---|
+| Bản công bố (bộ 01) | 2.924 | 1.292 | 272 |
+| PGA (bộ 02) | 2.887 | 1.292 | 272 |
+| **Chloe 0.1.18** | **2.922** | 1.292 | 272 |
+
+Chloe: **0 CDS lỗi kiểm ORF** trên 2.922 CDS (201 `alternative_start`, còn lại `ok`), **0** gen
+không xếp được nhóm, 340 tên in kèm synonym, ~35 s mỗi bản ghi. Mọi đầu ra đọc lại bằng chính
+reader của dự án (đó là cách module `annotation` sinh ra bảng).
+
+**Không bản ghi nào ba cách đọc đồng ý (0/34)** — kể cả ở mức đếm gen. Khác biệt chia hai loại, và
+tỉ lệ giữa chúng mới là kết quả:
+
+**Loại 1 — từ vựng: cùng locus, khác cách viết.** Ở 4 bản ghi, bản công bố viết `trmA-UGC` ·
+`trnL-CAU` · `trnL` (trần) · `trnG-UCC` nơi **PGA và Chloe cùng** viết `trnA-UGC` · `trnI-CAU` ·
+`trnL-UAG` · `trnG-GCC`. Không có anticodon leucine `CAU` — bộ ba Leu là UUA/UUG/CUU/CUC/CUA/CUG —
+nên `trnL-CAU` là cách viết của `trnI-CAU`: đúng họ với alias `trnL-GUA → trnI-GAU` đã ghi ở §8.28.
+
+**Loại 2 — kết luận khác nhau: gen có/không, hoặc bao nhiêu bản sao.**
+
+| Khác biệt | Số bản ghi |
+|---|---|
+| `ycf1` có CDS ở bản công bố, **cả PGA và Chloe đều không gọi** | **24/34** |
+| `rps12` (trans-spliced): Chloe gọi **2 bản sao**, hai bên kia gọi 1 | **22/34** |
+| `pafII` (`ycf4`) chỉ bản công bố có | 2/34 |
+| `rps19` chỉ bản công bố có | 1/34 |
+| `rps16` chỉ bản công bố có (chính bản ghi *Libertia* ở §9.I.2) | 1/34 |
+
+**Đọc kết quả này cho đúng — đây không phải bảng xếp hạng annotator.**
+
+- Không bản ghi nào ba bên đồng ý, nên *"annotator nào đúng"* không phải câu bộ dữ liệu này trả
+  lời được. Câu nó trả lời được: **ba đường ống đọc cùng một chuỗi ra ba tập gen khác nhau, và
+  khác nhau ở những chỗ xác định** — không phải nhiễu rải rác.
+- Năm khác biệt về gen đều xoay quanh hai locus khó nhất của plastome: **`ycf1`** (nằm ở ranh giới
+  IR/SSC, gen dài nhất, nhiều bản ghi cụt hoặc chồng `ndhF` — đúng cái bẫy §8.11 đã ghi cho genome
+  vàng, nơi ycf1 cụt và **không có CDS**) và **`rps12`** (trans-spliced, 3 exon, hai bản sao nằm ở
+  hai IR — gọi 1 hay 2 bản sao là quyết định của annotator, không phải của chuỗi).
+- **`132 = 86 + 38 + 8` không phải hằng số.** Trong bộ này bản công bố cho 84–87 CDS, Chloe 84–87,
+  PGA 84–85. Đúng cái bẫy P2-10 đã đo (131 và 133 ở hai loài khác) — và là lý do không check nào
+  được hard-code "86 CDS".
+
+**§8.15 đo lại ở n = 34.** Kết luận cũ — PGA bị thay sau khi đo **một** genome (147 gen so với 132
+của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mất 37 CDS** so với bản công bố và
+**3/34 bản ghi rớt gate IR** (§8.31). Chloe, trên cùng bộ dữ liệu: 34/34 chú giải, 0 CDS lỗi ORF.
+
+**Còn lại của pha:** không — P4a-01…04 xong.
 
 ---
 
