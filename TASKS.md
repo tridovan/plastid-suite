@@ -221,7 +221,7 @@ every file under `tests/data` is in `SHA256SUMS` and matches it · the hermona p
 exit **0** and **2**, with no module output after the failed gate. `make check` green (**545 fast +
 42 golden**).
 
-### P4a-03 · Scale — what a 34-genome run costs · M4a.3 (M8.3) · [ ]
+### P4a-03 · Scale — what a 34-genome run costs · M4a.3 (M8.3) · [x]
 
 - [ ] wall clock and **peak RSS** per module over the pinned panel, one module at a time (`/usr/bin/time -v`)
 - [ ] the two heavy costs named separately: whole-genome MAFFT, and Ka/Ks's per-gene MAFFT + yn00 (≈80 + 80 calls **per pair**, × 33 pairs)
@@ -231,6 +231,13 @@ exit **0** and **2**, with no module output after the failed gate. `make check` 
 **Done when:** a module × N × wall clock × peak RSS table exists with the largest N **measured** for
 each module, and a stated batch size for a 34-genome run. **Needs:** the pinned panel (P4a-01).
 **Pitfall:** H-08 — run every timed module with `--force`, or the clock measures nothing.
+**Done 04/10 — `docs/M8.3_scale.md` + §8.32.** Machine stated with every number (i7-1165G7, 6 vCPU,
+8,135,488 kB — the ordinary machine the toolkit targets, and §9.14's ceiling). Nine single-genome
+modules: **13–26 s for all 34 genomes each, 87 MB peak**. The whole-genome MAFFT: 4 genomes 72 s ·
+8 → 2 min 44 s · **16 → over 7 min** · **34 → over 11 min**, peak under 100 MB throughout — *time*
+runs out, not memory. The **CDS scope** (the manuscripts' scope) does all 34 in **5 min 24 s** at
+179 MB and finishes. **Four modules are named as not measured** — `diversity` · `barcodes` ·
+`popgen` · `synteny` at N = 34 — with their call counts given as code readings, never as estimates.
 
 ### P4a-04 · Chloe on the 34 bare sequences — three annotations of one sequence · M4a.4 · [x]
 
