@@ -416,6 +416,133 @@ def _substitutions_result() -> Result:
     )
 
 
+def _synteny_result() -> Result:
+    return Result(
+        module="synteny",
+        module_version="0.1.0",
+        tables={
+            "synteny_summary": Table(
+                id="synteny_summary",
+                title="Synteny summary",
+                columns=(
+                    Column("accession", "Reference accession"),
+                    Column("organism", "Reference organism"),
+                    Column("reference_length", "Reference length", dtype="int", unit="bp"),
+                    Column("n_genomes", "Genomes aligned", dtype="int"),
+                    Column("window_bp", "Window", dtype="int", unit="bp"),
+                    Column("step_bp", "Step", dtype="int", unit="bp"),
+                    Column("tool", "Aligner"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "organism": "Iris domestica",
+                        "reference_length": 153_724,
+                        "n_genomes": 1,
+                        "window_bp": 600,
+                        "step_bp": 200,
+                        "tool": "MUMmer nucmer",
+                    },
+                ),
+                scope=Scope(label="the reference and this comparison's parameters"),
+            ),
+            "synteny_genomes": Table(
+                id="synteny_genomes",
+                title="Synteny by genome",
+                columns=(
+                    Column("genome", "Genome"),
+                    Column("group", "Group"),
+                    Column("n_blocks", "Alignment blocks", dtype="int"),
+                    Column("aligned_bp", "Aligned base pairs", dtype="int", unit="bp"),
+                    Column("coverage_pct", "Coverage", dtype="float", unit="%", precision=2),
+                    Column("min_identity", "Min %IDY", dtype="float", unit="%", precision=2),
+                    Column("max_identity", "Max %IDY", dtype="float", unit="%", precision=2),
+                    Column("mean_identity", "Mean %IDY", dtype="float", unit="%", precision=2),
+                    Column(
+                        "aligned_identity",
+                        "Identity over base pairs",
+                        dtype="float",
+                        unit="%",
+                        precision=2,
+                    ),
+                ),
+                rows=(
+                    {
+                        "genome": "NC_024936.1",
+                        "group": "Iris",
+                        "n_blocks": 7,
+                        "aligned_bp": 152_332,
+                        "coverage_pct": 99.09,
+                        "min_identity": 89.66,
+                        "max_identity": 99.11,
+                        "mean_identity": 97.37,
+                        "aligned_identity": 99.31,
+                    },
+                ),
+                scope=Scope(label="each genome against the reference"),
+                key="genome",
+            ),
+            "synteny_blocks": Table(
+                id="synteny_blocks",
+                title="Alignment blocks against the reference",
+                columns=(
+                    Column("block", "Block"),
+                    Column("genome", "Genome"),
+                    Column("group", "Group"),
+                    Column("target_start", "Target start", dtype="int", unit="bp"),
+                    Column("target_end", "Target end", dtype="int", unit="bp"),
+                    Column("query_start", "Query start", dtype="int", unit="bp"),
+                    Column("query_end", "Query end", dtype="int", unit="bp"),
+                    Column("length_target", "Target length", dtype="int", unit="bp"),
+                    Column("length_query", "Query length", dtype="int", unit="bp"),
+                    Column("identity", "%IDY", dtype="float", unit="%", precision=2),
+                    Column("orientation", "Orientation"),
+                ),
+                rows=(
+                    {
+                        "block": "NC_024936.1#1",
+                        "genome": "NC_024936.1",
+                        "group": "Iris",
+                        "target_start": 1,
+                        "target_end": 13_576,
+                        "query_start": 95,
+                        "query_end": 13_614,
+                        "length_target": 13_576,
+                        "length_query": 13_520,
+                        "identity": 98.0,
+                        "orientation": "forward",
+                    },
+                ),
+                scope=Scope(label="one row per alignment"),
+                key="block",
+            ),
+            "synteny_identity": Table(
+                id="synteny_identity",
+                title="% identity along the reference",
+                columns=(
+                    Column("genome", "Genome"),
+                    Column("group", "Group"),
+                    Column("window_start", "Window start", dtype="int", unit="bp"),
+                    Column("window_end", "Window end", dtype="int", unit="bp"),
+                    Column("compared_bp", "Aligned base pairs", dtype="int", unit="bp"),
+                    Column("identity", "% identity", dtype="float", unit="%", precision=2),
+                ),
+                rows=(
+                    {
+                        "genome": "NC_024936.1",
+                        "group": "Iris",
+                        "window_start": 1,
+                        "window_end": 600,
+                        "compared_bp": 600,
+                        "identity": 99.0,
+                    },
+                ),
+                scope=Scope(label="600 bp window / 200 bp step"),
+            ),
+        },
+    )
+
+
 def _gene_table_result() -> Result:
     return Result(
         module="gene_table",
@@ -929,6 +1056,7 @@ TEMPLATE_FIXTURES = {
     "introns": _introns_result,
     "diversity": _diversity_result,
     "substitutions": _substitutions_result,
+    "synteny": _synteny_result,
 }
 
 

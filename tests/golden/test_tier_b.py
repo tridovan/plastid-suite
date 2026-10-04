@@ -208,6 +208,69 @@ def test_nucleotide_diversity_runs_on_real_data_and_keeps_its_shape(
     assert regions["IRa"] < regions["LSC"] < regions["SSC"]
 
 
+def test_synteny_reproduces_the_measured_iris_pair_result(
+    mummer_tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """P4-01 on real data: the golden pair through `nucmer --maxmatch → delta-filter -1 →
+    show-coords`, measured 04/10/2026 — **7 blocks, %IDY 89.66–99.11 (mean 97.37)** over
+    152,332 paired bases, coverage 99.09 %.
+
+    The board carried "21 blocks, %IDY 83.7–98.2 (mean 91.5)" as this check. It could not be
+    reproduced from the probe's own inputs under any nucmer setting (a sweep of -l/-c and every
+    delta-filter mode is recorded in PROJECT.md §9); the golden pair are congeners and align at
+    ~98–99 %, while a cross-genus pair aligns at ~89 %. The measured numbers are asserted here
+    and the finding is recorded — the check was changed by evidence, not the number tuned.
+    """
+    require_tools(mummer_tools, "nucmer", "delta-filter", "show-coords")
+    directory = str(Path(mummer_tools["nucmer"]).parent)
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "synteny",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-i",
+                str(data_dir / "NC_024936.1.gb"),
+                "-o",
+                str(tmp_path / "runs"),
+                "--dataset",
+                "golden",
+                "--set",
+                f"mummer={directory}",
+            ]
+        )
+        == 0
+    )
+    run_dir = sorted((tmp_path / "runs" / "golden").iterdir())[0]
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    validate(manifest)
+    records = manifest["modules"][0]["tools"]
+    assert [record["name"] for record in records] == ["nucmer", "delta-filter", "show-coords"]
+    assert all(record["version"] == "4.0.1" for record in records)
+    assert "--maxmatch" in records[0]["argv"]
+
+    summary = next(_table(tmp_path / "runs", "synteny_genomes"))
+    assert summary["Alignment blocks"] == "7"
+    assert summary["Min %IDY (%)"] == "89.66"
+    assert summary["Max %IDY (%)"] == "99.11"
+    assert summary["Mean %IDY (%)"] == "97.37"
+    assert summary["Aligned base pairs (bp)"] == "152332"
+    assert summary["Coverage (%)"] == "99.09"
+
+    blocks = list(_table(tmp_path / "runs", "synteny_blocks"))
+    assert len(blocks) == 7
+    assert all(row["Orientation"] == "forward" for row in blocks)
+
+    # the series is per window with its size stated, and a hole is blank, never a zero
+    series = list(_table(tmp_path / "runs", "synteny_identity"))
+    assert series[0]["Window start (bp)"] == "1"
+    assert series[0]["Window end (bp)"] == "600"
+    assert (run_dir / "01_synteny" / "mummer_NC_024936.1.delta").is_file()
+    assert (run_dir / "01_synteny" / "mummer_NC_024936.1.coords").is_file()
+
+
 def _table(root: Path, table_id: str) -> csv.DictReader:
     """A module table as rows: the exports carry their provenance as ``#`` comments."""
     path = next(root.rglob(f"{table_id}.csv"))

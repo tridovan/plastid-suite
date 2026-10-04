@@ -7,6 +7,7 @@ tests never touch the network.
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -78,6 +79,42 @@ def submission_tools() -> dict[str, str | None]:
     """``table2asn`` — from ``PATH`` or from ``PTS_TABLE2ASN`` (it is a single binary fetched by
     hand on the dev machine, so it is usually not on ``PATH``)."""
     return {"table2asn": os.environ.get("PTS_TABLE2ASN") or which("table2asn")}
+
+
+@pytest.fixture(scope="session")
+def mummer_tools() -> dict[str, str | None]:
+    """MUMmer 4 — from ``PATH`` or from ``PTS_MUMMER_DIR`` (the three binaries ship together,
+    and on the dev machine they live in a conda environment that is not on ``PATH``)."""
+    directory = os.environ.get("PTS_MUMMER_DIR")
+    extra = [Path(directory)] if directory else []
+    return {name: which(name, extra=extra) for name in ("nucmer", "delta-filter", "show-coords")}
+
+
+def make_mummer_stub(directory: Path, *, delta: str, coords: str, version: str = "4.0.1") -> Path:
+    """Three stand-in binaries that answer the version probe and print canned output.
+
+    ``nucmer`` writes ``out.delta``; ``delta-filter`` copies its input; ``show-coords`` prints
+    ``coords``. The point is the adapter's contract with the tools — the argv, the version check
+    and the two readings of one run — not MUMmer's algorithm.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+
+    def script(name: str, body: str) -> Path:
+        path = directory / name
+        path.write_text(
+            "#!/bin/sh\n"
+            'case "$1" in\n'
+            f"  --version|-V|-version) echo '{version}'; exit 0;;\n"
+            "esac\n" + body,
+            encoding="utf-8",
+        )
+        path.chmod(path.stat().st_mode | stat.S_IXUSR)
+        return path
+
+    script("nucmer", f"cat > out.delta <<'DELTA'\n{delta}DELTA\n")
+    script("delta-filter", 'cat "$2" 2>/dev/null || cat out.delta\n')
+    script("show-coords", f"cat <<'COORDS'\n{coords}COORDS\n")
+    return directory
 
 
 def require_tools(tools: dict[str, str | None], *names: str) -> None:

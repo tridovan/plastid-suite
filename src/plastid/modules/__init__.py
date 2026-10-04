@@ -22,6 +22,7 @@ from plastid.modules import (  # noqa: F401  (importing registers them)
     structure,
     submission,
     substitutions,
+    synteny,
 )
 
 __all__ = [
@@ -40,4 +41,5 @@ __all__ = [
     "structure",
     "submission",
     "substitutions",
+    "synteny",
 ]

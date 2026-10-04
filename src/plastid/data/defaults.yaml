@@ -32,6 +32,17 @@ diversity:
   window_bp: 600
   step_bp: 200
 
+synteny:
+  # P4-01 (04/10/2026): the same mVISTA-style window as diversity, on purpose — the % identity
+  # series and the π curve are read side by side, and two different windows would invite
+  # comparing a peak in one with a trough in the other. The nucmer parameters below are
+  # MUMmer 4's own defaults, passed explicitly so the argv records them (D4-04).
+  window_bp: 600
+  step_bp: 200
+  min_match: 20
+  min_cluster: 65
+  filter: "-1"
+
 report:
   draft_banner: "*Draft — needs human review.*"
 

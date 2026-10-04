@@ -19,3 +19,6 @@ pga:
 chloe:
   text: "Zhong X, Hooper CM, Tonti-Filippini J, Castleden I, Small I. Chloë: Organelle Annotator, version 0.1.18 (computer software). Zenodo (2026)."
   doi: "10.5281/zenodo.18194040"
+mummer:
+  text: "Marçais G, Delcher AL, Phillippy AM, Coston R, Salzberg SL, Zimin A. MUMmer4: a fast and versatile genome alignment system. PLOS Computational Biology 14:e1005944 (2018)."
+  doi: "10.1371/journal.pcbi.1005944"
