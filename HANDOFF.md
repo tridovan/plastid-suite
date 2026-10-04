@@ -7,17 +7,17 @@
 ## Resume point
 
 **Phases 1, 2, 3, 3A, 4 — COMPLETE and merged to `main`.** **Phase 4a (the Điềm corpus as the test
-dataset) — OPEN, P4a-01 DONE and pushed.** The corpus is 34 Iridaceae plastomes × 2 annotations of
-the same sequences (published NCBI · PGA) + 34 bare FASTAs, living in **`.data/thanhdiem_data/`**
-(in the working tree, **gitignored**, 136 files · 28 MB, every sha256 matching `D:\`); both
-annotation sets are pinned as panels and the FASTAs as a manifest (§8.31).
+dataset) — COMPLETE, all four tasks done and pushed** (P4a-01 pinned · P4a-02 vendored + Phase-1
+checks · P4a-03 the scale numbers · P4a-04 the annotator at n = 34). Three real bugs fell out of it,
+all of the same family — a *record* that killed a whole run (§9.I). **Immediate next action:**
+Phase 5 (figures & reports — the plots the two manuscripts need), or the team's own data.
 
-**Immediate next action:** **P4a-02** — vendor three pairs (the golden genome both ways, *Iris
-hermona* both ways, the group's own *E. bulbosa* both ways) into `tests/data/corpus/` with
-`SHA256SUMS` + PROVENANCE, add the tier-A checks (the golden's sha256 unchanged · set 02 measures
-**85 CDS** · hermona set 01 normalizes while set 02 raises `IRGateError`), and add the measured
-`ndhI`↔`ndhL` alias. Then P4a-03 (scale, M8.3) and P4a-04 (Chloe over 34 bare sequences — which
-needs a FASTA door in `plastid run`, measured: `-i` reads GenBank only).
+**The corpus is now a permanent part of the test set.** 34 Iridaceae plastomes × 2 annotations of
+the same sequences (published NCBI · PGA) + 34 bare FASTAs, in **`.data/thanhdiem_data/`** (working
+tree, **gitignored**, 136 files · 28 MB, every sha256 matching `D:\`); both annotation sets pinned as
+panels and the FASTAs as a manifest (§8.31) · **five files vendored** into `tests/data/corpus/` with
+twelve tier-A tests (§8.31/P4a-02) · every file under `tests/data` now guarded by a `SHA256SUMS`
+completeness test.
 
 **The corpus in one table (§8.31):** the golden genome's own file is *in* it (sha256 `a946f23e…`,
 byte-identical to the vendored fixture) · set 02 is the same sequence annotated by PGA — **85 CDS
@@ -114,12 +114,21 @@ where 22/34 published records carry 1 — the number of IR copies is an annotato
 sequence's). The rest is vocabulary (4/34 differ in tRNA spelling only). And **132 = 86 + 38 + 8 is
 not a constant**: published and Chloe both range 84–87 CDS here — the P2-10 trap.
 
-**The scale numbers** (34 records, `/usr/bin/time -v`, every run `--force`): the nine single-genome
-modules cost **13–26 s for all 34 genomes each**, peak RSS **≈ 87 MB** (51 MB for the lighter four) —
-a whole panel of them is a coffee break, not a batch job. The expensive shape is the **whole-genome
-MAFFT** that `substitutions`' default scope needs: 4 genomes 72 s, 8 genomes 2 min 44 s, **16 genomes
-over 7 minutes**, **34 over 11 minutes**; peak RSS stays **under 100 MB**, so what runs out is time,
-not memory. The full table, the machine's specs and the batching rule are in `docs/M8.3_scale.md`.
+**P4a-03 · scale (M8.3) — DONE, `docs/M8.3_scale.md` + §8.32.** Machine stated with every number
+(i7-1165G7, 6 vCPU, 8,135,488 kB — the ordinary machine the toolkit targets).
+
+* Nine single-genome modules: **13–26 s for all 34 genomes each**, peak **87 MB**.
+* The whole-genome MAFFT (`substitutions`' default scope): 4 genomes 72 s · 8 → 2 min 44 s ·
+  **16 → over 7 min** · **34 → over 11 min**. Peak stays under 100 MB throughout.
+* The **CDS scope** — the scope the manuscripts quote — does all 34 in **5 min 24 s** at 179 MB, and
+  finishes. On a machine with 8 GB, memory is the cheaper currency.
+* Per-pair modules: **`synteny` 19.6 s** (99 tool calls) · **`popgen` 6 min 13 s** (80) · **`kaks`
+  8 min 26 s** — 5,202 MAFFT + 4,766 `yn00` = **9,968 tool calls**.
+* **The finding: call count is not what costs.** 9,968 two-sequence alignments finish in 8.5 min; ONE
+  34-plastome alignment does not finish in 11. A module's price cannot be read off its loop — the
+  estimate written into the file first said "about 2,600 of each", and the 33 `nucmer` calls it
+  expected to be the slow half turned out to be the fastest thing measured.
+* `diversity` and `barcodes` at 34 are **named as not measured**, never estimated.
 
 **Validation.** `make check` green after each commit — **550 fast + 42 golden** at the last run
 (tier-B skips name their missing tool; this shell has no tool env unless `PATH` carries
