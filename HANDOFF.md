@@ -10,7 +10,11 @@
 dataset) — COMPLETE, all four tasks done and pushed** (P4a-01 pinned · P4a-02 vendored + Phase-1
 checks · P4a-03 the scale numbers · P4a-04 the annotator at n = 34). Three real bugs fell out of it,
 all of the same family — a *record* that killed a whole run (§9.I). **Immediate next action:**
-Phase 5 (figures & reports — the plots the two manuscripts need), or the team's own data.
+Phase 5 (figures & reports) — **its board is built** (`TASKS.md`, five tasks with Done-whens).
+Start with **P5-05** (the queryable-number check over generated reports — the phase's own check, and
+the one that can be written first) or **P5-01** (the figure system + the first figure). Of M5.1's
+eleven figure types, **seven have a source table and four do not** — the four are named in the board
+and in ROADMAP, not scheduled.
 
 **The corpus is now a permanent part of the test set.** 34 Iridaceae plastomes × 2 annotations of
 the same sequences (published NCBI · PGA) + 34 bare FASTAs, in **`.data/thanhdiem_data/`** (working
