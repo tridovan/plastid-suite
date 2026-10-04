@@ -75,7 +75,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 04/10 | **Nửa mito của pha 4 là bản phác khác chi (D4-05, dev quyết)**: hai mitogenome từ hai chi khác nhau, một trong hai là **chú giải nguyên mẫu của chính dự án** (§8.24) ⇒ chạy `kaks` + `popgen`, dán nhãn *cross-genus sketch*, đọc như minh hoạ máy móc chứ không phải kết quả về loài. Một so sánh mito đáng vào bản thảo phải đợi bản ghi thứ hai cùng chi | Dev | §8.30 |
 | 04/10 | **Bộ dữ liệu anh Điềm gửi là BỘ TEST — không phải stand-in, cũng không phải mẫu bản thảo (D4a-01, dev quyết)**: 34 plastome họ Iridaceae × 2 bản chú giải (công bố NCBI · PGA) + 34 chuỗi trần, đặt tại `.data/thanhdiem_data/` (**trong cây làm việc, đã ignore git**; 136 file · 28 MB · sha256 khớp từng file với `D:\business\pts\thanhdiem_data`). Không loài nào là loài bản thảo ⇒ **không đầu ra nào từ đây vào bảng bản thảo**; nhưng `PX516262.1` *E. bulbosa* **là bản ghi của chính nhóm** ⇒ nhãn theo **từng bản ghi**, không theo cả bộ. Đây là bộ dữ liệu đầu tiên không do dự án tự chọn, và nó mang sẵn ba dạng đáp án: bản công bố · PGA · chính chuỗi | Dev | §8.31, `TASKS.md` Phase 4a |
 | 04/10 | **Ghim bộ test: mỗi bộ chú giải một thư mục panel riêng, `.fasta` đi đường manifest (D4a-03, dev quyết có đo)**: `panel pin --file` khoá bản ghi theo **id của chính bản ghi**, mà PGA đặt id theo voucher (`Aristea_ecklonii_voucher_KK2022_1_NC_072561`) còn NCBI đặt theo accession (`NC_072561.1`) ⇒ ghim chung một thư mục thì **một genome nằm hai lần dưới hai tên, không có gì ghép cặp**; tách `.panel/iridaceae-34/` và `.panel/iridaceae-34-pga/`, cặp được nhận ra bằng **tên file dùng chung**. Chuỗi trần **không** đi được đường GenBank: đo trên một `.fasta` ⇒ pin theo tên file, `parse_error: no GenBank records found`, CLI in UNVERIFIED và **exit 1**; thay bằng `fasta.json` (68 mục: sha256 · bytes · độ dài · sha256 của bản ghi đã pin) — và mỗi chuỗi FASTA **được kiểm là trùng khít** chuỗi của bản ghi đã pin, nên bộ FASTA không mang thêm thông tin nào ngoài cái panel đã có | Dev | §8.31 |
-| 04/10 | **`ndhI` (PGA) và `ndhL` (công bố) là cùng một locus (D4a-05, dev quyết có đo)**: trên chính genome vàng, hai bản chú giải đặt locus ở **cùng toạ độ `118156-118698(-)` với chuỗi 543 bp giống hệt** ⇒ thêm alias kèm bằng chứng. Locus thứ tư cùng loại với ba locus ở §8.27. Cặp genome vàng **không đổi số** (cả hai bản NCBI đều viết `ndhL`) | Dev | §8.31, `data/gene_aliases.yaml` |
+| 04/10 | **`ndhI`/`ndhL`: alias ĐÃ CÓ, hôm nay chỉ đo lại trên 34 bản ghi (D4a-05)**: `data/gene_aliases.yaml` đã mang mục `ndhI` ← `ndhL` từ **03/10** (§8.17, đo khi Chloe chú giải genome vàng: cùng 543 bp, cùng vị trí, và phức hệ ndh của lục lạp chỉ có tiểu đơn vị A–K). Đo lại trên bộ dữ liệu anh Điềm: locus này được viết khác nhau ở **8/34** cặp, và alias resolve **cả hai cách viết về cùng một khoá chuẩn** (`ndhI`) — kiểm bằng code, không phải bằng mắt. **Không thêm mục mới, không có quyết định mới**; việc của P4a-02 là một test canh nó | — | §8.31, `data/gene_aliases.yaml` (đã có) |
 | 04/10 | **Bản công bố (bộ 01) là ĐÁP ÁN cho bài kiểm annotator; PGA là ý kiến thứ ba (D4a-04, dev quyết)**: bộ 01 là bản NCBI đã công bố, dùng làm chuẩn để đối chiếu; PGA đã bị thay ở §8.15/§8.16 sau khi đo **147 gen** trên genome vàng (so với 132) ⇒ chỉ dùng làm đối tượng so sánh, **không bao giờ làm chuẩn** | Dev | §8.31 |
 
 ## 4. Ai làm gì
@@ -1672,10 +1672,19 @@ Hai dòng cuối **không phải khác cách viết mà khác kết luận**: �
 bất đồng về việc một gen **có tồn tại hay không**. Đây là bài học của §8.27 ở quy mô 34 bản ghi —
 và là lý do mọi so sánh theo tên phải nói ra nó đang khoá theo tên ai.
 
-**`ndhI` (PGA) và `ndhL` (công bố) là cùng một locus (D4a-05).** Trên chính genome vàng, hai bản
-chú giải đặt locus ở **cùng toạ độ `118156-118698(-)` với chuỗi 543 bp giống hệt**
-(`ATGTTCCCT…TAA`) — locus thứ tư cùng loại với ba locus ở §8.27. Cặp genome vàng **không đổi số**:
-cả hai bản ghi NCBI đều viết `ndhL`, nên không có số vàng nào dịch chuyển.
+**Bản chú giải tự khai công cụ — và đây là bằng chứng, không phải suy đoán.** Cả **34/34** bản ghi
+bộ 02 mang `/note="Annotation Method :: PGA-Plastid Genome Annotator"` trên feature `source`;
+bộ 01: **0** bản ghi. Việc gọi bộ 02 là "bản PGA" vì thế đọc thẳng từ file, không phải đoán theo
+kiểu đặt tên.
+
+**`ndhI` (PGA) và `ndhL` (công bố): alias đã có từ 03/10, hôm nay đo lại (D4a-05).** Trên chính
+genome vàng, hai bản chú giải đặt locus ở **cùng toạ độ `118156-118698(-)` với chuỗi 543 bp giống
+hệt** (`ATGTTCCCT…TAA`) — đúng như §8.17 đã đo khi Chloe chú giải genome này, và mục `ndhI` ←
+`ndhL` đã nằm trong `data/gene_aliases.yaml` từ đó. Bộ dữ liệu mới chỉ **xác nhận lại ở quy mô**:
+locus được viết khác nhau ở **8/34** cặp, và kiểm bằng code thì **cả hai cách viết resolve về cùng
+một khoá chuẩn `ndhI`** — nên một so sánh trải qua cả hai bộ vẫn ghép đúng locus này. Cặp genome
+vàng **không đổi số** (cả hai bản NCBI đều viết `ndhL`). **Không có mục alias mới nào được thêm**:
+một mục đã đúng thì việc phải làm là một test canh nó, không phải viết lại nó.
 
 **Đã ghim — P4a-01, Done-when đạt:**
 
@@ -1690,8 +1699,31 @@ cả hai bản ghi NCBI đều viết `ndhL`, nên không có số vàng nào d�
 34 chuỗi trần thì `plastid run` cần một cửa FASTA — hoặc chạy trên bản ghi đã bóc chú giải (cách
 P3A-07 đã làm), vì hai đường mang **cùng chuỗi** (đã kiểm 68/68).
 
-**Còn lại của pha:** vendor fixture + test Giai đoạn 1 (P4a-02) · đo quy mô N = 34 cho M8.3
-(P4a-03) · chạy annotator trên 34 chuỗi trần (P4a-04).
+**Bộ fixture đã vendor (P4a-02, Done-when đạt).** Bộ dữ liệu 28 MB không commit; cái được vendor là
+**tập nhỏ nhất mà mỗi file mang sẵn một đáp án viết ra được** — 5 file · 1,3 MB ở
+`tests/data/corpus/`, ba cặp:
+
+| Cặp | Bản công bố | Bản PGA | Điều nó kiểm |
+|---|---|---|---|
+| genome vàng | `NC_050833.1.gb` (**đã có sẵn**, sha256 trùng khít file của bộ) | 85 CDS | hợp đồng §6 không phải thuộc tính của chuỗi, mà của chú giải |
+| *Iris hermona* | 26.132 bp @ 100,00 % — **qua gate** | 26.180 bp @ **26,36 %** — **rớt gate** | một chuỗi, hai phán quyết; fixture hồi quy cho §9.A |
+| *E. bulbosa* (bản ghi của nhóm) | **133 = 87 + 38 + 8** | **131 = 85 + 38 + 8** | cùng kiểu mất bản sao, trên chính bản ghi nhóm quan tâm |
+
+12 test tier-A trong `tests/golden/test_corpus.py` khoá từng con số trên, **và khoá cả điều làm
+cho cặp fixture có nghĩa: hai file của một cặp mang chuỗi giống nhau** (nếu điều đó thôi đúng thì
+mọi kết luận "hai chú giải khác nhau" đang đo một thứ khác). Kèm một test mới canh **mọi file dưới
+`tests/data` đều có trong `SHA256SUMS` và khớp** — một file đã vendor mà không ai kiểm được thì
+không phải là file đã ghim. Cặp hermona còn được chạy qua CLI: **exit 0** và **exit 2**, không có
+output module nào sau khi gate chặn. `make check` xanh: **545 fast + 42 golden**.
+
+**Một đính chính trong chính phiên này:** bảng Phase 4a ban đầu ghi D4a-05 là "thêm alias
+`ndhI`↔`ndhL`". Kiểm lại thì **mục đó đã nằm trong `data/gene_aliases.yaml` từ 03/10** (§8.17, đo
+khi Chloe chú giải genome vàng — cùng toạ độ, cùng 543 bp, và phức hệ ndh chỉ có tiểu đơn vị A–K).
+Hôm nay chỉ là đo lại ở quy mô 34 bản ghi, **không có mục alias mới nào được thêm** — việc phải
+làm là một test canh nó, và test đó đã có.
+
+**Còn lại của pha:** đo quy mô N = 34 cho M8.3 (P4a-03) · chạy annotator trên 34 chuỗi trần
+(P4a-04).
 
 ---
 

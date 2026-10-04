@@ -174,7 +174,7 @@ every sha256 re-readable · M8.3 carries measured numbers, not extrapolations ·
 | D4a-02 | Which records are vendored into `tests/data/` | **Three pairs ≈ 1.8 MB** — the golden genome (set 01 costs nothing, it is already vendored; set 02 is the golden re-annotated by PGA: **85 CDS where the contract says 86**), *Iris hermona* (gate PASS / gate FAIL on one sequence), the group's own *E. bulbosa*. The smallest subset where every file carries a written-down expected answer | Dev | PROJECT.md §3 |
 | D4a-03 | How the 34 `.fasta` get pinned | **A sha256 manifest**, not `panel pin` — measured: a FASTA pins under its file stem with `parse_error: no GenBank records found` and the CLI exits 1 (UNVERIFIED). A FASTA door in `pin_files` is the alternative, and waits for a second caller (YAGNI) | Dev | PROJECT.md §3 |
 | D4a-04 | Which annotation is the answer key for the annotator test | **Set 01, the published record.** Set 02 is a third opinion to compare against, never truth — §8.15 measured PGA at 147 genes where the golden has 132 | Dev | PROJECT.md §3 |
-| D4a-05 | `ndhL` (published) vs `ndhI` (PGA) | **The same locus** — on the golden genome both annotations place it at `118156-118698(-)` with the identical 543 bp `ATGTTCCCT…TAA`. Fourth of §8.27's class (a locus hidden by spelling); add the alias with that evidence | Dev | `data/gene_aliases.yaml` + §8 |
+| D4a-05 | `ndhL` (published) vs `ndhI` (PGA) | **Already decided and already in the table** — `data/gene_aliases.yaml` has carried `ndhI` ← `ndhL` since 03/10 (P3-03/§8.17: same 543 bp, same position, and the plastid ndh complex has subunits A–K). Today's sweep only **re-confirms** it: the locus is spelled differently in **8/34** corpus pairs and the alias resolves both spellings to one canonical key. No new entry, no new decision | — | `data/gene_aliases.yaml` (existing) + §8.31 |
 
 ### Pitfalls for this phase
 
@@ -204,15 +204,22 @@ hermona* 26.36 % · *Trimezia* 27.78 %, each named — · 2,887 CDS. The `.fasta
 68 sha256s re-reads, and **68/68 sequences are identical to the pinned record's** — so the manifest
 records bytes, while the sequence's provenance is the panel itself.
 
-### P4a-02 · Vendored fixtures + the Phase-1 checks · M4a.2 · [ ]
+### P4a-02 · Vendored fixtures + the Phase-1 checks · M4a.2 · [x]
 
-- [ ] vendor the three pairs (D4a-02) under `tests/data/corpus/` + `SHA256SUMS` + PROVENANCE
-- [ ] tier-A checks: `NC_050833.1.gb`'s sha256 is still `a946f23e…` · set 02's golden measures **85 CDS** with `rps12`'s second copy absent · *Iris hermona* set 01 normalizes while set 02 raises `IRGateError`
-- [ ] the `ndhI` ↔ `ndhL` alias into `data/gene_aliases.yaml` with the measured evidence (D4a-05)
-- [ ] every vendored record through the CLI's gate + normalize, exit code asserted per record (0 / 2)
+- [x] vendor the three pairs (D4a-02) under `tests/data/corpus/` + `SHA256SUMS` + PROVENANCE — **5 files · 1.3 MB** (the golden's published half is not duplicated: set 01's own file is byte-identical to the vendored `NC_050833.1.gb`)
+- [x] tier-A checks: `NC_050833.1.gb`'s sha256 is still `a946f23e…` · set 02's golden measures **85 CDS** with `rps12`'s second copy absent · *Iris hermona* set 01 normalizes while set 02 raises `IRGateError`
+- [x] the `ndhI` ↔ `ndhL` alias — **already in `data/gene_aliases.yaml` since 03/10**, and today's sweep re-confirms it on 8/34 corpus pairs (D4a-05). The tier-A check asserts it resolves, rather than adding it a second time
+- [x] every vendored record through the CLI's gate + normalize, exit code asserted per record (0 / 2)
 
 **Done when:** `make test` covers the corpus offline with no network, the golden fixture's sha256 is
 unchanged, and the hermona pair gives PASS / `IRGateError` (exit 2). **Needs:** D4a-02, D4a-05.
+**Done 04/10** — `tests/golden/test_corpus.py`, 12 tests: the five fixtures' own measured numbers ·
+the three pairs carry identical sequences (asserted, not assumed — it is what makes them a
+controlled comparison) · the golden re-annotated is one CDS short · hermona PASS / `IRGateError` ·
+the group's own record 87 → 85 · the ndh locus resolves to one canonical key under both spellings ·
+every file under `tests/data` is in `SHA256SUMS` and matches it · the hermona pair through the CLI,
+exit **0** and **2**, with no module output after the failed gate. `make check` green (**545 fast +
+42 golden**).
 
 ### P4a-03 · Scale — what a 34-genome run costs · M4a.3 (M8.3) · [ ]
 

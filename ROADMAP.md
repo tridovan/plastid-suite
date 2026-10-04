@@ -239,8 +239,13 @@ at 34× scale.
       sha256 · md5 · byte count and measured value re-read; the `.fasta` half as `fasta.json`
       (68 entries) because the pin route is GenBank-only (measured), with all 68 sequences proven
       identical to the pinned records. §8.31
-- [ ] **M4a.2 Vendored fixtures + Phase-1 checks** — three pairs in `tests/data/corpus/`, the
-      golden's PASS / FAIL twin (*Iris hermona*), and the `ndhI`↔`ndhL` alias
+- [x] **M4a.2 Vendored fixtures + Phase-1 checks** (2026-10-04) — five files · 1.3 MB in
+      `tests/data/corpus/` (three pairs; the golden's published half is not duplicated), and
+      `tests/golden/test_corpus.py` asserts each one: the golden re-annotated is one CDS short,
+      *Iris hermona* passes the gate as published and fails it at 26.36 % under PGA on the same
+      sequence (exit 0 / exit 2 through the CLI), the group's own record 87 → 85, and the
+      `ndhI`/`ndhL` alias resolving both spellings to one key. A `SHA256SUMS` completeness check
+      now guards every vendored file. §8.31
 - [ ] **M4a.3 Scale (M8.3)** — wall clock and peak RSS per module at N = 34
 - [ ] **M4a.4 Annotator at scale** — Chloe over the 34 bare sequences, three annotations compared
 
