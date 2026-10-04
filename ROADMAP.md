@@ -270,6 +270,11 @@ path, threshold.
   technical QC report
 - [ ] **M5.4 Queryable-number check automated** — fails the build on any orphan number
 
+*Of M5.1's eleven figure types, **seven have a source table today and four do not** (measured
+04/10/2026, `TASKS.md`): the haplotype network needs a haplotype table (`popgen` counts haplotypes,
+it does not list them), the annotated tree needs a phylogeny nothing builds yet, NUPT/MTPT is M6.1
+(blocked on a nuclear genome) and the mito configuration is M6.2. Phase 5 schedules the seven.*
+
 ## Phase 6 — Tool-paper content  *(§13.6 — published/GenBank data; assembly-dependent parts move to P7)*
 
 **Goal:** the scientific content of the Eleutherine bulbosa tool paper.
