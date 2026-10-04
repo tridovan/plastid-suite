@@ -406,7 +406,7 @@ def _substitutions_result() -> Result:
                         "alignment_length": 154_000,
                         "compared_columns": 153_500,
                         "substitutions": 1_234,
-                        "ts_tv": 2.686,
+                        "ts_tv": 2.6917,
                         "tool": "MAFFT",
                     },
                 ),

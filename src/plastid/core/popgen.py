@@ -286,6 +286,12 @@ def fst_gst(groups: Sequence[Alignment]) -> float | None:
     samples = [group for group in groups if group.n_rows >= 1]
     if len(samples) < 2:
         return None
+    # Every group needs at least two sequences: with one, the within-group diversity is zero by
+    # construction, so the estimator returns exactly 1 for any two groups that differ — a number
+    # that looks like complete differentiation and is an artefact of the sample size. Measured
+    # 04/10/2026 on the mito sketch (one genome per group).
+    if any(group.n_rows < 2 for group in samples):
+        return None
     pooled = Counter[str]()
     total = 0
     weighted_s = 0.0

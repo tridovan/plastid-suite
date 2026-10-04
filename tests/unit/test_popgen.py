@@ -175,6 +175,17 @@ def test_fst_is_none_when_there_is_no_diversity_to_partition() -> None:
     assert fst_gst((same, same)) is None
 
 
+def test_fst_refuses_a_group_with_a_single_sequence() -> None:
+    """With one sequence in a group the within-group diversity is zero by construction, so the
+    estimator returns exactly 1 for any two groups that differ — a number that looks like
+    complete differentiation. It is not computable, and says so."""
+    singleton = Alignment(names=("a1",), sequences=("AAAAAAAAAA",))
+    other = Alignment(names=("b1",), sequences=("AAAAACAAAA",))
+    assert fst_gst((singleton, other)) is None
+    mixed = Alignment(names=("b1", "b2"), sequences=("AAAAACAAAA", "AAAAACAAAA"))
+    assert fst_gst((singleton, mixed)) is None
+
+
 def test_fst_needs_at_least_two_groups() -> None:
     one = Alignment(names=("a1", "a2"), sequences=("AAAAACAAAA", "AAAAAAAAAA"))
     assert fst_gst((one,)) is None

@@ -27,7 +27,7 @@ from itertools import combinations
 from typing import Any
 
 from plastid.core.align import Alignment
-from plastid.core.gene_names import cds_by_canonical_name, load_gene_aliases
+from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.model import Genome, coding_sequence
 from plastid.core.popgen import fst_gst, summarise
 from plastid.external.mafft import align
@@ -36,7 +36,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "popgen"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-21)
 
 
 @module(
@@ -64,10 +64,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     groups = sorted({labels[key] for key in keys})
 
     reference = genomes[0]
-    aliases = load_gene_aliases()
+    # The record's own organelle picks the vocabulary (core.gene_names.aliases_for).
     by_genome = {
-        key: cds_by_canonical_name(genome, aliases)
-        for key, genome in zip(keys, genomes, strict=True)
+        key: cds_by_canonical_name(genome) for key, genome in zip(keys, genomes, strict=True)
     }
     names = sorted({name for mapping in by_genome.values() for name in mapping})
 
@@ -135,12 +134,19 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                     "note": (
                         ""
                         if value is not None
-                        else "not computable — no diversity to partition "
-                        "between these groups (every sequence the same)"
+                        else "not computable — either a group has fewer than two sequences "
+                        "(within-group diversity is not estimable) or there is no diversity to "
+                        "partition between the groups"
                     ),
                 }
             )
 
+    if not group_rows:
+        raise ValueError(
+            "popgen found no gene carried by at least two genomes — nothing is estimable; "
+            "an unannotated record cannot contribute to a gene-by-gene comparison (each input "
+            "needs CDS, or the module has no unit to analyse)"
+        )
     sizes = ", ".join(
         f"{group}: {sum(1 for key in keys if labels[key] == group)}" for group in groups
     )

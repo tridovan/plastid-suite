@@ -301,3 +301,65 @@ def test_the_version_probe_never_runs_a_perl_tool(tmp_path: Path, monkeypatch) -
     assert (victim / "important.txt").is_file(), "the probe executed the tool"
     assert source == "stdout-header"  # the interpreter's version, which is the honest answer
     assert version and version.startswith("v5")
+
+
+def test_a_data_label_reaches_every_exported_table(tmp_path: Path) -> None:
+    """A stand-in dataset never travels unlabelled (CLAUDE.md) — and the label is applied once,
+    in the runner, so no module has to remember it. Every table's scope line carries it, which is
+    the line the CSV header, the JSON export and the report all read."""
+    from plastid.run.runner import DATA_LABEL_PARAM, label_result
+
+    result = _stub_result()
+    labelled = label_result(result, "stand-in (public records)")
+    for table in labelled.tables.values():
+        assert table.scope.label.startswith("stand-in (public records) · ")
+        assert table.scope.coord_system == result.tables[table.id].scope.coord_system
+    assert labelled.tables["stub"].rows == result.tables["stub"].rows
+    # no label, no change — the parameter is what decides, not a default
+    assert label_result(result, None).tables["stub"].scope.label == "synthetic"
+    assert DATA_LABEL_PARAM == "data_label"
+
+
+def test_the_data_label_reaches_the_rendered_report(tmp_path: Path) -> None:
+    """The tables carry the label in their scope lines; the prose carries it here, so a report
+    read on its own says where its numbers came from."""
+    from plastid.cli import _with_data_label
+
+    def renderer(result):
+        return "## Genome statistics — X\n\nNumbers.\n\n*Draft — needs human review.*\n"
+
+    with_label = _with_data_label(renderer, {"data_label": "stand-in (public records)"})(
+        _stub_result()
+    )
+    assert "> **Data:** stand-in (public records)" in with_label
+    assert with_label.startswith("## Genome statistics — X\n")
+    # no label, no banner
+    assert _with_data_label(renderer, {})(_stub_result()) == renderer(_stub_result())
+
+
+def test_every_tool_call_keeps_its_own_log(tmp_path: Path) -> None:
+    """Measured 2026-10-04: the log index was counted with a glob that never matched the names
+    being written (``*__name__*.stdout.log`` vs ``001__name__stdout.log``), so **every call
+    overwrote the previous one's logs** — each run kept the last tool call's output and nothing
+    else, and "the raw output travels with the run" was false for every tool but the last."""
+    layout = RunLayout.create(tmp_path, "logs", fingerprint="0" * 16, now=WHEN)
+    layout.make_dirs()
+    ctx = RunContext(layout=layout, params={}, module_id="stub", module_order=1)
+    for index in range(3):
+        ctx.tool("echo", ["echo", f"call {index}"], cwd=tmp_path)
+    names = sorted(path.name for path in layout.logs_dir.iterdir())
+    assert names == [
+        "001__echo__stderr.log",
+        "001__echo__stdout.log",
+        "002__echo__stderr.log",
+        "002__echo__stdout.log",
+        "003__echo__stderr.log",
+        "003__echo__stdout.log",
+    ]
+    # the first call's output is still there — that is the point
+    assert (layout.logs_dir / "001__echo__stdout.log").read_text(
+        encoding="utf-8"
+    ).strip() == "call 0"
+    assert [record.stdout_file for record in ctx.tools] == [
+        str(layout.logs_dir / f"{index:03d}__echo__stdout.log") for index in (1, 2, 3)
+    ]

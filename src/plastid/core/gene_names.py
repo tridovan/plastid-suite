@@ -42,6 +42,7 @@ __all__ = [
     "NormalizedName",
     "UnresolvedName",
     "load_gene_aliases",
+    "aliases_for",
     "cds_by_canonical_name",
     "load_mito_aliases",
     "normalize_genome",
@@ -374,15 +375,31 @@ def _resolve_bare_trna(
     return normalized, reason
 
 
+def aliases_for(genome: Genome) -> AliasTable:
+    """The name table this record needs: the mitochondrial vocabulary for a mitogenome.
+
+    Measured 2026-10-03: the same product string names a plastid gene and a mitochondrial one
+    ("ribosomal protein S3" in both), so there is one vocabulary per organelle and the record's
+    own ``/organelle`` qualifier picks it. A record that declares no organelle gets the plastid
+    table — and a mito record whose features already carry symbols (this project's own annotator
+    writes them) is unaffected either way.
+    """
+    organelle = str(genome.source.get("organelle", "")).lower()
+    return load_mito_aliases() if "mitochond" in organelle else load_gene_aliases()
+
+
 def cds_by_canonical_name(genome: Genome, aliases: AliasTable | None = None) -> dict[str, Gene]:
     """The genome's CDS by canonical name — one feature per name, so both IR copies are one gene.
 
-    Shared by the comparison modules that work gene by gene (substitutions' CDS scope, Ka/Ks):
-    the gene set of a plastome comparison is *names*, not features, and a name that appears twice
+    Shared by the comparison modules that work gene by gene (substitutions' CDS scope, Ka/Ks,
+    popgen): the gene set of a comparison is *names*, not features, and a name that appears twice
     (the inverted repeat) must be counted once — otherwise every ratio is weighted by whichever
-    genes happen to sit in an IR.
+    genes happen to sit in an IR. Without an explicit table the record's own organelle decides
+    which vocabulary applies (:func:`aliases_for`): measured 2026-10-04, the mito half of Phase 4
+    found **no** shared gene between two mitogenomes because one record names its CDS by product
+    sentence — the vocabulary that maps those sentences is the one the mito path already had.
     """
-    names = normalize_genome(genome, aliases)
+    names = normalize_genome(genome, aliases or aliases_for(genome))
     by_name: dict[str, Gene] = {}
     for gene in genome.genes:
         if gene.kind != "CDS" or gene.pseudo:

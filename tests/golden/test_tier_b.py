@@ -331,7 +331,7 @@ def test_kaks_reproduces_the_measured_iris_pair_result(
 
     summary = next(_table(tmp_path / "runs", "kaks_summary"))
     assert summary["Genes considered"] == "79"
-    assert summary["Genes shared with every genome"] == "79"
+    assert summary["Genes shared with every annotated genome"] == "79"
     assert summary["Estimator"] == "Yang & Nielsen 2000 (yn00)"
 
     pooled = next(_table(tmp_path / "runs", "kaks_pooled"))

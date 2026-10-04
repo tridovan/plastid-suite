@@ -23,7 +23,7 @@ from typing import Any
 
 from plastid.core.align import codon_frame_breaks
 from plastid.core.codon import translate
-from plastid.core.gene_names import cds_by_canonical_name, load_gene_aliases
+from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.model import Gene, Genome, coding_sequence
 from plastid.external.mafft import align
 from plastid.external.paml import resolve_binary, run_yn00, yn00_version
@@ -33,7 +33,7 @@ from plastid.run.context import RunContext
 from plastid.run.tools import ToolError
 
 MODULE_ID = "kaks"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.3.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-21)
 
 ESTIMATOR = "Yang & Nielsen 2000 (yn00)"
 STOPS = ("TAA", "TAG", "TGA")
@@ -70,14 +70,28 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     binary = resolve_binary(directory=directory)
     version = yn00_version(binary)
 
-    aliases = load_gene_aliases()
-    reference_genes = cds_by_canonical_name(reference, aliases)
+    # The record's own organelle picks the vocabulary (core.gene_names.aliases_for).
+    reference_genes = cds_by_canonical_name(reference)
     per_genome = {
-        (genome.accession or genome.name): cds_by_canonical_name(genome, aliases)
-        for genome in genomes[1:]
+        (genome.accession or genome.name): cds_by_canonical_name(genome) for genome in genomes[1:]
     }
     names = sorted(set(reference_genes) | {name for genes in per_genome.values() for name in genes})
-    shared = [name for name in names if name in reference_genes]
+    # "Shared" means carried by the reference AND by the genome it is compared with — not "carried
+    # by the reference". Measured 04/10/2026 on the mito sketch: the reference carries 27 named
+    # CDS and the query 23, and labelling the reference's own count "shared with every genome"
+    # put a wrong claim on the summary row. The true intersection is computed per genome, and the
+    # summary counts the stricter set — genes no annotated genome is missing.
+    annotated = [(key, genes) for key, genes in per_genome.items() if genes]
+    shared_by_genome = {
+        key: [name for name in reference_genes if name in genes]
+        for key, genes in per_genome.items()
+    }
+    shared = [name for name in reference_genes if all(name in genes for _key, genes in annotated)]
+    if not annotated:
+        raise ValueError(
+            "kaks has nothing to compare: no genome other than the reference carries an "
+            "annotated CDS"
+        )
 
     gene_rows: list[dict[str, Any]] = []
     pooled_rows: list[dict[str, Any]] = []
@@ -100,7 +114,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             gene_rows.append(row)
             if row["ka"] is not None and row["ks"] is not None:
                 scored.append((row["ka"], row["ks"], row["sites_n"], row["sites_s"]))
-        pooled_rows.append(_pool(key, labels.get(key, ""), scored, len(shared)))
+        pooled_rows.append(
+            _pool(key, labels.get(key, ""), scored, len(shared_by_genome.get(key, ())))
+        )
 
     summary_scope = Scope(
         label=(
@@ -138,7 +154,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("organism", "Reference organism"),
             Column("n_genomes", "Genomes compared", dtype="int"),
             Column("n_genes", "Genes considered", dtype="int"),
-            Column("n_shared", "Genes shared with every genome", dtype="int"),
+            Column("n_shared", "Genes shared with every annotated genome", dtype="int"),
             Column("estimator", "Estimator"),
             Column("aligner", "Aligner"),
             Column("tool", "Tool"),

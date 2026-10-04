@@ -113,3 +113,16 @@ def test_a_record_with_no_cds_is_named_in_the_notes(tmp_path: Path, stubbed) -> 
     summary = result.tables["popgen_summary"].rows[0]
     assert summary["n_genomes"] == 6
     assert summary["group_sizes"] == "A: 3, B: 3"
+
+
+def test_no_gene_carried_by_two_genomes_fails_with_a_clear_reason(tmp_path: Path, stubbed) -> None:
+    """Measured 04/10/2026 on the mito half: one input was the raw mitogenome record (no
+    annotation), so no gene had two carriers — and the failure a reader saw was a table
+    validation error. It now names the actual problem."""
+    empty = Genome(name="unannotated", accession="EMPTY.1", sequence="ACGT" * 30)
+    with pytest.raises(ValueError, match="at least two genomes"):
+        popgen.run(
+            (_genome("A1", {"rbcL": _RBCL}), empty),
+            {"groups": {"A1": "A", "EMPTY.1": "B"}},
+            _ctx(tmp_path),
+        )

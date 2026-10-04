@@ -513,7 +513,9 @@ def test_cds_by_canonical_name_keeps_one_copy_per_name(data_dir: Path) -> None:
     assert len(by_name) == 79  # 86 CDS features; the difference is the second IR copy
     assert len(set(by_name)) == len(by_name)
     assert "rbcL" in by_name
-    assert "ndhL" in by_name  # the golden record's own name for the locus Chloe calls ndhI
+    assert "ndhI" in by_name  # canonical for the locus the golden record writes ndhL (see the
+    #                           alias table; without a table the default is the record's own
+    #                           organelle's vocabulary)
     # every value is a real CDS of that genome, and at most one feature per canonical name
     features = set(cds_features(genome))
     assert set(by_name.values()) <= features
@@ -554,3 +556,29 @@ def test_nc_024936s_trnl_gua_is_the_locus_the_golden_record_calls_trni_gau(data_
     gatesii = locus(records["NC_024936.1.gb"], "trnI-GAU")
     assert len(golden) == 2 and len(gatesii) == 2  # two IR copies each
     assert golden[0] == gatesii[0] and len(golden[0]) == 77
+
+
+def test_the_records_own_organelle_picks_the_vocabulary() -> None:
+    """Measured 2026-10-04: the mito half of Phase 4 found **no** shared gene between two
+    mitogenomes, because OX459128.1 carries no /gene qualifier and every CDS "name" our reader
+    reports is really a /product sentence. The vocabulary that maps those sentences already
+    existed for the mito path — the comparison modules just were not asking for it."""
+    from plastid.core.gene_names import cds_by_canonical_name
+
+    mito = Genome(
+        name="mito",
+        accession="MITO.1",
+        sequence="ACGT" * 30,
+        genes=(Gene("NADH dehydrogenase subunit 1", "CDS", (Interval(0, 30),)),),
+        source={"organelle": "mitochondrion"},
+    )
+    plastid = Genome(
+        name="plastid",
+        accession="PT.1",
+        sequence="ACGT" * 30,
+        genes=(Gene("NADH dehydrogenase subunit 1", "CDS", (Interval(0, 30),)),),
+        source={"organelle": "plastid"},
+    )
+    # the same sentence: one record is a mitogenome and gets the symbol, the other is not
+    assert set(cds_by_canonical_name(mito)) == {"nad1"}
+    assert set(cds_by_canonical_name(plastid)) == {"NADH dehydrogenase subunit 1"}

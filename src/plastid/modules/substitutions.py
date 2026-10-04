@@ -4,10 +4,11 @@ Every count is stated against the genome it was measured from: row 0 of the MAFF
 the reference, and each other row is compared to it. Columns where either row is a gap or an
 ambiguous base are skipped and reported, never scored as a match or a substitution.
 
-Scope matters more here than anywhere: §6's golden Ts/Tv of 2.686 was measured over **CDS only,
-76 shared genes, IR excluded**, which is narrower than this module's default whole-alignment
-comparison. The two must never be quoted as if they were the same number. Ts/Tv is left blank
-when there are no transversions — it is undefined, not infinite.
+Scope matters more here than anywhere: §6's golden Ts/Tv was measured over **CDS only, shared
+genes, IR excluded** — 2.6917 over 79 genes since the shared set was re-measured by locus
+(2026-10-04) — which is narrower than this module's default whole-alignment comparison. The two
+must never be quoted as if they were the same number. Ts/Tv is left blank when there are no
+transversions — it is undefined, not infinite.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from plastid.core.align import Alignment, reference_positions, substitution_counts
-from plastid.core.gene_names import cds_by_canonical_name, load_gene_aliases
+from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.ir import detect_ir
 from plastid.core.model import Genome, coding_sequence
 from plastid.core.normalize import normalize
@@ -26,13 +27,14 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "substitutions"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-21)
 
 
 # The two scopes this module can report, and why the difference is not cosmetic: §6's golden
-# Ts/Tv (2.686) was measured over CDS only, the 76 genes the two genomes share, IR excluded —
-# 66,066 alignment columns. The whole-alignment default is a different number over different
-# bases, and the two must never be quoted as one another (PROJECT.md §6, §9.B-13).
+# Ts/Tv is measured over CDS only, the genes the genomes share, IR excluded. The whole-alignment
+# default is a different number over different bases, and the two must never be quoted as one
+# another (PROJECT.md §6, §8.25, §9.B-13). The label says *which scope*, not *what number* — a
+# number written into a label goes stale the moment the shared set is re-measured.
 SCOPES: tuple[str, ...] = ("whole", "cds")
 DEFAULT_SCOPE = "whole"
 
@@ -188,37 +190,76 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     """§6's method: the shared CDS, one copy per gene, IR excluded, aligned gene by gene.
 
-    The numbers this reproduces are the project's own golden ones — 317 transitions, 118
-    transversions, 2.686 over 76 genes and 66,066 columns — so this is the scope in which the
-    toolkit's Ts/Tv is comparable to the published table at all.
+    This is the scope PROJECT.md §6 fixed for the golden ratio — CDS only, shared genes, IR
+    excluded — and the scope in which the toolkit's Ts/Tv is comparable to that table at all.
+    The numbers it reproduces today (2026-10-04: 323 Ts / 120 Tv = 2.6917 over 79 shared genes)
+    live in PROJECT.md, not here.
     """
     reference = genomes[0]
-    aliases = load_gene_aliases()
-    ref_genes = _by_name(reference, aliases)
+    # No table is passed: the record's own organelle picks the vocabulary (aliases_for) —
+    # measured 2026-10-04, a mitogenome whose CDS are named by product sentence needs the
+    # mitochondrial one, and passing the plastid table explicitly found no shared gene at all.
+    ref_genes = _by_name(reference, None)
+    # A record with no annotation cannot share a CDS with anything — it is excluded from the
+    # comparison and NAMED, rather than quietly emptying the table for every other genome.
+    # Measured 04/10/2026 on the pinned panel: 3 of its 11 records carry no CDS, and the first
+    # version of this scope returned an empty table for the whole run.
+    queries = [(genome, _by_name(genome, None)) for genome in genomes[1:]]
+    annotated = [(genome, genes) for genome, genes in queries if genes]
+    unannotated = [genome.accession or genome.name for genome, genes in queries if not genes]
+    if not annotated:
+        raise ValueError(
+            "the CDS scope has nothing to compare: no genome other than the reference carries "
+            "an annotated CDS — use the whole-alignment scope, or pass annotated records"
+        )
     shared = [
-        name
-        for name in sorted(ref_genes)
-        if all(_by_name(g, aliases).get(name) for g in genomes[1:])
+        name for name in sorted(ref_genes) if all(genes.get(name) for _genome, genes in annotated)
     ]
+    if not shared:
+        raise ValueError(
+            "the CDS scope found no gene shared by the reference and every annotated genome — "
+            "the records may be too distant, or their gene names unresolved (see the gene_names "
+            "module); the whole-alignment scope is the honest comparison for them"
+        )
 
     totals = {"compared": 0, "substitutions": 0, "transitions": 0, "transversions": 0}
     per_gene: list[dict[str, Any]] = []
+    per_query: dict[str, dict[str, int]] = {
+        genome.accession or genome.name: {
+            "genes": 0,
+            "columns": 0,
+            "compared": 0,
+            "substitutions": 0,
+            "transitions": 0,
+            "transversions": 0,
+        }
+        for genome, _genes in annotated
+    }
     for name in shared:
         rows = [
-            (
-                genome.accession or genome.name,
-                coding_sequence(genome, _by_name(genome, aliases)[name]),
-            )
-            for genome in genomes
+            (reference.accession or reference.name, coding_sequence(reference, ref_genes[name])),
+            *[
+                (genome.accession or genome.name, coding_sequence(genome, genes[name]))
+                for genome, genes in annotated
+            ],
         ]
         alignment = align(rows, ctx)
         counts = {"compared": 0, "substitutions": 0, "transitions": 0, "transversions": 0}
         for index in range(1, alignment.n_rows):
+            row_counts = {"compared": 0, "substitutions": 0, "transitions": 0, "transversions": 0}
             for key, value in substitution_counts(
                 alignment.sequences[0], alignment.sequences[index]
             ).items():
-                if key in counts:
-                    counts[key] += value
+                if key in row_counts:
+                    row_counts[key] = value
+            for key in counts:
+                counts[key] += row_counts[key]
+            # The per-pair numbers a manuscript table needs: one gene, one query genome.
+            entry = per_query[rows[index][0]]
+            entry["genes"] += 1
+            entry["columns"] += alignment.length
+            for key in ("compared", "substitutions", "transitions", "transversions"):
+                entry[key] += row_counts[key]
         for key in totals:
             totals[key] += counts[key]
         per_gene.append({"gene": name, "columns": alignment.length, **_ratio(counts)})
@@ -226,7 +267,7 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
     summary_scope = Scope(
         label=(
             "CDS only; the genes both genomes share, one copy each (IR excluded); each gene "
-            "aligned on its own — the scope PROJECT.md §6 measured 2.686 in"
+            "aligned on its own — the scope PROJECT.md §6 fixed for the golden Ts/Tv"
         ),
         include=("CDS",),
         exclude_regions=("IRa", "IRb"),
@@ -252,7 +293,7 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
             {
                 "accession": reference.accession or "",
                 "organism": reference.name,
-                "n_genomes": len(genomes),
+                "n_genomes": 1 + len(annotated),
                 "n_genes": len(shared),
                 "alignment_length": sum(row["columns"] for row in per_gene),
                 "compared_columns": totals["compared"],
@@ -265,6 +306,33 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
         ),
         scope=summary_scope,
     )
+    genomes_table = Table(
+        id="substitutions_by_genome",
+        title="Substitutions by genome (CDS scope)",
+        columns=(
+            Column("genome", "Genome"),
+            Column("group", "Group"),
+            Column("genes", "Shared genes", dtype="int"),
+            Column("columns", "Alignment columns", dtype="int", unit="bp"),
+            Column("compared", "Comparable columns", dtype="int"),
+            Column("substitutions", "Substitutions", dtype="int"),
+            Column("transitions", "Transitions", dtype="int"),
+            Column("transversions", "Transversions", dtype="int"),
+            Column("ts_tv", "Ts/Tv", dtype="float", precision=4),
+        ),
+        rows=tuple(
+            {
+                "genome": key,
+                "group": (params.get("groups") or {}).get(key, ""),
+                **{name: value for name, value in counts.items()},
+                "ts_tv": _ratio(counts)["ts_tv"],
+            }
+            for key, counts in per_query.items()
+        ),
+        scope=summary_scope,
+        key="genome",
+    )
+
     genes = Table(
         id="substitutions_by_gene",
         title="Substitutions by gene (CDS scope)",
@@ -281,17 +349,27 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
         scope=summary_scope,
         key="gene",
     )
+    notes = [
+        "CDS scope: the genes the genomes share, one copy each (the inverted repeat is "
+        "therefore counted once), aligned gene by gene — the scope PROJECT.md §6 fixed.",
+        "A gene one genome does not carry is not in this table: this scope compares shared "
+        "coding sequence, and a missing gene is a different finding (Phase 3's).",
+        "Ts/Tv is blank when no transversion was found: it is undefined, not infinite.",
+    ]
+    if unannotated:
+        notes.append(
+            f"{len(unannotated)} record(s) carry no annotated CDS and cannot take part in a "
+            f"CDS comparison; they are left out and named: {', '.join(unannotated)}."
+        )
     return Result(
         module=MODULE_ID,
         module_version=MODULE_VERSION,
-        tables={"substitutions_summary": summary, "substitutions_by_gene": genes},
-        notes=(
-            "CDS scope: the genes both genomes share, one copy each (the inverted repeat is "
-            "therefore counted once), aligned gene by gene — the scope PROJECT.md §6 fixed.",
-            "A gene one genome does not carry is not in this table: this scope compares shared "
-            "coding sequence, and a missing gene is a different finding (Phase 3's).",
-            "Ts/Tv is blank when no transversion was found: it is undefined, not infinite.",
-        ),
+        tables={
+            "substitutions_summary": summary,
+            "substitutions_by_genome": genomes_table,
+            "substitutions_by_gene": genes,
+        },
+        notes=tuple(notes),
         citations=("mafft",),
     )
 

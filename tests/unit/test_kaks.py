@@ -206,3 +206,19 @@ def test_the_pooled_row_weights_by_sites_not_by_genes(tmp_path: Path, stubbed) -
     assert pooled["pooled_ka"] == pytest.approx(0.01)
     assert pooled["pooled_ks"] == pytest.approx(0.05)
     assert pooled["pooled_ka_ks"] == pytest.approx(0.2)
+
+
+def test_shared_means_carried_by_both_not_by_the_reference(tmp_path: Path, stubbed) -> None:
+    """Measured 04/10/2026 on the mito sketch: the reference carried 27 named CDS and the query
+    23, and the summary called the reference's own count "shared with every genome". The row now
+    counts the intersection, per genome and strictest-of-all."""
+    reference = _genome("REF.1", {"rbcL": _CDS["rbcL"], "matK": _CDS["matK"]})
+    query = _genome("QRY.1", {"rbcL": _CDS["rbcL"]})
+    result = kaks.run((reference, query), {}, _ctx(tmp_path))
+    summary = result.tables["kaks_summary"].rows[0]
+    assert summary["n_genes"] == 2  # the union of names seen
+    assert summary["n_shared"] == 1  # only rbcL is carried by both
+    pooled = result.tables["kaks_pooled"].rows[0]
+    assert pooled["n_shared"] == 1
+    assert pooled["n_computed"] == 1
+    assert pooled["n_not_computed"] == 0

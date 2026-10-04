@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from plastid.core.align import (
+    Alignment,
     columns_for_span,
     nucleotide_diversity,
     reference_positions,
@@ -40,7 +41,7 @@ from plastid.core.barcodes import (
     load_barcode_loci,
     threshold_for,
 )
-from plastid.core.gene_names import load_gene_aliases, normalize_genome
+from plastid.core.gene_names import aliases_for, normalize_genome
 from plastid.core.model import GENE_KINDS, Gene, Genome
 from plastid.core.normalize import normalize
 from plastid.external.mafft import align
@@ -50,7 +51,7 @@ from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
 
 MODULE_ID = "barcodes"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-21)
 
 
 @module(
@@ -149,7 +150,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             }
         )
 
-    candidate_rows = _candidates(reference, alignment, reference_name)
+    candidate_rows = _candidates(reference, alignment)
 
     values = [entry.pi for entry in series if entry.pi is not None]
     summary = Table(
@@ -295,9 +296,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     )
 
 
-def _candidates(reference: Genome, alignment: Any, reference_name: str) -> list[dict[str, Any]]:
+def _candidates(reference: Genome, alignment: Alignment) -> list[dict[str, Any]]:
     """Every locus of the shipped list, found or not, with the π of the columns it covers."""
-    names = normalize_genome(reference, load_gene_aliases())
+    names = normalize_genome(reference, aliases_for(reference))
     copies: dict[str, list[Gene]] = {}
     features: list[Gene] = []
     for gene in reference.genes:
