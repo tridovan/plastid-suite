@@ -53,7 +53,8 @@ dependencies:
   - minimap2 # §7.8 records no version
   - samtools # §7.8 records no version
   - wgsim # §7.8 records no version
-  - paml=4.10.10 # mcmctree (§7.8)
+  - paml=4.10.10 # two programs of one package: yn00 is Phase 4's Ka/Ks estimator (P4-02, D4-01,
+                 # docs/tools/paml.md); mcmctree is Phase 6's (§7.8)
   - beast2=2.7.7
 
   # --- NOT here, on purpose ---------------------------------------------------------------

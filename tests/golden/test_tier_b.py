@@ -101,8 +101,14 @@ def test_ssr_reproduces_the_golden_numbers(
 def test_the_cds_scope_reproduces_the_golden_ts_tv(
     tools: dict[str, str | None], data_dir: Path, tmp_path: Path
 ) -> None:
-    """PROJECT.md §6, measured by the toolkit's own path: **2.686 = 317 Ts / 118 Tv** over the
-    **76** shared CDS and **66,066** alignment columns, IR excluded.
+    """PROJECT.md §6, measured by the toolkit's own path: **2.6917 = 323 Ts / 120 Tv** over the
+    **79** shared CDS and **68,448** alignment columns, IR excluded.
+
+    The scope is unchanged since 02/10 — CDS only · shared genes · MAFFT · IR excluded — but the
+    *set* it ranges over was re-measured on 04/10: three loci (atpI, psaI, psbB) that
+    NC_024936.1 spells differently are the same loci, so the shared set is 79, not 76, and the
+    ratio is 2.6917 (PROJECT.md §8.27). The old 2.686 = 317/118 over 66,066 columns was correct
+    for a shared set counted by spelling, and stays in the log as that.
 
     This check is why the module's CDS scope exists at all — §6's number is *not* the
     whole-alignment one (measured 03/10/2026: 1.8416 over 152,338 comparable columns), and the two
@@ -133,10 +139,10 @@ def test_the_cds_scope_reproduces_the_golden_ts_tv(
     )
     summary = _table(tmp_path / "runs", "substitutions_summary")
     row = next(summary)
-    assert row["Shared genes"] == "76"
-    assert row["Alignment columns (bp)"] == "66066"
-    assert (row["Transitions"], row["Transversions"]) == ("317", "118")
-    assert row["Ts/Tv"] == "2.6864"
+    assert row["Shared genes"] == "79"
+    assert row["Alignment columns (bp)"] == "68448"
+    assert (row["Transitions"], row["Transversions"]) == ("323", "120")
+    assert row["Ts/Tv"] == "2.6917"
 
 
 def test_the_whole_alignment_scope_is_a_different_number_and_says_so(
@@ -269,6 +275,81 @@ def test_synteny_reproduces_the_measured_iris_pair_result(
     assert series[0]["Window end (bp)"] == "600"
     assert (run_dir / "01_synteny" / "mummer_NC_024936.1.delta").is_file()
     assert (run_dir / "01_synteny" / "mummer_NC_024936.1.coords").is_file()
+
+
+def test_kaks_reproduces_the_measured_iris_pair_result(
+    tools: dict[str, str | None],
+    paml_tools: dict[str, str | None],
+    data_dir: Path,
+    tmp_path: Path,
+) -> None:
+    """P4-02 on real data: every shared CDS aligned on its own with MAFFT and scored by PAML's
+    yn00 (Yang & Nielsen 2000), measured 04/10/2026 — **79 shared CDS, 78 scored**, pooled
+    Ka 0.003586 · Ks 0.016550 · Ka/Ks 0.2167 over the site-weighted genes.
+
+    There is no published Ka/Ks for this pair (measured 03/10), so the run's own values are the
+    record. The three checks that are not numbers:
+
+    * *identical CDS* — atpI's two copies are byte-identical — give Ka = Ks = 0 and a **blank**
+      Ka/Ks, never 0 and never 1;
+    * *accD*'s MAFFT alignment breaks the reading frame (a gap after 1,445 bases), so it keeps a
+      row with that reason instead of a number yn00 would have misread;
+    * the three loci NC_024936.1 spells differently (atpL/psaL/bspB) are **in** this table under
+      their canonical names — before the aliases were added they looked like genes the genome
+      does not carry (PROJECT.md §8.27).
+    """
+    require_tools(tools, "mafft")
+    require_tools(paml_tools, "yn00")
+    directory = str(Path(paml_tools["yn00"]).parent)
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "kaks",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-i",
+                str(data_dir / "NC_024936.1.gb"),
+                "-o",
+                str(tmp_path / "runs"),
+                "--dataset",
+                "golden",
+                "--set",
+                f"paml={directory}",
+            ]
+        )
+        == 0
+    )
+    run_dir = sorted((tmp_path / "runs" / "golden").iterdir())[0]
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    validate(manifest)
+    names = [record["name"] for record in manifest["modules"][0]["tools"]]
+    assert "mafft" in names and "yn00" in names
+    yn00 = next(record for record in manifest["modules"][0]["tools"] if record["name"] == "yn00")
+    assert yn00["version"] == "4.10.10"
+
+    summary = next(_table(tmp_path / "runs", "kaks_summary"))
+    assert summary["Genes considered"] == "79"
+    assert summary["Genes shared with every genome"] == "79"
+    assert summary["Estimator"] == "Yang & Nielsen 2000 (yn00)"
+
+    pooled = next(_table(tmp_path / "runs", "kaks_pooled"))
+    assert pooled["Genes scored"] == "78"
+    assert pooled["Genes without a value"] == "1"
+    assert float(pooled["Pooled Ka"]) == pytest.approx(0.003586, rel=1e-3)
+    assert float(pooled["Pooled Ks"]) == pytest.approx(0.016550, rel=1e-3)
+    assert float(pooled["Pooled Ka/Ks"]) == pytest.approx(0.2167, rel=1e-3)
+
+    genes = {row["Gene"]: row for row in _table(tmp_path / "runs", "kaks_genes")}
+    assert len(genes) == 79  # every shared gene keeps a row, scored or not
+    assert {"rbcL", "atpI", "psaI", "psbB", "accD"} <= set(genes)
+    assert float(genes["rbcL"]["Ka (dN)"]) == pytest.approx(0.0019, abs=1e-4)
+    assert float(genes["rbcL"]["Ks (dS)"]) == pytest.approx(0.0299, abs=1e-4)
+    assert float(genes["rbcL"]["Ka/Ks"]) == pytest.approx(0.0635, abs=1e-3)
+    assert genes["atpI"]["Status"] == "ks = 0"
+    assert genes["atpI"]["Ka/Ks"] == ""  # undefined — never 0, never 1
+    assert genes["accD"]["Status"] == "frameshift in the alignment"
 
 
 def _table(root: Path, table_id: str) -> csv.DictReader:

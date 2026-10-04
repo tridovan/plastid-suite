@@ -22,3 +22,9 @@ chloe:
 mummer:
   text: "Marçais G, Delcher AL, Phillippy AM, Coston R, Salzberg SL, Zimin A. MUMmer4: a fast and versatile genome alignment system. PLOS Computational Biology 14:e1005944 (2018)."
   doi: "10.1371/journal.pcbi.1005944"
+paml:
+  text: "Yang Z. PAML 4: phylogenetic analysis by maximum likelihood. Molecular Biology and Evolution 24:1586–1591 (2007)."
+  doi: "10.1093/molbev/msm088"
+yang_nielsen:
+  text: "Yang Z, Nielsen R. Estimating synonymous and nonsynonymous substitution rates under realistic evolutionary models. Molecular Biology and Evolution 17:32–43 (2000)."
+  doi: "10.1093/oxfordjournals.molbev.a026236"

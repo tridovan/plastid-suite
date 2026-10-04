@@ -82,6 +82,14 @@ def submission_tools() -> dict[str, str | None]:
 
 
 @pytest.fixture(scope="session")
+def paml_tools() -> dict[str, str | None]:
+    """PAML's ``yn00`` — from ``PATH`` or from ``PTS_PAML_DIR``."""
+    directory = os.environ.get("PTS_PAML_DIR")
+    extra = [Path(directory)] if directory else []
+    return {"yn00": which("yn00", extra=extra)}
+
+
+@pytest.fixture(scope="session")
 def mummer_tools() -> dict[str, str | None]:
     """MUMmer 4 — from ``PATH`` or from ``PTS_MUMMER_DIR`` (the three binaries ship together,
     and on the dev machine they live in a conda environment that is not on ``PATH``)."""

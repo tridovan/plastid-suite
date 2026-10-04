@@ -104,17 +104,37 @@ def test_the_canonical_name_prints_the_same_label_as_its_synonym() -> None:
 
 
 def test_the_measured_loci_are_the_only_ones_shipped() -> None:
-    """A locus enters this table only with its evidence, so the set is pinned: ndhI joined it on
-    2026-10-03 after the golden record's ndhL and Chloe's ndhI turned out to be one locus with one
-    protein (see data/gene_aliases.yaml)."""
+    """A locus enters this table only with its evidence, so the set is pinned.
+
+    ndhI joined it on 2026-10-03 (the golden record's ndhL and Chloe's ndhI are one locus with
+    one protein); atpI, psaI and psbB joined it on 2026-10-04, when P4-02's Ka/Ks run listed the
+    genes the two golden records "did not share" and three of them turned out to be the same
+    locus under NC_024936.1's own spelling (see data/gene_aliases.yaml, PROJECT.md §8.27).
+    """
     assert {locus.canonical for locus in ALIASES.loci} == {
         "pafI",
         "pafII",
         "pbf1",
         "clpP1",
         "ndhI",
+        "atpI",
+        "psaI",
+        "psbB",
     }
     assert all(locus.evidence for locus in ALIASES.loci)
+
+
+def test_the_golden_pair_shares_every_cds_name(data_dir: Path) -> None:
+    """The regression the alias entries above exist for: before them, three whole loci — atpI,
+    psaI and psbB — looked like genes NC_024936.1 does not carry, and every comparison that
+    works gene by gene silently dropped them (atpI's CDS are byte-identical in the two records).
+    """
+    from plastid.core.gene_names import cds_by_canonical_name
+
+    domestic = cds_by_canonical_name(read_genbank(data_dir / "NC_050833.1.gb"), ALIASES)
+    gatesii = cds_by_canonical_name(read_genbank(data_dir / "NC_024936.1.gb"), ALIASES)
+    assert set(domestic) == set(gatesii)
+    assert {"atpI", "psaI", "psbB"} <= set(domestic)
 
 
 def test_a_name_nobody_mapped_is_left_exactly_as_it_arrived() -> None:
@@ -473,3 +493,24 @@ def test_a_gene_feature_and_its_trna_feature_resolve_to_the_same_name() -> None:
     resolved = normalize_genome(bare, ALIASES, references=references_from([named]))
     assert resolved.unresolved == ()
     assert {entry.canonical for entry in resolved.names.values()} == {"trnK-UUU"}
+
+
+def test_cds_by_canonical_name_keeps_one_copy_per_name(data_dir: Path) -> None:
+    """The shared-gene machinery of the comparison modules: canonical name → one CDS feature.
+
+    The golden genome carries most genes twice (both inverted-repeat copies), and several under
+    an alias — so the mapping has to normalize *and* deduplicate, or a gene would be counted
+    twice in every comparison that uses it.
+    """
+    from plastid.core.gene_names import cds_by_canonical_name
+    from plastid.core.model import cds_features
+
+    genome = read_genbank(data_dir / "NC_050833.1.gb")
+    by_name = cds_by_canonical_name(genome)
+    assert len(by_name) == 79  # 86 CDS features; the difference is the second IR copy
+    assert len(set(by_name)) == len(by_name)
+    assert "rbcL" in by_name
+    assert "ndhL" in by_name  # the golden record's own name for the locus Chloe calls ndhI
+    # every value is a real CDS of that genome, and at most one feature per canonical name
+    features = set(cds_features(genome))
+    assert set(by_name.values()) <= features

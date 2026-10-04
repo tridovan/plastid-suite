@@ -58,3 +58,28 @@ loci:
       oxidoreductase subunit I", and the plastid ndh complex has subunits A–K — there is no
       subunit L. Canonical direction follows the standard name, which is also the one this
       project's records from GeSeq and from Chloe use.
+
+  - canonical: atpI
+    synonyms: [atpL]
+    evidence: >
+      PROJECT.md §8.27 (2026-10-04), measured while P4-02's Ka/Ks run listed the genes the two
+      golden records do not share. The 744 bp CDS are **byte-identical** in the two Iris records
+      and carry the same /product ("ATP synthase CF0 A subunit IV"); across the 13-record panel
+      the name atpL appears in **one** record (NC_024936.1) and atpI in nine. Canonical follows
+      the standard name and the overwhelming majority.
+
+  - canonical: psaI
+    synonyms: [psaL]
+    evidence: >
+      PROJECT.md §8.27 (2026-10-04). Same locus by the same three signals: 111 bp in both Iris
+      records (one base differs), the same /product ("photosystem I subunit VIII"), and psaL is
+      the name of exactly one panel record while psaI is the name of nine.
+
+  - canonical: psbB
+    synonyms: [bspB]
+    evidence: >
+      PROJECT.md §8.27 (2026-10-04). 1,527 bp in both Iris records (seven bases differ), the same
+      /product ("photosystem II p680 chlorophyll A apoprotein"), and the four-letter form looks
+      like a transposition of psbB — which is what nine of the ten annotated panel records write.
+      Without this entry the comparison silently drops a whole photosystem-II core gene from
+      every Iris calculation.

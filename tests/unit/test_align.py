@@ -132,3 +132,45 @@ def test_the_mafft_parser_upper_cases_what_the_aligner_prints() -> None:
 
     assert aligned["NC_050833.1"] == "------CCCGATATCTTACT"
     assert aligned["NC_024936.1"] == "ACGTACGTACGTACGTAC"
+
+
+def test_codon_frame_breaks_flags_a_gap_that_shifts_the_reading_frame() -> None:
+    """yn00 reads an alignment three bases at a time, so a gap that is not a whole codon does not
+    fail there — it silently reads the wrong frame. Measured 04/10/2026: a one-base gap in a
+    synthetic pair made yn00 report a spurious stop codon (exit 255) only because that frame
+    happened to hit one; a frame without a stop would have been scored as if it were real. The
+    check is therefore ours, and it names the row and the position."""
+    from plastid.core.align import codon_frame_breaks
+
+    # 3-base gap after 6 bases: every codon stays whole — no breaks
+    clean = Alignment(
+        names=("a", "b"),
+        sequences=("ATGGCT---TCTAAACCCGGGTTT", "ATGGCTTCTAAACCCGGGTTT---"),
+    )
+    assert codon_frame_breaks(clean) == ()
+
+    # a 1-base gap: a frameshift, and the row that carries it is named
+    broken = Alignment(
+        names=("a", "b"), sequences=("ATGGCT-TCTAAACCCGGGTTT-", "ATGGCTTCTAAACCCGGGTTT--")
+    )
+    breaks = codon_frame_breaks(broken)
+    assert breaks
+    assert any("row 'a'" in message for message in breaks)
+
+    # a 3-base gap that starts mid-codon: also a frameshift
+    shifted = Alignment(
+        names=("a", "b"), sequences=("A---TGGCTTCTAAACCCGGGTTT", "ATGGCTTCTAAACCCGGGTTT---")
+    )
+    breaks = codon_frame_breaks(shifted)
+    assert len(breaks) == 1
+    assert "row 'a'" in breaks[0]
+    assert "codon boundary" in breaks[0]
+
+
+def test_codon_frame_breaks_flags_a_row_whose_length_is_not_whole_codons() -> None:
+    from plastid.core.align import codon_frame_breaks
+
+    alignment = Alignment(names=("a", "b"), sequences=("ATGGCTT", "ATGGCTT"))
+    breaks = codon_frame_breaks(alignment)
+    assert len(breaks) == 2  # both rows, each named
+    assert all("codon" in message for message in breaks)

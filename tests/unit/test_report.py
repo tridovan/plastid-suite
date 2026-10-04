@@ -416,6 +416,108 @@ def _substitutions_result() -> Result:
     )
 
 
+def _kaks_result() -> Result:
+    return Result(
+        module="kaks",
+        module_version="0.1.0",
+        tables={
+            "kaks_summary": Table(
+                id="kaks_summary",
+                title="Ka/Ks summary",
+                columns=(
+                    Column("accession", "Reference accession"),
+                    Column("organism", "Reference organism"),
+                    Column("n_genomes", "Genomes compared", dtype="int"),
+                    Column("n_genes", "Genes considered", dtype="int"),
+                    Column("n_shared", "Genes shared with every genome", dtype="int"),
+                    Column("estimator", "Estimator"),
+                    Column("aligner", "Aligner"),
+                    Column("tool", "Tool"),
+                    Column("tool_version", "Tool version"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "organism": "Iris domestica",
+                        "n_genomes": 1,
+                        "n_genes": 79,
+                        "n_shared": 79,
+                        "estimator": "Yang & Nielsen 2000 (yn00)",
+                        "aligner": "MAFFT",
+                        "tool": "PAML yn00",
+                        "tool_version": "4.10.10",
+                    },
+                ),
+                scope=Scope(label="the reference's CDS names"),
+            ),
+            "kaks_pooled": Table(
+                id="kaks_pooled",
+                title="Ka/Ks pooled over genes",
+                columns=(
+                    Column("genome", "Genome"),
+                    Column("group", "Group"),
+                    Column("n_shared", "Shared genes", dtype="int"),
+                    Column("n_computed", "Genes scored", dtype="int"),
+                    Column("n_not_computed", "Genes without a value", dtype="int"),
+                    Column("pooled_ka", "Pooled Ka", dtype="float", precision=6),
+                    Column("pooled_ks", "Pooled Ks", dtype="float", precision=6),
+                    Column("pooled_ka_ks", "Pooled Ka/Ks", dtype="float", precision=4),
+                ),
+                rows=(
+                    {
+                        "genome": "NC_024936.1",
+                        "group": "Iris",
+                        "n_shared": 79,
+                        "n_computed": 75,
+                        "n_not_computed": 4,
+                        "pooled_ka": 0.003701,
+                        "pooled_ks": 0.016742,
+                        "pooled_ka_ks": 0.2210,
+                    },
+                ),
+                scope=Scope(label="pooled, site-weighted"),
+                key="genome",
+            ),
+            "kaks_genes": Table(
+                id="kaks_genes",
+                title="Ka/Ks by gene",
+                columns=(
+                    Column("row_id", "Row"),
+                    Column("gene", "Gene"),
+                    Column("genome", "Genome"),
+                    Column("group", "Group"),
+                    Column("codons", "Codons", dtype="int"),
+                    Column("sites_s", "Synonymous sites", dtype="float", precision=1),
+                    Column("sites_n", "Nonsynonymous sites", dtype="float", precision=1),
+                    Column("ka", "Ka (dN)", dtype="float", precision=6),
+                    Column("ks", "Ks (dS)", dtype="float", precision=6),
+                    Column("ka_ks", "Ka/Ks", dtype="float", precision=4),
+                    Column("status", "Status"),
+                    Column("detail", "Detail"),
+                ),
+                rows=(
+                    {
+                        "row_id": "rbcL#NC_024936.1",
+                        "gene": "rbcL",
+                        "genome": "NC_024936.1",
+                        "group": "Iris",
+                        "codons": 486,
+                        "sites_s": 378.2,
+                        "sites_n": 1079.8,
+                        "ka": 0.0019,
+                        "ks": 0.0299,
+                        "ka_ks": 0.0635,
+                        "status": "ok",
+                        "detail": "",
+                    },
+                ),
+                scope=Scope(label="one row per gene and genome"),
+                key="row_id",
+            ),
+        },
+    )
+
+
 def _synteny_result() -> Result:
     return Result(
         module="synteny",
@@ -1056,6 +1158,7 @@ TEMPLATE_FIXTURES = {
     "introns": _introns_result,
     "diversity": _diversity_result,
     "substitutions": _substitutions_result,
+    "kaks": _kaks_result,
     "synteny": _synteny_result,
 }
 

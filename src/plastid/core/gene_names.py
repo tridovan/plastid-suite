@@ -42,6 +42,7 @@ __all__ = [
     "NormalizedName",
     "UnresolvedName",
     "load_gene_aliases",
+    "cds_by_canonical_name",
     "load_mito_aliases",
     "normalize_genome",
     "normalize_name",
@@ -358,6 +359,23 @@ def _resolve_bare_trna(
     else:
         reason = f"ambiguous — {len(matches)} reference names match: {', '.join(matches)}"
     return normalized, reason
+
+
+def cds_by_canonical_name(genome: Genome, aliases: AliasTable | None = None) -> dict[str, Gene]:
+    """The genome's CDS by canonical name — one feature per name, so both IR copies are one gene.
+
+    Shared by the comparison modules that work gene by gene (substitutions' CDS scope, Ka/Ks):
+    the gene set of a plastome comparison is *names*, not features, and a name that appears twice
+    (the inverted repeat) must be counted once — otherwise every ratio is weighted by whichever
+    genes happen to sit in an IR.
+    """
+    names = normalize_genome(genome, aliases)
+    by_name: dict[str, Gene] = {}
+    for gene in genome.genes:
+        if gene.kind != "CDS" or gene.pseudo:
+            continue
+        by_name.setdefault(names.normalized(gene).canonical, gene)
+    return by_name
 
 
 def references_from(

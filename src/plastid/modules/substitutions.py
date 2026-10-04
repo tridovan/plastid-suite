@@ -16,9 +16,9 @@ from collections.abc import Sequence
 from typing import Any
 
 from plastid.core.align import Alignment, reference_positions, substitution_counts
-from plastid.core.gene_names import load_gene_aliases, normalize_genome
+from plastid.core.gene_names import cds_by_canonical_name, load_gene_aliases
 from plastid.core.ir import detect_ir
-from plastid.core.model import Genome, cds_features, coding_sequence
+from plastid.core.model import Genome, coding_sequence
 from plastid.core.normalize import normalize
 from plastid.external.mafft import align
 from plastid.modules.registry import module
@@ -297,12 +297,9 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
 
 
 def _by_name(genome: Genome, aliases) -> dict[str, Any]:
-    """The genome's CDS by canonical name, one feature per name (the IR copy is the same gene)."""
-    names = normalize_genome(genome, aliases)
-    by_name: dict[str, Any] = {}
-    for gene in cds_features(genome):
-        by_name.setdefault(names.normalized(gene).canonical, gene)
-    return by_name
+    """The genome's CDS by canonical name — ``core.gene_names`` owns the rule (both IR copies
+    are one gene); this name is kept because the module reads it in several places."""
+    return cds_by_canonical_name(genome, aliases)
 
 
 def _counts_in_columns(alignment: Alignment, row: int, columns: tuple[int, ...]) -> dict[str, int]:

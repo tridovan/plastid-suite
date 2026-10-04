@@ -18,6 +18,7 @@ from dataclasses import dataclass
 __all__ = [
     "Alignment",
     "WindowDiversity",
+    "codon_frame_breaks",
     "columns_for_span",
     "nucleotide_diversity",
     "reference_positions",
@@ -175,6 +176,43 @@ def variable_sites(alignment: Alignment) -> tuple[int, int]:
             if sum(1 for count in counts.values() if count >= 2) >= 2:
                 informative += 1
     return variable, informative
+
+
+def codon_frame_breaks(alignment: Alignment) -> tuple[str, ...]:
+    """Rows whose gaps break the reading frame — empty when the alignment is codon-aligned.
+
+    A codon model (PAML's ``yn00``) reads every row three bases at a time and has no idea what a
+    gap means: a gap that is not a whole codon, or that starts mid-codon, silently shifts the
+    frame of that row and every codon after it is read wrong. Measured 04/10/2026 on a synthetic
+    pair: a one-base gap made yn00 report a spurious stop codon and exit 255 — a lucky frame, not
+    a check. So the check is ours, and it names the row and the position rather than a verdict.
+    """
+    problems: list[str] = []
+    for name, sequence in zip(alignment.names, alignment.sequences, strict=True):
+        bases = len(sequence.replace("-", ""))
+        if bases % 3:
+            problems.append(
+                f"row {name!r}: {bases} aligned base(s) is not a whole number of codons"
+            )
+            continue
+        run_start = 0
+        position = 0
+        while position < len(sequence):
+            if sequence[position] == "-":
+                run_start = position
+                while position < len(sequence) and sequence[position] == "-":
+                    position += 1
+                run = position - run_start
+                before = run_start - sequence[:run_start].count("-")
+                if before % 3:
+                    problems.append(
+                        f"row {name!r}: a gap starts after {before} base(s) — not a codon boundary"
+                    )
+                elif run % 3:
+                    problems.append(f"row {name!r}: a gap of {run} base(s) is not a whole codon")
+            else:
+                position += 1
+    return tuple(problems)
 
 
 def substitution_counts(reference: str, query: str) -> dict[str, int]:
