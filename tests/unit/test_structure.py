@@ -7,8 +7,9 @@ from itertools import pairwise
 import pytest
 
 from plastid.core.ir import detect_ir, enforce_ir_gate
-from plastid.core.model import Genome
-from plastid.core.sequence import gc_skew
+from plastid.core.model import Genome, Interval
+from plastid.core.normalize import Region
+from plastid.core.sequence import gc_skew, reverse_complement
 from plastid.modules import structure
 from plastid.run.context import RunContext
 
@@ -80,3 +81,74 @@ def test_step_larger_than_window_is_rejected(golden_genome: Genome) -> None:
 def test_non_positive_window_is_rejected(golden_genome: Genome) -> None:
     with pytest.raises(ValueError, match="must be positive"):
         structure.run(golden_genome, {"window": 0}, _ctx(golden_genome))
+
+
+def _genome_with_an_at_tail(ir_length: int = 6_000) -> Genome:
+    """A minimal plastome whose LSC ends in a window with no G and no C.
+
+    The windowing walks the region in ``step`` increments, so the last window is
+    ``region.length mod step`` bases long — here three, and they are ``TTA``.
+    """
+    lsc = "GC" * 500 + "TTA"  # 1,003 bp: the trailing 3 bp hold no G and no C
+    ir = "ACGT" * (ir_length // 4)
+    ssc = "AACCGGTT" * 62 + "AC"  # 498 bp
+    sequence = lsc + ir + ssc + reverse_complement(ir)
+    return Genome(
+        name="synthetic",
+        accession="SYNTH_TAIL",
+        sequence=sequence,
+        topology="circular",
+        repeat_regions=(
+            Interval(start=len(lsc), end=len(lsc) + len(ir)),
+            Interval(
+                start=len(lsc) + len(ir) + len(ssc),
+                end=len(lsc) + len(ir) + len(ssc) + len(ir),
+            ),
+        ),
+    )
+
+
+def test_a_window_with_no_g_and_no_c_is_blank_rather_than_fatal() -> None:
+    """Measured 04/10/2026 on the corpus (P4a-03): *Chasmanthe floribunda* NC_072562.1 has an
+    81,003 bp LSC, so its 1,000 bp windowing ends in a **3 bp** window — ``TTA``. That window has
+    no G and no C, ``gc_skew`` is undefined for it, and the module raised: the whole run for that
+    genome died, 1 of the corpus's 34.
+
+    An undefined window is a value to leave blank, not a reason to abandon the other 33,000. The
+    trailing window is *always* this shape when a region's length is not a multiple of the step,
+    so which genomes survive was luck — the golden genome's LSC ends in a 127 bp window that
+    happens to hold G and C.
+    """
+    region = Region(name="LSC", start=0, end=1_003)
+    rows = structure._window_rows(region, "GC" * 500 + "TTA", window=1_000, step=1_000)
+
+    assert [row["window_length_bp"] for row in rows] == [1_000, 3]
+    assert rows[0]["gc_skew"] == 0.0
+    assert rows[1]["gc_skew"] is None, "undefined is not 0.0 and not an error"
+    assert rows[1]["cumulative_gc_skew"] is None, (
+        "a running sum with an undefined term is undefined"
+    )
+
+
+def test_a_region_with_no_g_and_no_c_still_stops_the_run() -> None:
+    """The line between the two: a *region* without G and C is a broken record, not a short
+    window — that one keeps raising, because a whole region of pure A/T is not a rounding
+    artifact of the windowing but a claim about the data."""
+    with pytest.raises(ValueError, match="no G and no C"):
+        gc_skew("AT" * 5_000)
+
+
+def test_the_whole_genome_runs_when_its_tail_window_has_no_gc() -> None:
+    """The module end-to-end on such a genome: a result, not an exception — and the summary
+    counts the undefined window instead of leaving a blank nobody can explain."""
+    genome = _genome_with_an_at_tail()
+    result = structure.run(genome, {}, _ctx(genome))
+
+    windows = result.tables["gc_skew_windows"].rows
+    lsc = [row for row in windows if row["region"] == "LSC"]
+    assert len(lsc) == 2
+    assert lsc[-1]["gc_skew"] is None
+
+    summary = result.tables["structure_summary"].rows[0]
+    assert summary["n_undefined_windows"] == 1
+    assert any("no G and no C" in note for note in result.notes)

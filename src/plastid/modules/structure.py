@@ -21,7 +21,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "structure"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 
 DEFAULT_WINDOW_BP = 1000
 DEFAULT_STEP_BP = 1000
@@ -71,6 +71,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("window_bp", "Window", dtype="int", unit="bp"),
             Column("step_bp", "Step", dtype="int", unit="bp"),
             Column("n_windows", "Windows", dtype="int"),
+            Column("n_undefined_windows", "Windows without skew", dtype="int"),
             Column("rotation_offset", "Rotation offset", dtype="int", unit="bp"),
             Column("coord_system", "Coordinates"),
         ),
@@ -81,6 +82,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "window_bp": window,
                 "step_bp": step,
                 "n_windows": len(window_rows),
+                "n_undefined_windows": sum(1 for row in window_rows if row["gc_skew"] is None),
                 "rotation_offset": frame.rotation_offset,
                 "coord_system": "normalized",
             },
@@ -137,6 +139,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     )
 
     total = sum(row["length_bp"] for row in region_rows)
+    undefined = sum(1 for row in window_rows if row["gc_skew"] is None)
     return Result(
         module=MODULE_ID,
         module_version=MODULE_VERSION,
@@ -144,28 +147,52 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         notes=(
             f"Regions tile the genome exactly: {total} bp over {len(region_rows)} regions.",
             "GC-skew is (G − C)/(G + C) per window; the cumulative column is the running sum.",
+        )
+        + (
+            (
+                f"{undefined} window(s) have no G and no C, so their skew is undefined and the "
+                "cell is blank — a trailing window shorter than the step is the usual reason.",
+            )
+            if undefined
+            else ()
         ),
         citations=("biopython",),
     )
 
 
 def _window_rows(region: Region, sequence: str, window: int, step: int) -> list[dict[str, Any]]:
-    """One row per window inside ``region``; the cumulative skew restarts at each region."""
+    """One row per window inside ``region``; the cumulative skew restarts at each region.
+
+    A window with no G and no C has **no** skew — it is undefined, so the cell is left blank
+    rather than guessed at, and the cumulative column goes blank with it (a running sum that
+    contains an undefined term is undefined). This is not a hypothetical: the last window of a
+    region is ``region.length mod step`` bases long, so a genome whose LSC ends in three A/T
+    bases produces exactly this, and it used to raise — failing the whole run for that genome
+    (measured 04/10/2026 on the corpus, 1 of 34: *Chasmanthe floribunda* NC_072562.1, LSC
+    81,003 bp, trailing window ``TTA``).
+    """
     rows: list[dict[str, Any]] = []
     cumulative = 0.0
+    undefined = False
     offset = 0
     while offset < region.length:
         end = min(offset + window, region.length)
-        value = gc_skew(sequence[offset:end])
-        cumulative += value
+        try:
+            value = gc_skew(sequence[offset:end])
+        except ValueError:  # no G and no C in this window — undefined, not zero
+            value = None
+        if value is None:
+            undefined = True
+        else:
+            cumulative += value
         rows.append(
             {
                 "region": region.name,
                 "window_start_1b": region.start + offset + 1,
                 "window_end_1b": region.start + end,
                 "window_length_bp": end - offset,
-                "gc_skew": round(value, 6),
-                "cumulative_gc_skew": round(cumulative, 6),
+                "gc_skew": None if value is None else round(value, 6),
+                "cumulative_gc_skew": None if undefined else round(cumulative, 6),
             }
         )
         if end == region.length:

@@ -75,6 +75,44 @@
   instead of merging the records' features — measured while building the round-trip test, and the
   reason that file is kept.
 
+## The Điềm corpus fixtures (P4a-02)
+
+| File | Accession | Annotation | Size |
+|---|---|---|---|
+| `corpus/Iris_domestica_NC_050833.1.pga.gb` | `Iris_domestica_NC_050833` | PGA | 230,133 B |
+| `corpus/Iris_hermona_NC_081931.1.published.gb` | NC_081931.1 | published NCBI | 298,851 B |
+| `corpus/Iris_hermona_NC_081931.1.pga.gb` | `Iris_hermona_voucher_IrisSV1903_NC_081931` | PGA | 229,201 B |
+| `corpus/Eleutherine_bulbosa_PX516262.1.published.gb` | PX516262.1 | published NCBI | 272,037 B |
+| `corpus/Eleutherine_bulbosa_PX516262.1.pga.gb` | `Eleutherine_bulbosa` | PGA | 228,555 B |
+
+- **What the corpus is:** 34 Iridaceae plastomes that **anh Điềm** provided on 2026-10-04, in two
+  annotations of the *same sequences* — the published NCBI record and a **PGA** re-annotation —
+  plus the bare sequences (`.fasta`). 136 files · 28 MB. Both annotation sets and the FASTA
+  manifest are pinned under `.panel/iridaceae-34{,-pga}/` (gitignored, re-pinnable); the full
+  characterisation is PROJECT.md §8.31.
+- **Why these five files:** the corpus is far too large to vendor, so what ships is the smallest
+  subset in which **every file carries a written-down expected answer** — three pairs, three jobs:
+  the golden genome both ways (the contract is already written down, and PGA's annotation of the
+  same sequence measures **85 CDS where §6 says 86**), *Iris hermona* both ways (one sequence; the
+  IR gate passes on one annotation and fails on the other at **26.36 %**, while de-novo finds
+  100.00 % on the same bases), and the group's own *E. bulbosa* (133 = 87 + 38 + 8 published,
+  131 = 85 + 38 + 8 by PGA). `tests/golden/test_corpus.py` asserts each one.
+- **The golden genome's *published* half is already here** as `NC_050833.1.gb`, so it is not
+  duplicated: set 01's own file is **byte-identical** to it (sha256 `a946f23e…`), which is how the
+  corpus was checked against this directory in the first place.
+- **The tool is named by the files, not inferred:** all 34 records of the second set carry
+  `/note="Annotation Method :: PGA-Plastid Genome Annotator"` on their `source` feature; none of
+  the first set does. The naming style alone would not have been evidence.
+- **Source:** `D:\business\pts\thanhdiem_data\{01_NCBI_tai_truc_tiep,02_da_hieu_chinh}\gb\`
+  (anh Điềm, 2026-10-04), copied into `.data/thanhdiem_data/` in the working tree (gitignored) and
+  verified file by file — 136/136 sha256 match the source.
+- **What these fixtures do NOT cover:** the other 29 genomes, the `.fasta` half (its bytes are in
+  `.panel/iridaceae-34/fasta.json`, and every one of its 68 sequences was proven identical to a
+  pinned record), and anything about *their* numbers — the corpus is a test dataset, not a
+  manuscript's data: no species here is Oldenlandia or Coleus.
+- **Licence:** NCBI GenBank data is in the public domain. The PGA annotation is a derived work on
+  the same public sequences (PGA is GPL-3.0, PROJECT.md §3 — it is not redistributed here).
+
 ## A real delta file (P4-01)
 
 | File | Source | Size |

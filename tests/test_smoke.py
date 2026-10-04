@@ -221,3 +221,52 @@ def test_cli_panel_pin_resolves_an_accession_the_index_cannot_hold(
     assert "resolved live" in capsys.readouterr().out
     assert (tmp_path / "PX923121.1.gb").is_file()
     assert (tmp_path / "PINNED.json").is_file()
+
+
+def test_cli_run_reads_a_bare_fasta(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A sample off an assembler is a FASTA, and annotating it is what the ``annotation`` module
+    does — so ``plastid run`` has to accept one (P4a-04). The genome a FASTA produces carries no
+    features, which is the point: ``orf`` reports that plainly and does not fail on it.
+
+    A module that needs IR positions is *not* usable on a bare sequence yet, and says so through
+    the gate rather than through a traceback — which is why this test drives ``orf``.
+    """
+    fasta = tmp_path / "sample.fasta"
+    fasta.write_text(
+        ">PX000000.1 Eleutherine bulbosa voucher V1 chloroplast, complete genome\n"
+        + "ATGGCG" * 40
+        + "\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "runs"
+    assert (
+        main(
+            [
+                "run",
+                "--module",
+                "orf",
+                "--input",
+                str(fasta),
+                "--out",
+                str(out),
+                "--dataset",
+                "bare",
+            ]
+        )
+        == 0
+    )
+    run_dir = next((out / "bare").iterdir())
+    summary = (run_dir / "01_orf/tables/orf_summary.csv").read_text(encoding="utf-8")
+    assert "no CDS feature: sequence-level analyses only" in (
+        run_dir / "01_orf/result.json"
+    ).read_text(encoding="utf-8")
+    assert "PX000000.1" in summary
+
+
+def test_cli_run_refuses_an_empty_input(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The reader is chosen by the first line, so an empty file has no format to choose — and the
+    error must say that, not name whichever reader a default would have picked."""
+    empty = tmp_path / "empty.fasta"
+    empty.write_text("\n\n", encoding="utf-8")
+    assert main(["run", "-m", "genome_stats", "-i", str(empty), "--out", str(tmp_path)]) == 1
+    assert "empty file" in capsys.readouterr().err
