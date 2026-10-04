@@ -90,7 +90,8 @@ A stand-in never stops being a stand-in:
 | `TASKS.md` | Always — active tasks as checklists; each ends with a measurable "Done when" |
 | `ROADMAP.md` | Always — phase milestones + progress checklist; source for specs/tasks |
 | PROJECT.md §3 | Before a design decision not already covered by ROADMAP/CLAUDE |
-| PROJECT.md §6 · §8 · §9 | Before touching numbers, tests, or claiming "we measured X" |
+| PROJECT.md §6 · §9 | Before touching numbers, tests, or claiming "we measured X" |
+| PROJECT.md §8 → `docs/log/` | The run log. **One file per phase**; §8 in PROJECT.md is its index, one line per entry. Cite an entry by number (`§8.27`) — never by file and line |
 | PROJECT.md §13.x | When a phase needs its full original scope text (ROADMAP.md is the summary) |
 | PROJECT.md §7.8 | When installing or pinning external tools (versions, sources, md5) |
 
@@ -282,7 +283,25 @@ leaving the split ambiguous.
 - Don't run tests that hit the network — golden data is vendored in the repo. (Fetching a dataset
   once with `plastid panel pin` is a data step, not a test.)
 - Don't commit raw data dumps, credentials, or API keys.
-- Don't restructure PROJECT.md; append to §8/§9 and update the §3 decisions table.
+- Don't restructure PROJECT.md; append to §9 and update the §3 decisions table.
+
+## The run log — `docs/log/`
+
+§8 (the log of every real run) lives in `docs/log/`, one file per phase, because 33 entries in one
+118 KB file made reading §8.27 mean opening a 216 KB document. The rules, and the reasons:
+
+- **Entry numbers are permanent.** `§8.27` is `§8.27` wherever the text sits — **271 references**
+  point at them by number (27 in code docstrings, 36 in tests, 23 in `docs/`, 115 across the four
+  session files, 70 inside PROJECT.md). Renaming or renumbering an entry breaks citations nobody
+  can re-derive. New entry: the next number, in the file of the phase you are in.
+- **`PROJECT.md` §8 is the index** — one line per entry, and the only place a citation has to
+  resolve from. `tests/unit/test_project_docs.py` fails the build if a cited `§8.N` has no heading,
+  if an entry is missing from the index, or if one number appears in two files.
+- **Entries are appended, never rewritten.** A correction is a new entry that says what it corrects
+  (the Ts/Tv log is the worked example: the old numbers stay, with what they measured).
+- **Move text, don't retype it.** The 04/10/2026 split was verified byte-for-byte — the five files
+  concatenated are identical to the §8 that was in git. Reorganising this archive is a diff nobody
+  reads; making it provably lossless is the only way it can be trusted.
 
 ## Subagents
 

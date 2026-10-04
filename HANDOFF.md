@@ -130,7 +130,20 @@ not a constant**: published and Chloe both range 84–87 CDS here — the P2-10 
   expected to be the slow half turned out to be the fastest thing measured.
 * `diversity` and `barcodes` at 34 are **named as not measured**, never estimated.
 
-**Validation.** `make check` green after each commit — **550 fast + 42 golden** at the last run
+**Late in the session: the run log moved out of `PROJECT.md`** — §8 was **1,531 of 2,379 lines
+(118 of 216 KB)**, so reading one entry meant opening a document that no longer even fits a default
+Read. It is now five files under `docs/log/` (`phase-1` · `phase-2-3` · `phase-3a` · `phase-4` ·
+`phase-4a`), with a 33-line index left in §8. **Entry numbers did not move**, because **271
+references** point at them by number (27 in code docstrings, 36 in tests, 23 in `docs/`, 115 across
+the four session files, 70 inside PROJECT.md) — renumbering would have broken citations a docstring
+cannot re-derive. The split was proven a **pure move**: the five files concatenated are
+byte-identical to the §8 that was in git, and §1–§7 / §9–§13 are untouched. New guard:
+`tests/unit/test_project_docs.py` fails the build if a cited `§8.N` has no heading, if the index
+misses an entry, if one number appears in two files, or if a cited `§9.x` item is gone — with a
+negative test, because a guard nobody has watched fail is not a guard. Rule written where it is
+read: `CLAUDE.md` → "The run log".
+
+**Validation.** `make check` green after each commit — **564 fast + 42 golden** at the last run
 (tier-B skips name their missing tool; this shell has no tool env unless `PATH` carries
 `/root/toolbox/env/pts/bin`).
 
