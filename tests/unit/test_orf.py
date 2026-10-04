@@ -311,3 +311,26 @@ def test_an_ordinary_record_keeps_its_plain_ids() -> None:
     result = orf.run(genome, {}, _module_ctx())
     # the id is 1-based and inclusive, like every coordinate in these tables
     assert result.tables["orf_checks"].rows[0]["cds_id"] == "rps16:13-33"
+
+
+def test_a_record_with_no_cds_is_analysed_not_refused() -> None:
+    """A bare sequence — an assembler's output, or the target of an annotation run — is a
+    legitimate input, and the module says so in a comment. It did not: the per-CDS table was
+    constructed *before* the branch that guards it, and ``Table`` refuses zero rows, so the module
+    raised and the intended handling had never run (measured 04/10/2026, P4a-04).
+
+    What it produces instead: a summary of zeros, the note, and no per-CDS table at all — an empty
+    one could not be read by anyone.
+    """
+    from plastid.modules import orf
+
+    genome = Genome(
+        name="bare", accession="PX000000.1", sequence="ATGGCG" * 40, topology="circular"
+    )
+    result = orf.run(genome, {}, _module_ctx())
+
+    summary = result.tables["orf_summary"].rows[0]
+    assert summary["n_cds"] == 0
+    assert result.tables["orf_reconciliation"].rows[0]["agreement"] == "agrees"
+    assert "orf_checks" not in result.tables
+    assert any("no CDS feature" in note for note in result.notes)

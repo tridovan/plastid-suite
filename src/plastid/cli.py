@@ -84,7 +84,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--input",
         required=True,
         action="append",
-        help="GenBank file (one record); repeat the flag for a multi-genome module",
+        help="GenBank or FASTA file (one record); repeat the flag for a multi-genome module. "
+        "A bare FASTA is a genome with no features yet — what the annotation module takes",
     )
     run_parser.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
     run_parser.add_argument("--dataset", default=None, help="dataset label (default: accession)")
@@ -332,7 +333,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         return EXIT_USAGE
 
     try:
-        genomes = tuple(read_genbank(text) for text in args.input)
+        genomes = tuple(_read_input(path) for path in args.input)
     except (OSError, ValueError) as error:
         print(f"cannot read the input: {error}", file=sys.stderr)
         return EXIT_ERROR
@@ -399,6 +400,24 @@ def _cmd_run(args: argparse.Namespace) -> int:
         ],
         inputs=list(args.input),
     )
+
+
+def _read_input(path: str) -> Genome:
+    """One input file as a genome — GenBank or FASTA, decided by the file's own first line.
+
+    A sample that has just come off an assembler is a bare sequence, and annotating it is exactly
+    what the ``annotation`` module is for, so ``plastid run`` has to accept one (P4a-04). The
+    choice is made on content rather than on the suffix: ``.fa``, ``.fasta``, ``.fna`` and ``.fas``
+    all occur in the wild, and a sequencing facility's file naming is not ours to require.
+
+    An empty file is refused here rather than by whichever reader happens to be picked — the
+    GenBank reader's own message ("no GenBank records found") would name the wrong format.
+    """
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            if line.strip():
+                return read_fasta(path) if line.lstrip().startswith(">") else read_genbank(path)
+    raise ValueError(f"{path}: empty file")
 
 
 def _execute_run(

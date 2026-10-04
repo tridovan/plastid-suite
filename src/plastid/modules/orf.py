@@ -114,41 +114,42 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         key="status",
     )
 
-    checks_table = Table(
-        id="orf_checks",
-        title="ORF check per CDS",
-        columns=(
-            Column("cds_id", "CDS"),
-            Column("gene", "Gene"),
-            Column("start_1b", "Start", dtype="int"),
-            Column("end_1b", "End", dtype="int"),
-            Column("strand", "Strand"),
-            Column("length_bp", "Length", dtype="int", unit="bp"),
-            Column("transl_table", "Table", dtype="int"),
-            Column("codon_start", "Codon start", dtype="int"),
-            Column("start_codon", "Start codon"),
-            Column("start_class", "Start class"),
-            Column("stop_codon", "Stop codon"),
-            Column("internal_stops", "Internal stops", dtype="int"),
-            Column("internal_stop_codons", "Internal stop positions (codon)"),
-            Column("status", "Status"),
-            Column("pseudo", "Pseudogene"),
-        ),
-        rows=tuple(
-            _check_row(check, cds_id) for check, cds_id in zip(checks, cds_ids, strict=True)
-        ),
-        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
-        key="cds_id",
-    )
-
     tables: dict[str, Table] = {
         summary.id: summary,
         status_table.id: status_table,
     }
     if checks:
-        # a record with no CDS is a legitimate input — an unannotated draft, or the target of an
-        # annotation run. It gets a summary of zeros and this note, not a crash on an empty table.
-        tables[checks_table.id] = checks_table
+        tables["orf_checks"] = Table(
+            id="orf_checks",
+            title="ORF check per CDS",
+            columns=(
+                Column("cds_id", "CDS"),
+                Column("gene", "Gene"),
+                Column("start_1b", "Start", dtype="int"),
+                Column("end_1b", "End", dtype="int"),
+                Column("strand", "Strand"),
+                Column("length_bp", "Length", dtype="int", unit="bp"),
+                Column("transl_table", "Table", dtype="int"),
+                Column("codon_start", "Codon start", dtype="int"),
+                Column("start_codon", "Start codon"),
+                Column("start_class", "Start class"),
+                Column("stop_codon", "Stop codon"),
+                Column("internal_stops", "Internal stops", dtype="int"),
+                Column("internal_stop_codons", "Internal stop positions (codon)"),
+                Column("status", "Status"),
+                Column("pseudo", "Pseudogene"),
+            ),
+            rows=tuple(
+                _check_row(check, cds_id) for check, cds_id in zip(checks, cds_ids, strict=True)
+            ),
+            scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+            key="cds_id",
+        )
+    # a record with no CDS is a legitimate input — an unannotated draft, or the target of an
+    # annotation run. It gets a summary of zeros and the note below, and no per-CDS table: an
+    # empty one cannot be built (Table refuses zero rows) and could not be read if it could.
+    # Measured 04/10/2026: constructing the table unconditionally made the module raise *before*
+    # this branch, so the intended handling of a bare sequence had never actually run (P4a-04).
     if orphans:
         tables["annotated_not_coding"] = _orphan_table(orphans)
 

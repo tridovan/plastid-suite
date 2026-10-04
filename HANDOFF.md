@@ -62,6 +62,68 @@ which gene name the manuscript/NCBI submission prints (D3-06).
 
 ## Log
 
+### 2026-10-04 · Claude · dev WSL · session 19 (Phase 4a: the corpus pinned, the fixtures vendored, and two runs that died on real data)
+
+**Did.** P4a-01 and P4a-02 DONE and pushed; P4a-03 (scale) started, and it has already paid for
+itself.
+
+* **P4a-01 · the corpus in the tree and pinned.** `.data/thanhdiem_data/` (gitignored, 136 files,
+  28 MB, every sha256 matching `D:\`), both annotation sets pinned as panels, the FASTAs as
+  `fasta.json`. Recorded in §8.31 with the measurements that came out of pinning.
+* **P4a-02 · fixtures + Phase-1 checks.** Five files · 1.3 MB in `tests/data/corpus/` and twelve
+  tier-A tests in `tests/golden/test_corpus.py`: the golden re-annotated is one CDS short, *Iris
+  hermona* passes the gate as published and fails it at 26.36 % under PGA **on the same sequence**
+  (exit 0 / exit 2 through the CLI), the group's own record 87 → 85, the `ndhI`/`ndhL` alias
+  resolving both spellings to one key. Plus a new guard: **every file under `tests/data` must be in
+  `SHA256SUMS` and match it** — the corpus files were not, and the test found that before commit.
+* **Two corrections to my own board, both worth the ink.** (1) D4a-05 said "add the `ndhI`↔`ndhL`
+  alias" — it has been in `data/gene_aliases.yaml` since 03/10 (§8.17); today only re-measured it at
+  8/34 pairs. (2) The corpus's tool is identified by the **files themselves**
+  (`/note="Annotation Method :: PGA-Plastid Genome Annotator"` in 34/34 of set 02, 0/34 of set 01),
+  not by the naming style I had inferred it from.
+
+**P4a-03 is where the corpus earned its place — two records killed two whole runs, and neither
+failure was a wrong number.**
+
+1. **`structure`, *Chasmanthe floribunda* NC_072562.1.** LSC 81,003 bp ⇒ the 1,000 bp windowing
+   ends in a **3 bp** window (`TTA`). No G, no C, `gc_skew` undefined, module raised ⇒ **run dead**,
+   1 of 34. The golden genome survives only because its LSC ends in a 127 bp window that happens to
+   hold G and C. Fixed: an undefined window is blank (cumulative blank from there on), counted in
+   `n_undefined_windows` and named in a note; a *region* without G and C still raises.
+2. **`orf`, *Libertia pulchella* NC_072575.1.** The record annotates `rps16` **twice**
+   (`5741-5780,4684-4895` and `5737-5780,4684-4891`); both collapse to span `4684-5780`, so both
+   took the id `rps16:4684-5780`, and `Table` refuses a repeated key ⇒ **run dead**, 1 of 34. Fixed:
+   ids unique per feature (`#2`), both rows checked, `n_duplicated_cds` counted and named — a
+   duplicated annotation is a finding about the record, not rubbish to drop.
+
+Both modules → **0.2.0** (H-08: the cache keys on `module_version`). Regression tests for both are
+offline and synthetic; PROJECT.md **§9.I** carries the lesson — *neither fixture could have come
+from data this project picked for itself, because it picks records that work.*
+
+**The scale numbers so far** (34 records, `/usr/bin/time -v`, every run `--force`): the nine
+single-genome modules cost **13–26 s for all 34 genomes each**, peak RSS **≈ 87 MB** (51 MB for the
+lighter four) — a whole panel of them is a coffee break, not a batch job. The expensive shape is the
+**whole-genome MAFFT** that `substitutions`' default scope needs: at N = 34 it ran past 10 minutes on
+one core (measured, still running when this was written); the **CDS scope returns before that
+alignment** and is the affordable path. Numbers, curve and batching rule go into §8.32 when the
+measurement lands.
+
+**Validation.** `make check` green after each commit — **550 fast + 42 golden** at the last run
+(tier-B skips name their missing tool; this shell has no tool env unless `PATH` carries
+`/root/toolbox/env/pts/bin`).
+
+**Residual risks.** (1) The corpus is gitignored and re-fetchable only from anh Điềm's disk; the
+durable record is §8.31 plus `PINNED.json`. (2) The two panels are keyed differently by
+construction — anything joining them must join on the **file stem**, never the accession. (3) The
+scale numbers are this machine's (WSL, 8 GB cap): they bound a *shape*, not a promise for another
+machine.
+
+**Blocked.** Nothing.
+
+**Next.** Finish P4a-03 (§8.32 + board), then **P4a-04** — Chloe over the 34 bare sequences, which
+needs a FASTA door in `plastid run` (`-i` reads GenBank only, measured) or the de-annotated-GenBank
+route P3A-07 used.
+
 ### 2026-10-04 · Claude · dev WSL · session 18 (Phase 4a opened — the Điềm corpus becomes the test dataset)
 
 **Did.** Opened **Phase 4a** (board + ROADMAP milestones M4a.0–M4a.4) and closed **P4a-01**.
