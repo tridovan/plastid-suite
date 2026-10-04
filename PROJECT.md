@@ -1779,6 +1779,7 @@ alignment theo gen trong bộ nhớ) và là cái duy nhất chạy xong: trên 
 | Module | Lượt gọi tool | Thời gian | RAM đỉnh |
 |---|---|---|---|
 | `synteny` (`nucmer` → `delta-filter` → `show-coords` mỗi query) | 99 | **19,6 s** | 145 MB |
+| `popgen` (MAFFT mỗi gen, thống kê tự viết) | 80 | **6 ph 13 s** | 179 MB |
 | `kaks` (MAFFT + `yn00` mỗi gen dùng chung, mỗi cặp) | 5.202 MAFFT + 4.766 yn00 = **9.968** | **8 ph 26 s** | 98 MB |
 
 **Số lượt gọi tool không phải thứ đắt — kích thước một alignment mới là.** 9.968 alignment hai

@@ -236,11 +236,12 @@ each module, and a stated batch size for a 34-genome run. **Needs:** the pinned 
 modules: **13–26 s for all 34 genomes each, 87 MB peak**. The whole-genome MAFFT: 4 genomes 72 s ·
 8 → 2 min 44 s · **16 → over 7 min** · **34 → over 11 min**, peak under 100 MB throughout — *time*
 runs out, not memory. The **CDS scope** (the manuscripts' scope) does all 34 in **5 min 24 s** at
-179 MB and finishes. The per-pair modules at 34: **`synteny` 19,6 s · 145 MB** (99 tool calls) and **`kaks` 8 min 26 s ·
-98 MB** — 5.202 MAFFT + 4.766 `yn00` = **9.968 tool calls**, which is the finding: *call count is
-not what costs, the size of one alignment is* (9,968 two-sequence alignments finish in 8.5 min; one
-34-plastome alignment does not finish in 11). **Three modules are named as not measured** —
-`diversity` · `barcodes` · `popgen` at N = 34 — never estimated from another module's number.
+179 MB and finishes. The per-pair modules at 34: **`synteny` 19,6 s · 145 MB** (99 tool calls) · **`popgen` 6 ph 13 s ·
+179 MB** (80) and **`kaks` 8 ph 26 s · 98 MB** — 5.202 MAFFT + 4.766 `yn00` = **9.968 tool calls**,
+which is the finding: *call count is not what costs, the size of one alignment is* (9,968
+two-sequence alignments finish in 8.5 min; one 34-plastome alignment does not finish in 11).
+**Two modules are named as not measured** — `diversity` · `barcodes` at N = 34 — never estimated
+from another module's number.
 
 ### P4a-04 · Chloe on the 34 bare sequences — three annotations of one sequence · M4a.4 · [x]
 
