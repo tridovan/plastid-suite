@@ -352,6 +352,82 @@ def test_kaks_reproduces_the_measured_iris_pair_result(
     assert genes["accD"]["Status"] == "frameshift in the alignment"
 
 
+PANEL = Path(__file__).parents[2] / ".panel" / "oldenlandia-coleus"
+
+
+def test_popgen_over_the_pinned_panel(tools: dict[str, str | None], tmp_path: Path) -> None:
+    """P4-03's real run: the pinned stand-in panel, every statistic with its n.
+
+    Measured 04/10/2026 — 11 records in two groups (Coleus 6 · Oldenlandia 5; three of them carry
+    no CDS), 80 genes aligned across them. **n = 4 for most genes and the neutrality tests then
+    exist; n = 3 and n = 1 rows keep a blank with the reason**, which is the point of the check:
+    a statistic that needed more sequences must not appear as a number.
+
+    The panel is gitignored (re-fetch with PROJECT.md §8.6) so this skips with a named reason when
+    it is absent — and what it does read is verified against ``PINNED.json``'s sha256 first, so a
+    drifted download cannot quietly change the numbers.
+    """
+    require_tools(tools, "mafft")
+    if not (PANEL / "PINNED.json").is_file():
+        pytest.skip(
+            f"the pinned stand-in panel is not on this machine ({PANEL}) — re-fetch it with the "
+            f"two 'plastid panel pin --groups' commands in PROJECT.md §8.6"
+        )
+    import hashlib
+    import json as _json
+
+    pinned = _json.loads((PANEL / "PINNED.json").read_text(encoding="utf-8"))
+    paths = sorted(PANEL.glob("*.gb"))
+    assert len(paths) == len(pinned["genomes"])
+    for entry in pinned["genomes"]:
+        digest = hashlib.sha256((PANEL / Path(entry["path"]).name).read_bytes()).hexdigest()
+        assert digest == entry["sha256"], f"{entry['accession']} has drifted from its pin"
+
+    assert (
+        main(
+            [
+                "run",
+                "--module",
+                "popgen",
+                *[part for path in paths for part in ("--input", str(path))],
+                "--out",
+                str(tmp_path / "runs"),
+                "--dataset",
+                "panel",
+                "--groups",
+                str(Path(__file__).parents[2] / "data" / "oldenlandia-coleus.yaml"),
+            ]
+        )
+        == 0
+    )
+    summary = next(_table(tmp_path / "runs", "popgen_summary"))
+    assert summary["Genomes"] == "11"
+    assert summary["Groups"] == "2"
+    assert summary["Group sizes"] == "Coleus: 6, Oldenlandia: 5"
+    assert summary["Genes analysed"] == "80"
+
+    groups = {row["Row"]: row for row in _table(tmp_path / "runs", "popgen_groups")}
+    rbc = groups["rbcL#Oldenlandia"]
+    assert rbc["Sequences"] == "4"
+    assert rbc["Segregating sites"] == "41"
+    assert float(rbc["π per site"]) == pytest.approx(0.01844071, rel=1e-4)
+    assert float(rbc["Tajima's D"]) == pytest.approx(1.8434, abs=1e-3)
+
+    thin = groups["ndhK#Oldenlandia"]
+    assert thin["Sequences"] == "3"
+    assert thin["Tajima's D"] == ""  # n = 3 cannot carry it
+    assert "at least 4 sequences" in thin["Note"]
+
+    alone = groups["ycf15#Oldenlandia"]
+    assert alone["Sequences"] == "1"
+    assert alone["Haplotype diversity"] == ""
+    assert "nothing is estimable" in alone["Note"]
+
+    fst = {row["Row"]: row for row in _table(tmp_path / "runs", "popgen_fst")}
+    assert float(fst["rbcL#Coleus#Oldenlandia"]["Fst"]) == pytest.approx(0.1852, abs=1e-3)
+    assert len(fst) == 80  # every analysed gene has its between-group row
+
+
 def _table(root: Path, table_id: str) -> csv.DictReader:
     """A module table as rows: the exports carry their provenance as ``#`` comments."""
     path = next(root.rglob(f"{table_id}.csv"))

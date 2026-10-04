@@ -416,6 +416,110 @@ def _substitutions_result() -> Result:
     )
 
 
+def _popgen_result() -> Result:
+    return Result(
+        module="popgen",
+        module_version="0.1.0",
+        tables={
+            "popgen_summary": Table(
+                id="popgen_summary",
+                title="Population-genetics summary",
+                columns=(
+                    Column("accession", "Reference accession"),
+                    Column("organism", "Reference organism"),
+                    Column("n_genomes", "Genomes", dtype="int"),
+                    Column("n_groups", "Groups", dtype="int"),
+                    Column("group_sizes", "Group sizes"),
+                    Column("n_genes", "Genes analysed", dtype="int"),
+                    Column("tool", "Aligner"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_057985.1",
+                        "organism": "Scleromitrion diffusum",
+                        "n_genomes": 9,
+                        "n_groups": 2,
+                        "group_sizes": "Coleus: 4, Oldenlandia: 5",
+                        "n_genes": 80,
+                        "tool": "MAFFT",
+                    },
+                ),
+                scope=Scope(label="per-gene statistics by sample group"),
+            ),
+            "popgen_groups": Table(
+                id="popgen_groups",
+                title="Statistics by gene and group",
+                columns=(
+                    Column("row_id", "Row"),
+                    Column("gene", "Gene"),
+                    Column("group", "Group"),
+                    Column("n", "Sequences", dtype="int"),
+                    Column("sites", "Usable sites", dtype="int", unit="bp"),
+                    Column("segregating", "Segregating sites", dtype="int"),
+                    Column("singletons", "Singletons", dtype="int"),
+                    Column("haplotypes", "Haplotypes", dtype="int"),
+                    Column("hd", "Haplotype diversity", dtype="float", precision=4),
+                    Column("pi", "π per site", dtype="float", precision=8),
+                    Column("theta_w", "θ(S) per site", dtype="float", precision=8),
+                    Column("tajimas_d", "Tajima's D", dtype="float", precision=4),
+                    Column("fu_li_d_star", "Fu & Li's D*", dtype="float", precision=4),
+                    Column("fu_li_f_star", "Fu & Li's F*", dtype="float", precision=4),
+                    Column("note", "Note"),
+                ),
+                rows=(
+                    {
+                        "row_id": "rbcL#Oldenlandia",
+                        "gene": "rbcL",
+                        "group": "Oldenlandia",
+                        "n": 4,
+                        "sites": 1428,
+                        "segregating": 41,
+                        "singletons": 12,
+                        "haplotypes": 3,
+                        "hd": 0.8333,
+                        "pi": 0.01844071,
+                        "theta_w": 0.01985102,
+                        "tajimas_d": 1.8434,
+                        "fu_li_d_star": 1.8434,
+                        "fu_li_f_star": 1.5432,
+                        "note": "",
+                    },
+                ),
+                scope=Scope(label="one row per gene and group"),
+                key="row_id",
+            ),
+            "popgen_fst": Table(
+                id="popgen_fst",
+                title="Fst between groups",
+                columns=(
+                    Column("row_id", "Row"),
+                    Column("gene", "Gene"),
+                    Column("group_a", "Group A"),
+                    Column("group_b", "Group B"),
+                    Column("n_a", "n (A)", dtype="int"),
+                    Column("n_b", "n (B)", dtype="int"),
+                    Column("fst", "Fst", dtype="float", precision=4),
+                    Column("note", "Note"),
+                ),
+                rows=(
+                    {
+                        "row_id": "rbcL#Coleus#Oldenlandia",
+                        "gene": "rbcL",
+                        "group_a": "Coleus",
+                        "group_b": "Oldenlandia",
+                        "n_a": 4,
+                        "n_b": 4,
+                        "fst": 0.1852,
+                        "note": "",
+                    },
+                ),
+                scope=Scope(label="Nei's Gst between groups"),
+                key="row_id",
+            ),
+        },
+    )
+
+
 def _kaks_result() -> Result:
     return Result(
         module="kaks",
@@ -1159,6 +1263,7 @@ TEMPLATE_FIXTURES = {
     "diversity": _diversity_result,
     "substitutions": _substitutions_result,
     "kaks": _kaks_result,
+    "popgen": _popgen_result,
     "synteny": _synteny_result,
 }
 

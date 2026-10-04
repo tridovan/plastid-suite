@@ -23,6 +23,7 @@ __all__ = [
     "nucleotide_diversity",
     "reference_positions",
     "substitution_counts",
+    "usable_columns",
     "variable_sites",
     "window_diversity",
 ]
@@ -85,6 +86,16 @@ class WindowDiversity:
 def _usable(column: str) -> bool:
     """A column counts only when every row carries an unambiguous base — complete deletion."""
     return all(base in _DNA for base in column)
+
+
+def usable_columns(alignment: Alignment) -> tuple[int, ...]:
+    """The columns complete deletion keeps: every row carries an unambiguous base.
+
+    Public because the population-genetic estimators (P4-03) need the same column set as π —
+    a statistic computed over a different set of columns than the one beside it is a table
+    nobody can reconcile.
+    """
+    return tuple(index for index in range(alignment.length) if _usable(alignment.column(index)))
 
 
 def nucleotide_diversity(alignment: Alignment, columns: Iterable[int]) -> tuple[float | None, int]:
