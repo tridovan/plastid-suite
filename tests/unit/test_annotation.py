@@ -112,11 +112,12 @@ def test_the_module_analyses_whatever_the_annotator_wrote(
     )
     assert summary["n_orf_failed"] == 0
     assert summary["n_unclassified"] == 0
-    # Eight single-copy features carry a second name: ycf3/ycf4/psbN/clpP and ndhL (the synonym
-    # this record uses for ndhI, added 2026-10-03), plus atpI, psaI and psbB (added 2026-10-04,
-    # when the Ka/Ks run showed NC_024936.1 spells those three loci atpL, psaL and bspB). Every
-    # entry's evidence is in data/gene_aliases.yaml.
-    assert summary["n_aliased_names"] == 8
+    # Ten features carry a second name: ycf3/ycf4/psbN/clpP and ndhL (the synonym this record
+    # uses for ndhI, 2026-10-03); atpI, psaI and psbB (the Ka/Ks run showed NC_024936.1 spells
+    # those three loci atpL, psaL and bspB); and both IR copies of trnI-GAU (that record spells
+    # the locus trnl-GUA, and the sequences are byte-identical). Every entry's evidence is in
+    # data/gene_aliases.yaml.
+    assert summary["n_aliased_names"] == 10
 
     status = {row["status"]: row["n"] for row in result.tables["orf_status"].rows}
     assert status["ok"] == 81 and status["alternative_start"] == 5

@@ -68,6 +68,9 @@ _RRNA_SIZE_SUFFIX = re.compile(r"^(rrn\d+(?:\.\d+)?)S$")
 _BARE_TRNA = re.compile(r"^trn[A-Za-z]+$")
 # A tRNA name that does carry one — the shape a bare name can be resolved to.
 _NAMED_TRNA = re.compile(r"^trn\w+-[A-Z]{3}$")
+# trnX-YYY with a single amino-acid letter: the only form whose letter case is a slip rather
+# than part of the name (trnfM-CAU keeps its f — the next character is M, not a hyphen).
+_SINGLE_LETTER_TRNA = re.compile(r"^trn([A-Za-z])-([A-Za-z]{3})$")
 
 
 class GeneAliasError(ValueError):
@@ -276,6 +279,16 @@ def _normalize_syntax(name: str) -> tuple[str, bool]:
         if canonical[:3].lower() == prefix and canonical[:3] != prefix:
             canonical = prefix + canonical[3:]
             break
+
+    # The amino-acid letter of trnX-YYY: `trnk-UUU` and `trnK-UUU` are one name written two ways,
+    # and a comparison that keeps them apart loses the locus in silence (measured 2026-10-04 on
+    # the golden pair: NC_024936.1 spells trnK-UUU and trnI-GAU with lowercase letters —
+    # `trnk-UUU`, `trnl-GUA` — and the two records' sequences at those loci are identical).
+    # Only the single-letter-before-the-hyphen form is touched: trnfM-CAU's `f` is followed by
+    # `M`, not by `-`, and it is part of the name.
+    single = _SINGLE_LETTER_TRNA.match(canonical)
+    if single is not None and single.group(1).islower():
+        canonical = f"trn{single.group(1).upper()}-{single.group(2)}"
     return canonical, canonical != name
 
 

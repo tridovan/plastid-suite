@@ -25,6 +25,9 @@ mummer:
 paml:
   text: "Yang Z. PAML 4: phylogenetic analysis by maximum likelihood. Molecular Biology and Evolution 24:1586–1591 (2007)."
   doi: "10.1093/molbev/msm088"
+cbol:
+  text: "CBOL Plant Working Group. A DNA barcode for land plants. Proceedings of the National Academy of Sciences 106:12794–12797 (2009)."
+  doi: "10.1073/pnas.0905845106"
 yang_nielsen:
   text: "Yang Z, Nielsen R. Estimating synonymous and nonsynonymous substitution rates under realistic evolutionary models. Molecular Biology and Evolution 17:32–43 (2000)."
   doi: "10.1093/oxfordjournals.molbev.a026236"

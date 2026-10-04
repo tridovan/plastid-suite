@@ -352,6 +352,69 @@ def test_kaks_reproduces_the_measured_iris_pair_result(
     assert genes["accD"]["Status"] == "frameshift in the alignment"
 
 
+def test_barcodes_reuses_diversitys_pi_window_for_window(
+    tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """P4-04's Done-when, as a cross-check between two modules rather than a re-implementation:
+    the barcode module's window series and the diversity module's must be **the same numbers**
+    for the same window — same alignment, same window/step, same core function.
+
+    Measured 04/10/2026 on the golden pair: 773 windows, every π identical, and the candidate
+    loci of ``data/barcode_loci.yaml`` checked against the record's own annotation — 8 of 10
+    found. ``trnH-psbA`` is **not** one of them, and the row says exactly why: in both golden
+    records rps19 sits between trnH-GUG and psbA, so the classic spacer is not a spacer there
+    (the module's first version reported it as "not carried", which is a different claim).
+    """
+    require_tools(tools, "mafft")
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "barcodes",
+                "-m",
+                "diversity",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-i",
+                str(data_dir / "NC_024936.1.gb"),
+                "-o",
+                str(tmp_path / "runs"),
+                "--dataset",
+                "golden",
+            ]
+        )
+        == 0
+    )
+    barcode_windows = list(_table(tmp_path / "runs", "barcodes_windows"))
+    diversity_windows = list(_table(tmp_path / "runs", "diversity_windows"))
+    assert len(barcode_windows) == len(diversity_windows) == 773
+    assert [row["π"] for row in barcode_windows] == [row["π"] for row in diversity_windows]
+
+    summary = next(_table(tmp_path / "runs", "barcodes_summary"))
+    assert summary["Hypervariable regions"] == "26"
+    assert summary["Candidate loci"] == "10"
+    assert summary["Candidates found"] == "8"
+    assert float(summary["Mean π"]) == pytest.approx(0.007332, rel=1e-3)
+    assert float(summary["Region threshold"]) == pytest.approx(0.014157, rel=1e-3)
+
+    regions = list(_table(tmp_path / "runs", "barcodes_regions"))
+    assert regions[0]["Region"] == "R1"  # ranked by mean π
+    assert regions[0]["Reference start (bp)"] != ""  # coordinates, not just alignment columns
+    assert all(row["Span (bp)"] != "" for row in regions)
+
+    candidates = {row["Locus"]: row for row in _table(tmp_path / "runs", "barcodes_candidates")}
+    assert candidates["rbcL"]["Found"] == "yes"
+    assert candidates["atpF-atpH"]["Rank by π"] == "1"  # the most variable candidate here
+    assert candidates["trnH-psbA"]["Found"] == "no"
+    assert "not adjacent" in candidates["trnH-psbA"]["Note"]
+    assert candidates["ITS"]["Found"] == "no"
+    assert "plastid" in candidates["ITS"]["Note"]
+    # an intron-containing locus keeps both its parts: rps16's span is its two exons (252 bp)
+    assert candidates["rps16"]["Span (bp)"] == "252"
+    assert float(candidates["rps16"]["π"]) == 0.0  # measured: the exons are identical here
+
+
 PANEL = Path(__file__).parents[2] / ".panel" / "oldenlandia-coleus"
 
 

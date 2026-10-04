@@ -109,7 +109,9 @@ def test_the_measured_loci_are_the_only_ones_shipped() -> None:
     ndhI joined it on 2026-10-03 (the golden record's ndhL and Chloe's ndhI are one locus with
     one protein); atpI, psaI and psbB joined it on 2026-10-04, when P4-02's Ka/Ks run listed the
     genes the two golden records "did not share" and three of them turned out to be the same
-    locus under NC_024936.1's own spelling (see data/gene_aliases.yaml, PROJECT.md §8.27).
+    locus under NC_024936.1's own spelling (see data/gene_aliases.yaml, PROJECT.md §8.27); and
+    trnI-GAU the same day, when P4-04's barcode run listed the loci a record carries and
+    NC_024936.1's trnl-GUA turned out to be that locus's tRNA, byte for byte (§8.28).
     """
     assert {locus.canonical for locus in ALIASES.loci} == {
         "pafI",
@@ -120,6 +122,7 @@ def test_the_measured_loci_are_the_only_ones_shipped() -> None:
         "atpI",
         "psaI",
         "psbB",
+        "trnI-GAU",
     }
     assert all(locus.evidence for locus in ALIASES.loci)
 
@@ -514,3 +517,40 @@ def test_cds_by_canonical_name_keeps_one_copy_per_name(data_dir: Path) -> None:
     # every value is a real CDS of that genome, and at most one feature per canonical name
     features = set(cds_features(genome))
     assert set(by_name.values()) <= features
+
+
+def test_the_amino_acid_letter_of_a_trna_name_is_case_insensitive() -> None:
+    """`trnk-UUU` and `trnK-UUU` are one name in two spellings, and keeping them apart loses a
+    locus in silence. Measured 2026-10-04 on the golden pair: NC_024936.1 writes `trnk-UUU` where
+    the golden record writes `trnK-UUU`, with byte-identical sequences at the locus."""
+    assert normalize_name("trnk-UUU", ALIASES).canonical == "trnK-UUU"
+    assert normalize_name("trnk-UUU", ALIASES).rule == SYNTAX_RULE
+    # trnl-GUA takes two steps: the case slip folds to trnL-GUA, and the alias table (below)
+    # maps that to the locus's real name — 77 bp identical to the golden record's trnI-GAU
+    assert normalize_name("trnl-GUA", ALIASES).canonical == "trnI-GAU"
+    # trnfM-CAU's f is the name, not a case slip: the next character is M, not a hyphen
+    assert normalize_name("trnfM-CAU", ALIASES).canonical == "trnfM-CAU"
+    assert normalize_name("trnfM-CAU", ALIASES).rule == IDENTICAL_RULE
+
+
+def test_nc_024936s_trnl_gua_is_the_locus_the_golden_record_calls_trni_gau(data_dir: Path) -> None:
+    """The alias entry's regression: 77 bp, byte-identical to trnI-GAU, at the same position."""
+    from plastid.core.model import coding_sequence
+
+    records = {
+        path.name: read_genbank(path)
+        for path in (data_dir / "NC_050833.1.gb", data_dir / "NC_024936.1.gb")
+    }
+
+    def locus(genome, wanted):
+        names = normalize_genome(genome, ALIASES)
+        return [
+            coding_sequence(genome, gene)
+            for gene in genome.genes
+            if gene.kind == "tRNA" and names.normalized(gene).canonical == wanted
+        ]
+
+    golden = locus(records["NC_050833.1.gb"], "trnI-GAU")
+    gatesii = locus(records["NC_024936.1.gb"], "trnI-GAU")
+    assert len(golden) == 2 and len(gatesii) == 2  # two IR copies each
+    assert golden[0] == gatesii[0] and len(golden[0]) == 77
