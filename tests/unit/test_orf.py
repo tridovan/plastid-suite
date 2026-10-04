@@ -23,6 +23,7 @@ from plastid.core.orf import (
     check_cds,
     check_genome,
 )
+from plastid.run.context import RunContext
 
 _PAD = "A" * 12
 
@@ -240,3 +241,73 @@ def test_check_genome_covers_every_cds_feature_including_pseudogenes() -> None:
     checks = check_genome(genome, default_table=11)
     assert [check.gene.name for check in checks] == ["a", "b"]
     assert [check.status for check in checks] == [STATUS_OK, STATUS_PSEUDOGENE]
+
+
+def _module_ctx() -> RunContext:
+    """A run context for the module: orf reads the sequence, not IR positions.
+
+    (It declares ``requires_ir=False``, so no gate result travels with the context.)
+    """
+    return RunContext(layout=None, params={}, module_id="orf", module_order=1)  # type: ignore[arg-type]
+
+
+def test_a_record_that_annotates_one_gene_twice_keeps_both_rows() -> None:
+    """Measured 04/10/2026 on the corpus (P4a-03): *Libertia pulchella* NC_072575.1 carries **two**
+    ``rps16`` CDS features — ``5741-5780,4684-4895`` and ``5737-5780,4684-4891``. Both collapse to
+    the span ``4684-5780``, so both produced the id ``rps16:4684-5780``, and ``Table`` refuses a
+    repeated key: the whole run died for that genome (1 of the corpus's 34), on a defect that
+    belongs to the record rather than to the check.
+
+    Dropping one of them is not a fix — a duplicated annotation is a *finding*, and hiding it
+    would be the silent-drop failure this project keeps meeting. The ids are made unique, and the
+    duplication is named in the notes.
+    """
+    from plastid.modules import orf
+
+    first, second = "ATG" + "TTC" * 5 + "TAA", "ATG" + "TTC" * 5 + "TAA"  # 21 bp each
+    start = len(_PAD)
+    genome = Genome(
+        name="synthetic",
+        sequence=_PAD + first + second + _PAD,
+        genes=(
+            # the same gene, twice, with different internal exon boundaries — Libertia's shape
+            Gene(
+                "rps16",
+                "CDS",
+                (Interval(start, start + 9), Interval(start + 9, start + 21)),
+            ),
+            Gene(
+                "rps16",
+                "CDS",
+                (Interval(start, start + 6), Interval(start + 6, start + 21)),
+            ),
+        ),
+        topology="linear",
+    )
+    result = orf.run(genome, {}, _module_ctx())
+
+    rows = result.tables["orf_checks"].rows
+    assert [row["gene"] for row in rows] == ["rps16", "rps16"]
+    assert len({row["cds_id"] for row in rows}) == 2, "two features must not share one id"
+    assert all(row["status"] == STATUS_OK for row in rows)
+
+    # the note names them (result.json, the Word export), and the summary counts them so the
+    # finding is visible in the table a reader actually opens
+    assert any("annotates" in note and "rps16" in note for note in result.notes)
+    assert result.tables["orf_summary"].rows[0]["n_duplicated_cds"] == 1
+
+
+def test_an_ordinary_record_keeps_its_plain_ids() -> None:
+    """The disambiguation must not touch records that have no duplicate: the golden's ids are
+    what the reports and the manuscript tables already quote."""
+    from plastid.modules import orf
+
+    genome = Genome(
+        name="synthetic",
+        sequence=_PAD + "ATG" + "TTC" * 5 + "TAA" + _PAD,
+        genes=(Gene("rps16", "CDS", (Interval(len(_PAD), len(_PAD) + 21),)),),
+        topology="linear",
+    )
+    result = orf.run(genome, {}, _module_ctx())
+    # the id is 1-based and inclusive, like every coordinate in these tables
+    assert result.tables["orf_checks"].rows[0]["cds_id"] == "rps16:13-33"

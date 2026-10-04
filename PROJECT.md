@@ -1956,6 +1956,32 @@ làm là một test canh nó, và test đó đã có.
    như thật. Phép kiểm khung là của mình (`core.align.codon_frame_breaks`) và chạy **trước** khi
    yn00 thấy dữ liệu; `accD` của cặp vàng là ca thật bị chặn (gap sau 1.445 base).
 
+### I. Chạy cả 34 bản ghi — hai lỗi mà dữ liệu tự chọn không có hình dạng để chạm (P4a-03)
+
+Cả hai lỗi dưới đây **không phải** lỗi tính toán: chúng là những hình dạng dữ liệu thật mà bộ
+fixture tự chọn chưa từng có. Genome vàng chạy đúng **vì may**, và đó chính là điều một bộ test
+do người dùng tự chọn không kiểm được.
+
+1. **Một cửa sổ 3 bp làm chết cả run `structure`.** *Chasmanthe floribunda* NC_072562.1 có LSC
+   **81.003 bp**, nên phép chia cửa sổ 1000/1000 kết thúc bằng một window dài **3 bp** — `TTA`.
+   Window đó không có G và không có C, `gc_skew` raise, module raise, **cả run chết** (1/34 bản
+   ghi). Genome vàng sống sót chỉ vì LSC của nó dài 83.127 ⇒ window cuối **127 bp**, tình cờ có
+   G/C. Sửa: window không có G/C là **không xác định** — ô để trống, cột cumulative cũng trống từ
+   đó (một tổng chứa số hạng không xác định thì không xác định), summary thêm
+   `n_undefined_windows` và một note nêu lý do. **Mức region vẫn raise**: cả một vùng không có
+   G/C là dữ liệu hỏng, không phải chuyện làm tròn của phép chia. Module lên **0.2.0** (H-08).
+2. **Một bản ghi chú giải cùng một gen hai lần làm chết cả run `orf`.** *Libertia pulchella*
+   NC_072575.1 mang **hai** feature CDS `rps16` — `5741-5780,4684-4895` và `5737-5780,4684-4891`.
+   Cả hai quy về cùng span `4684-5780`, nên cùng id `rps16:4684-5780`, và `Table` từ chối key lặp
+   ⇒ run chết (1/34). Sửa: id duy nhất theo **feature** (hậu tố `#2`, `#3`…), **cả hai dòng đều
+   được kiểm**, summary thêm `n_duplicated_cds` + note nêu tên. Không dòng nào bị bỏ: một chú giải
+   trùng lặp là **phát hiện về bản ghi**, không phải rác của bộ kiểm. Module lên **0.2.0**.
+
+Bài học chung, viết ra để lần sau khỏi phải học lại: **hai lỗi này chỉ hiện ra ở bản ghi thứ 5 và
+thứ 12 của một bộ 34** — cả hai đều nằm trong dữ liệu công khai đã công bố, và cả hai đều biến
+một bản ghi thành không phân tích được. Một bộ fixture do mình tự chọn sẽ không bao giờ có chúng,
+vì mình chọn những bản ghi chạy được.
+
 ## 10. Câu hỏi còn treo
 
 1. ~~Phạm vi con số Ts/Tv~~ — **ĐÃ CHỐT 02/10**: cổng dùng **chỉ vùng CDS · 76 gen dùng chung · căn bằng MAFFT**, **không tính vùng lặp IR** ⇒ mốc **2,686** (317 Ts / 118 Tv). Số Ts/Tv của bộ Eleutherine (1,095–1,777) là phạm vi khác (SNP cả plastome) — chỉ dùng cho nội dung riêng của bộ đó và **phải dán nhãn phạm vi** ở mọi chỗ xuất ra.

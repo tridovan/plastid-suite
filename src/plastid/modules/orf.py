@@ -9,6 +9,7 @@ a sequence that disagrees with its annotation is the finding.
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 from typing import Any
 
 from plastid.core.model import Gene, Genome, count_genes
@@ -31,7 +32,7 @@ from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
 
 MODULE_ID = "orf"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 
 SCOPE_LABEL = "every CDS feature, both IR copies, pseudogenes included; GenBank coordinates"
 
@@ -56,6 +57,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     default_table = int(load_defaults()["orf"]["default_translation_table"])
     checks = check_genome(genome, default_table=default_table)
     orphans = annotated_not_coding(genome)
+    cds_ids = _cds_ids(checks)
     counts = count_genes(genome)
 
     status_counts = Counter(check.status for check in checks)
@@ -72,6 +74,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("n_failed", "Failed", dtype="int"),
             Column("n_pseudogene", "Pseudogenes (excluded from failures)", dtype="int"),
             Column("n_annotated_not_coding", "Annotated, not coding", dtype="int"),
+            Column("n_duplicated_cds", "CDS features sharing a name and span", dtype="int"),
             Column("translation_tables", "Translation table(s) used"),
             Column("coord_system", "Coordinates"),
         ),
@@ -83,6 +86,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "n_failed": failed,
                 "n_pseudogene": status_counts[STATUS_PSEUDOGENE],
                 "n_annotated_not_coding": len(orphans),
+                "n_duplicated_cds": sum(1 for cds_id in cds_ids if "#" in cds_id),
                 "translation_tables": ", ".join(str(table) for table in tables_used),
                 "coord_system": "genbank",
             },
@@ -130,7 +134,9 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("status", "Status"),
             Column("pseudo", "Pseudogene"),
         ),
-        rows=tuple(_check_row(check) for check in checks),
+        rows=tuple(
+            _check_row(check, cds_id) for check, cds_id in zip(checks, cds_ids, strict=True)
+        ),
         scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
         key="cds_id",
     )
@@ -170,6 +176,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     notes = ["Pseudogenes are reported as their own class and excluded from the failure count."]
     if counts.cds == 0:
         notes.append("This record carries no CDS feature: sequence-level analyses only.")
+    duplicated = _duplicated_ids(cds_ids)
+    if duplicated:
+        notes.append(
+            "This record annotates the same gene more than once at one span, and both are "
+            "checked: " + ", ".join(duplicated) + " (ids suffixed with #2, #3, …)"
+        )
     non_canonical = sorted(
         {check.gene.name for check in checks if check.start_class == "non_canonical"}
     )
@@ -192,10 +204,35 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     )
 
 
-def _check_row(check: OrfCheck) -> dict[str, Any]:
+def _cds_ids(checks: Sequence[OrfCheck]) -> list[str]:
+    """One id per CDS **feature**, unique even when a record annotates one gene twice.
+
+    A record can carry two CDS features that collapse to the same span — *Libertia pulchella*
+    NC_072575.1 annotates ``rps16`` twice, at ``5741-5780,4684-4895`` and ``5737-5780,4684-4891``
+    (measured 04/10/2026, P4a-03). Keying on name and span alone made those two rows share an id,
+    and ``Table`` refuses a repeated key, so the whole run died on a defect that belongs to the
+    record. Suffixing keeps both rows — a duplicated annotation is a finding to report, not to
+    drop — and the notes name it.
+    """
+    ids: list[str] = []
+    seen: Counter[str] = Counter()
+    for check in checks:
+        start, end = check.gene.span
+        base = f"{check.gene.name}:{start}-{end}"
+        seen[base] += 1
+        ids.append(base if seen[base] == 1 else f"{base}#{seen[base]}")
+    return ids
+
+
+def _duplicated_ids(cds_ids: Sequence[str]) -> list[str]:
+    """The bases that needed a suffix — i.e. the features the record states more than once."""
+    return sorted({cds_id.split("#", 1)[0] for cds_id in cds_ids if "#" in cds_id})
+
+
+def _check_row(check: OrfCheck, cds_id: str) -> dict[str, Any]:
     start, end = check.gene.span
     return {
-        "cds_id": f"{check.gene.name}:{start}-{end}",
+        "cds_id": cds_id,
         "gene": check.gene.name,
         "start_1b": start,
         "end_1b": end,
