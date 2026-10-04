@@ -278,6 +278,14 @@ its own: check it out, run `make check`, and it passes — which is also what ma
 usable. When one file genuinely carries changes for two tasks, say so in the message rather than
 leaving the split ambiguous.
 
+**A phase is worked on its own branch** — `feat/phase-N`, opened when the phase's board goes up and
+merged to `main` when the phase closes (fast-forward; the pattern every phase so far followed:
+`feat/phase-2` · `-3` · `-3a` · `-4` · `-5`). Two reasons, both from this project's own history: a
+phase is the unit `git bisect` and a reviewer can hold in their head, and `main` stays a state
+somebody can check out and trust. A sub-phase opened mid-flight (4a) belongs on a branch too — the
+"it is only a few commits on top" reasoning is exactly how a phase's work ends up interleaved with
+the next one's in `main`'s history.
+
 ## Don't
 
 - Don't run tests that hit the network — golden data is vendored in the repo. (Fetching a dataset
