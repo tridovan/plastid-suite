@@ -42,6 +42,8 @@ __all__ = [
     "NormalizedName",
     "UnresolvedName",
     "load_gene_aliases",
+    "aliases_for",
+    "cds_by_canonical_name",
     "load_mito_aliases",
     "normalize_genome",
     "normalize_name",
@@ -67,6 +69,9 @@ _RRNA_SIZE_SUFFIX = re.compile(r"^(rrn\d+(?:\.\d+)?)S$")
 _BARE_TRNA = re.compile(r"^trn[A-Za-z]+$")
 # A tRNA name that does carry one — the shape a bare name can be resolved to.
 _NAMED_TRNA = re.compile(r"^trn\w+-[A-Z]{3}$")
+# trnX-YYY with a single amino-acid letter: the only form whose letter case is a slip rather
+# than part of the name (trnfM-CAU keeps its f — the next character is M, not a hyphen).
+_SINGLE_LETTER_TRNA = re.compile(r"^trn([A-Za-z])-([A-Za-z]{3})$")
 
 
 class GeneAliasError(ValueError):
@@ -275,6 +280,16 @@ def _normalize_syntax(name: str) -> tuple[str, bool]:
         if canonical[:3].lower() == prefix and canonical[:3] != prefix:
             canonical = prefix + canonical[3:]
             break
+
+    # The amino-acid letter of trnX-YYY: `trnk-UUU` and `trnK-UUU` are one name written two ways,
+    # and a comparison that keeps them apart loses the locus in silence (measured 2026-10-04 on
+    # the golden pair: NC_024936.1 spells trnK-UUU and trnI-GAU with lowercase letters —
+    # `trnk-UUU`, `trnl-GUA` — and the two records' sequences at those loci are identical).
+    # Only the single-letter-before-the-hyphen form is touched: trnfM-CAU's `f` is followed by
+    # `M`, not by `-`, and it is part of the name.
+    single = _SINGLE_LETTER_TRNA.match(canonical)
+    if single is not None and single.group(1).islower():
+        canonical = f"trn{single.group(1).upper()}-{single.group(2)}"
     return canonical, canonical != name
 
 
@@ -358,6 +373,39 @@ def _resolve_bare_trna(
     else:
         reason = f"ambiguous — {len(matches)} reference names match: {', '.join(matches)}"
     return normalized, reason
+
+
+def aliases_for(genome: Genome) -> AliasTable:
+    """The name table this record needs: the mitochondrial vocabulary for a mitogenome.
+
+    Measured 2026-10-03: the same product string names a plastid gene and a mitochondrial one
+    ("ribosomal protein S3" in both), so there is one vocabulary per organelle and the record's
+    own ``/organelle`` qualifier picks it. A record that declares no organelle gets the plastid
+    table — and a mito record whose features already carry symbols (this project's own annotator
+    writes them) is unaffected either way.
+    """
+    organelle = str(genome.source.get("organelle", "")).lower()
+    return load_mito_aliases() if "mitochond" in organelle else load_gene_aliases()
+
+
+def cds_by_canonical_name(genome: Genome, aliases: AliasTable | None = None) -> dict[str, Gene]:
+    """The genome's CDS by canonical name — one feature per name, so both IR copies are one gene.
+
+    Shared by the comparison modules that work gene by gene (substitutions' CDS scope, Ka/Ks,
+    popgen): the gene set of a comparison is *names*, not features, and a name that appears twice
+    (the inverted repeat) must be counted once — otherwise every ratio is weighted by whichever
+    genes happen to sit in an IR. Without an explicit table the record's own organelle decides
+    which vocabulary applies (:func:`aliases_for`): measured 2026-10-04, the mito half of Phase 4
+    found **no** shared gene between two mitogenomes because one record names its CDS by product
+    sentence — the vocabulary that maps those sentences is the one the mito path already had.
+    """
+    names = normalize_genome(genome, aliases or aliases_for(genome))
+    by_name: dict[str, Gene] = {}
+    for gene in genome.genes:
+        if gene.kind != "CDS" or gene.pseudo:
+            continue
+        by_name.setdefault(names.normalized(gene).canonical, gene)
+    return by_name
 
 
 def references_from(

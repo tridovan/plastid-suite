@@ -163,7 +163,13 @@ def run_tool(
     safe_name = "".join(
         character if character.isalnum() or character in "-_" else "_" for character in name
     )
-    index = len(list(log_dir.glob(f"*__{safe_name}__*.stdout.log"))) + 1
+    # The index counts the calls already logged for this tool. The pattern must match the names
+    # written below exactly — measured 2026-10-04: the first version asked for
+    # ``*__{name}__*.stdout.log``, which does not match ``001__mafft__stdout.log`` (there is no
+    # dot before ``stdout``), so the count stayed 0 and **every call overwrote the previous
+    # one's logs**. Every run kept the last tool call's output and nothing else — which quietly
+    # made "the raw output travels with the run" false for every tool but the last.
+    index = len(list(log_dir.glob(f"*__{safe_name}__stdout.log"))) + 1
     stdout_file = log_dir / f"{index:03d}__{safe_name}__stdout.log"
     stderr_file = log_dir / f"{index:03d}__{safe_name}__stderr.log"
     stdout_file.write_text(result.stdout or "", encoding="utf-8")

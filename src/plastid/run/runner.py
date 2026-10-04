@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from plastid.core.ir import IRResult
@@ -18,7 +18,13 @@ from plastid.result.result import Result
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
 
-__all__ = ["StepOutcome", "execute_step"]
+__all__ = ["DATA_LABEL_PARAM", "StepOutcome", "execute_step", "label_result"]
+
+# The parameter that puts a run's data provenance on every table it exports. A stand-in dataset
+# never travels unlabelled (CLAUDE.md: "label every output made from it"), and the label is
+# applied here — the one place that turns a Result into files — rather than in twenty modules
+# that would each have to remember it.
+DATA_LABEL_PARAM = "data_label"
 
 ReportRenderer = Callable[[Result], str]
 # A document takes the result *and* the already-rendered report text: the prose is produced once
@@ -50,6 +56,22 @@ def _ir_fingerprint(ir: IRResult | None) -> str:
     if ir is None:
         return ""
     return f"{ir.length}:{ir.identity:.6f}:{ir.source}"
+
+
+def label_result(result: Result, label: str | None) -> Result:
+    """Prefix every table's scope label with the run's data label (no label, no change).
+
+    Scope labels are what the CSV headers, the JSON export and the report all carry, so one
+    prefix here reaches every exported number — a number from a stand-in cannot leave the run
+    without saying so. The tables' ids, columns and values are untouched.
+    """
+    if not label:
+        return result
+    tables = {
+        table_id: replace(table, scope=replace(table.scope, label=f"{label} · {table.scope.label}"))
+        for table_id, table in result.tables.items()
+    }
+    return replace(result, tables=tables)
 
 
 def export_files(
@@ -126,6 +148,7 @@ def execute_step(
     result = run_fn(genomes[0], params, ctx) if arity == 1 else run_fn(genomes, params, ctx)
     if result.module != module_id:
         raise ValueError(f"module {module_id!r} returned a Result for {result.module!r}")
+    result = label_result(result, params.get(DATA_LABEL_PARAM))
     payload = export_files(result, render_report, render_document)
     files = _write(ctx, payload)
     cache.put(key, payload)

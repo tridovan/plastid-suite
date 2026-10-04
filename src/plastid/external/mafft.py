@@ -63,6 +63,15 @@ def _to_fasta(rows: Sequence[tuple[str, str]], width: int = 60) -> str:
 
 
 def _parse_fasta(text: str) -> dict[str, str]:
+    """MAFFT's output as our rows — **uppercased**, because that is what the counters read.
+
+    Measured 03/10/2026 on MAFFT 7.526: it prints the alignment in **lowercase**
+    (``----------------------------------cccgatatcttactaaaaaaagatat``). The comparison modules
+    classify a column by ``core.align._DNA``, which is ``ACGT``, so every column of a lowercase
+    alignment was silently skipped: the first real-data Ts/Tv run reported *zero comparable
+    columns and a blank ratio* rather than a wrong number. The unit tests never saw it because
+    they build alignments by hand, in uppercase.
+    """
     sequences: dict[str, list[str]] = {}
     current: str | None = None
     for line in text.splitlines():
@@ -71,4 +80,4 @@ def _parse_fasta(text: str) -> dict[str, str]:
             sequences[current] = []
         elif current is not None:
             sequences[current].append(line.strip())
-    return {name: "".join(parts) for name, parts in sequences.items()}
+    return {name: "".join(parts).upper() for name, parts in sequences.items()}

@@ -1,0 +1,75 @@
+# Candidate DNA-barcode loci for a plastome — the panel a barcode run checks its reference against.
+#
+# This is data, not code, for the same reason gene_aliases.yaml is: which loci the field proposes
+# as barcodes is external knowledge that changes, and every entry carries the source it rests on.
+# A locus that is not listed here is not a barcode this toolkit knows about — the run says so
+# rather than pretending its list is the field's.
+#
+# kind:
+#   gene       — a feature of the plastome, matched by its canonical gene name
+#   intergenic — the spacer between two features; found when both are present and adjacent in the
+#                reference's own annotation (no other gene between them)
+#   nuclear    — not in a plastome at all; listed so a run can say plainly that it did not find it
+#                and why, instead of leaving a reader to wonder whether it was forgotten
+
+loci:
+  - name: rbcL
+    kind: gene
+    members: [rbcL]
+    source: >
+      CBOL Plant Working Group (2009) PNAS 106:12794–12799 — one of the two core plant barcodes,
+      chosen for its universality and easy amplification.
+  - name: matK
+    kind: gene
+    members: [matK]
+    source: >
+      CBOL Plant Working Group (2009) — the second core barcode; more variable than rbcL but
+      harder to amplify across all land plants.
+  - name: trnH-psbA
+    kind: intergenic
+    members: [trnH-GUG, psbA]
+    source: >
+      Kress et al. (2005) PNAS 102:8369–8374; the most variable of the supplementary loci in
+      most angiosperm groups (also written trnH^GUG-psbA).
+  - name: trnL-trnF
+    kind: intergenic
+    members: [trnL-UAA, trnF-GAA]
+    source: >
+      Taberlet et al. (1991) — the trnL (UAA) intron and the trnL–trnF spacer; a long-standing
+      plant barcode and phylogenetics marker.
+  - name: atpF-atpH
+    kind: intergenic
+    members: [atpF, atpH]
+    source: >
+      CBOL Plant Working Group (2009) as a supplementary locus (also written atpF–atpH spacer).
+  - name: psbK-psbI
+    kind: intergenic
+    members: [psbK, psbI]
+    source: >
+      CBOL Plant Working Group (2009) as a supplementary locus.
+  - name: ndhF
+    kind: gene
+    members: [ndhF]
+    source: >
+      Used as a variable barcode/phylogenetic marker in land plants (e.g. Kim et al. 2015 on
+      plastid barcodes in land plants); listed here because the project's own comparisons keep
+      finding it among the most variable CDS.
+  - name: ycf1
+    kind: gene
+    members: [ycf1]
+    source: >
+      Dong et al. (2015) — proposed as the most variable plastid barcode for land plants; its
+      known trouble is the truncated second copy many records carry, which is why this run
+      matches the *first* copy and reports the locus by position.
+  - name: rps16
+    kind: gene
+    members: [rps16]
+    source: >
+      Oxelman et al. (1997) — the rps16 intron, a widely used low-copy phylogenetic marker.
+  - name: ITS
+    kind: nuclear
+    members: [ITS]
+    source: >
+      The nuclear ribosomal internal transcribed spacer, a standard barcode for many groups —
+      listed here so the run states that a plastome does not carry it, rather than silently
+      omitting a locus a reader may expect to see.

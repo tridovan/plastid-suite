@@ -104,17 +104,40 @@ def test_the_canonical_name_prints_the_same_label_as_its_synonym() -> None:
 
 
 def test_the_measured_loci_are_the_only_ones_shipped() -> None:
-    """A locus enters this table only with its evidence, so the set is pinned: ndhI joined it on
-    2026-10-03 after the golden record's ndhL and Chloe's ndhI turned out to be one locus with one
-    protein (see data/gene_aliases.yaml)."""
+    """A locus enters this table only with its evidence, so the set is pinned.
+
+    ndhI joined it on 2026-10-03 (the golden record's ndhL and Chloe's ndhI are one locus with
+    one protein); atpI, psaI and psbB joined it on 2026-10-04, when P4-02's Ka/Ks run listed the
+    genes the two golden records "did not share" and three of them turned out to be the same
+    locus under NC_024936.1's own spelling (see data/gene_aliases.yaml, PROJECT.md §8.27); and
+    trnI-GAU the same day, when P4-04's barcode run listed the loci a record carries and
+    NC_024936.1's trnl-GUA turned out to be that locus's tRNA, byte for byte (§8.28).
+    """
     assert {locus.canonical for locus in ALIASES.loci} == {
         "pafI",
         "pafII",
         "pbf1",
         "clpP1",
         "ndhI",
+        "atpI",
+        "psaI",
+        "psbB",
+        "trnI-GAU",
     }
     assert all(locus.evidence for locus in ALIASES.loci)
+
+
+def test_the_golden_pair_shares_every_cds_name(data_dir: Path) -> None:
+    """The regression the alias entries above exist for: before them, three whole loci — atpI,
+    psaI and psbB — looked like genes NC_024936.1 does not carry, and every comparison that
+    works gene by gene silently dropped them (atpI's CDS are byte-identical in the two records).
+    """
+    from plastid.core.gene_names import cds_by_canonical_name
+
+    domestic = cds_by_canonical_name(read_genbank(data_dir / "NC_050833.1.gb"), ALIASES)
+    gatesii = cds_by_canonical_name(read_genbank(data_dir / "NC_024936.1.gb"), ALIASES)
+    assert set(domestic) == set(gatesii)
+    assert {"atpI", "psaI", "psbB"} <= set(domestic)
 
 
 def test_a_name_nobody_mapped_is_left_exactly_as_it_arrived() -> None:
@@ -473,3 +496,89 @@ def test_a_gene_feature_and_its_trna_feature_resolve_to_the_same_name() -> None:
     resolved = normalize_genome(bare, ALIASES, references=references_from([named]))
     assert resolved.unresolved == ()
     assert {entry.canonical for entry in resolved.names.values()} == {"trnK-UUU"}
+
+
+def test_cds_by_canonical_name_keeps_one_copy_per_name(data_dir: Path) -> None:
+    """The shared-gene machinery of the comparison modules: canonical name → one CDS feature.
+
+    The golden genome carries most genes twice (both inverted-repeat copies), and several under
+    an alias — so the mapping has to normalize *and* deduplicate, or a gene would be counted
+    twice in every comparison that uses it.
+    """
+    from plastid.core.gene_names import cds_by_canonical_name
+    from plastid.core.model import cds_features
+
+    genome = read_genbank(data_dir / "NC_050833.1.gb")
+    by_name = cds_by_canonical_name(genome)
+    assert len(by_name) == 79  # 86 CDS features; the difference is the second IR copy
+    assert len(set(by_name)) == len(by_name)
+    assert "rbcL" in by_name
+    assert "ndhI" in by_name  # canonical for the locus the golden record writes ndhL (see the
+    #                           alias table; without a table the default is the record's own
+    #                           organelle's vocabulary)
+    # every value is a real CDS of that genome, and at most one feature per canonical name
+    features = set(cds_features(genome))
+    assert set(by_name.values()) <= features
+
+
+def test_the_amino_acid_letter_of_a_trna_name_is_case_insensitive() -> None:
+    """`trnk-UUU` and `trnK-UUU` are one name in two spellings, and keeping them apart loses a
+    locus in silence. Measured 2026-10-04 on the golden pair: NC_024936.1 writes `trnk-UUU` where
+    the golden record writes `trnK-UUU`, with byte-identical sequences at the locus."""
+    assert normalize_name("trnk-UUU", ALIASES).canonical == "trnK-UUU"
+    assert normalize_name("trnk-UUU", ALIASES).rule == SYNTAX_RULE
+    # trnl-GUA takes two steps: the case slip folds to trnL-GUA, and the alias table (below)
+    # maps that to the locus's real name — 77 bp identical to the golden record's trnI-GAU
+    assert normalize_name("trnl-GUA", ALIASES).canonical == "trnI-GAU"
+    # trnfM-CAU's f is the name, not a case slip: the next character is M, not a hyphen
+    assert normalize_name("trnfM-CAU", ALIASES).canonical == "trnfM-CAU"
+    assert normalize_name("trnfM-CAU", ALIASES).rule == IDENTICAL_RULE
+
+
+def test_nc_024936s_trnl_gua_is_the_locus_the_golden_record_calls_trni_gau(data_dir: Path) -> None:
+    """The alias entry's regression: 77 bp, byte-identical to trnI-GAU, at the same position."""
+    from plastid.core.model import coding_sequence
+
+    records = {
+        path.name: read_genbank(path)
+        for path in (data_dir / "NC_050833.1.gb", data_dir / "NC_024936.1.gb")
+    }
+
+    def locus(genome, wanted):
+        names = normalize_genome(genome, ALIASES)
+        return [
+            coding_sequence(genome, gene)
+            for gene in genome.genes
+            if gene.kind == "tRNA" and names.normalized(gene).canonical == wanted
+        ]
+
+    golden = locus(records["NC_050833.1.gb"], "trnI-GAU")
+    gatesii = locus(records["NC_024936.1.gb"], "trnI-GAU")
+    assert len(golden) == 2 and len(gatesii) == 2  # two IR copies each
+    assert golden[0] == gatesii[0] and len(golden[0]) == 77
+
+
+def test_the_records_own_organelle_picks_the_vocabulary() -> None:
+    """Measured 2026-10-04: the mito half of Phase 4 found **no** shared gene between two
+    mitogenomes, because OX459128.1 carries no /gene qualifier and every CDS "name" our reader
+    reports is really a /product sentence. The vocabulary that maps those sentences already
+    existed for the mito path — the comparison modules just were not asking for it."""
+    from plastid.core.gene_names import cds_by_canonical_name
+
+    mito = Genome(
+        name="mito",
+        accession="MITO.1",
+        sequence="ACGT" * 30,
+        genes=(Gene("NADH dehydrogenase subunit 1", "CDS", (Interval(0, 30),)),),
+        source={"organelle": "mitochondrion"},
+    )
+    plastid = Genome(
+        name="plastid",
+        accession="PT.1",
+        sequence="ACGT" * 30,
+        genes=(Gene("NADH dehydrogenase subunit 1", "CDS", (Interval(0, 30),)),),
+        source={"organelle": "plastid"},
+    )
+    # the same sentence: one record is a mitogenome and gets the symbol, the other is not
+    assert set(cds_by_canonical_name(mito)) == {"nad1"}
+    assert set(cds_by_canonical_name(plastid)) == {"NADH dehydrogenase subunit 1"}

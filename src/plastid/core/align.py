@@ -18,10 +18,12 @@ from dataclasses import dataclass
 __all__ = [
     "Alignment",
     "WindowDiversity",
+    "codon_frame_breaks",
     "columns_for_span",
     "nucleotide_diversity",
     "reference_positions",
     "substitution_counts",
+    "usable_columns",
     "variable_sites",
     "window_diversity",
 ]
@@ -49,6 +51,15 @@ class Alignment:
             raise ValueError(f"alignment rows differ in length: {sorted(lengths)}")
         if not self.sequences[0]:
             raise ValueError("alignment is empty")
+        # Fail loud rather than count nothing: a column is classified by ``_DNA``, so a lowercase
+        # row would have *every* column skipped and report zero comparable columns instead of an
+        # error. Measured 03/10/2026 — MAFFT 7.526 prints lowercase, and the adapters are the
+        # boundary that upper-cases it (external/mafft.py).
+        if any(character.islower() for sequence in self.sequences for character in sequence):
+            raise ValueError(
+                "an alignment row carries lowercase bases — the counters read ACGT only, so "
+                "every column would be skipped in silence; upper-case it at the boundary"
+            )
 
     @property
     def n_rows(self) -> int:
@@ -75,6 +86,16 @@ class WindowDiversity:
 def _usable(column: str) -> bool:
     """A column counts only when every row carries an unambiguous base — complete deletion."""
     return all(base in _DNA for base in column)
+
+
+def usable_columns(alignment: Alignment) -> tuple[int, ...]:
+    """The columns complete deletion keeps: every row carries an unambiguous base.
+
+    Public because the population-genetic estimators (P4-03) need the same column set as π —
+    a statistic computed over a different set of columns than the one beside it is a table
+    nobody can reconcile.
+    """
+    return tuple(index for index in range(alignment.length) if _usable(alignment.column(index)))
 
 
 def nucleotide_diversity(alignment: Alignment, columns: Iterable[int]) -> tuple[float | None, int]:
@@ -166,6 +187,43 @@ def variable_sites(alignment: Alignment) -> tuple[int, int]:
             if sum(1 for count in counts.values() if count >= 2) >= 2:
                 informative += 1
     return variable, informative
+
+
+def codon_frame_breaks(alignment: Alignment) -> tuple[str, ...]:
+    """Rows whose gaps break the reading frame — empty when the alignment is codon-aligned.
+
+    A codon model (PAML's ``yn00``) reads every row three bases at a time and has no idea what a
+    gap means: a gap that is not a whole codon, or that starts mid-codon, silently shifts the
+    frame of that row and every codon after it is read wrong. Measured 04/10/2026 on a synthetic
+    pair: a one-base gap made yn00 report a spurious stop codon and exit 255 — a lucky frame, not
+    a check. So the check is ours, and it names the row and the position rather than a verdict.
+    """
+    problems: list[str] = []
+    for name, sequence in zip(alignment.names, alignment.sequences, strict=True):
+        bases = len(sequence.replace("-", ""))
+        if bases % 3:
+            problems.append(
+                f"row {name!r}: {bases} aligned base(s) is not a whole number of codons"
+            )
+            continue
+        run_start = 0
+        position = 0
+        while position < len(sequence):
+            if sequence[position] == "-":
+                run_start = position
+                while position < len(sequence) and sequence[position] == "-":
+                    position += 1
+                run = position - run_start
+                before = run_start - sequence[:run_start].count("-")
+                if before % 3:
+                    problems.append(
+                        f"row {name!r}: a gap starts after {before} base(s) — not a codon boundary"
+                    )
+                elif run % 3:
+                    problems.append(f"row {name!r}: a gap of {run} base(s) is not a whole codon")
+            else:
+                position += 1
+    return tuple(problems)
 
 
 def substitution_counts(reference: str, query: str) -> dict[str, int]:

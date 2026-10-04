@@ -54,7 +54,7 @@ from plastid.run.layout import RunLayout
 from plastid.run.manifest import build_manifest, write_manifest
 from plastid.run.ncbi import NcbiClient, NcbiError
 from plastid.run.runinfo import render_run_info
-from plastid.run.runner import DocumentRenderer, execute_step
+from plastid.run.runner import DATA_LABEL_PARAM, DocumentRenderer, execute_step
 from plastid.run.tools import ToolError
 
 EXIT_OK = 0
@@ -100,6 +100,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "also write report.docx in each module directory, and a combined one in the run's "
             "report directory (needs the 'docx' extra)"
+        ),
+    )
+    run_parser.add_argument(
+        "--label",
+        default=None,
+        metavar="TEXT",
+        help=(
+            "data-provenance label written into every exported table's scope — a stand-in "
+            "dataset never travels unlabelled (e.g. --label stand-in)"
         ),
     )
     run_parser.add_argument("--force", action="store_true", help="ignore the cache and re-run")
@@ -237,6 +246,25 @@ def _fail(
     return _finish(manifest, layout, ctx, version, code)
 
 
+def _with_data_label(renderer, params: dict):
+    """Put the run's data label at the top of every report — a stand-in never travels unlabelled.
+
+    The tables carry it in their scope lines; the prose gets it here, so a report read on its own
+    says where its numbers come from without the reader having to open the manifest.
+    """
+    label = params.get(DATA_LABEL_PARAM)
+
+    def render(result: Result) -> str:
+        text = renderer(result)
+        if not label:
+            return text
+        title, separator, body = text.partition("\n")
+        banner = f"> **Data:** {label}"
+        return f"{title}\n\n{banner}\n{body}" if separator else f"{title}\n\n{banner}\n"
+
+    return render
+
+
 def _document_renderer(
     *,
     spec: registry.ModuleSpec,
@@ -325,6 +353,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
     except ValueError as error:
         print(str(error), file=sys.stderr)
         return EXIT_USAGE
+    if args.label:
+        params[DATA_LABEL_PARAM] = args.label
 
     if args.groups:
         # Shared group labels for every comparison output (P2-11). Loaded here because a module
@@ -365,6 +395,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             "run",
             *[part for spec in specs for part in ("--module", spec.id)],
             *[part for text in args.input for part in ("--input", text)],
+            *(["--label", args.label] if args.label else []),
         ],
         inputs=list(args.input),
     )
@@ -467,7 +498,11 @@ def _execute_run(
             template = load_template(f"{spec.id}.en.md")
         except FileNotFoundError:
             template = None
-        render_report = partial(render, template, citations=citations) if template else None
+        render_report = (
+            _with_data_label(partial(render, template, citations=citations), params)
+            if template
+            else None
+        )
         render_document = (
             _document_renderer(
                 spec=spec,

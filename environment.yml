@@ -33,7 +33,10 @@ dependencies:
                  # PGA's "BLAST+ 2.8.1 or newer".
 
   # --- Phase 4+: comparison, figures, dating ---------------------------------------------
-  - mummer4 # nucmer + repeat-match — §7.8 records no version
+  - mummer4=4.0.1 # nucmer + delta-filter + show-coords, the synteny pipeline (P4-01, D4-02).
+                 # §7.8 recorded no version; this is the build the block numbers were measured
+                 # with (docs/tools/mummer4.md). The block count moves with the parameters, and
+                 # the alignment can move with the build — not pinned means not reproducible
   - mreps # §7.8 records no version
   - trf # §7.8 records no version
   - vmatch=2.3.1 # academic-only licence (§7.8)
@@ -50,7 +53,8 @@ dependencies:
   - minimap2 # §7.8 records no version
   - samtools # §7.8 records no version
   - wgsim # §7.8 records no version
-  - paml=4.10.10 # mcmctree (§7.8)
+  - paml=4.10.10 # two programs of one package: yn00 is Phase 4's Ka/Ks estimator (P4-02, D4-01,
+                 # docs/tools/paml.md); mcmctree is Phase 6's (§7.8)
   - beast2=2.7.7
 
   # --- NOT here, on purpose ---------------------------------------------------------------

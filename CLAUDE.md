@@ -58,7 +58,14 @@ Golden sample: **Iris domestica NC_050833.1** (comparison genome: Iris gatesii N
 | Genes | **132 = 86 CDS + 38 tRNA + 8 rRNA** (`gene` features = 133 → diagnostic only; unique names 112) |
 | IR | **26,214 bp**, two copies **100.00 % identical** · LSC **83,127** · SSC **18,169** |
 | SSR | **37** = mono 31 · di 4 · tri 2 (MISA 2.1 and cpstools agree) |
-| Ts/Tv | **2.686** = 317 Ts / 118 Tv — scope: **CDS only · 76 shared genes · MAFFT · IR excluded** |
+| Ts/Tv | **2.6917** = 323 Ts / 120 Tv — scope: **CDS only · 79 shared genes · MAFFT · IR excluded** |
+
+The Ts/Tv row was **2.686 = 317 Ts / 118 Tv over 76 genes** until 04/10/2026. The scope definition
+never changed; the *set* it ranges over did — three loci (atpI · psaI · psbB) that NC_024936.1
+spells atpL · psaL · bspB are the same loci, measured by sequence, position and `/product`, and
+were invisible while the shared set was counted by spelling. Re-measured with them in: 79 genes,
+68,448 columns, 2.6917 (PROJECT.md §8.27). The old numbers stay in the log as what the narrower
+set measured; the whole-alignment scope is still a different number (1.8416).
 
 Changing any of these requires fresh measured evidence. Full provenance: PROJECT.md §6.
 

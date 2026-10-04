@@ -21,8 +21,10 @@
 - **IR gate ≥ 99.9 %** before any position-based analysis. Fail ⇒ red flag, stop. No exceptions.
 - Gene counting: **132 = 86 CDS + 38 tRNA + 8 rRNA**. Never "133 genes" (that is the `gene` feature
   count, diagnostic only).
-- Ts/Tv scope: **CDS only · 76 shared genes · MAFFT · IR excluded** → 2.686. Other scopes must be
-  labelled as such wherever they are exported.
+- Ts/Tv scope: **CDS only · 79 shared genes · MAFFT · IR excluded** → 2.6917. Other scopes must be
+  labelled as such wherever they are exported. *(Was 2.686 over 76 genes; the scope definition is
+  unchanged — the shared set was re-measured by locus on 04/10/2026 after three differently-spelled
+  loci turned out to be shared, §8.27.)*
 - Every run emits a **tool + parameters report**; output is **run-scoped** (`<dataset>/<run_id>/`),
   never overwritten in place.
 - Genome normalization (origin/strand → LSC start, 4 regions split) happens once in Phase 1 and is
@@ -34,7 +36,8 @@
 ## Already banked (evidence in PROJECT.md §8–§9)
 
 - [x] Golden numbers measured & cross-checked against 2 published papers (153,724 bp · 37.85 % ·
-      132 = 86+38+8 · IR 26,214 bp @ 100.00 % · LSC 83,127 / SSC 18,169 · 37 SSR · Ts/Tv 2.686)
+      132 = 86+38+8 · IR 26,214 bp @ 100.00 % · LSC 83,127 / SSC 18,169 · 37 SSR ·
+      Ts/Tv 2.6917 — re-measured 04/10 over the 79 shared loci, §8.27)
 - [x] IR algorithm validated on 20 RefSeq genomes — naive detection fails silently 2/9 (22 %);
       the ≥ 99.9 % gate catches 2/2 bad cases, 0 false alarms on 7 good ones
 - [x] Validated probe code + golden data on disk (`/mnt/d/business/pts/probe/`), including
@@ -118,10 +121,19 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
 - [x] **M2.3 Genome structure** — LSC/SSC/IR boundaries · %GC per region · GC-skew
 - [x] **M2.4 Codon usage** — RSCU · ENC · CAI · CBI · Fop
 - [x] **M2.5 Amino acid composition** — + GRAVY · aromaticity
-- [~] **M2.6 SNP / substitutions by position** — scope labels enforced
+- [x] **M2.6 SNP / substitutions by position** (2026-10-03) — scope labels enforced; the **CDS
+      scope reproduces §6's golden Ts/Tv exactly**. Originally 317 Ts / 118 Tv = 2.686 over 76
+      shared genes and 66,066 columns (§8.25); **re-measured 04/10/2026** as **323 Ts / 120 Tv =
+      2.6917 over 79 shared genes and 68,448 columns** after three differently-spelled loci were
+      recognized as shared (§8.27). The whole-alignment default is a *different* number (1.8416)
+      and every table says which scope it is
 - [x] **M2.7 Introns** — count · length · position
 - [x] **M2.8 SSR** — by region and motif
-- [~] **M2.9 Nucleotide diversity π** — per gene/intron/IGS, sliding window
+- [~] **M2.9 Nucleotide diversity π** — **real-data run done 03/10** (§8.25): π 0.007181 whole,
+      LSC 0.009185 · IRa 0.001682 · IRb 0.001681 · SSC 0.014066, per gene and 600/200 sliding
+      window. **Still missing: per intron/IGS** — those spans need the intron derivation extracted
+      from `modules/introns.py` into the shared layer first (DRY: it would be its second copy), so
+      it is named in `TASKS.md` rather than half-built here
 - [~] **M2.10 Manuscript deliverable** — tables + draft Results produced for both species from the
   public stand-in set (labelled); real samples and figures outstanding
 - [x] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
@@ -178,16 +190,31 @@ with the eight it could not call reported and measured (§8.24).
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid and mito)*
 
-**Goal:** comparison content for the 2 manuscripts.
-**In-phase checks:** Ts/Tv = **2.686** for *I. domestica* × *I. gatesii* (CDS only · 76 genes · MAFFT) ·
-identity plot must show **21 blocks**, %IDY 83.7–98.2 (mean 91.5). Mismatch ⇒ stop, re-check inputs.
+**Goal:** comparison content for the 2 manuscripts. **Deliverable: the three runs and their table
+sets — `docs/P4-05_comparison_tables.md`** (two species over the pinned stand-in panel + the mito
+sketch), every table carrying the stand-in label.
+**In-phase checks:** Ts/Tv = **2.6917** for *I. domestica* × *I. gatesii* (CDS only · 79 genes · MAFFT, §8.27) ·
+identity plot **7 blocks**, %IDY 89.66–99.11 (mean 97.37), coverage 99.09 % — measured 04/10
+(§8.26). *The earlier "21 blocks · 83.7–98.2 · mean 91.5" could not be reproduced from the probe's
+inputs and is recorded as a finding, §9.H.* Mismatch ⇒ stop, re-check inputs.
 
-- [ ] **M4.1 Ka/Ks selection pressure**
-- [ ] **M4.2 mVISTA-style %identity + synteny**
-- [ ] **M4.3 Barcode candidates & hypervariable regions**
-- [ ] **M4.4 Population genetics** (DnaSP-style: Hd · θ · Tajima's D · Fu & Li · Fst)
+- [x] **M4.1 Ka/Ks selection pressure** (2026-10-04) — PAML yn00 (Yang & Nielsen 2000) per shared
+      CDS on a codon alignment; 79 shared genes, 78 scored, pooled Ka/Ks 0.2167; unscoreable genes
+      listed with a reason (§8.27)
+- [x] **M4.2 mVISTA-style %identity + synteny** (2026-10-04) — `nucmer --maxmatch → delta-filter -1
+      → show-coords -rcl`, MUMmer 4.0.1 pinned; block table + 600/200 % identity series + raw
+      coords/delta as run artifacts
+- [x] **M4.3 Barcode candidates & hypervariable regions** (2026-10-04) — π reused from the
+      diversity module (773/773 windows identical in a cross-check), 26 regions and 10 candidate
+      loci against the record's own annotation (§8.29)
+- [x] **M4.4 Population genetics** (2026-10-04) — written here in pure Python (D4-03): Hd · θ(S) ·
+      θ(π) · Tajima's D · Fu & Li's D*/F* · Nei's Gst, per gene and group; cross-checked against
+      scikit-allel and hand-computed vectors (§8.28)
 - [ ] **M4.5 RNA editing prediction** — **BLOCKED: needs RNA data**
-- [ ] **M4.6 Ts/Tv module** (scope fixed: CDS only · 76 shared genes · MAFFT · IR excluded)
+- [x] **M4.6 Ts/Tv module** (2026-10-04) — the CDS-scope module (M2.6) is this phase's Ts/Tv
+      deliverable; its shared-gene set is measured by locus, and the re-measurement that followed
+      the three alias loci (§8.27) is what the manuscript tables quote: **2.6917 = 323 Ts / 120 Tv
+      over 79 shared genes**, with the whole-alignment scope a different, labelled number
 
 ## Phase 5 — Figures & reports  *(§13.5)*
 

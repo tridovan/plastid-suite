@@ -68,6 +68,11 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
 
 | 03/10 | **Bộ gọi gen mito tự viết: ranh giới lấy từ alignment, xếp hạng theo identity, và mọi thứ bị loại đều được kể ra (D3A-02 + P3A-03, dev quyết có đo)** — PMGA không chạy nổi ở đây nên Phase 3A tự viết phần chuyển chú giải: `blastx` (protein tham chiếu) + `blastn` (rRNA) qua `run_tool`, rồi `core/mito_caller.py` biến HSP thành gen. Bốn luật, mỗi luật có số đo đỡ lưng (§8.22): (1) **ranh giới từ alignment**, không bao giờ từ ORF-walking — codon stop chỉ được lấy khi chính chuỗi xác nhận, đọc **đúng một** codon, không đi tìm; (2) **chọn tham chiếu theo identity cao nhất** trong số các ứng viên qua được ngưỡng — đo trên `atp6`: xếp theo bitscore kéo gen lệch **381 bp** về thượng nguồn vì một alignment dài 418 aa chỉ khớp 75,6 %, trong khi bản khớp 93,4 % nằm đúng chỗ; tổng sai lệch toạ độ 310 bp so với 655 bp; (3) **ngưỡng 50 % identity / 50 % coverage**, in ra trong mọi bảng và trong `defaults.yaml`; (4) **mọi HSP không dùng đều được liệt kê kèm lý do** — dưới ngưỡng, trùng khung đọc, hay là **bản sao thứ hai** của một phần gen. Kèm theo: `-seg no` (mask làm atp9 mất một nửa điểm), **không** dùng `-parse_seqids` (nó **lỗi** trên chính bộ tham chiếu), và gen tìm thấy mà vocabulary chưa có tên thì **báo cáo chứ không đặt tên** (H-06) | Dev | §8.22, `docs/tools/blast.md`, `TASKS.md` P3A-03 |
+| 04/10 | **Synteny/mVISTA: nucmer (MUMmer4) pin 4.0.1, tham số truyền tường minh (D4-02 + D4-04, dev quyết có đo)**: đường ống đúng như §7 ghi (`nucmer --maxmatch → delta-filter -1 → show-coords -rcl`) qua `run_tool`, đủ name · version · argv trong manifest. `-l 20 -c 65` là mặc định của MUMmer nhưng **truyền tường minh** và để trong `data/defaults.yaml` — số khối đổi theo chúng (12 khối thô ở mặc định, 22 ở `-c 40`), một mặc định là con số không ai viết ra; `-t 1` để số luồng không đổi được kết quả. Check của pha *"21 khối, %IDY 83,7–98,2 (mean 91,5)"* **không tái lập được** từ đầu vào của probe (quét đầy đủ ở §8.26): cặp cùng chi thẳng hàng 98–99 %, dải số đó thuộc một so sánh khác chi và đến từ dòng khảo sát §7.1 đo trên dữ liệu khác ⇒ check thay bằng số **đo được** cho cặp Iris: **7 khối · 89,66–99,11 · mean 97,37 · coverage 99,09 %**, kèm hệ chuẩn hoá. Phát hiện ở §9.H | Dev | §8.26, `docs/tools/mummer4.md` |
+| 04/10 | **Ka/Ks: PAML `yn00` (D4-01, dev quyết)**: estimator chuẩn pairwise (Yang & Nielsen 2000), **đã pin sẵn** trong `environment.yml` (`paml=4.10.10`, dùng cho `mcmctree` ở giai đoạn 6 — cùng gói, khác chương trình). Loại: NG86 tự viết (chệch, và một bản cài sai sẽ là "sai mà không báo" không ai kiểm được) và KaKs_Calculator2 (công cụ thứ hai cho cùng một việc). Alignment **theo từng gen trên chính chuỗi CDS** (MAFFT), cắt stop cuối, **kiểm khung ba-ngôi trước khi gọi tool** vì yn00 không kiểm; `dN`/`dS` đọc từ ma trận và đối chiếu chéo với dòng Yang & Nielsen của output. Pooled = trung bình có trọng số theo số site của chính yn00, không phải trung bình các tỉ số | Dev | §8.27, `docs/tools/paml.md` |
+| 04/10 | **Di truyền quần thể: tự viết bằng Python thuần (D4-03, dev quyết có đo)**: DnaSP là GUI Windows (không script được, không vào Docker), pixy/libsequence đòi VCF hoặc dữ liệu read; các estimator là công thức đóng đã công bố, kiểm được bằng vector giải tích, và bản cài tối thiểu vẫn thuần Python (CLAUDE.md). Bằng chứng: Tajima's D · π · θ(S) khớp **scikit-allel 1.3.13** đến 6 chữ số trên 4 vector; Fu & Li D*/F* khoá bằng vector tính tay (EggLib build trên máy này hỏng, `gestimator` không có trên bioconda — đo và ghi lại). **Fst = Nei's Gst**: bản Hudson viết trước cho **−1** với hai nhóm cùng thành phần ở n nhỏ ⇒ bỏ, có ghi lý do | Dev | §8.28 |
+| 04/10 | **Nhãn dữ liệu thay thế đi vào MỌI bảng (`--label`, dev quyết)**: một bộ dữ liệu thay thế không bao giờ được đi mà không có nhãn (CLAUDE.md). Nhãn được áp **một lần** trong runner — nơi duy nhất biến `Result` thành file — bằng cách ghép tiền tố vào `scope.label` của từng bảng, nên nó có mặt ở header CSV, JSON và report mà không module nào phải nhớ. Không có nhãn thì không đổi gì | Dev | §8.30, `docs/P4-05_comparison_tables.md` |
+| 04/10 | **Nửa mito của pha 4 là bản phác khác chi (D4-05, dev quyết)**: hai mitogenome từ hai chi khác nhau, một trong hai là **chú giải nguyên mẫu của chính dự án** (§8.24) ⇒ chạy `kaks` + `popgen`, dán nhãn *cross-genus sketch*, đọc như minh hoạ máy móc chứ không phải kết quả về loài. Một so sánh mito đáng vào bản thảo phải đợi bản ghi thứ hai cùng chi | Dev | §8.30 |
 
 ## 4. Ai làm gì
 
@@ -103,8 +108,15 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | Vùng lặp đảo IR | **26.214 bp**, hai bản giống **100,00 %** | tự tính; chú giải GenBank (`repeat_region` 83.128–109.341 và 127.511–153.724) khớp |
 | LSC / SSC | **83.127 / 18.169 bp** (tổng 4 vùng = 153.724) | tự tính |
 | SSR | **37** = mono 31 · di 4 · tri 2 | MISA standalone 2.1 **và** cpstools 3.0 (2 công cụ độc lập, cùng ra 37) |
-| Ts/Tv (so với Iris gatesii NC_024936.1) | **2,686** = 317 Ts / 118 Tv; **chỉ vùng CDS** (76 gen dùng chung, không tính vùng lặp IR); MAFFT; 66.066 cột căn — phạm vi chốt 02/10 | tự đo |
+| Ts/Tv (so với Iris gatesii NC_024936.1) | **2,6917** = 323 Ts / 120 Tv; **chỉ vùng CDS** (79 gen dùng chung, không tính vùng lặp IR); MAFFT; 68.448 cột căn — phạm vi chốt 02/10, **bộ gen đo lại 04/10** | tự đo — xem ghi chú dưới bảng |
 | Số công bố của loài này | *Iris domestica* 153.729 bp, 132 gen; *Belamcanda chinensis* 153.735 bp, 132 gen | 2 bài công bố |
+
+> **Ghi chú 04/10/2026 — dòng Ts/Tv đo lại.** Phạm vi không đổi (chỉ CDS · gen dùng chung ·
+> MAFFT · bỏ IR), nhưng **bộ gen dùng chung** trước đây đếm theo *cách viết tên*: ba locus
+> `atpI`·`psaI`·`psbB` mà NC_024936.1 viết là `atpL`·`psaL`·`bspB` bị coi là gen nó không có.
+> Đo lại bằng ba tín hiệu (trình tự, vị trí, `/product`) ⇒ cùng locus ⇒ bộ dùng chung là **79
+> gen**, và số là **2,6917** (323 Ts / 120 Tv, 68.448 cột). Số cũ **2,686** (317/118, 76 gen,
+> 66.066 cột) vẫn nằm nguyên trong nhật ký §8.25 như số đo của bộ hẹp hơn. Chi tiết: §8.27.
 
 ---
 
@@ -1293,6 +1305,307 @@ editing. Bốn gen không tìm thấy **không** được suy đoán là "không
 
 ---
 
+### 8.25. Chạy thật hai module so sánh — và một lỗi im lặng sống sót vì chưa từng chạy dữ liệu thật (P2-07/P2-08, 03/10/2026)
+
+**Bối cảnh.** P2-07 (π) và P2-08 (Ts/Tv) được viết và kiểm bằng unit test từ Phase 2, nhưng chưa
+bao giờ chạy trên dữ liệu thật vì thiếu MAFFT 7.526. Hôm nay MAFFT đã cài và pin đúng §7.8, nên
+đây là lần chạy thật đầu tiên — và nó tìm ra một lỗi.
+
+**Lỗi đo được: MAFFT 7.526 in căn thẳng ra CHỮ THƯỜNG.** Bộ đếm phân loại cột theo `_DNA =
+{"A","C","G","T"}` (chữ hoa), nên **mọi cột của một alignment chữ thường bị tính là "skipped"**:
+lần chạy Ts/Tv thật đầu tiên báo **0 cột so sánh được và Ts/Tv để trống** — không phải một con số
+sai, mà là *không có con số nào*, trong khi mọi bảng vẫn ra bình thường. Unit test không thấy được
+vì chúng tự dựng `Alignment` bằng chữ hoa; adapter MAFFT **chưa từng có test nào**. Đã sửa hai đầu:
+adapter **upper-case** khi đọc output (kèm comment ghi rõ số đo), và `Alignment` **từ chối** một
+hàng có chữ thường — fail loud thay vì đếm ra số 0.
+
+**Ts/Tv — tái lập đúng số vàng §6, bằng chính đường của toolkit:** thêm scope `cds` (các gen hai
+genome dùng chung, mỗi gen một bản — IR tính một lần, align từng gen):
+
+| | Lần chạy này | §6 |
+|---|---|---|
+| Gen dùng chung | **76** | 76 |
+| Cột căn | **66.066** | 66.066 |
+| Ts / Tv | **317 / 118** | 317 / 118 |
+| Ts/Tv | **2,686** | 2,686 |
+
+Scope mặc định (cả bộ gen) cho **1,8416** trên 152.338 cột — một con số khác, và mọi bảng đều ghi
+rõ scope nào. Đây là lý do module có hẳn hai scope: §6 chỉ đúng trong scope hẹp.
+
+**π — lần chạy thật đầu tiên:** π toàn alignment **0,007181**; theo vùng **LSC 0,009185 · IRa
+0,001682 · IRb 0,001681 · SSC 0,014066**; kèm π theo gen và cửa sổ trượt 600/200. Tín hiệu đúng
+sinh học: **hai bản IR gần như trùng nhau và thấp hơn hẳn** hai vùng đơn bản — một phép kiểm hình
+dạng mà một lỗi "đếm ra 0" sẽ xoá sạch. **Còn thiếu:** π theo **intron/IGS** (H-07) — cần tách phép
+suy intron ra tầng dùng chung trước.
+
+### 8.26. Synteny chạy thật — "21 khối" không tái lập được, và con số thật của cặp Iris (P4-01, 04/10/2026)
+
+**Bối cảnh.** P4-01 (M4.2, biểu đồ % tương đồng kiểu mVISTA) mang check của pha: *"biểu đồ phải ra
+**21 khối**, %IDY 83,7–98,2 (mean 91,5) — kết quả của chính probe"*. D4-04 đã ghi trước: tham số
+nucmer chính xác **không có** trong cây probe; phải dựng lại, và nếu không dựng lại được thì **đó là
+một phát hiện cho §9, không phải một con số để chỉnh**.
+
+**Đầu vào đã kiểm trước khi đo.** `/mnt/d/business/pts/probe/run_local/{target,compare}.fa` so
+từng base với hai bản ghi vàng: `target.fa` **= NC_050833.1** (153.724 bp), `compare.fa`
+**= NC_024936.1** (153.441 bp) — đúng cặp, đúng chiều. Vậy đầu vào không phải nghi vấn.
+
+**Quét tham số (MUMmer 4.0.1, bioconda).** `--mum`/`--mumreference`/`--maxmatch`/mặc định ×
+`delta-filter` {`-1`,`-g`,`-q`,`-r`,`-m`,`-h`,`-i`,`-o`} × `nucmer -l` ∈ {15…40} × `-c` ∈ {18…65}
+× lọc độ dài tối thiểu {0…2.000 bp}: **không tổ hợp nào cho 21 khối.** Số khối dao động 7–43 và
+%IDY luôn ở dải 97–99 (giá trị nhỏ nhất từng thấy: 72,34). Vài mốc:
+
+| Tham số | Khối thô | Sau `delta-filter -1` | %IDY (min–max) |
+|---|---|---|---|
+| `--maxmatch` (mặc định `-l 20 -c 65`) | 12 | **7** | 89,66–99,11 |
+| `--maxmatch -l 20 -c 40` | 22 | 7 | 72,34–100,00 |
+| `--maxmatch -l 15 -c 15` | 435 | 7 | 59,76–100,00 |
+| `--mum` | 10 | 7 | — |
+
+**Kết luận đo được.** *I. domestica* × *I. gatesii* là **hai loài cùng chi**: vùng thẳng hàng
+giống nhau **98–99 %**, không phải 91,5 %. Dải 83,7–98,2 (mean 91,5) mô tả một so sánh **khác
+chi** — đo đối chứng ngay trong phiên này (*I. domestica* × *O. diffusa*, khác họ): 74 khối thô,
+81,89–98,84, mean 89,54, cùng vùng giá trị. Nguồn gốc con số: dòng §7.1 *"mVISTA | sống | biểu đồ
+% tương đồng | nucmer + matplotlib (21 khối, PNG 243.787 B)"* — đo **26/9** trong đợt khảo sát
+công cụ, trên dữ liệu khác, rồi được chép vào §13.4/ROADMAP như thể là của cặp Iris. Ghi thành
+phát hiện **§9.H**; check của pha thay bằng số đo được kèm tham số (bảng dưới).
+
+**Số thật của module** — pipeline §7 ghi (`nucmer --maxmatch → delta-filter → show-coords`), tham
+số truyền tường minh `-l 20 -c 65 -t 1`, lọc `-1`, target ở **hệ chuẩn hoá** (hai genome vàng vốn
+đã bắt đầu tại LSC nên `rotation_offset = 0`):
+
+| | |
+|---|---|
+| Khối thẳng hàng | **7** (đều xuôi; hai genome cùng chiều) |
+| %IDY mỗi khối | 98,00 · 98,85 · 98,52 · 98,53 · 98,91 · **89,66** · 99,11 |
+| %IDY min–max · mean (không trọng số) | **89,66–99,11** · **97,37** |
+| Cặp base thẳng hàng | **152.332** / 153.724 = **99,09 %** coverage |
+| Identity trên cặp base (bỏ gap) | **99,31 %** |
+| Series | cửa sổ 600 bp / bước 200 bp, 769 cửa sổ |
+
+**Định dạng delta của MUMmer 4 — đo và khoá bằng test.** Hai điều không có trong tài liệu nào của
+pipeline và sai thì im lặng: (1) file delta ghi **một dòng `>` cho mỗi cặp trình tự**, mọi
+alignment của cặp nằm dưới header đó, mỗi bản ghi kết thúc bằng dòng `0` — đọc theo kiểu "một
+header một alignment" sẽ trả về **1 khối** cho một so sánh có 7; (2) trong danh sách gap, giá trị
+`d` tiêu thụ `|d| − 1` cột **có cặp base**, rồi `d > 0` đẩy con trỏ target một mình, `d < 0` đẩy
+query. Kiểm trên cả 12 alignment thô của cặp vàng: **mọi khối kết thúc đúng toạ độ header khai, và
+`mismatch + base lẻ` = đúng số lỗi của header** (khối 1: 152 + 120 = 272). Parser ở
+`core/delta.py`, fixture thật ở `tests/data/iris_pair_sample.delta`.
+
+**Công cụ đã khai.** `mummer4=4.0.1` pin trong `environment.yml` (§7.8 trước đó ghi *không có
+phiên bản* — giờ là bản đo được), `docs/tools/mummer4.md` ghi nguồn, dòng cài, argv và hai số đo
+định dạng ở trên.
+
+### 8.27. Ka/Ks chạy thật — và ba locus mà cách viết tên che mất (P4-02, 04/10/2026)
+
+**Bối cảnh.** P4-02 dùng PAML `yn00` (D4-01) trên alignment codon của từng gen. Checklist có một
+mục tưởng như phụ — *"gen mà một genome không mang phải được LIỆT KÊ, không được bỏ im lặng"* —
+và chính nó tìm ra một lỗi thật.
+
+**Cách chạy.** Mỗi gen dùng chung: MAFFT căn **chính chuỗi CDS** (không dịch protein rồi chiếu
+ngược), cắt codon stop cuối, **kiểm khung ba-ngôi** (yn00 đọc 3 base một lần và *không* kiểm
+khung — đo được: một gap 1 base làm nó báo stop codon giả rồi exit 255, tức là may mắn chứ không
+phải kiểm tra), rồi mới gọi yn00. dN/dS đọc từ ma trận `2YN.dN`/`2YN.dS` và **đối chiếu chéo**
+với dòng Yang & Nielsen của chính output — hai đường code trong PAML, lệch nhau thì không lấy
+trung bình.
+
+**Kết quả đo (cặp vàng, sau khi sửa tên — xem dưới):**
+
+| | |
+|---|---|
+| Gen dùng chung | **79** |
+| Chấm được | **78** |
+| Không chấm được | **1** — `accD`: MAFFT đặt gap sau 1.445 base, không phải bội số của 3 ⇒ xếp `frameshift`, **không** đưa cho yn00 |
+| Ks = 0 (tỉ số không xác định) | **25 gen** — kiểm lại: các gen này **giống hệt** hoặc lệch **1 base** giữa hai bản ghi, nên Ks = 0 là số thật |
+| Pooled (trọng số theo site của yn00) | Ka **0,003586** · Ks **0,016550** · Ka/Ks **0,2167** |
+| Ví dụ | `rbcL` Ka 0,0019 · Ks 0,0299 · **0,0635**; `matK` 0,0087/0,0174 = **0,5000**; `ndhF` 0,0094/0,0473 = 0,1987 |
+
+**Lỗi tìm ra: ba locus bị cách viết tên che mất.** Lần chạy đầu báo `atpI`·`psaI`·`psbB`
+"absent from this genome" và `atpL`·`psaL`·`bspB` "absent from the reference". Đo từng cặp:
+
+| Cặp | Dài | Khác biệt | `/product` (giống nhau) |
+|---|---|---|---|
+| `atpI` (NC_050833.1) / `atpL` (NC_024936.1) | 744 bp | **0 base** | "ATP synthase CF0 A subunit IV" |
+| `psaI` / `psaL` | 111 bp | 1 base | "photosystem I subunit VIII" |
+| `psbB` / `bspB` | 1.527 bp | 7 base | "photosystem II p680 chlorophyll A apoprotein" |
+
+Trên cả 13 bản ghi của panel: `atpL`/`psaL`/`bspB` chỉ xuất hiện ở **đúng một** bản ghi
+(NC_024936.1); 9 bản ghi có chú giải dùng tên chuẩn. Ba alias vào `data/gene_aliases.yaml` kèm
+bằng chứng, canonical theo tên chuẩn (luật D3-02).
+
+**Hệ quả dây chuyền — số vàng Ts/Tv §6 đo lại.** Bộ gen dùng chung của cặp vàng từ **76 → 79**,
+nên phép đo Ts/Tv theo scope CDS đổi theo: **2,686** (317 Ts / 118 Tv trên 66.066 cột) →
+**2,6917** (323 Ts / 120 Tv trên 68.448 cột). Đây là **đo lại vì phép đo cũ đếm gen theo cách
+viết tên**, không phải chỉnh số cho khớp công cụ; phạm vi (chỉ CDS · gen dùng chung · MAFFT ·
+bỏ IR) không đổi. Số cũ giữ nguyên trong §8.25 như số đo của bộ hẹp hơn. Ba locus thêm vào chỉ
+lệch ít nên tỉ số đổi rất nhỏ (+0,2 %) — nhưng nếu chúng lệch nhiều thì đây đã là một bảng
+manuscript sai.
+
+**Bài học.** *"Gen không được chia sẻ"* và *"gen bị viết tên khác"* là hai chuyện khác nhau, và
+chỉ một mục checklist bắt **liệt kê** cái không chấm được mới làm lộ ra. Cùng họ với §8.9–8.10
+(bốn tên chức năng) và §8.17 (`ndhI`/`ndhL`).
+
+**Công cụ đã khai.** PAML 4.10.10 đã pin sẵn trong `environment.yml` (cho `mcmctree`); nay
+`yn00` của cùng gói là estimator của pha này — `docs/tools/paml.md` ghi ctl, ba cái bẫy đo được
+(không có flag phiên bản; đọc codon mà không kiểm khung; stop codon là thuốc độc) và cách gọi.
+
+### 8.28. Di truyền quần thể viết tay — công thức, hai lần kiểm chứng, và cái bẫy Fst (P4-03, 04/10/2026)
+
+**Bối cảnh (D4-03).** DnaSP là GUI Windows (không script được, không chạy trong Docker);
+pixy/libsequence cần VCF hoặc dữ liệu read mà dự án không có. Nên các estimator được viết trong
+`core/popgen.py` bằng Python thuần (chỉ stdlib) — bản cài tối thiểu chạy được, đúng luật
+CLAUDE.md. Đổi lại, mỗi công thức phải có **nguồn** và mỗi hàm phải kiểm được bằng **vector giải
+tích**.
+
+**Kiểm chứng 1 — đối chiếu một implementation độc lập.** Tajima's D, π, θ(S) và S khớp
+**scikit-allel 1.3.13** (gói Python độc lập, có bài bình duyệt) trên 4 vector ngẫu nhiên
+(n = 4…12, S = 21…243), **chính xác đến 6 chữ số** — ví dụ n=12: D = −0.454318, π = 72.6970 ở cả
+hai bên.
+
+**Kiểm chứng 2 — công thức Fu & Li và một lần đo thất bại đáng ghi.** Công thức D\*/F\* có nguồn
+Fu & Li (1993) và hằng số phương sai của Simonsen, Churchill & Aquadro (1995); chúng được đọc
+trực tiếp trong mã nguồn **EggLib 3.6.1** (`Diversity1.cpp`) — một implementation đã công bố.
+Nhưng **EggLib build từ sdist trên máy này trả về site view sai** (đo trên vector giải tích: site
+thứ sáu ra `['A','A']` trong khi dữ liệu là A/C, vị trí 9.0 thay vì 5), nên nó **không dùng được
+làm đối chứng số**. Vì vậy D\*/F\* được khoá bằng **vector tính tay từng bước** trong test
+(n = 4, một singleton: D\* = −0,6123724356957945 · F\* = −0,4787135538781689). Đường khác cũng
+đóng: `gestimator` của libsequence **không có trên bioconda** (package chỉ ship thư viện — đo:
+`bin/` chỉ có `libsequenceConfig`), còn `Bio::PopGen` không còn trong BioPerl hiện hành.
+Ghi lại vì "không kiểm được bằng công cụ" là một sự thật phải nói, không phải một chỗ để đoán.
+
+**Kiểm chứng 3 — một định danh thú vị, và một cái bẫy thật.** Với **n = 4 và mọi đột biến đều là
+singleton**, D\* ≡ D (đo: cả hai = −0,7545 ở S = 3…63; chứng minh được: tử số tỉ lệ 11 và phương
+sai cũng tỉ lệ 11², nên hai thống kê trùng nhau). Không phải lỗi — nhưng là lý do phải in **cả
+hai** cột chứ không suy cột này từ cột kia.
+
+**Fst — viết Hudson trước, đo rồi bỏ.** Bản đầu dùng Hudson, Slatkin & Maddison (1992)
+(`1 − H_w/H_b`). Đo trên vector giải tích: **hai nhóm có cùng thành phần haplotype (n = 2 mỗi
+nhóm) cho Fst = −1**, vì H_w chỉ là một cặp — một artifact mẫu nhỏ sẽ vào bảng bản thảo như một
+giá trị âm. Thay bằng **Nei's Gst (1973)**: hai nhóm cùng thành phần ⇒ **0** đúng, không haplotype
+chung ⇒ **1** đúng, mất hết đa dạng ⇒ để trống. Gst đọc **tần số haplotype**: các gen mà mọi
+trình tự đều khác nhau cho **cùng một giá trị Fst** bất kể chúng xa nhau bao nhiêu (đo trên panel:
+33/80 gen cùng ra 0,1852) — mức độ khác biệt nằm ở π, và module ghi rõ điều đó.
+
+**Kết quả đo trên panel stand-in (11 bản ghi, 2 nhóm Coleus 6 · Oldenlandia 5):** 80 gen được
+căn; phần lớn mỗi nhóm n = 4 (gen có mặt ở cả 4 bản ghi có chú giải của nhóm). Ví dụ `rbcL`
+Oldenlandia: n = 4 · S = 41 · π 0,01844071 · D 1,8434; `matK` Coleus: D −0,7284. **19 dòng để
+trống** vì n < 4 hoặc không có site phân ly — mỗi dòng mang lý do trong cột Note ("n = 3: cần ít
+nhất 4 trình tự"), và 3 bản ghi **không có CDS** (AP045470.1 · PQ325515.1 · PZ428230.1) được
+liệt kê trong notes thay vì lặng lẽ góp zero. Fst giữa hai nhóm có đủ 80 dòng.
+
+### 8.29. Barcode + vùng siêu biến chạy thật — π dùng lại, và hai lỗi tên lộ ra (P4-04, 04/10/2026)
+
+**Bối cảnh.** P4-04 xếp hạng cửa sổ/vùng theo độ biến thiên, gọi tên các locus mã vạch ứng viên,
+và **dùng lại** π của module diversity (cùng một hàm lõi, cùng window/step) chứ không tính lại.
+
+**Đo được (cặp vàng, 600/200, 773 cửa sổ):** mean π **0,007332** · ngưỡng vùng **0,014157**
+(mean + 1 sd của chính run) · **26 vùng siêu biến** · 10 locus ứng viên, **8 tìm thấy**:
+
+| Locus | Kiểu | Vị trí (bp) | Dài | π | Hạng |
+|---|---|---|---|---|---|
+| atpF-atpH | intergenic | 12.889–13.263 | 375 | 0,024064 | 1 |
+| psbK-psbI | intergenic | 7.284–7.677 | 394 | 0,015424 | 2 |
+| ndhF | gene | 109.327–111.540 | 2.214 | 0,013134 | 3 |
+| ycf1 | gene | 122.984–128.404 | 5.421 | 0,011852 | 4 |
+| matK | gene | 1.663–3.231 | 1.569 | 0,010835 | 5 |
+| trnL-trnF | intergenic | 47.944–48.324 | 381 | 0,010499 | 6 |
+| rbcL | gene | 55.212–56.672 | 1.461 | 0,008898 | 7 |
+| rps16 | gene | 4.697–5.808 | 252 (2 exon) | 0,000000 | 8 |
+| trnH-psbA | intergenic | — | — | — | không tìm thấy |
+| ITS | nuclear | — | — | — | không phải locus lục lạp |
+
+**Bài kiểm "dùng lại": hai module, một con số.** Một tier-B test chạy `-m barcodes -m diversity`
+trên cùng dữ liệu rồi so **từng cửa sổ**: 773/773 π trùng nhau. Đây là kiểm chứng *giữa hai
+module*, không phải một bản cài lại.
+
+**Phát hiện 1 — `trnH-psbA` không tồn tại như một spacer trong hai bản ghi vàng.** Bản đầu của
+module báo locus này "not carried" — một lời khai **sai** về dữ liệu. Đo lại: `trnH-GUG` và `psbA`
+**đều có**, nhưng **rps19 nằm giữa** chúng ở cả hai bản ghi (trình tự quanh điểm gốc:
+`rpl2 → trnH-GUG → rps19 → [gốc] → psbA`). Dòng bảng giờ nói đúng: *"present but not adjacent in
+this record's annotation"*. Kèm theo, code xử lý spacer **vắt qua origin** (bản ghi bắt đầu ở đâu
+là quy ước của người nộp) được viết và có test riêng — đo được rằng một spacer hoàn toàn có thể
+nằm hai bên vị trí 1.
+
+**Phát hiện 2 — hai tên tRNA viết thường làm mất locus trong im lặng.** `NC_024936.1` viết
+`trnk-UUU` và `trnl-GUA`; bản vàng viết `trnK-UUU` và `trnI-GAU`. Đo bằng trình tự: locus
+`trnk-UUU` **giống hệt từng base** `trnK-UUU` (77 bp), và `trnl-GUA` **giống hệt từng base**
+`trnI-GAU` (77 bp, cả hai bản IR). Hai sửa:
+* **quy tắc cú pháp**: chữ cái axit amin trong `trnX-YYY` không phân biệt hoa/thường —
+  `trnk-UUU` → `trnK-UUU`; `trnfM-CAU` **không** bị đụng (chữ `f` của nó là một phần của tên, ký
+  tự kế tiếp là `M` chứ không phải `-`);
+* **một alias mới**: `trnL-GUA` → `trnI-GAU` (GUA không phải anticodon của Leu; bản ghi không có
+  `/product` lẫn `/anticodon` để đối chiếu, nhưng trình tự thì trùng khít).
+Không sửa thì mỗi so sánh theo tên — gene table, thống kê tên, và bất kỳ module nào khoá theo
+tên chuẩn — **âm thầm bỏ hai locus** khỏi bảng.
+
+### 8.30. Bộ bảng so sánh cho hai bản thảo — ba run trên panel đã pin (P4-05, 04/10/2026)
+
+**Bối cảnh.** P4-05 là chính sản phẩm của pha: nội dung so sánh cho hai bản thảo. Ba run, tất cả
+trên panel đã pin (dữ liệu công khai, **không phải mẫu của nhóm**), không cần mạng:
+
+| Run | Tham chiếu | Nội dung |
+|---|---|---|
+| `standin-oldenlandia` | `NC_057985.1` (*O. diffusa*, RefSeq) | substitutions (scope CDS) · kaks · synteny · barcodes · popgen |
+| `standin-coleus` | `PX923121.1` (*C. amboinicus* — **bản ghi của chính nhóm**) | như trên |
+| `standin-mito` | `OX459128.1` × `AP045469.1` | kaks · popgen — bản phác khác chi (D4-05) |
+
+**Nhãn dữ liệu đi vào từng bảng.** Thêm `--label TEXT` cho `plastid run`: nhãn được ghép vào
+`scope.label` của **mọi** bảng ở đúng một chỗ — runner, nơi duy nhất biến `Result` thành file —
+nên nó có mặt ở header CSV, JSON và report mà không module nào phải nhớ. Panel chạy với
+`--label "stand-in (public records, not the team's samples)"`.
+
+**Một lỗi thật do panel làm lộ ra.** Scope CDS của `substitutions` yêu cầu *mọi* genome phải có
+tên gen chung; panel có **3/11 bản ghi không có chú giải** (0 CDS) ⇒ bảng rỗng cho cả run
+(`ValueError: table 'substitutions_by_gene' has no rows`, đo trên lần chạy đầu). Sửa: bản ghi
+không có CDS **được nêu tên trong notes** và bị loại khỏi so sánh CDS, thay vì làm hỏng cả run;
+không còn genome có chú giải nào ⇒ lỗi nói rõ lý do. Test riêng cho cả hai nhánh.
+
+**Vài số đo được (hai run loài, 04/10/2026):**
+
+**standin-oldenlandia** (tham chiếu NC_057985.1, 8 genome có chú giải): Ts/Tv scope CDS gộp **1.5157** = 16959 Ts / 11189 Tv trên **77 gen dùng chung** và 68743 cột; **bảng theo từng cặp** (`substitutions_by_genome.csv`) cho 0.9583–1.5173. Synteny: gần nhất `PP078674.1` 1 khối @ 98.39 %, xa nhất `NC_057679.1` 61 khối @ 89.07 %. Barcodes: 29 vùng siêu biến, 9/10 locus ứng viên, biến thiên nhất `trnH-psbA` (π 0.251894), `psbK-psbI` (π 0.212766). Ka/Ks pooled theo từng genome: 0.1585, 0.1007, 0.0986, 0.0853, 0.0857, 0.0959, 0.0868. Popgen: 80 gen, Coleus: 6, Oldenlandia: 5, 19/160 dòng không có kiểm định trung tính, 2/80 dòng Fst để trống.
+
+**standin-coleus** (tham chiếu PX923121.1, 8 genome có chú giải): Ts/Tv scope CDS gộp **1.5395** = 15235 Ts / 9896 Tv trên **77 gen dùng chung** và 68743 cột; **bảng theo từng cặp** (`substitutions_by_genome.csv`) cho 1.3065–1.5424. Synteny: gần nhất `PZ428230.1` 1 khối @ 99.70 %, xa nhất `PP078674.1` 63 khối @ 89.10 %. Barcodes: 20 vùng siêu biến, 9/10 locus ứng viên, biến thiên nhất `trnL-trnF` (π 0.260571), `atpF-atpH` (π 0.250487). Ka/Ks pooled theo từng genome: 0.1663, 0.2468, 0.2067, 0.0853, 0.0831, 0.0856, 0.0922. Popgen: 80 gen, Coleus: 6, Oldenlandia: 5, 19/160 dòng không có kiểm định trung tính, 2/80 dòng Fst để trống.
+
+**Một phát hiện về vận hành (ghi thành H-08, §9.C-21):** cache của run layer nằm ở
+`.runs/.cache` **dùng chung giữa các run** và khoá cache **không gồm mã nguồn module** — sửa
+`substitutions` xong chạy lại thì nó trả `cached` và phục vụ payload cũ (thiếu cả bảng mới), vì
+`MODULE_VERSION` chưa đổi. Luật "đổi hành vi thì bump version" đã bị vi phạm trong chính phiên
+này; bốn module đổi hành vi được bump lên **0.2.0**, cache cũ bị xoá, và việc mở H-08 ghi lại
+cách sửa tận gốc.
+
+**Một hạn chế đo được, phải nói ra:** căn CDS bằng MAFFT ở cặp **khác chi** đặt indel lệch khung
+ở **19–21/80 gen** (cùng chi 5–11/80), nên các gen đó mang trạng thái `frameshift` chứ không có
+số — MAFFT không phải công cụ căn theo codon, và đây là cái giá của việc căn thẳng trên chuỗi CDS
+(đúng như yêu cầu "không dịch protein rồi chiếu ngược"). Con số nằm trong bảng chứ không bị giấu:
+cột Status của `kaks_genes` in ra đúng lý do cho từng gen.
+
+**Nửa mito — hai lỗi nữa, cả hai đều là "một cái tên che mất dữ liệu".** Lần chạy mito đầu
+tiên chết với `table 'popgen_groups' has no rows`, và lý do không phải dữ liệu thiếu:
+1. **Bản ghi tham chiếu đúng nhưng bản ghi truy vấn sai**: `AP045469.1` trong panel
+   `oldenlandia-coleus-mito` là **bản ghi thô không có feature** (0 CDS — đúng như đo lúc pin);
+   bản chú giải của chính dự án nằm ở `.panel/mito-prototype/` (P3A-07). Run dùng nhầm file thô ⇒
+   không có gen nào để so. Sửa: dùng file prototype, và `popgen` nay **báo lỗi nói rõ** khi không
+   có gen nào được ≥2 genome mang, thay vì để lỗi validation của bảng.
+2. **Hai genome, không gen nào trùng tên**: `OX459128.1` **không có `/gene`** trên bất kỳ feature
+   nào — "tên" của mỗi CDS thực ra là **câu `/product`** ("NADH dehydrogenase subunit 1") — trong
+   khi bản chú giải của mình ghi ký hiệu chuẩn (`nad1`). Bảng từ vựng mito
+   (`data/mito_gene_names.yaml`, có từ P3-04) map đúng những câu đó, nhưng các module so sánh
+   **truyền bảng alias plastid một cách tường minh**, nên từ vựng mito không bao giờ được hỏi.
+   Sửa: `core/gene_names.aliases_for(genome)` chọn bảng theo `/organelle` của chính bản ghi, và
+   `cds_by_canonical_name` mặc định dùng nó; bốn module so sánh bỏ tham số bảng tường minh. Đo
+   lại: OX 27 CDS có tên, prototype 23, **19 gen dùng chung** (trước đó: 0).
+
+**Kết quả mito (`standin-mito`)** — 19 gen chung; kaks chấm **12/27**, pooled Ka 0,028443 · Ks
+0,112924 · Ka/Ks 0,2519; phần còn lại mang lý do (6 frameshift · 8 không có ở genome này · 4
+không có ở tham chiếu · 1 stop codon nội bộ). popgen: mỗi nhóm **1 trình tự** ⇒ mọi thống kê để
+trống kèm lý do, **19/19 dòng Fst không tính được** — đúng như thiết kế sau khi thấy bẫy Fst.
+
+**Điều chỉnh ở `popgen` sau khi thấy mito:** Fst cần **ít nhất 2 trình tự mỗi nhóm** — với nhóm
+1 trình tự, đa dạng trong nhóm bằng 0 theo cấu trúc và Fst luôn ra đúng **1,0** cho hai nhóm khác
+nhau (một con số trông như "khác biệt hoàn toàn" nhưng chỉ là artifact cỡ mẫu). Từ chối thay vì
+đưa số, kèm lý do trong cột Note.
+
+---
+
 ---
 
 ## 9. Lỗi đã gặp & số đo (tổng hợp)
@@ -1412,6 +1725,27 @@ editing. Bốn gen không tìm thấy **không** được suy đoán là "không
 
 ---
 
+21. **Mới 04/10/2026 — cache không biết code đã đổi, nếu version không đổi.** Cache của run layer
+    nằm ở `.runs/.cache` — **dùng chung giữa các run** — và khoá cache gồm `module_id ·
+    module_version · params · sha256(input) · IR fingerprint`, **không** gồm mã nguồn module. Đo
+    được: sửa scope CDS của `substitutions` xong chạy lại, module trả về **`cached`** và phục vụ
+    đúng payload cũ (thiếu cả bảng mới), vì `MODULE_VERSION` vẫn là 0.1.0. Luật của repo là
+    *đổi hành vi thì bump version* — lần này luật đó bị vi phạm trong chính phiên, và cái bắt được
+    là con số "cached" in ra ở dòng cuối. Đã bump 0.2.0 cho bốn module đổi hành vi và ghi thành
+    việc mở (H-08): hoặc cache khoá thêm hash mã nguồn, hoặc CI kiểm rằng một module đổi hành vi
+    mà không đổi version thì không được cache.
+
+22. **Mới 04/10/2026 — log của công cụ bị GHI ĐÈ: mọi run chỉ giữ lần gọi cuối cùng.** Bộ đếm
+    thứ tự log dùng `glob("*__{tên}__*.stdout.log")` — pattern này **không khớp** tên file nó sắp
+    ghi (`001__mafft__stdout.log`, không có dấu chấm trước `stdout`), nên bộ đếm luôn bằng 0 và
+    **mỗi lần gọi ghi đè lên lần trước**. Đo được trên một run thật: 616 lần gọi MAFFT ⇒ **1 file
+    log**; cả run chỉ còn output của lần gọi cuối. Hệ quả: câu "output thô của công cụ đi kèm run"
+    — nền tảng của "số tái lập được từ thư mục run" — **sai với mọi công cụ trừ cái cuối**, và sai
+    từ Phase 1 mà không test nào bắt (test tier-B chỉ kiểm *một* file log tồn tại). Sửa pattern +
+    test hồi quy (ba lần gọi ⇒ ba cặp file, nội dung lần đầu còn nguyên); đo lại: run mito từ 1
+    lên **74 log MAFFT · 24 log yn00**. Ghi chú kèm: một module **cache hit** không chạy công cụ
+    nào nên run đó **không có log** — trạng thái `cached` trong manifest là dấu hiệu để đọc.
+
 ### D. Chuyển chú giải mito bằng BLAST (P3A-03)
 
 1. **`sseqid` bị cắt tại khoảng trắng** ⇒ một khoá chủ thể dựng từ bốn field sẽ **không bao giờ**
@@ -1457,6 +1791,49 @@ editing. Bốn gen không tìm thấy **không** được suy đoán là "không
 3. **23 call vẫn cho 13 CDS không qua phép kiểm ORF** (9 `no_start`, 3 `no_stop`, 1
    `internal_stop`) — trên một genome chưa ai chú giải thì đó là *thông tin*, không phải lỗi: nó
    nói chỗ nào alignment không xác lập được đầu gen.
+
+### G. So sánh chuỗi — lỗi chỉ hiện ra khi chạy dữ liệu thật (P2-07/P2-08)
+
+1. **MAFFT 7.526 in chữ thường** ⇒ bộ đếm chỉ nhận `ACGT` hoa ⇒ **mọi cột bị bỏ qua trong im
+   lặng**: Ts/Tv ra *trống* (không phải sai), π ra 0. Unit test xanh vì chúng dựng alignment bằng
+   tay; **adapter MAFFT chưa từng có test**. Bài học: một adapter không có test thì hành vi thật
+   của công cụ chưa từng được kiểm — "đã kiểm bằng unit test" không đồng nghĩa với "đã chạy thật".
+   Đã sửa: upper-case ở biên, và model **từ chối** chữ thường.
+2. **Hai scope, hai con số, không được lẫn**: Ts/Tv 2,686 (chỉ CDS, 76 gen, bỏ IR) so với 1,8416
+   (cả bộ gen). Cùng một cặp genome. Mọi bảng phải mang nhãn scope — đây là ca chứng minh vì sao
+   luật đó tồn tại.
+
+### H. Một con số được ghi vào kế hoạch nhưng không thuộc về dữ liệu của nó (P4-01/D4-04)
+
+1. **Check của pha 4 ghi "21 khối, %IDY 83,7–98,2 (mean 91,5)" cho cặp Iris — không tái lập được
+   từ chính đầu vào của probe.** Quét đầy đủ tham số (§8.26): không tổ hợp `nucmer`/`delta-filter`
+   nào cho 21 khối, và cặp cùng chi này thẳng hàng ở **98–99 %**, không phải 91,5 %. Dải số ghi
+   trong kế hoạch khớp với một so sánh **khác chi** (đối chứng *I. domestica* × *O. diffusa*:
+   81,89–98,84, mean 89,54). Con số đến từ dòng khảo sát công cụ §7.1 (đo 26/9, dữ liệu khác) rồi
+   bị chép vào §13.4/ROADMAP kèm tên cặp genome — **một số đo đúng nhưng gán sai chỗ**.
+   Hệ quả: check của pha sửa thành số **đo được** (7 khối · 89,66–99,11 · mean 97,37), kèm tham số
+   và hệ toạ độ; bài học giống hệt luật "số vàng phải đo trên chính dữ liệu của mình" ở CLAUDE.md.
+2. **File delta của MUMmer 4 đọc sai thì không báo lỗi** — một header cho cả cặp trình tự (không
+   phải mỗi alignment một header), và gap mã hoá bằng `|d| − 1` cột ghép cặp rồi mới tách hướng.
+   Đã khoá bằng fixture thật + test kiểm toạ độ và tổng lỗi từng khối (§8.26). Cùng họ với lỗi
+   MAFFT chữ thường ở mục G: **định dạng của công cụ phải được đo, không được suy từ tài liệu**.
+3. **"Gen không được chia sẻ" có thể chỉ là "gen bị viết tên khác"** (§8.27). `atpI`/`psaI`/`psbB`
+   của bản ghi vàng được NC_024936.1 viết là `atpL`/`psaL`/`bspB` — cùng vị trí, cùng `/product`,
+   và cặp `atpI` **giống hệt từng base**. Phép so tên làm ba locus biến mất khỏi **mọi** so sánh
+   theo gen, và kéo theo **số vàng Ts/Tv §6** (76 → 79 gen, 2,686 → 2,6917). Chỉ mục checklist
+   "liệt kê gen không chấm được" làm lộ ra. Bài học: một bảng chỉ in những gì chấm được sẽ giấu
+   đúng loại lỗi này.
+4. **Hai tên tRNA viết thường làm mất locus trong im lặng** (§8.29). `trnk-UUU`/`trnl-GUA` của
+   NC_024936.1 là `trnK-UUU`/`trnI-GAU` — đo bằng trình tự, giống hệt từng base. Bộ chuẩn hoá chỉ
+   sửa tiền tố `trn`/`rrn`, không đụng chữ cái axit amin, nên hai cách viết là hai cái tên và locus
+   biến mất khỏi mọi bảng khoá theo tên. Đã thêm quy tắc cú pháp (chữ cái axit amin không phân
+   biệt hoa/thường, trừ `trnfM-CAU`) và một alias `trnL-GUA → trnI-GAU`. Cùng họ với mục 3: **một
+   bảng chỉ in những gì khớp tên sẽ giấu đúng loại lỗi này**.
+
+5. **yn00 đọc ba base một lần và không kiểm khung** (§8.27, `docs/tools/paml.md`). Một gap 1 base
+   làm nó báo stop codon giả rồi exit 255 — gặp may; khung lệch mà không đụng stop sẽ được chấm
+   như thật. Phép kiểm khung là của mình (`core.align.codon_frame_breaks`) và chạy **trước** khi
+   yn00 thấy dữ liệu; `accD` của cặp vàng là ca thật bị chặn (gap sau 1.445 base).
 
 ## 10. Câu hỏi còn treo
 

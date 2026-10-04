@@ -74,3 +74,20 @@
   records in one table (VADR ran on two sequences). Our reader refuses a multi-record table
   instead of merging the records' features — measured while building the round-trip test, and the
   reason that file is kept.
+
+## A real delta file (P4-01)
+
+| File | Source | Size |
+|---|---|---|
+| `iris_pair_sample.delta` | two alignment records of a MUMmer 4.0.1 `nucmer` run on the golden pair | 603 B |
+
+- **What it is:** the first (forward) and the inverted-repeat (reverse) records of the measured
+  run, with the file's own header lines. `tests/unit/test_delta.py` parses it and checks the
+  spans, the orientation and the walk's totals against what the tool printed — the synthetic
+  cases around it were written by the same hand as the parser, so this is the one case that can
+  catch a wrong reading of the format.
+- **How it was produced:** `nucmer --maxmatch` on `NC_050833.1` (target) vs `NC_024936.1`
+  (query), 2026-10-04, MUMmer 4.0.1 from bioconda (`docs/tools/mummer4.md`); records extracted
+  from `out.delta` with the block whose query span is `153441..127260` kept as the reverse case.
+- **Licence:** generated data, no third-party content — the input sequences are the two public
+  GenBank records already vendored here.
