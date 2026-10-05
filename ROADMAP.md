@@ -156,7 +156,9 @@ relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined
       **132 = 86 + 38 + 8** through our own reader, 0 CDS failing the ORF checks; mito path
       (`mito_genes`, no IR gate) done and measured; the mito **count check closed in Phase 3A** by
       this project's own annotator — PMGA never ran here (11 GB + MAKER against an 8 GB cap; its web
-      server still refuses connections, re-measured 03/10) and nothing depends on it now (§8.22)
+      server still refuses connections, re-measured 03/10) and nothing depends on it now (§8.22).
+      *The annotate step itself is being replaced by this project's own tool — **Phase 3B** (D5-08):
+      Chloe is dropped; this milestone records what Phase 3 shipped.*
 - [x] **M3.2 Gene-name check & normalization** (2026-10-03) — one normalizer (`core/gene_names.py`), panel measured: 155 → 115 canonical, 0 unresolved, 0 unclassified
 - [x] **M3.3 ORF checks** (2026-10-03) — golden: 0 failures, 5 alternative starts; the truncated ycf1 reported as annotated-not-coding
 - [x] **M3.4 NCBI submission files** (2026-10-03) — `.fsa` + `.tbl` in pure Python, 265/265 features
@@ -191,6 +193,36 @@ with the eight it could not call reported and measured (§8.24).
 - [x] **M3A.5 CLI** (2026-10-03) — `plastid mito annotate`, output through the existing pipeline, no second path
 - [x] **M3A.6 Golden check** (2026-10-03) — 31 · 17 · 3 against the published record, differences itemized
 - [x] **M3A.7 AP045469.1** (2026-10-03) — the unannotated sample: run it, report it, pin it
+
+## Phase 3B — Plastid annotator, self-built  *(planned — not opened; slot pending D-c)*
+
+**Goal:** the annotate step of the pipeline (assembly → annotate → gene-name unification →
+analyses) as this project's own tool — **CGAS's flow with our search-and-decide core**: a pinned
+reference set, per-sample annotation, an audit gate in front of every run. **Chloe is dropped**
+(D5-08). The mito counterpart is Phase 3A; this is its plastid sibling. Design and the other open
+decisions (D-a tRNA caller · D-b reference set · D-e shared core): `docs/D5-08_plastid_annotator.md`.
+
+**In-phase checks (proposed):** the golden *sequence* annotates to exactly **132 = 86 + 38 + 8**
+with **every difference from the published record listed** · the 34-record corpus runs
+leave-one-out, each result diffed against the published record and every difference classified ·
+a failed reference audit stops the run with `file — reason`, nothing annotated · no silent
+failures: a search that finds nothing is a failed run, every below-floor hit reported.
+
+- [ ] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
+      majority-deviation report), `--audit-only`, errors printed as `file — reason`, confirmed
+      exceptions pinned by sha256; MAFFT `--adjustdirection` per region + a dotplot for the
+      user's confirmation
+- [ ] **M3B.2 Calling engine** — orthogonal searches (`blastx` on published `/translation` ·
+      `blastn` for rRNA · IR self-blast behind the structural gate), candidates carrying their
+      evidence, the six measured rules of §8.22
+- [ ] **M3B.3 Arbitration & export** — structure first and score within one program; overlap kept
+      and reported (the golden itself carries four overlapping pairs); many references → one call
+      per locus with the losing candidates listed; ties → one call when identical, both with a
+      note otherwise; GenBank that re-reads, `/organelle` on the source, a reason per rejected hit
+- [ ] **M3B.4 CLI & batch** — 1..N samples × 1..N reference records; organelle declared at input
+      (H-09); a failed sample is marked without killing the run; docx report (D2-04 pattern)
+- [ ] **M3B.5 Golden + corpus validation** — the phase's Done-when at both scales, every
+      difference itemized
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid and mito)*
 
