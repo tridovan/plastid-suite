@@ -6,79 +6,93 @@
 
 ## Resume point
 
-**Phases 1, 2, 3, 3A, 4 — COMPLETE and merged to `main`.** **Phase 4a (the Điềm corpus as the test
-dataset) — COMPLETE, all four tasks done and pushed** (P4a-01 pinned · P4a-02 vendored + Phase-1
-checks · P4a-03 the scale numbers · P4a-04 the annotator at n = 34). Three real bugs fell out of it,
-all of the same family — a *record* that killed a whole run (§9.I). **Immediate next action:**
-Phase 5 (figures & reports) — **its board is built** (`TASKS.md`, five tasks with Done-whens).
-Start with **P5-05** (the queryable-number check over generated reports — the phase's own check, and
-the one that can be written first) or **P5-01** (the figure system + the first figure). Of M5.1's
-eleven figure types, **seven have a source table and four do not** — the four are named in the board
-and in ROADMAP, not scheduled.
+**Phases 1 – 5 and 4a — COMPLETE and merged to `main`.** **Phase 5 (figures & reports) closed
+05/10/2026**: five tasks, each Done-when measured, recorded in `docs/log/phase-5.md` (§8.35–§8.39)
+and ticked in `ROADMAP.md`. `TASKS.md` holds no open phase — only the Housekeeping table.
 
-**Pending, not yet scheduled — the self-built plastid annotator (D5-08).** The annotate step
-becomes this project's own tool (CGAS's model, our search-and-decide core; **Chloe is dropped**,
-PGA stays only as the measured counter-example), with a reference-set audit gating every annotation
-run. Proposed as a new phase **3B after Phase 5**; the four open decisions (D-a tRNA caller ·
-D-b reference set · D-c slot · D-e shared core) and the full design are in
-`docs/D5-08_plastid_annotator.md`, and the slot question is in `ROADMAP.md` → Open decisions.
-Nothing in Phase 5 waits on it.
+**Immediate next action:** the next board is **Phase 3B — the self-built plastid annotator**
+(D5-08), whose slot is the one open decision (ROADMAP.md → Open decisions; design and the four open
+questions in `docs/D5-08_plastid_annotator.md`). Nothing in Phase 5 waits on it, and nothing else
+is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
 
-**On hold by D5-07 (plastid first):** H-10 (opening the seven transitional analyses to mito) ·
-H-06 (mito vocabulary) · **H-12** (new, §9.J: `gene_names` loads only the plastid vocabulary, so
-on mito records it answers "nothing to normalize" while `mito_genes` names 31/51). The mito path
-is frozen, not extended.
+**What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
+`[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
+function, each missing one a named `ExportDependencyError` + exit 3 · **eight figure types** in
+`result/figures/`, rendered at run level from the run's own `result.json` · `plastid run --figures`,
+`plastid figures`, `plastid package`, `plastid qc` · `core/stats.py` + the `stats` module ·
+`report/audit.py` (the queryable-number check) · `read_result`, which makes a run directory
+readable without re-running anything.
 
-**The corpus is now a permanent part of the test set.** 34 Iridaceae plastomes × 2 annotations of
-the same sequences (published NCBI · PGA) + 34 bare FASTAs, in **`.data/thanhdiem_data/`** (working
-tree, **gitignored**, 136 files · 28 MB, every sha256 matching `D:\`); both annotation sets pinned as
-panels and the FASTAs as a manifest (§8.31) · **five files vendored** into `tests/data/corpus/` with
-twelve tier-A tests (§8.31/P4a-02) · every file under `tests/data` now guarded by a `SHA256SUMS`
-completeness test.
+**The phase's own numbers:** SVG · PDF · EPS byte-identical between two runs (a cached second run
+included) · the N-scaling rule **measured** at 2 · 8 · 34 (a series cap of 8, then the span the
+genomes cover) · 320 statistical tests over the stand-in panel with 0 significant after
+Benjamini–Hochberg, and 3 of the panel's 11 records carrying no annotation at all · **34/34**
+corpus records producing a one-page PDF, none failing · the audit clean over the whole Phase-4
+deliverable run (12 reports, 44 numbers).
 
-**The corpus in one table (§8.31):** the golden genome's own file is *in* it (sha256 `a946f23e…`,
-byte-identical to the vendored fixture) · set 02 is the same sequence annotated by PGA — **85 CDS
-where the contract says 86**, and **3/34 records fail the IR gate at 26–29 %** while de-novo finds
-100.00 % on the very same sequence · **34/34 records differ in gene spelling**, and the differences
-split into vocabulary (`clpP1`/`clpP` 23 · `pbf1`/`psbN` 21 · `ndhL`/`ndhI` 8 · the §8.27 trio 7)
-and **calls** (`ycf1` has no CDS in PGA's annotation in **24/34**; `rps12` loses a copy in 12) ·
-`ndhL` and `ndhI` are the same locus (same coordinates, identical sequence — the golden pair is
-unaffected, both NCBI records say `ndhL`).
+**Three layout defects were found by looking at rendered figures**, not by tests — the §9.C-34
+lesson, paid three times : overlapping region bands (§8.36) · a barcode band shading the whole axis
+plus a GC-skew ring with 50 % gaps (§8.37) · summary lines drawn inside the GC-skew panel (§8.39).
 
-**What Phase 4 moved** — read `TASKS.md` (the board) and PROJECT.md §8.26–§8.31 first:
+**New housekeeping item, measured 05/10:** **H-14** — `--docx` is silently lost on a cache hit
+(two runs of `gene_table`, the second `cached` with 0 `.docx` files), and the manifest's `command`
+does not carry `--docx` either. Same family as H-08.
 
-* **§6's golden Ts/Tv is now 2.6917** = 323 Ts / 120 Tv over **79** shared genes, 68,448 columns
-  (was 2.686 over 76). The scope never changed; the shared *set* did — atpI/psaI/psbB are spelled
-  atpL/psaL/bspB in NC_024936.1 and are the same loci (§8.27). CLAUDE.md's golden table carries
-  the new numbers and the reason.
-* **Synteny's in-phase check is 7 blocks, %IDY 89.66–99.11 (mean 97.37), coverage 99.09 %** on the
-  golden pair — the board's earlier "21 blocks / mean 91.5" does **not** reproduce from the
-  probe's own inputs under any parameter set; the sweep is §8.26 and the finding §9.H.
-* New tools declared and pinned: **MUMmer 4.0.1** (`docs/tools/mummer4.md`) and **PAML 4.10.10**'s
-  `yn00` (`docs/tools/paml.md`); MAFFT 7.526 and BLAST+ 2.17.0 were already pinned.
-
-**The deliverable** — three runs over the pinned stand-in panel, recorded in
-`docs/P4-05_comparison_tables.md` with their run directories. Every table carries the stand-in
-label (`--label` writes it into each table's scope line and each report's header).
-
-**Merged to `main` 04/10** (fast-forward; `feat/phase-4` was stacked on nothing), per the
-established pattern for a closed phase. Phase 5 (figures & reports — the plots the two manuscripts
-need) is **still the phase after Phase 4a**.
-
-**Open for the PI (wording only, nothing blocks):** `trnG-GCC` vs `trnG-UCC` (§10.10, H-04) and
-which gene name the manuscript/NCBI submission prints (D3-06).
-
-**Waiting on data / people:**
-
-| What | Who | Blocks |
-|---|---|---|
-| One RNA-seq sample (any tissue) | team | M4.5 RNA editing — nothing else |
-| The team's own Oldenlandia/Coleus samples | anh Điềm / cô Trang | the manuscript tables being *the team's* — the stand-in tables exist today |
-| A second mitogenome of the same genus as a manuscript species | team / public | a mito comparison worth a manuscript (D4-05 ran as a cross-genus sketch) |
-| Plant mito data — a real mitogenome dataset | anh Điềm / cô Trang | reopens **H-06 · H-10 · H-12** and Phase 6's mito content |
-| A curated PGA reference set (P3-03) · the team's `.sbt` (P3-05 `.sqn` half) | anh Điềm / cô Trang | nothing in Phase 4 |
+**On hold by D5-07 (plastid first):** H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-08 · H-09 ·
+H-11 · H-13 · H-14. **Waiting on the PI:** H-04 (`trnG`) and D5-05 (what a generated sentence may
+claim — the mechanism is built and follows the conservative default).
 
 ## Log
+
+### 2026-10-05 · Claude · dev WSL · session 21 (Phase 5 — figures, statistics, publication exports; and the queryable-number check)
+
+**Did.** The whole Phase 5 board, task by task, each committed and pushed on `feat/phase-5`, then
+merged to `main`. Order followed the board's own advice: the phase's check first (P5-05), then the
+figure system, the rest of the figures, the statistics, the exports.
+
+* **P5-05 · the queryable-number audit.** `report/audit.py` requires every number in a generated
+  report to be a bounded number inside the rendered value of a cell of that module's own tables.
+  The strict rule was run against the Phase-4 deliverable first and failed with **10 findings over
+  its 12 reports, in 6 classes** — every one a quantity colliding with a number printed inside a
+  *quoted text* column (a block id `…#10`, `mean + 1 sd …`, `Coleus: 6, Oldenlandia: 5`, a note).
+  A `str` value containing a letter is prose: set aside by name, never counted as a cell carrying
+  a number. After that rule the deliverable run is clean, and planting an orphan in a real report
+  is caught by name. `read_result` came with it — the JSON round-trips into a `Result`.
+* **P5-01 · the figure system.** A figure is a pure function of a `Result`: `series()` reads cells
+  into plain data, `build()` draws through one theme. The plan said `core/figure.py`; the layer map
+  lets `core/` import only `plastid.core`, and two figures read tables from **two different
+  modules**, so the system lives in `result/` and renders at **run level from the stored
+  `result.json`** — which is why a fully cached run still gets its figures and `plastid run
+  --figures` and `plastid figures <run-dir>` are the same function. Determinism was **measured, not
+  assumed**: SVG carries a per-process salt *and* a `dc:date` (both pinned), PDF has a metadata
+  hook, the PostScript backend has none so its `%%CreationDate` is rewritten.
+* **P5-02 · six more figures and the N rule.** `identity_synteny` was rendered at N = 2 · 8 · 34:
+  at 8 the series read, at 34 the legend covered the panel and 33 lines merged into one mass. The
+  rule is a **cap of 8**, above which the panel draws the span the genomes cover — both edges still
+  cell values — and the canvas grows with N.
+* **P5-03 · statistics.** `core/stats.py` (scipy, `[stats]`) with every function pinned by a vector
+  computed **by hand**; writing those vectors caught two of my own errors. The `stats` module runs
+  a real comparison over the stand-in panel: 80 loci × 4 measures = 320 tests, 17 not computable,
+  **0 significant after Benjamini–Hochberg** — the honest answer at 4 vs 4 observations per locus.
+* **P5-04 · the exports.** Byte-identical multi-sheet Excel, `plastid package` (the Supplementary
+  package, regenerated from a run directory), the technical QC report, and a PDF-only one-page
+  sheet per genome: **34/34** corpus records, none failing, each one page, measured at 114 s for
+  the whole corpus.
+
+**Validation.** `make check` green after every task. Final: **668 fast tests**, golden **60 passed,
+4 skipped** (PGA · chloe · julia · table2asn absent on this machine) with the tool environment on
+PATH. Every figure was rendered from a real run and **looked at**.
+
+**Residual risks.** (1) The figure and export extras are not installed by a bare `make env` —
+`uv sync --all-extras` is what this tree uses. (2) The one-page PDF is A4 portrait with a fixed
+layout; a genome with very many regions would crowd it, and no such record is in the corpus.
+(3) The N cap of 8 is measured on *this* figure at N = 34; another figure may support more series,
+and the rule is stated per figure rather than globally.
+
+**Blocked.** Nothing.
+
+**Next.** Phase 3B (the self-built plastid annotator, D5-08) once its slot is confirmed — or the
+open housekeeping items, of which **H-14** was found and measured this session.
 
 ### 2026-10-05 · Claude · dev WSL · session 20 (doc ↔ code sweep: false statements fixed in place, §9 renumbered, the log split)
 

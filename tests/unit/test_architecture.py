@@ -26,7 +26,7 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "plastid"
 # Third-party top-level imports allowed inside the package (besides the stdlib).
 #
 # ``docx`` and ``lxml`` are the optional Word-export extra (D2-04), ``matplotlib`` the figures
-# extra, ``scipy`` the statistics extra (D5-02) and ``openpyxl`` the Excel extra (D5-03). They
+# extra, ``scipy`` the statistics extra (D5-02) and ``openpyxl`` the Excel extra (P5-04). They
 # are imported inside functions,
 # never at module import time, so the minimum install still runs without them — the allowlist is
 # what says the dependency is deliberate rather than accidental.

@@ -298,20 +298,29 @@ at 34× scale.
 every number in a report traces to exactly one cell in a source table · tool report has name, version,
 path, threshold.
 
-- [ ] **M5.1 Figure system** — shared theme (colors/fonts) · figure types (circular map · RSCU heatmap ·
-  π sliding window with LSC/SSC/IR shading · IR junction · mVISTA-style · SSR/repeat distribution ·
-  annotated tree · NUPT/MTPT by gene · haplotype network · mito configuration · barcode assessment) ·
-  vector export (SVG/PDF/EPS) · scaling rule for N genomes
-- [ ] **M5.2 Statistics** — descriptive · non-parametric tests · correlation · FDR/Bonferroni ·
-  sentence-level interpretation
-- [ ] **M5.3 Exports** — multi-sheet Excel · Word · Supplementary package · 1-page PDF per genome ·
-  technical QC report
-- [ ] **M5.4 Queryable-number check automated** — fails the build on any orphan number
+- [x] **M5.1 Figure system** (2026-10-05) — eight figure types in `result/figures/`, one theme, SVG ·
+  PDF · EPS byte-identical between runs (§8.36), and the N-scaling rule **measured** at 2 · 8 · 34:
+  a series cap of 8, above which the identity panel draws the span the genomes cover (§8.37)
+- [x] **M5.2 Statistics** (2026-10-05) — `core/stats.py` (scipy, `[stats]`): descriptive ·
+  Mann–Whitney U · Kruskal–Wallis H · Spearman · Pearson · Benjamini–Hochberg · Bonferroni, every
+  one pinned by a hand-computed vector; the `stats` module runs a real two-group comparison and
+  reports a test the data cannot support as *not computable* (§8.38)
+- [x] **M5.3 Exports** (2026-10-05) — multi-sheet Excel (byte-identical) · `plastid package` (the
+  Supplementary package, regenerated from a run directory) · one-page PDF per genome, **34/34 corpus
+  records** · `plastid qc` (the technical QC report) · the Word export unchanged (§8.39)
+- [x] **M5.4 Queryable-number check automated** (2026-10-05) — `report/audit.py` fails on an orphan
+  number and on a number two cells disagree about; clean over the whole Phase-4 deliverable run (§8.35)
 
 *Of M5.1's eleven figure types, **seven have a source table today and four do not** (measured
 04/10/2026): the haplotype network needs a haplotype table (`popgen` counts haplotypes,
 it does not list them), the annotated tree needs a phylogeny nothing builds yet, NUPT/MTPT is M6.1
-(blocked on a nuclear genome) and the mito configuration is M6.2. Phase 5 schedules the seven.*
+(blocked on a nuclear genome) and the mito configuration is M6.2. Phase 5 shipped the seven, plus a
+PDF-only one-page sheet per genome (P5-04).*
+
+**Phase 5 — CLOSED 05/10/2026**, merged to `main` (fast-forward). Five tasks, each with its
+Done-when measured: the figures (§8.36–§8.37), the statistics (§8.38), the exports (§8.39) and the
+queryable-number audit (§8.35). Three layout defects were found by *looking at* the rendered
+figures rather than by a test — the lesson of §9.C-34, paid three times in one phase.
 
 ## Phase 6 — Tool-paper content  *(§13.6 — published/GenBank data; assembly-dependent parts move to P7)*
 
