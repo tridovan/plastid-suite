@@ -807,7 +807,7 @@ Dữ liệu vào: file GenBank (kể cả tải từ NCBI). Chưa cần dữ li�
 
 Chạy được trên bộ gen đã có sẵn.
 
-- Chú giải: **công cụ tự viết** — lục lạp theo D5-08 (tạm Chloe tới khi công cụ mới qua Done-when), ty thể đã có từ Giai đoạn 3A (`mito_annotate`)
+- Chú giải: PGA (lục lạp), MITOS2/GeSeq (ty thể) — **[ĐÃ THAY — xem §3 (D3-01 · D3A-02 · D5-08): lục lạp = Chloe từ 03/10 (§8.15–8.17), công cụ tự viết theo D5-08 sẽ là giai đoạn mới 3B; ty thể = annotator tự viết từ Giai đoạn 3A]**
 - Kiểm tra & chuẩn hoá tên gen
 - Kiểm tra khung đọc (start/stop/internal codon)
 - Chuẩn bị hồ sơ nộp NCBI (FASTA/TBL/SQN)
