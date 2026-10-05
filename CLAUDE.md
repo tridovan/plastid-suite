@@ -40,6 +40,11 @@ new module work serves the plastome; the existing mito path stays as it is, and 
 is kept precisely so mito analyses can be added later without rework — the deferred items carry
 names in `TASKS.md`.
 
+**The annotate step is ours (D5-08).** The pipeline is assembly → annotate → gene-name unification
+→ analyses. Annotation will be built in-house on CGAS's model with our own search-and-decide core;
+**Chloe is dropped**, PGA stays only as the measured counter-example, and a reference-set audit
+gates every annotation run. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
+
 **Current state: Phase 5 in progress.** Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
 checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
 
