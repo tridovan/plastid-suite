@@ -6,7 +6,7 @@
 và **không bao giờ đánh số lại**. Mục mới của giai đoạn này ghi tiếp vào **cuối file này**, rồi
 thêm một dòng vào bảng mục lục ở `PROJECT.md` §8.
 
-Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "Nhật ký & tài liệu".
+Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "The run log".
 
 ---
 

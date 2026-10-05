@@ -2,7 +2,9 @@
 
 The CDS set comes from ``cds_features`` — the same source P2-03 uses, so the two modules can
 never disagree about which sequences they describe. Every translation is built with
-``coding_sequence`` and NCBI table 1 (D2-03).
+``coding_sequence`` and NCBI table 1, compiled here (D2-03) — and the output names the table the
+record's own CDS declare (plastid records declare 11; the two share every amino acid and differ
+only in initiation codons, and the initiator is read as its own amino acid — §9.J).
 
 Cross-check that must hold (and is asserted in the golden tests): the residue total equals the
 sense-codon total of `codon_usage`, because every sense codon contributes exactly one residue.
@@ -12,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from plastid.core.codon import translate
+from plastid.core.codon import translate, translation_table_label
 from plastid.core.model import Genome, cds_features, coding_sequence
 from plastid.core.protein import (
     KYTE_DOOLITTLE,
@@ -29,8 +31,6 @@ from plastid.run.context import RunContext
 MODULE_ID = "amino_acid"
 MODULE_VERSION = "0.1.0"
 
-TRANSLATION_TABLE = "NCBI table 1 (standard)"
-
 
 @module(
     MODULE_ID,
@@ -42,6 +42,7 @@ TRANSLATION_TABLE = "NCBI table 1 (standard)"
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ctx.require_ir()
     cdss = cds_features(genome)
+    table_label = translation_table_label(cdss)
 
     translation = "".join(translate(coding_sequence(genome, gene)) for gene in cdss)
     counts = composition(translation)
@@ -71,7 +72,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 # raw values: the export layer formats by Column.precision, JSON keeps them exact
                 "gravy": gravy(counts),
                 "aromaticity": aromaticity(counts),
-                "translation_table": TRANSLATION_TABLE,
+                "translation_table": table_label,
             },
         ),
         scope=Scope(
@@ -109,7 +110,10 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         module_version=MODULE_VERSION,
         tables={"amino_acid": summary, "amino_acid_composition": table},
         notes=(
-            f"Translation table: {TRANSLATION_TABLE} (decision D2-03).",
+            f"Translation table: {table_label} (decision D2-03). Table 1 and the plastid table 11 "
+            f"share every amino-acid assignment (they differ only in initiation codons), and the "
+            f"initiator codon is read as its own amino acid — a CDS starting GTG/ACG/ATC "
+            f"contributes V/T/I where its published protein begins with M.",
             f"GRAVY uses the Kyte–Doolittle scale; {ignored} stop/ambiguous symbol(s) excluded.",
         ),
         citations=("biopython",),

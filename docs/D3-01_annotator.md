@@ -66,7 +66,7 @@ PGA's own guide warns about three things. All three are already impossible here:
 | PGA's trap | Why it cannot bite us |
 |---|---|
 | the output folder must be empty, it may delete its contents | every run gets a fresh numbered directory (`RunLayout`), never reused |
-| filenames containing spaces cannot be read | inputs go through `slugify()`, which is ASCII-safe by design (§9.16) |
+| filenames containing spaces cannot be read | inputs go through `slugify()`, which is ASCII-safe by design (§9.30) |
 | one sequence per file, a multi-FASTA target can annotate wrongly | one `--input` is one record, enforced by the arity check |
 
 ## GeSeq still has a job

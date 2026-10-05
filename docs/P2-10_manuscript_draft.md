@@ -2,7 +2,7 @@
 
 P2-10 asks for *tables + figures + draft Results for the two species*, with every number traced
 to a cell in a run's tables. This file is the recipe. The status — what is present, what is
-missing and why — is in `TASKS.md` (P2-10) and PROJECT.md §8.8.
+missing and why — is in `ROADMAP.md` (M2.10) and PROJECT.md §8.8.
 
 ## The routine
 
@@ -61,7 +61,7 @@ Everything a module measured, with the scope label attached:
 
 | Missing | Why | Unblocked by |
 |---|---|---|
-| π (nucleotide diversity) and Ts/Tv sections | need MAFFT **7.526**; installing a different version would measure a different aligner (PROJECT.md §7.8, §9.B-13) | a machine with the pinned MAFFT |
+| π and Ts/Tv sections | the draft was produced on 03/10, when MAFFT 7.526 was absent; **MAFFT has been installed and pinned since 03/10** (§7.8b) and both modules ran that day (§8.25) — the draft simply has not been re-run with them | re-run the routine above; no new machine needed |
 | Figures | M5.1 — the figure layer is Phase 5, not Phase 2 | Phase 5 |
 | The team's own sample numbers | the real Oldenlandia / Coleus records from anh Điềm / cô Trang | the real dataset |
 

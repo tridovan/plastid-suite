@@ -17,11 +17,13 @@
 
 ## Cross-phase rules (apply to every phase)
 
-- Applies to **both plastid and mitochondrion**, except divergence-time work (tool paper only).
+- Serves **both plastid and mitochondrion** — but the seven *transitional* analyses (see PROJECT.md
+  §13, "Hai bào quan") run on plastid only today: on a mitogenome they stop at the IR gate. Opening
+  them is **H-10, on hold** by D5-07. Divergence-time work is tool-paper only.
 - **Plastid first** (team decision 05/10/2026, D5-07): plant mito data is still scarce, so new module
   work serves the plastome. The existing mito path stays as it is — not extended — and the
   two-organelle structure is kept so mito analyses can be integrated later without rework
-  (PROJECT.md §13 → "Hai bào quan"; H-06 · H-10 on hold in `TASKS.md`).
+  (PROJECT.md §13 → "Hai bào quan"; H-06 · H-10 on hold by D5-07).
 - **IR gate ≥ 99.9 %** before any position-based analysis. Fail ⇒ red flag, stop. No exceptions.
 - Gene counting: **132 = 86 CDS + 38 tRNA + 8 rRNA**. Never "133 genes" (that is the `gene` feature
   count, diagnostic only).
@@ -81,17 +83,13 @@ tells you which file belongs to which job.
   name/version/source/path/argv/cwd/rc/time/logs; content-hash cache restores files byte-identically
 - [x] **M1.6 Golden harness** (2026-10-02) — `make golden` runs the whole set in one command; the
   tier-B probe names every missing tool and skips; `PTS_REQUIRE_TOOLS=1` turns skips into failures
-- [ ] **M1.6 Golden tests tier A + `make golden`** — one command, every §6 tier-A number asserted;
-  tier B prints a skip reason per missing tool
 - [x] **M1.7 Report engine + citation registry + defaults** (2026-10-02) — `{{…}}` resolves through
   `Result.format()` or raises; shipped templates carry zero bare digits (scan test); the draft
-  banner is appended by the engine; citations come from `data/citations.yaml`
+  banner is appended by the engine; citations come from `src/plastid/data/citations.yaml`
 - [x] **M1.8 Module registry + first module end-to-end** (2026-10-02) — decorator registry;
   `genome_stats` produces `01_genome_stats/` (3 tables + result.json + report.md); CLI `plastid run`
   writes `manifest.json` + `00_run_info/run_info.md`; a failed gate exits 2 and still leaves a
   traceable run directory
-- [ ] **M1.8 Module registry + first module (`genome_stats`) end-to-end** — run dir complete:
-  `00_run_info/` + tables + report
 - [x] **M1.9 MISA vendored + `ssr` module (tier B)** (2026-10-02) — IPK zip verified against every
   §7.8 checksum and vendored with `SOURCE.json` (licence: not stated → flagged for M9.3); the module
   reproduces **SSR 37 = mono 31 · di 4 · tri 2, compound 3** on this machine; a missing perl raises a
@@ -100,12 +98,12 @@ tells you which file belongs to which job.
   (tiers · modes A/B · quality filter · pin with an injected fetcher) + `run/ncbi.py` (esearch ·
   esummary · taxonomy efetch · 3 req/s) + `plastid panel refresh | propose | pin`. Verified live:
   76 RefSeq genomes for Iridaceae (the §8.3 count, after fixing NCBI's `chloroplast[filter]` blind
-  spot — PROJECT.md §9.C-20), and a re-pinned NC_050833.1 whose sha256 matches the vendored golden
+  spot — PROJECT.md §9.C-27), and a re-pinned NC_050833.1 whose sha256 matches the vendored golden
   file byte-for-byte. Proposals and pins are offline; the network lives only in `refresh`.
 - [x] **M1.11 Sample-group metadata** (2026-10-02) — loader + lookup shipped (`core/samples.py`,
   duplicate-accession guard, tests); the "used by a comparison table" half moved to **M2.11**
 - [x] **M1.12 Execution backend decision** (2026-10-03, dev decision) — local for phases 1–5 and 8;
-  remote for phase 6 (divergence time) and phase 7 (assembly), where PROJECT.md §9.14 measured that
+  remote for phase 6 (divergence time) and phase 7 (assembly), where PROJECT.md §9.28 measured that
   an 8 GB machine leaves only 1.5–2.5 GB free per job. Recorded in PROJECT.md §3
 - [x] **M1.13 Hardening + API freeze v0.1** (2026-10-02) — README quickstart · `environment.yml` ·
   `docker/Dockerfile` skeleton · `docs/API_v0.1.md` (module contract, Result schema, coordinates,
@@ -113,7 +111,7 @@ tells you which file belongs to which job.
   a clean clone and `make golden` inside Docker — are deferred to the Phase 9 platform pass, when
   Docker is set up on the dev machine.*
 
-## Phase 2 — Genome reading & statistics  *(§13.2 — plastid **and** mito)*
+## Phase 2 — Genome reading & statistics  *(§13.2 — plastid; the mito half waits on H-10)*
 
 **Goal:** tables + figures + draft Results for the 2 species manuscripts (Oldenlandia, Coleus).
 **Input:** GenBank files (downloaded or produced). Raw reads not needed.
@@ -137,9 +135,11 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
       LSC 0.009185 · IRa 0.001682 · IRb 0.001681 · SSC 0.014066, per gene and 600/200 sliding
       window. **Still missing: per intron/IGS** — those spans need the intron derivation extracted
       from `modules/introns.py` into the shared layer first (DRY: it would be its second copy), so
-      it is named in `TASKS.md` rather than half-built here
+      it is named rather than half-built here (H-07)
 - [~] **M2.10 Manuscript deliverable** — tables + draft Results produced for both species from the
-  public stand-in set (labelled); real samples and figures outstanding
+  public stand-in set (labelled); **the draft predates the π/Ts/Tv sections** (MAFFT has been
+  present since 03/10, §8.25 — the draft simply has not been re-run with them) and figures; real
+  samples outstanding
 - [x] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
   (moved here from M1.11, whose loader shipped in Phase 1: `core/samples.py`)
 
@@ -224,7 +224,7 @@ failures: a search that finds nothing is a failed run, every below-floor hit rep
 - [ ] **M3B.5 Golden + corpus validation** — the phase's Done-when at both scales, every
       difference itemized
 
-## Phase 4 — Multi-genome comparison  *(§13.4 — plastid and mito)*
+## Phase 4 — Multi-genome comparison  *(§13.4 — plastid; the mito half waits on H-10)*
 
 **Goal:** comparison content for the 2 manuscripts. **Deliverable: the three runs and their table
 sets — `docs/P4-05_comparison_tables.md`** (two species over the pinned stand-in panel + the mito
@@ -282,7 +282,9 @@ at 34× scale.
       sequence (exit 0 / exit 2 through the CLI), the group's own record 87 → 85, and the
       `ndhI`/`ndhL` alias resolving both spellings to one key. A `SHA256SUMS` completeness check
       now guards every vendored file. §8.31
-- [ ] **M4a.3 Scale (M8.3)** — wall clock and peak RSS per module at N = 34
+- [x] **M4a.3 Scale (M8.3)** (2026-10-04) — wall clock and peak RSS for every module run at N = 34;
+  `diversity` and `barcodes` are **named as not measured** (they align whole genomes like
+  `substitutions`, whose curve *is* measured). `docs/M8.3_scale.md` + PROJECT.md §8.32
 - [x] **M4a.4 Annotator at scale** (2026-10-04) — 34/34 bare sequences annotated by Chloe, 0 CDS
       failing the ORF checks, and three annotations of one sequence side by side: **no record has
       all three agreeing (0/34)**, and the differences cluster on `ycf1` (24/34) and the
@@ -307,7 +309,7 @@ path, threshold.
 - [ ] **M5.4 Queryable-number check automated** — fails the build on any orphan number
 
 *Of M5.1's eleven figure types, **seven have a source table today and four do not** (measured
-04/10/2026, `TASKS.md`): the haplotype network needs a haplotype table (`popgen` counts haplotypes,
+04/10/2026): the haplotype network needs a haplotype table (`popgen` counts haplotypes,
 it does not list them), the annotated tree needs a phylogeny nothing builds yet, NUPT/MTPT is M6.1
 (blocked on a nuclear genome) and the mito configuration is M6.2. Phase 5 schedules the seven.*
 
@@ -369,9 +371,6 @@ across 3 environments (WSL · CI · Docker).
 
 | Decision | Blocks | Where |
 |---|---|---|
-| ~~Coordinate system in reports~~ — decided 2026-10-02: GenBank coordinates for per-genome tables · normalized for cross-genome figures · system labelled on every table · `rotation_offset` in `00_run_info` | — | PROJECT.md §3 |
-| ~~Reports generated from `Result` objects~~ — decided 2026-10-02: reports reference table cells (`{{table.column}}`); an unresolvable reference raises | — | PROJECT.md §3 |
-| ~~Reference Panel: pinned snapshot vs live NCBI~~ — decided 2026-10-02: propose from a dated RefSeq cache, pin + checksum on the user's confirmation, runs stay offline | — | PROJECT.md §3 |
 | Reference Panel item (c) — source text truncated | documentation only — does not block M1.10 | PROJECT.md §10.9 |
 | **The slot for the self-built plastid annotator (D5-08)** — a new phase **3B** (proposed: after Phase 5, mirroring 3A) or inside Phase 6; the annotate step becomes this project's own tool (CGAS's model, our core) and **Chloe is dropped** | opening the 3B board — nothing already scheduled waits on it | PROJECT.md §3 (D5-08) · `docs/D5-08_plastid_annotator.md` (D-c · D-a · D-b · D-e open) |
 
@@ -380,5 +379,6 @@ across 3 environments (WSL · CI · Docker).
 | What | Who | Blocks |
 |---|---|---|
 | Real Illumina reads (1 sample) | Diem / Trang | M7.1 · M7.5 · M4.5 |
+| Plant mito data — a real mitogenome dataset | anh Điềm / cô Trang | M6.2 · M6.3 · H-06 · H-10 · H-12 (on hold by D5-07) |
 | Nuclear genome of the sample | Trang | M6.1 (NUPT/MTPT) |
 | A macOS machine | Team | M9.4 platform claims |

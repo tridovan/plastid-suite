@@ -6,7 +6,7 @@
 và **không bao giờ đánh số lại**. Mục mới của giai đoạn này ghi tiếp vào **cuối file này**, rồi
 thêm một dòng vào bảng mục lục ở `PROJECT.md` §8.
 
-Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "Nhật ký & tài liệu".
+Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "The run log".
 
 ---
 
@@ -29,7 +29,7 @@ bản ghi thật **không có giá trị**; BioPython gặp `{"pseudo": [""]}` t
 khác — còn gặp `None` mới ghi `/pseudo` trần. Đối chiếu chính file vàng: nó viết `/trans_splicing`
 trần, `/codon_start=1` và `/transl_table=11` (**số, không trích dẫn**) — đúng những gì BioPython
 sinh ra với `None` và với `str`. Từ đó thành quy ước trong model: **`None` nghĩa là qualifier trần**
-(§9.B-25).
+(§9.B-26).
 
 **Một hàm qualifier dùng chung.** Đường `.tbl` (P3-05) đã có `_qualifiers_of`; writer GenBank cần
 đúng thứ đó ⇒ theo luật DRY-sau-lần-trùng-thứ-hai nó thành `model.gene_qualifiers()`, **cả hai

@@ -27,13 +27,13 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "substitutions"
-MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-21)
+MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-35)
 
 
 # The two scopes this module can report, and why the difference is not cosmetic: §6's golden
 # Ts/Tv is measured over CDS only, the genes the genomes share, IR excluded. The whole-alignment
 # default is a different number over different bases, and the two must never be quoted as one
-# another (PROJECT.md §6, §8.25, §9.B-13). The label says *which scope*, not *what number* — a
+# another (PROJECT.md §6, §8.25, §9.B-14). The label says *which scope*, not *what number* — a
 # number written into a label goes stale the moment the shared set is re-measured.
 SCOPES: tuple[str, ...] = ("whole", "cds")
 DEFAULT_SCOPE = "whole"

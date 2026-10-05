@@ -1,9 +1,9 @@
 # D5-08 — a self-built plastid annotator (proposal)
 
 **Status: the decision is recorded — D5-08 in `PROJECT.md` §3 — and this file is its design
-record.** The team's call of 2026-10-05: CGAS's flow with our search-and-decide core, a
-reference-set audit in front of every run, **Chloe dropped**. The open decisions at the end still
-need a call before coding. It extends `D3-01` ("which annotator") — D3-01 picked an offline tool
+record.** The decision recorded in `PROJECT.md` §3 (D5-08, dev): CGAS's flow with our
+search-and-decide core, a reference-set audit in front of every run, **Chloe dropped from the
+plan**. The open decisions at the end still need a call before coding. It extends `D3-01` ("which annotator") — D3-01 picked an offline tool
 from what existed and now carries an update pointing here; this builds ours.
 
 ## What it is, and where it sits
@@ -24,9 +24,9 @@ assembly (Phase 7: GetOrganelle · OATK)  →  ANNOTATE (this tool)  →  gene-n
   unification and every analysis module — consume it unchanged; no second code path.
 - **Plastid first** (D5-07). The mitochondrial counterpart already exists
   (`core/mito_caller.py` + `modules/mito_annotate.py`); this is its plastid sibling.
-- **Chloe is dropped from the pipeline** (team call, 2026-10-05). When this engine passes the
-  Done-when it becomes the annotate step, and `modules/annotation.py`'s engine set (`chloe`,
-  `pga`) changes with it.
+- **Chloe is dropped from the plan** (D5-08, 2026-10-05). When this engine passes the Done-when it
+  becomes the annotate step, and `modules/annotation.py`'s engine set (`chloe`, `pga`) changes
+  with it — until then that flag set *is* the code.
 
 ## Why build it at all
 
@@ -37,8 +37,8 @@ assembly (Phase 7: GetOrganelle · OATK)  →  ANNOTATE (this tool)  →  gene-n
   PGA wrapper, and PGA returned 147 genes where the golden has 132 with three silent failure modes
   (§8.15); CGAS adds no arbitration of its own (source review 2026-10-05: `grep -i overlap` = 0 in
   `PGA.pl`; references pooled into one query set, `:1106-1141`).
-- **The current annotators are not wanted.** Chloe is third-party and Julia-dependent — dropped
-  per the team's call; PGA is measurably not the answer. The annotate step becomes ours.
+- **The current annotators are not wanted.** Chloe is third-party and Julia-dependent — dropped by
+  D5-08; PGA is measurably not the answer. The annotate step becomes ours.
 - **The pieces exist**: `external/blast.py` (run_blastx · run_blastn · HSP parsing, BLAST+ 2.17.0
   pinned), `core/orf.py`, the GenBank reader/writer, `run_tool()`, the IR gate, the run manifest.
 
@@ -48,7 +48,7 @@ assembly (Phase 7: GetOrganelle · OATK)  →  ANNOTATE (this tool)  →  gene-n
 |---|---|
 | module 2 passes the reference directory straight to PGA; each reference's sequences pool into one query set | our own search layer below; the reference set is pinned, versioned and recorded like every other input |
 | no arbitration: a locus called by two references stands twice (measured: 147 genes from 7 references, §8.15) | one call per locus; losing candidates listed with their reasons |
-| no overlap logic anywhere (`grep -i overlap` = 0 in 16,320 lines) | overlap kept and reported by default — the golden itself carries four overlapping pairs |
+| no overlap logic anywhere in **PGA.pl** (`grep -i overlap` = 0 in its 16,320 lines — commit `0683a0ec…`); CGAS adds no arbitration of its own, and its own `overlap` matches are coordinate-range merging (`cgas_module5.py:545`), not gene-call arbitration | overlap kept and reported by default — the golden itself carries four overlapping pairs |
 | "total genes" counts `gene` **features**, and that same number is used as the reference denominator (annotation rate ≡ 100 %) | the counting convention is 132 = 86 + 38 + 8, reconciled by the project's own table — never a self-congratulating rate |
 | IR features taken from PGA's `repeat_region`, regions labeled by order and by size; fewer than two IR features → debug-level silent skip | structural IR detection + the ≥ 99.9 % gate before anything position-based |
 | module 3 renames genes to one reference, name-based only, original spelling overwritten in the file | arbitration by structure first; name unification stays a **separate** step with its evidence (`gene_names` + the alias tables) |
@@ -169,7 +169,9 @@ evidence, no RNA-editing prediction, no repeat discovery beyond the gate's need,
 
 §8.15 · §8.17 · §8.20–§8.25 · §8.27 · §8.31 · §8.33 · **§8.34** (the three measurements of
 2026-10-05: the golden's four overlapping pairs · 32/2 SSC orientation with clean ORFs · the
-corpus reference-quality counts); the 2026-10-05 source review of PGA (`PGA.pl:1337–1393` query
+corpus reference-quality counts); the 2026-10-05 source review of PGA (commit
+`0683a0ec2b2061c49c60ec6c5a2293cd08623253`, `PGA.pl` 16,320 lines, sha256
+`0d55b70e53de5d677522cb8fed646898c2ea28bc3f56275a9190128bfd65c3c`; `PGA.pl:1337–1393` query
 sets: blastn for tRNA/rRNA and intron-bearing genes, tblastn for CDS and per-exon; `:1518–1560`
 the four OS branches; `grep -i overlap` = 0; README: "One genome should be chosen as the
 reference") and of CGAS (`cgas_module2.py` passes the whole reference directory to PGA and adds no

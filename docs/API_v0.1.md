@@ -63,7 +63,7 @@ Manifest keys (schema_version 1): `run_id` · `command` · `package_version` · 
 
 Templates live in `report/templates/<module>.en.md` and reference cells (`{{…}}`) only — a scan test
 rejects literal digits. The engine appends the draft banner and resolves citations from
-`data/citations.yaml` (an unknown key raises `CitationError`).
+`src/plastid/data/citations.yaml` (an unknown key raises `CitationError`).
 
 ## 7. Exit codes
 

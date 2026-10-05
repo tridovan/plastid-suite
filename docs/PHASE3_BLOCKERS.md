@@ -13,7 +13,7 @@ anything. Each blocker names **what exactly is needed** and **from whom** — a 
 
 | Blocker | Was | Now |
 |---|---|---|
-| **H-01 · MAFFT 7.526** for P2-07/P2-08 (π and Ts/Tv) | absent; `apt` installs a *different* version, and §9.B-13 records that the aligner changes Ts/Tv | **installed and verified against the §7.8 pin**: conda-forge `mafft 7.526` build `h4bc722e_0`, tarball **2,610,460 B**, md5 **`cf3b2acf649bc31e576ed43a2fa4aaa3`** — byte-identical to the recorded pin. `mafft --version` → `v7.526 (2024/Apr/26)` |
+| **H-01 · MAFFT 7.526** for P2-07/P2-08 (π and Ts/Tv) | absent; `apt` installs a *different* version, and §9.B-14 records that the aligner changes Ts/Tv | **installed and verified against the §7.8 pin**: conda-forge `mafft 7.526` build `h4bc722e_0`, tarball **2,610,460 B**, md5 **`cf3b2acf649bc31e576ed43a2fa4aaa3`** — byte-identical to the recorded pin. `mafft --version` → `v7.526 (2024/Apr/26)` |
 | **P3-03 · BLAST+** for PGA | absent | installed, **2.17.0+** (PGA needs ≥ 2.8.1) |
 | **P3-03 · Perl** for PGA and MISA | present | present, unchanged |
 | **P3-05 · `table2asn`** for `.sqn` | absent, and not on conda | **not finished** — NCBI's FTP is slow and the download timed out twice here (11.6 MB of a partial file sits at `~/toolbox/bin/table2asn.gz`). Source is confirmed live: `ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/linux64.table2asn.gz` (HTTP 200). One `curl -C - -o table2asn.gz <url> && gunzip table2asn.gz` finishes it. **This blocks only the `.sqn` conversion**, not P3-05's FASTA + TBL half, which is pure Python |
@@ -57,12 +57,10 @@ the moment the four names were measured by locus (PROJECT.md §8.9–8.10). It i
 | 4 | **The gene name to print in the manuscript and submit to NCBI** | cô Trang | the *wording* of the gene table only — the pipeline is unaffected | recommend `pafI (ycf3)`; see D3-06 |
 | 5 | **Item (c) text for the Reference Panel notes** | cô Trang | D-03 (docs) only | the §13.1 paragraph is truncated in the source |
 | 6 | ~~**PGA needs a first run by a human**~~ — **done 03/10**, and it did not reproduce the golden record (147 genes vs 132): the annotator is now Chloe (PROJECT.md §8.15–8.17) | anh Trí | P3-03 — closed | PGA is cloned and runs at `~/toolbox/src/PGA`; it stays reachable as `--set annotator=pga` for genomes Chloe does not cover |
-| 7 | **`table2asn` download** | anh Trí, or a run with a longer network window | the `.sqn` half of P3-05 only | `curl -C - -o ~/toolbox/bin/table2asn.gz https://ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/linux64.table2asn.gz` |
+| 7 | ~~**`table2asn` download**~~ — **done 03/10**: the tool ran for real and its validator read our table (§8.18, `docs/tools/table2asn.md`) | — | closed | — |
 
-## Not blocked — the next session can start immediately
+## Status of this file
 
-- **P3-01 ORF checks** — pure Python, no tool, fully verifiable here
-- **P3-02 gene-name normalization** — pure Python; the four semantic aliases are decided (§8.10)
-- **P3-05's FASTA + TBL half** — pure Python; only the `.sqn` conversion needs `table2asn`
-- **P2-07 / P2-08 real-data runs** — MAFFT is now installed and pinned, so the numbers that were
-  "implemented and unit-verified, real run pending" can finally be *measured*
+Everything that could be started from here was done in Phase 3 / 3A (P3-01 · P3-02 · P3-05's
+Python half · the P2-07/P2-08 real runs · the mito path). This file stays as the **03/10
+clearance record**; the live state is `TASKS.md`.

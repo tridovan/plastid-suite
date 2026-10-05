@@ -6,7 +6,7 @@
 và **không bao giờ đánh số lại**. Mục mới của giai đoạn này ghi tiếp vào **cuối file này**, rồi
 thêm một dòng vào bảng mục lục ở `PROJECT.md` §8.
 
-Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "Nhật ký & tài liệu".
+Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "The run log".
 
 ---
 
@@ -237,7 +237,7 @@ không còn genome có chú giải nào ⇒ lỗi nói rõ lý do. Test riêng c
 
 **standin-coleus** (tham chiếu PX923121.1, 8 genome có chú giải): Ts/Tv scope CDS gộp **1.5395** = 15235 Ts / 9896 Tv trên **77 gen dùng chung** và 68743 cột; **bảng theo từng cặp** (`substitutions_by_genome.csv`) cho 1.3065–1.5424. Synteny: gần nhất `PZ428230.1` 1 khối @ 99.70 %, xa nhất `PP078674.1` 63 khối @ 89.10 %. Barcodes: 20 vùng siêu biến, 9/10 locus ứng viên, biến thiên nhất `trnL-trnF` (π 0.260571), `atpF-atpH` (π 0.250487). Ka/Ks pooled theo từng genome: 0.1663, 0.2468, 0.2067, 0.0853, 0.0831, 0.0856, 0.0922. Popgen: 80 gen, Coleus: 6, Oldenlandia: 5, 19/160 dòng không có kiểm định trung tính, 2/80 dòng Fst để trống.
 
-**Một phát hiện về vận hành (ghi thành H-08, §9.C-21):** cache của run layer nằm ở
+**Một phát hiện về vận hành (ghi thành H-08, §9.C-35):** cache của run layer nằm ở
 `.runs/.cache` **dùng chung giữa các run** và khoá cache **không gồm mã nguồn module** — sửa
 `substitutions` xong chạy lại thì nó trả `cached` và phục vụ payload cũ (thiếu cả bảng mới), vì
 `MODULE_VERSION` chưa đổi. Luật "đổi hành vi thì bump version" đã bị vi phạm trong chính phiên

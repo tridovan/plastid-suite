@@ -20,7 +20,7 @@ _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 def slugify(text: str) -> str:
     """ASCII-safe path segment: strip diacritics, collapse unsafe runs to ``-``.
 
-    Vietnamese accents in paths caused real cross-machine breakage (PROJECT.md §9.16).
+    Vietnamese accents in paths caused real cross-machine breakage (PROJECT.md §9.30).
     """
     ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     slug = _UNSAFE.sub("-", ascii_text).strip("-._").lower()

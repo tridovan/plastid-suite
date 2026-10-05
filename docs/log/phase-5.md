@@ -4,7 +4,7 @@
 này**, rồi thêm **một dòng** vào bảng mục lục ở `PROJECT.md` §8. **Số mục không bao giờ đánh số
 lại** — mọi tham chiếu kiểu `§8.34` trong code, test, `docs/` và board trỏ theo số.
 
-Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "Nhật ký & tài liệu".
+Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "The run log".
 
 ---
 

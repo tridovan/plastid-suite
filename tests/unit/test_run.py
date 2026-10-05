@@ -29,7 +29,7 @@ WHEN = datetime(2026, 10, 2, 15, 30, 0)
 
 def test_slugify_strips_diacritics() -> None:
     assert slugify("Iris domestica — NC_050833.1") == "iris-domestica-nc_050833.1"
-    assert slugify("chạy Trí") == "chay-tri"  # PROJECT.md §9.16: Vietnamese paths caused bugs
+    assert slugify("chạy Trí") == "chay-tri"  # PROJECT.md §9.30: Vietnamese paths caused bugs
     assert slugify("iris_domestica") == "iris_domestica"
 
 

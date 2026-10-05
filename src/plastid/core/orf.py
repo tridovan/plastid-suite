@@ -185,7 +185,7 @@ def annotated_not_coding(genome: Genome) -> tuple[Gene, ...]:
 
     * by **name**, because the truncated ycf1 copy shares its name with the real ycf1 CDS
       elsewhere in the record — matching on position alone would report nothing, and a
-      ``pseudo`` ycf1 with no CDS of its own is exactly the case (PROJECT.md §9.B-9);
+      ``pseudo`` ycf1 with no CDS of its own is exactly the case (PROJECT.md §9.B-10);
     * by **position**, because the truncated copy's 900 bp overlap the first 21 bp of *ndhF*
       — matching on name alone would excuse it, and matching on "any CDS overlaps" would let a
       neighbouring gene's frame stand in for the missing one.

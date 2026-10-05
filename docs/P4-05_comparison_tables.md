@@ -8,7 +8,7 @@ and what they contain.
 **Data, stated once.** Everything here comes from `.panel/` — public GenBank records pinned with
 their sha256 (PROJECT.md §8.6), **not the team's samples**. The one exception is the Coleus run's
 reference, `PX923121.1`: it is the group's own GenBank record of *C. amboinicus* (HANDOFF session
-5), and its run label says so.
+5 — `docs/handoff-archive.md`), and its run label says so.
 
 Every table carries its run's label — `stand-in (public records, not the team's samples)` for
 Oldenlandia, the same plus the reference caveat for Coleus, and a cross-genus-sketch wording for
@@ -75,7 +75,7 @@ they were run with, in their own scope line, and the two are never mixed.
 
 **Re-derivable from the run directory alone.** The inputs' sha256 are in the manifest; every
 tool's argv, version and **full output** are in `00_run_info/` (one numbered log pair per call —
-after the fix of 04/10 that made each call keep its own; §9.C-22); the MAFFT logs hold the
+after the fix of 04/10 that made each call keep its own; §9.C-36); the MAFFT logs hold the
 per-gene alignments the Ka/Ks and popgen numbers were computed from, and the mummer artifacts hold
 the alignment the synteny tables describe. Nothing here needs the network. *A run whose manifest
 says a module is `cached` did not re-run its tools, so that run has no logs for it — read the

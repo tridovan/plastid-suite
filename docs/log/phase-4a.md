@@ -6,7 +6,7 @@
 và **không bao giờ đánh số lại**. Mục mới của giai đoạn này ghi tiếp vào **cuối file này**, rồi
 thêm một dòng vào bảng mục lục ở `PROJECT.md` §8.
 
-Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "Nhật ký & tài liệu".
+Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "The run log".
 
 ---
 
@@ -128,7 +128,7 @@ làm là một test canh nó, và test đó đã có.
 
 **Máy đo — phải nói ra, vì một con số quy mô không có máy thì không phải là con số:** Intel
 i7-1165G7 @ 2,80 GHz · 6 vCPU trong WSL2 · **8.135.488 kB RAM** (~7,8 GB), ~4 GB trống. Đúng lớp
-máy phổ thông mà dự án nhắm tới, và đúng trần bộ nhớ đã ghi ở §9.14.
+máy phổ thông mà dự án nhắm tới, và đúng trần bộ nhớ đã ghi ở §9.28.
 
 **Cách đo:** mỗi lần một module, `plastid run -m <module> -i <genome…>`, tham chiếu đứng đầu, và
 **`--force` mọi lượt** — cache của run layer khoá theo `module_version` chứ không theo mã nguồn
@@ -165,7 +165,7 @@ trên cùng đầu vào, nên một đường cong mô tả cả ba:
 | 34 | — | — | **vượt 11 phút**, dừng |
 
 **Giới hạn ở đây là sự kiên nhẫn, không phải RAM.** Align cả bộ gen của 34 plastome đỉnh dưới
-100 MB trên máy 8 GB — trần bộ nhớ mà dự án lo (§9.14) **không phải** thứ chặn nó. Thứ chặn nó là
+100 MB trên máy 8 GB — trần bộ nhớ mà dự án lo (§9.28) **không phải** thứ chặn nó. Thứ chặn nó là
 thời gian: MAFFT căn tiến dần trên 5,2 Mbp ở độ phân kỳ này tốn hàng chục phút một lõi, và chi phí
 tăng **nhanh hơn** số genome — 4 → 8 genome gấp đôi thời gian, 8 → 16 gấp hơn hai lần nữa.
 

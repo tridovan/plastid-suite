@@ -46,7 +46,7 @@ show-coords -rcl out.filter.delta
   sequences. It is the flag PROJECT.md §7 records, and it is what a plastome comparison wants:
   the inverted repeat is by definition a repeat, and uniqueness filtering would drop half of it.
 * `-l 20 -c 65` — MUMmer 4's own defaults, **passed explicitly**: they live in
-  `data/defaults.yaml` (`synteny:`) because the block count moves with them (measured: 12 raw
+  `src/plastid/data/defaults.yaml` (`synteny:`) because the block count moves with them (measured: 12 raw
   alignments at the defaults, 22 at `-c 40`) and a default is a number nobody wrote down.
 * `-t 1` — threads must not be able to move a number a manuscript rests on.
 * `delta-filter -1` — 1-to-1: each reference position maps to its best query position. The other

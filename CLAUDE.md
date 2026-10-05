@@ -42,8 +42,10 @@ names in `TASKS.md`.
 
 **The annotate step is ours (D5-08).** The pipeline is assembly → annotate → gene-name unification
 → analyses. Annotation will be built in-house on CGAS's model with our own search-and-decide core;
-**Chloe is dropped**, PGA stays only as the measured counter-example, and a reference-set audit
-gates every annotation run. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
+**Chloe is dropped from the plan**, PGA stays only as the measured counter-example, and a
+reference-set audit gates every annotation run. Until that engine passes its Done-when,
+`modules/annotation.py` still ships `--set annotator=chloe|pga` — that is the code today, not the
+plan. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
 
 **Current state: Phase 5 in progress.** Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
 checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
@@ -108,7 +110,7 @@ A stand-in never stops being a stand-in:
 
 | File / section | Read when |
 |---|---|
-| `HANDOFF.md` | First — the resume point, plus the last sessions' Did / Validation / Risks / Next |
+| `HANDOFF.md` | First — the resume point, plus the last sessions' Did / Validation / Risks / Next (older entries: `docs/handoff-archive.md`) |
 | `TASKS.md` | Always — active tasks as checklists; each ends with a measurable "Done when" |
 | `ROADMAP.md` | Always — phase milestones + progress checklist; source for specs/tasks |
 | PROJECT.md §3 | Before a design decision not already covered by ROADMAP/CLAUDE |
@@ -132,7 +134,9 @@ A stand-in never stops being a stand-in:
   (133) is a diagnostic only — never write "133 genes".
 - **IR gate**: the two IR copies must be ≥ 99.9 % identical before *any* position-based analysis.
   It lives in the framework core; never bypass, disable, or "make optional". (Measured reason:
-  naive IR detection failed silently in 2/9 published plastomes — §9A.)
+  naive IR detection got 2/9 published plastomes wrong and said nothing (§8.3); the shipped port
+  fails loudly on one of the two and is still silent on the other (§8.5) — which is why the
+  **gate**, not the detector, is the guard; §9A.)
 - **Every exported number carries a scope label** (e.g. "CDS only, IR excluded").
 - **Evidence rule**: anything a subagent read or measured is a *claim* until verified firsthand.
   Only verified facts go into PROJECT.md.
@@ -142,7 +146,7 @@ A stand-in never stops being a stand-in:
   external tool, that tool must already be declared **in the repo**, in one of three places:
   1. `environment.yml` — conda/bioconda tools, **with the version pinned** to what PROJECT.md §7.8
      records. An unpinned `mafft` is not a shortcut, it is two users getting two different golden
-     numbers from the same genome (§9.B-13 measured exactly that: Ts/Tv 2.667 vs 2.686).
+     numbers from the same genome (§9.B-14 measured exactly that: Ts/Tv 2.667 vs 2.686).
   2. `src/plastid/vendor/<tool>/` + `SOURCE.json` — small script tools, vendored byte-for-byte with
      md5/sha256 and the retrieval date. MISA is the worked example.
   3. `docs/` — a tool that fits neither, with its source, its exact install line, and why it is not
@@ -226,9 +230,9 @@ test-first work. Rules:
    result schema · run layout/manifest · report resolution: write the failing check (a §6 golden
    number, a schema assertion, a gate case) **before** the implementation. Red → green.
 2. **Every measured failure becomes a regression test before the fix.** The project's own history has
-   several silent-wrong modes — naive IR detection (2/9 cases) · pairing constant off by one (K=c−1 →
-   1 bp candidate) · hand-written SSR count 36 vs 37 · difflib vs MAFFT (2.667/2.686). Each is a
-   permanent test; none may be deleted or weakened.
+   several silent-wrong modes — naive IR detection (2/9 cases; one loud, one silent after the port) ·
+   pairing constant off by one (K=c−1 → 1 bp candidate) · hand-written SSR count 36 vs 37 ·
+   difflib vs MAFFT (2.667/2.686). Each is a permanent test; none may be deleted or weakened.
 3. **Negative tests are mandatory for gates and tools.** Bad IR ⇒ `IRGateError` + exit 2 · missing
    tool ⇒ skip with a printed reason (or exit 3 when required) · out-of-scope numbers ⇒ labelled.
    A gate that cannot fail loudly is not done.
@@ -289,6 +293,12 @@ At the end of every session — or the moment you notice context filling up — 
 refresh the **Resume point** and append a dated entry with **Did · Validation · Residual risks ·
 Blocked · Next**. Assume the next reader is a fresh agent with zero history.
 
+The entry goes at the **top** of the log (newest first). When the log outgrows its job — the
+first file every session reads — the oldest entries move to `docs/handoff-archive.md`: a **pure
+move**, verified by re-concatenation, with session numbers untouched (the 05/10/2026 split of
+sessions 1–13 is the worked example; §8's move to `docs/log/` is the same rule applied to the
+run log).
+
 ## Commits
 
 Conventional-commit style, English, no diacritics: `feat:` `fix:` `docs:` `test:` `chore:` `refactor:`.
@@ -313,17 +323,27 @@ the next one's in `main`'s history.
 - Don't run tests that hit the network — golden data is vendored in the repo. (Fetching a dataset
   once with `plastid panel pin` is a data step, not a test.)
 - Don't commit raw data dumps, credentials, or API keys.
-- Don't restructure PROJECT.md; append to §9 and update the §3 decisions table.
+- Don't restructure PROJECT.md; append to §9 and update the §3 decisions table. A statement that
+  has become **false** — a superseded number, a closed question still written as open — is
+  corrected **in place**: history belongs in §8/§9 (which keep their numbers), but a stale sentence
+  in a spec is a wrong instruction to the next agent. Mark the replacement with the project's own
+  `[ĐÃ THAY — …]` convention where the old text is kept.
 
 ## The run log — `docs/log/`
 
 §8 (the log of every real run) lives in `docs/log/`, one file per phase, because 33 entries in one
 118 KB file made reading §8.27 mean opening a 216 KB document. The rules, and the reasons:
 
-- **Entry numbers are permanent.** `§8.27` is `§8.27` wherever the text sits — **271 references**
-  point at them by number (27 in code docstrings, 36 in tests, 23 in `docs/`, 115 across the four
-  session files, 70 inside PROJECT.md). Renaming or renumbering an entry breaks citations nobody
-  can re-derive. New entry: the next number, in the file of the phase you are in.
+- **Entry numbers are permanent.** `§8.27` is `§8.27` wherever the text sits — **over 300
+  references** point at them by number, and the count only grows (322 was the measure on
+  05/10/2026, across code docstrings, tests, `docs/`, the session files and PROJECT.md itself;
+  re-counting is a measurement, not a constant). Renaming or renumbering an entry breaks citations
+  nobody can re-derive. New entry: the next number, in the file of the phase you are in.
+- **§9's items are numbered per subsection, and a citation carries the subsection.** A/B/C run
+  continuously (1–36) and J continues them (37–40); **D–I each restart at 1** — measured
+  05/10/2026: the numbers 1–8 appear in seven subsections, so a bare `§9.20` is ambiguous and the
+  address is `§9.C-34`. `tests/unit/test_project_docs.py` guards what is true of the file: A/B/C
+  run 1..n with no repeat, D–I restart at 1..n, and every cited number resolves.
 - **`PROJECT.md` §8 is the index** — one line per entry, and the only place a citation has to
   resolve from. `tests/unit/test_project_docs.py` fails the build if a cited `§8.N` has no heading,
   if an entry is missing from the index, or if one number appears in two files.

@@ -54,7 +54,7 @@ class ToolRecord:
 def which(name: str, extra: Sequence[Path] = ()) -> str | None:
     """Locate a tool on PATH or in explicit extra directories.
 
-    PROJECT.md §9.15: PATH alone is not enough (``misa.pl`` lives outside it).
+    PROJECT.md §9.29: PATH alone is not enough (``misa.pl`` lives outside it).
     """
     found = shutil.which(name)
     if found:

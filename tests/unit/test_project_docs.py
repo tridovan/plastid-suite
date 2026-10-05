@@ -2,9 +2,10 @@
 
 `PROJECT.md` §8 (the log of every real run) was split into `docs/log/` on 04/10/2026: 33 entries in
 one 118 KB file, so reading §8.27 meant opening a 216 KB document. The split **kept every entry
-number**, because **271 references** point at them by number — 27 in code docstrings, 36 in tests,
-23 in `docs/`, 115 across the four session files, and 70 inside `PROJECT.md` itself. Renumbering was
-never an option: a docstring cannot be told to re-derive "§8.27".
+number**, because **over 300 references** point at them by number, and the count only grows (322
+was the measure on 05/10/2026, across code docstrings, tests, `docs/`, the session files and
+`PROJECT.md` itself). Renumbering was never an option: a docstring cannot be told to re-derive
+"§8.27".
 
 This test is what keeps that promise. It is the same shape as the rule it serves — a citation that
 resolves to nothing is a claim nobody can check, and it must fail loudly rather than read as
@@ -15,9 +16,10 @@ Two numbering schemes, deliberately checked differently:
 * **`§8.N`** is a section number. Each one must be a heading in exactly one file under `docs/log/`,
   and appear in `PROJECT.md` §8's index.
 * **`§9.X`** — `X` a letter — is a subsection. It must be a `### X.` heading in `PROJECT.md`.
-* **`§9.N`** — `N` a number — is an *item* inside §9, numbered continuously across its subsections,
-  so it is matched against the numbered items themselves. That scheme is weaker by construction
-  (inserting an item renumbers the ones after it) and this test says so rather than pretending
+* **`§9.N`** — `N` a number — is an *item* inside §9. A/B/C run continuously (1–36) and J continues
+  them (37–40); **D–I each restart at 1**, which is why a citation carries its subsection
+  (`§9.C-34`). `§9.N` is matched against the numbered items themselves — weaker by construction
+  (inserting an item renumbers the ones after it), and this test says so rather than pretending
   otherwise.
 """
 
@@ -48,7 +50,7 @@ SEARCHED = sorted(
 
 ENTRY = re.compile(r"^### (8\.\d+)\.", re.MULTILINE)
 SUBSECTION = re.compile(r"^### ([A-Z])\.", re.MULTILINE)
-ITEM = re.compile(r"^(\d+)\. \*\*", re.MULTILINE)
+ITEM = re.compile(r"^(\d+)\. ", re.MULTILINE)  # an item, however its text continues
 
 CITES_8 = re.compile(r"§\s*(8\.\d+)")  # the whole "8.27", so it compares with a heading key
 CITES_9 = re.compile(r"§\s*9\.([A-Z0-9]+)")
@@ -116,7 +118,7 @@ def test_project_md_indexes_every_entry() -> None:
 
 
 def test_every_cited_error_subsection_exists() -> None:
-    """`§9.A` … `§9.I` are subsections of `PROJECT.md` §9 and must still be there."""
+    """`§9.A` … `§9.J` are subsections of `PROJECT.md` §9 and must still be there."""
     body = PROJECT.read_text(encoding="utf-8")
     start = body.index("## 9.")
     section = body[start : body.index("## 10.", start)]
@@ -125,8 +127,64 @@ def test_every_cited_error_subsection_exists() -> None:
     assert cited <= letters, f"cited but not written: {sorted(cited - letters)} across §9"
 
 
+def _items_of(letter: str, body: str | None = None) -> list[int]:
+    """The item numbers of one §9 subsection, in file order.
+
+    ``body`` is injectable so the restart guard can be watched failing on a fabricated section —
+    the project's own rule: a guard nobody has watched fail is not a guard.
+    """
+    if body is None:
+        body = PROJECT.read_text(encoding="utf-8")
+    start = body.index("## 9.")
+    section = body[start : body.index("## 10.", start)]
+    numbers: list[int] = []
+    inside = False
+    for line in section.splitlines():
+        heading = re.match(r"### ([A-Z])\.", line)
+        if heading:
+            inside = heading.group(1) == letter
+            continue
+        item = re.match(r"^(\d+)\. ", line)
+        if item and inside:
+            numbers.append(int(item.group(1)))
+    return numbers
+
+
+def test_error_item_numbers_are_unique_and_continuous() -> None:
+    """`§9.N` is a citation address, so two items sharing a number is two items sharing an address.
+
+    Measured 05/10/2026: §9 carried `20` **three times**, `14`–`19` and `21`–`22` twice each — and
+    it had already bitten: `§9.C-20` was written in one place for the NCBI filter item and in
+    another for the style-pruner item. A/B/C are now numbered continuously 1..n in file order,
+    and this keeps them that way.
+    """
+    numbers = _items_of("A") + _items_of("B") + _items_of("C")
+    assert numbers == list(range(1, len(numbers) + 1)), (
+        f"§9's A/B/C items must run 1..n with no repeats; got {numbers}"
+    )
+
+
+@pytest.mark.parametrize("letter", ["D", "E", "F", "G", "H", "I"])
+def test_subsection_items_restart_at_one(letter: str) -> None:
+    """D–I number within their own subsection — the reason a citation carries the subsection.
+
+    Measured 05/10/2026: the numbers 1–8 appear in seven subsections, so uniqueness holds for the
+    pair (subsection, number), not for the number alone — which is what CLAUDE.md's run-log rule
+    now says.
+    """
+    numbers = _items_of(letter)
+    assert numbers, f"§9.{letter} has no items — the reader, not the file, is broken"
+    assert numbers == list(range(1, len(numbers) + 1)), f"§9.{letter} items: {numbers}"
+
+
+def test_a_gap_in_a_subsection_is_caught() -> None:
+    """The restart guard has to fail on a gap — watched failing, like the citation guard."""
+    fabricated = "## 9.\n\n### D. x\n\n1. a\n2. b\n4. d\n\n## 10. y\n"
+    assert _items_of("D", fabricated) == [1, 2, 4]
+
+
 def test_every_cited_error_item_exists() -> None:
-    """`§9.14` is an *item* inside §9, numbered continuously — checked, and weak by construction."""
+    """`§9.28` is an *item* inside §9, numbered continuously — checked, and weak by construction."""
     body = PROJECT.read_text(encoding="utf-8")
     start = body.index("## 9.")
     items = set(ITEM.findall(body[start : body.index("## 10.", start)]))

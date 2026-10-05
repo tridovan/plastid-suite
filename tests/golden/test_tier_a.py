@@ -43,7 +43,7 @@ def test_feature_gene_count_is_a_diagnostic_only(golden_genome: Genome) -> None:
 
 
 def test_truncated_ycf1_copy(golden_genome: Genome) -> None:
-    # PROJECT.md §9.9: ycf1 has two `gene` features — a truncated pseudo copy at
+    # PROJECT.md §9.10: ycf1 has two `gene` features — a truncated pseudo copy at
     # 108,448–109,347 (gene + misc_feature, no CDS) and the real copy at
     # 122,984–128,404, which is the only one carrying a CDS.
     copies = [gene for gene in golden_genome.genes if gene.name == "ycf1"]
@@ -218,7 +218,7 @@ def test_orf_checks_pass_on_the_golden_genome(golden_genome: Genome) -> None:
 def test_orf_check_reports_the_truncated_ycf1_as_annotated_not_coding(
     golden_genome: Genome,
 ) -> None:
-    """PROJECT.md §9.B-9: ycf1's truncated copy is a ``gene`` + ``misc_feature`` with no CDS.
+    """PROJECT.md §9.B-10: ycf1's truncated copy is a ``gene`` + ``misc_feature`` with no CDS.
     It is reported in its own table — not as a failed CDS, and never "repaired"."""
     from plastid.modules import orf
 

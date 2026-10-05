@@ -1,8 +1,12 @@
 """The genetic code and codon-usage measures — pure functions, no I/O.
 
-Translation table: **NCBI table 1 (standard)** — decision D2-03. Plastids use the standard code;
-the context-dependent start codons (GTG · ACG · ATC · ATA · TTG) are alternative *starts* only,
-which is why :func:`translate` renders them as their amino acid rather than as methionine.
+Compiled table: **NCBI table 1 (standard)** — decision D2-03. Plastid CDS declare **table 11**,
+whose amino-acid assignments are identical (the two tables differ only in initiation codons), so
+one code table answers both — and :func:`translate` renders every codon, the initiator included,
+as its own amino acid. Measured on the golden genome: 5 of its 86 CDS start with GTG/ACG/ATC
+(PROJECT.md §9.J), so a published protein begins with M there; a report that prints a translation
+table must therefore say which table it used *and* which one the record declares —
+:func:`translation_table_label` is what builds that string.
 
 Every measure states its reference: RSCU and ENC are defined by the sequences alone, while CAI,
 CBI and Fop are only meaningful against a declared reference set — the caller passes one and
@@ -12,7 +16,9 @@ records it, so a value never travels without the thing it was measured against.
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
+
+from plastid.core.model import Gene
 
 __all__ = [
     "CODONS",
@@ -56,8 +62,31 @@ SINGLE_CODON_AMINO = frozenset(
 )
 
 
+# What a report's "translation table" column says the toolkit used (D2-03). It is not the whole
+# truth about a record: plastid CDS declare table 11 — same amino acids, different initiators —
+# which is why the column is built by translation_table_label() and not by this constant alone.
+TABLE_LABEL = "NCBI table 1 (standard)"
+
+
+def translation_table_label(genes: Iterable[Gene]) -> str:
+    """``TABLE_LABEL`` plus the table(s) the record's own CDS declare (D3-03; measured §9.J).
+
+    A module that compiles one code table still has to name the record's, or the column reads as
+    if the two were the same table. A record whose CDS declare nothing (silence is not a value)
+    leaves the label as the compiled table alone.
+    """
+    declared = sorted({gene.transl_table for gene in genes if gene.transl_table is not None})
+    if not declared:
+        return TABLE_LABEL
+    return f"{TABLE_LABEL}; the record's CDS declare {', '.join(str(table) for table in declared)}"
+
+
 def translate(sequence: str) -> str:
-    """Translate complete codons; a trailing partial codon is ignored, ``*`` marks a stop."""
+    """Translate complete codons; a trailing partial codon is ignored, ``*`` marks a stop.
+
+    Every codon is read as its own amino acid — the initiator included, so a CDS annotated with a
+    GTG/ACG/ATC start translates to V/T/I there where a published protein has M (§9.J).
+    """
     upper = sequence.upper().replace("U", "T")
     return "".join(
         STANDARD_CODE.get(upper[index : index + 3], "X") for index in range(0, len(upper) - 2, 3)
