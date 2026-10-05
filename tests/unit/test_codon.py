@@ -9,6 +9,7 @@ from plastid.core.codon import (
     SENSE_CODONS,
     SENSE_FAMILIES,
     STANDARD_CODE,
+    TABLE_LABEL,
     cai,
     cbi,
     codon_counts,
@@ -18,8 +19,8 @@ from plastid.core.codon import (
     relative_adaptiveness,
     rscu,
     translate,
+    translation_table_label,
 )
-from plastid.modules import codon_usage
 from plastid.run.defaults import load_defaults
 
 
@@ -128,4 +129,20 @@ def test_the_recorded_decision_matches_the_compiled_table() -> None:
     defaults = load_defaults()["codon"]
     assert defaults["translation_table"] == 1
     assert defaults["reference"] == "self"
-    assert codon_usage.TRANSLATION_TABLE.startswith("NCBI table 1")
+    assert TABLE_LABEL.startswith("NCBI table 1")
+
+
+def test_the_table_label_names_the_tables_the_record_declares() -> None:
+    """Measured 05/10/2026 (§9.J): the report said "NCBI table 1" for records whose CDS declare
+    11, so the column read as if the toolkit had used the record's own table. The label now
+    carries both — and silence (no CDS declares one) changes nothing."""
+    from plastid.core.model import Gene, Interval
+
+    def cds(table: int | None) -> Gene:
+        return Gene("rbcL", "CDS", (Interval(0, 30),), transl_table=table)
+
+    assert translation_table_label([cds(11), cds(11)]) == (
+        "NCBI table 1 (standard); the record's CDS declare 11"
+    )
+    assert translation_table_label([cds(None)]) == TABLE_LABEL
+    assert translation_table_label([]) == TABLE_LABEL

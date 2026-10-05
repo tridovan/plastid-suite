@@ -1381,6 +1381,65 @@ def _mito_annotate_result() -> Result:
     )
 
 
+def _stats_result() -> Result:
+    """The P5-03 module's summary, in the shape its template resolves against."""
+    columns = (
+        Column("accession", "Reference"),
+        Column("organism", "Organism"),
+        Column("n_genomes", "Genomes", dtype="int"),
+        Column("n_groups", "Groups", dtype="int"),
+        Column("groups", "Group labels"),
+        Column("n_loci", "Loci", dtype="int"),
+        Column("n_measures", "Measures", dtype="int"),
+        Column("measures", "Measure set"),
+        Column("test", "Test"),
+        Column("correction", "Correction"),
+        Column("alpha", "α", dtype="float", precision=4),
+        Column("n_tested", "Tests with a p-value", dtype="int"),
+        Column("n_not_computable", "Not computable", dtype="int"),
+        Column("n_significant", "Significant after correction", dtype="int"),
+        Column("n_observations", "Observations", dtype="int"),
+        Column("n_collapsed_cds", "CDS collapsed to one per locus", dtype="int"),
+        Column("n_genomes_with_cds", "Genomes carrying CDS", dtype="int"),
+        Column("n_genomes_without_cds", "Genomes contributing no CDS", dtype="int"),
+        Column("genomes_without_cds", "Genomes with no CDS"),
+    )
+    row = {
+        "accession": "AP045470.1",
+        "organism": "Coleus hadiensis",
+        "n_genomes": 11,
+        "n_groups": 2,
+        "groups": "Coleus, Oldenlandia",
+        "n_loci": 80,
+        "n_measures": 4,
+        "measures": "length_bp, gc_pct, gc3_pct, enc",
+        "test": "Mann–Whitney U",
+        "correction": "Benjamini–Hochberg",
+        "alpha": 0.05,
+        "n_tested": 303,
+        "n_not_computable": 17,
+        "n_significant": 0,
+        "n_observations": 632,
+        "n_collapsed_cds": 57,
+        "n_genomes_with_cds": 8,
+        "n_genomes_without_cds": 3,
+        "genomes_without_cds": "AP045470.1, PQ325515.1, PZ428230.1",
+    }
+    summary = Table(
+        id="stats_summary",
+        title="Group comparison",
+        columns=columns,
+        rows=(row,),
+        scope=Scope(label="per-locus measurements"),
+    )
+    return Result(
+        module="stats",
+        module_version="0.1.0",
+        tables={"stats_summary": summary},
+        citations=("biopython",),
+    )
+
+
 TEMPLATE_FIXTURES = {
     "mito_annotate": _mito_annotate_result,
     "mito_genes": _mito_genes_result,
@@ -1401,6 +1460,7 @@ TEMPLATE_FIXTURES = {
     "kaks": _kaks_result,
     "popgen": _popgen_result,
     "synteny": _synteny_result,
+    "stats": _stats_result,
 }
 
 

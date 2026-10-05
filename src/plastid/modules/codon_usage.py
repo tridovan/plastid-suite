@@ -5,9 +5,11 @@ included — the same rule as ``count_genes`` (golden genome: 86). Sequences com
 ``coding_sequence``, which reads each part on its own strand in annotation order (P2-03 measured
 that this is the only reading of the trans-spliced rps12 that yields a canonical ORF).
 
-Translation table: NCBI table 1 (decision D2-03). RSCU and ENC are defined by the sequences
-alone; **CAI · CBI · Fop need a reference**, so the reference used is named in the output — here
-the analysed CDS set itself. A bias index without its reference is not a number anyone can use.
+Translation table: NCBI table 1, compiled here (decision D2-03) — and the output names the table
+the record's own CDS declare (plastid records declare 11; the two share every amino acid and
+differ only in initiation codons). RSCU and ENC are defined by the sequences alone; **CAI · CBI ·
+Fop need a reference**, so the reference used is named in the output — here the analysed CDS set
+itself. A bias index without its reference is not a number anyone can use.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from plastid.core.codon import (
     fop,
     rscu,
     translate,
+    translation_table_label,
 )
 from plastid.core.model import Genome, cds_features, coding_sequence
 from plastid.modules.registry import module
@@ -33,7 +36,6 @@ from plastid.run.context import RunContext
 MODULE_ID = "codon_usage"
 MODULE_VERSION = "0.1.0"
 
-TRANSLATION_TABLE = "NCBI table 1 (standard)"  # D2-03; defaults.yaml records the same choice
 REFERENCE_LABEL = "the analysed CDS set itself (self-reference)"
 RSCU_TOLERANCE = 1e-9
 
@@ -48,6 +50,7 @@ RSCU_TOLERANCE = 1e-9
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ctx.require_ir()
     cdss = cds_features(genome)
+    table_label = translation_table_label(cdss)
 
     counts = dict.fromkeys((codon for family in SENSE_FAMILIES.values() for codon in family), 0)
     internal_stops = 0
@@ -90,7 +93,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "cbi": cbi(counts, counts),
                 "fop": fop(counts, counts),
                 "internal_stops": internal_stops,
-                "translation_table": TRANSLATION_TABLE,
+                "translation_table": table_label,
                 "reference": REFERENCE_LABEL,
             },
         ),
@@ -142,7 +145,10 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
 
     notes = [
         f"CAI · CBI · Fop reference: {REFERENCE_LABEL}.",
-        f"Translation table: {TRANSLATION_TABLE} (decision D2-03).",
+        f"Translation table: {table_label} (decision D2-03). Table 1 and the plastid table 11 "
+        f"share every amino-acid assignment (they differ only in initiation codons), and the "
+        f"initiator codon is read as its own amino acid — a CDS starting GTG/ACG/ATC contributes "
+        f"V/T/I where its published protein begins with M.",
     ]
     if unobserved:
         notes.append(f"No observations for: {', '.join(unobserved)} — RSCU undefined there.")

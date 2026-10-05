@@ -25,10 +25,12 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "plastid"
 
 # Third-party top-level imports allowed inside the package (besides the stdlib).
 #
-# ``docx`` and ``lxml`` are the optional Word-export extra (D2-04). They are imported inside
-# functions, never at module import time, so the minimum install still runs without them — the
-# allowlist is what says the dependency is deliberate rather than accidental.
-THIRD_PARTY_ALLOWED = frozenset({"Bio", "yaml", "docx", "lxml"})
+# ``docx`` and ``lxml`` are the optional Word-export extra (D2-04), ``matplotlib`` the figures
+# extra, ``scipy`` the statistics extra (D5-02) and ``openpyxl`` the Excel extra (P5-04). They
+# are imported inside functions,
+# never at module import time, so the minimum install still runs without them — the allowlist is
+# what says the dependency is deliberate rather than accidental.
+THIRD_PARTY_ALLOWED = frozenset({"Bio", "yaml", "docx", "lxml", "matplotlib", "openpyxl", "scipy"})
 
 # layer -> allowed `plastid.*` import prefixes
 LAYERS: dict[str, frozenset[str]] = {
@@ -64,6 +66,18 @@ def _imported_names(tree: ast.AST) -> list[str]:
             names.append(node.module)
             # `from plastid import core` also yields the resolved `plastid.core`.
             names.extend(f"{node.module}.{alias.name}" for alias in node.names)
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "require_module"
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+        ):
+            # An optional dependency named by string is still a dependency: `require_module` is
+            # how matplotlib, scipy and openpyxl enter, and without this the allowlist below
+            # would say nothing about them — a guard that cannot see the thing it guards.
+            names.append(node.args[0].value)
     return names
 
 

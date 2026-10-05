@@ -12,7 +12,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-__all__ = ["RunLayout", "slugify"]
+__all__ = ["FIGURES_DIRNAME", "RunLayout", "slugify"]
+
+# One directory for the run's figures, beside the numbered module directories. Figures are a
+# property of the run and not of one module — two of them read tables from two modules — so
+# collecting them keeps one place for the user to look.
+FIGURES_DIRNAME = "figures"
 
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -20,7 +25,7 @@ _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 def slugify(text: str) -> str:
     """ASCII-safe path segment: strip diacritics, collapse unsafe runs to ``-``.
 
-    Vietnamese accents in paths caused real cross-machine breakage (PROJECT.md §9.16).
+    Vietnamese accents in paths caused real cross-machine breakage (PROJECT.md §9.30).
     """
     ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     slug = _UNSAFE.sub("-", ascii_text).strip("-._").lower()
@@ -56,6 +61,10 @@ class RunLayout:
     @property
     def report_dir(self) -> Path:
         return self.run_dir / "report"
+
+    @property
+    def figures_dir(self) -> Path:
+        return self.run_dir / FIGURES_DIRNAME
 
     def module_dir(self, order: int, module_id: str) -> Path:
         """Numbered by run order — assigned by the orchestrator, never by a module."""

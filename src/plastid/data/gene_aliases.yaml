@@ -78,7 +78,7 @@ loci:
   - canonical: trnI-GAU
     synonyms: [trnL-GUA]
     evidence: >
-      PROJECT.md §8.28 (2026-10-04), measured while the barcode run listed the loci a record
+      PROJECT.md §8.29 (2026-10-04), measured while the barcode run listed the loci a record
       carries. NC_024936.1 names this locus trnl-GUA (folded to trnL-GUA by the syntax rule);
       its 77 bp sequence is **byte-identical** to the golden record's trnI-GAU at the same
       position inside the inverted repeat (both copies). The record carries no /product or

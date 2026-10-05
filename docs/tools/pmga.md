@@ -1,5 +1,11 @@
 # PMGA (MGAVAS) — declared, and measured as far as it can be without running it
 
+> **Pipeline decision changed 05/10/2026.** The mito annotate step is this project's **own**
+> reference-transfer caller (`core/mito_caller.py` + `modules/mito_annotate.py`, Phase 3A, §8.22) —
+> PMGA never ran here and **nothing waits on it** (H-05: its web service still refuses
+> connections). "Route 2" below stays as the record of the 03/10 decision and as the fallback if a
+> machine that can run the container ever appears; `external/pmga.py` remains unwritten on purpose.
+
 **Why this file exists.** CLAUDE.md: a tool that exists only on one machine is not part of the
 toolkit, and a tool a module uses must be declared in the repo — in `environment.yml`, in
 `vendor/`, or here. PMGA is neither on conda nor a small script: it ships as a **Singularity

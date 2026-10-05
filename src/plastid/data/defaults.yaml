@@ -12,8 +12,10 @@ ssr:
     interruptions: 100
 
 codon:
-  # D2-03 (03/10/2026): plastids use NCBI table 1 (standard). The table itself is compiled into
-  # core/codon.py; a test keeps this record and that constant in step, so they cannot drift.
+  # D2-03 (03/10/2026): the toolkit compiles NCBI table 1 (standard) — plastid CDS declare table
+  # 11, whose amino acids are identical (the tables differ only in initiation codons), and the
+  # initiator is read as its own amino acid (measured 05/10/2026, PROJECT.md §9.J). The table is
+  # compiled into core/codon.py; a test keeps this record and that constant in step.
   translation_table: 1
   # CAI · CBI · Fop are only meaningful against a declared reference. Until a highly-expressed
   # set is defined, the reference is the analysed CDS set itself — named in every output.
@@ -24,6 +26,12 @@ orf:
   # fallback for a record that declares none. It is the same number as codon.translation_table
   # on purpose — but it is a different decision (what to do when the record is silent), so it
   # is recorded separately. Measured: all 1,099 CDS in the project's dataset declare 11.
+  #
+  # It is also organelle-blind (measured 05/10/2026, §9.J): a *plastid* record that declares
+  # nothing is checked against table 1's smaller initiator set, while the plastid annotator
+  # stamps 11 for the same silence — the two paths answer one question two ways. Choosing per
+  # organelle needs the run to know its organelle, which is H-09's job; until then this stays
+  # as recorded rather than half-fixed.
   default_translation_table: 1
 
 diversity:

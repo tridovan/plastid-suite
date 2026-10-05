@@ -4,7 +4,7 @@
 # this, and every tier-B test skips with a printed reason when a tool is absent rather than
 # failing. This file is for the analyses that *do* need a tool.
 #
-# VERSIONS ARE PART OF THE RESULT. PROJECT.md §9.B-13 measured the same input giving Ts/Tv 2.667
+# VERSIONS ARE PART OF THE RESULT. PROJECT.md §9.B-14 measured the same input giving Ts/Tv 2.667
 # with one aligner and 2.686 with MAFFT — an unpinned `mafft` here would hand two users two
 # different golden numbers from the same genome. Every version below is the one PROJECT.md §7.8
 # records; where §7.8 records none, the line says so instead of pretending to be pinned.
@@ -21,7 +21,7 @@ dependencies:
   # --- Phase 2: SSR and alignment -------------------------------------------------------
   - perl=5.32.1 # MISA 2.1 is a Perl script (vendored, md5-pinned — src/plastid/vendor/misa)
   - mafft=7.526 # §7.8 pins it AND records the tarball md5. conda-forge only — bioconda stops
-                # at 7.525, and §9.B-13 shows the aligner changes the Ts/Tv number
+                # at 7.525, and §9.B-14 shows the aligner changes the Ts/Tv number
   - cpstools=3.0 # bioconda only — NOT on conda-forge (§7.8)
 
   # --- Phase 3: annotation --------------------------------------------------------------
@@ -62,7 +62,8 @@ dependencies:
   #            Vendoring it the way MISA is vendored is an open decision (docs/PHASE3_BLOCKERS.md).
   # table2asn  not on conda — NCBI ships it directly:
   #            ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/
-  # mito       MITOS2 is a METAZOAN annotator and cannot do a plant mitochondrion (§7.8b). The
-  #            plant tool is PMGA, whose dependency set (MAKER, CPGAVAS2, ARAGORN, tRNAscan-SE,
-  #            TRF, Vmatch…) is far heavier — the decision is open at P3-04.
+  # mito       MITOS2 is a METAZOAN annotator and cannot do a plant mitochondrion (§7.8b). PMGA
+  #            (MAKER, CPGAVAS2, ARAGORN, tRNAscan-SE, TRF, Vmatch…) is far heavier and never ran
+  #            here; the mito annotate step is this project's own caller (P3A, §8.22), covered by
+  #            the blast/aragorn pinned above — nothing here is open.
   # deepred-mt needs TensorFlow ~2 GB (§7.8); PMGA's RNA-editing module uses it

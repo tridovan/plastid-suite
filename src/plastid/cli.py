@@ -23,6 +23,7 @@ from functools import partial
 from pathlib import Path
 
 from plastid import __version__
+from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
 from plastid.core.model import Genome
@@ -41,15 +42,13 @@ from plastid.core.samples import group_of, load_groups
 from plastid.modules import registry
 from plastid.report.citations import Citation, format_citation, load_citations
 from plastid.report.engine import CitationError, load_template, render
-from plastid.result.docx_export import (
-    DocxMeta,
-    ExportDependencyError,
-    export_docx,
-    merge_documents,
-)
+from plastid.report.package import build_package
+from plastid.report.qc import render_qc_for_run
+from plastid.result.docx_export import DocxMeta, export_docx, merge_documents
 from plastid.result.result import Result
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
+from plastid.run.figures import read_run_results, render_run_figures
 from plastid.run.layout import RunLayout
 from plastid.run.manifest import build_manifest, write_manifest
 from plastid.run.ncbi import NcbiClient, NcbiError
@@ -104,6 +103,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     run_parser.add_argument(
+        "--figures",
+        action="store_true",
+        help=(
+            "also render the figures whose source tables this run produces, into the run's "
+            "figures directory (needs the 'figures' extra)"
+        ),
+    )
+    run_parser.add_argument(
         "--label",
         default=None,
         metavar="TEXT",
@@ -119,6 +126,30 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="KEY=VALUE",
         help="module parameter (repeatable)",
+    )
+
+    package_parser = subparsers.add_parser(
+        "package",
+        help="regenerate the Supplementary package from a run directory (tables + figures + index)",
+    )
+    package_parser.add_argument("run", metavar="RUN_DIR", help="a run directory")
+
+    qc_parser = subparsers.add_parser(
+        "qc", help="write the technical QC report for a run (what ran, versions, inputs, audits)"
+    )
+    qc_parser.add_argument("run", metavar="RUN_DIR", help="a run directory")
+
+    figures_parser = subparsers.add_parser(
+        "figures",
+        help="re-render a run's figures from the tables it stored (no analysis is re-run)",
+    )
+    figures_parser.add_argument("run", metavar="RUN_DIR", help="a run directory")
+    figures_parser.add_argument(
+        "--figure",
+        action="append",
+        default=None,
+        metavar="ID",
+        help="render only this figure (repeatable; default: every figure the run's tables feed)",
     )
 
     mito = subparsers.add_parser("mito", help="mitochondrial annotation (Phase 3A prototype)")
@@ -391,12 +422,14 @@ def _cmd_run(args: argparse.Namespace) -> int:
         dataset=args.dataset,
         force=args.force,
         docx=args.docx,
+        figures=args.figures,
         command=[
             "plastid",
             "run",
             *[part for spec in specs for part in ("--module", spec.id)],
             *[part for text in args.input for part in ("--input", text)],
             *(["--label", args.label] if args.label else []),
+            *(["--figures"] if args.figures else []),
         ],
         inputs=list(args.input),
     )
@@ -431,6 +464,7 @@ def _execute_run(
     docx: bool,
     command: Sequence[str],
     inputs: Sequence[str],
+    figures: bool = False,
 ) -> int:
     """One run's shared body: both ``plastid run`` and ``plastid mito annotate`` end up here.
 
@@ -604,6 +638,31 @@ def _execute_run(
                 "bytes": combined.stat().st_size,
             }
         )
+    if figures:
+        # Rendering reads the results the run has just written, not the ones in memory: a module
+        # served from the cache has no result object left, and a figure must not depend on whether
+        # the analysis ran or was restored (P5-01).
+        try:
+            outcome = render_run_figures(layout.run_dir)
+        except ExportDependencyError as error:
+            return _fail(manifest, layout, ctx, specs[-1].version, str(error), EXIT_TOOL)
+        except (OSError, ValueError) as error:
+            return _fail(manifest, layout, ctx, specs[-1].version, str(error), EXIT_ERROR)
+        for path in outcome.files:
+            manifest["files"].append(
+                {
+                    "path": str(path.relative_to(layout.run_dir)),
+                    "module": "figures",
+                    "sha256": _sha256_file(path),
+                    "bytes": path.stat().st_size,
+                }
+            )
+        manifest["figures"] = {
+            "rendered": [path.name for path in outcome.files],
+            "skipped": [
+                {"figure": figure_id, "reason": reason} for figure_id, reason in outcome.skipped
+            ],
+        }
     manifest["status"] = "ok"
     return _finish(manifest, layout, ctx, specs[-1].version, EXIT_OK)
 
@@ -620,6 +679,102 @@ def _combine_documents(
     path = layout.report_dir / "report.docx"
     path.write_bytes(blob)
     return path
+
+
+def _run_dir_or_error(path: str) -> Path | None:
+    """A run directory, or None after saying what is missing."""
+    run_dir = Path(path)
+    if not (run_dir / "manifest.json").is_file():
+        print(
+            f"{run_dir} is not a run directory — no manifest.json in it (run `plastid run` first)",
+            file=sys.stderr,
+        )
+        return None
+    return run_dir
+
+
+def _cmd_package(args: argparse.Namespace) -> int:
+    """The Supplementary package, rebuilt from the run's own stored results."""
+    run_dir = _run_dir_or_error(args.run)
+    if run_dir is None:
+        return EXIT_ERROR
+    try:
+        results = read_run_results(run_dir)
+        figures = render_run_figures(run_dir)
+        package = build_package(
+            run_dir, results=results, figures=figures.files, skipped=figures.skipped
+        )
+    except ExportDependencyError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_TOOL
+    except (OSError, ValueError, KeyError) as error:
+        print(f"cannot build the package: {error}", file=sys.stderr)
+        return EXIT_ERROR
+    for path in package.files:
+        print(f"wrote {path.relative_to(run_dir)}")
+    for figure_id, reason in figures.skipped:
+        print(f"skipped figure {figure_id}: {reason}", file=sys.stderr)
+    return EXIT_OK
+
+
+def _cmd_qc(args: argparse.Namespace) -> int:
+    """The technical QC report — manifest plus the queryable-number audit of every report."""
+    run_dir = _run_dir_or_error(args.run)
+    if run_dir is None:
+        return EXIT_ERROR
+    try:
+        figures = render_run_figures(run_dir, formats=("pdf",))
+    except ExportDependencyError:
+        figures = None  # the QC report is text; it must not need a plotting library
+    except (OSError, ValueError, KeyError):
+        figures = None
+    rendered = tuple(path.name for path in figures.files) if figures else ()
+    skipped = figures.skipped if figures else ()
+    try:
+        _, target = render_qc_for_run(run_dir, figures=rendered, skipped=skipped)
+    except (OSError, ValueError, KeyError) as error:
+        print(f"cannot write the QC report: {error}", file=sys.stderr)
+        return EXIT_ERROR
+    print(f"wrote {target.relative_to(run_dir)}")
+    return EXIT_OK
+
+
+def _cmd_figures(args: argparse.Namespace) -> int:
+    """Re-render a run's figures from the tables it stored — no module runs again."""
+    run_dir = _run_dir_or_error(args.run)
+    if run_dir is None:
+        return EXIT_ERROR
+    manifest_path = run_dir / "manifest.json"
+    try:
+        outcome = render_run_figures(run_dir, figures=args.figure)
+    except ExportDependencyError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_TOOL
+    except (OSError, ValueError, KeyError) as error:
+        print(f"cannot render figures: {error}", file=sys.stderr)
+        return EXIT_ERROR
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    known = {entry["path"] for entry in manifest.get("files", [])}
+    for path in outcome.files:
+        relative = path.relative_to(run_dir).as_posix()
+        if relative not in known:  # a re-render replaces the file; it is not listed twice
+            manifest.setdefault("files", []).append(
+                {
+                    "path": relative,
+                    "module": "figures",
+                    "sha256": _sha256_file(path),
+                    "bytes": path.stat().st_size,
+                }
+            )
+        print(f"wrote {relative}")
+    for figure_id, reason in outcome.skipped:
+        print(f"skipped {figure_id}: {reason}", file=sys.stderr)
+    if not outcome.files:
+        print("no figure could be rendered from this run's tables", file=sys.stderr)
+        return EXIT_ERROR
+    write_manifest(manifest_path, manifest)
+    return EXIT_OK
 
 
 MITO_MODULE = "mito_annotate"
@@ -895,6 +1050,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "run":
         return _cmd_run(args)
+
+    if args.command == "figures":
+        return _cmd_figures(args)
+
+    if args.command == "package":
+        return _cmd_package(args)
+
+    if args.command == "qc":
+        return _cmd_qc(args)
 
     if args.command == "mito":
         return _cmd_mito(args)

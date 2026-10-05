@@ -1,7 +1,7 @@
 # PlastidToolSuite — ngữ cảnh dự án
 
 > Nguồn ngữ cảnh duy nhất của dự án. Đọc trước khi làm bất cứ việc gì.
-> Cập nhật: 02/10/2026. Toàn bộ nội dung là **dữ kiện đã kiểm tra / đã chạy thật**.
+> Cập nhật: 05/10/2026. Toàn bộ nội dung là **dữ kiện đã kiểm tra / đã chạy thật**.
 > Mục lục nhanh: §1 bối cảnh · §2 mục tiêu & yêu cầu đầu ra · §3 quyết định · §4 vai trò · §5 nền tảng · §6 số vàng · §7 công cụ (nguồn tải: §7.8) · §8 nhật ký đã chạy · §9 lỗi đã gặp · §10 câu hỏi treo · §11 nguồn tài liệu · §12 lệnh cài · **§13 ROADMAP — mô-đun & thứ tự triển khai**.
 
 ---
@@ -47,7 +47,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 02/10 | **Hệ toạ độ** (§10.6): bảng theo từng genome ghi **toạ độ GenBank** (truy ngược về bản nộp NCBI); hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá**; **mọi bảng ghi rõ đang ở hệ nào**; `rotation_offset` lưu trong `00_run_info` |
 | 02/10 | **Report sinh từ `Result`** (§10.7): mọi số trong report trỏ về **đúng một ô bảng gốc**; template chỉ trỏ `{{bảng.cột}}` / `{{bảng[dòng].cột}}`, không gõ số; ref không giải được ⇒ **raise**, không in trống |
 | 02/10 | **Reference Panel** (§10.8): engine **gợi ý** qua cache RefSeq có ngày (làm mới được); khi người dùng chốt danh sách thì **tải về + ghim checksum**; chạy lại **không cần mạng**. Mục (c) điền sau, không chặn code |
-| 03/10 | **Backend (P1-12, dev quyết)**: giai đoạn 1–5 và 8 chạy **tại chỗ** trên máy phổ thông; giai đoạn 6 (thời gian phân kỳ) + 7 (lắp ráp) chạy **máy chủ từ xa** — máy 8 GB chỉ còn 1,5–2,5 GB trống mỗi việc (§9.14). Ghi lại theo luật phân quyết định trong CLAUDE.md |
+| 03/10 | **Backend (P1-12, dev quyết)**: giai đoạn 1–5 và 8 chạy **tại chỗ** trên máy phổ thông; giai đoạn 6 (thời gian phân kỳ) + 7 (lắp ráp) chạy **máy chủ từ xa** — máy 8 GB chỉ còn 1,5–2,5 GB trống mỗi việc (§9.28). Ghi lại theo luật phân quyết định trong CLAUDE.md |
 | 03/10 | **Bảng gen xuất bản (P2-09, dev quyết)**: bảng in ra bài báo là bảng **phân nhóm theo chức năng**, không phải bản dump từng feature; nhóm gen là **dữ liệu** (`src/plastid/data/gene_groups.yaml`), không phải code. tRNA/rRNA khớp theo **tiền tố tên** (`trn`, `rrn`) chứ không theo danh sách anticodon — bản Oldenlandia/Coleus thật sẽ mang anticodon khác, danh sách cứng sẽ **rơi im lặng**. Gen không nhóm nào nhận ⇒ một dòng *unclassified* + ghi tên trong notes, **không bao giờ bị bỏ** |
 | 03/10 | **Số đếm của bảng gen = số bản sao** (kể cả 2 bản IR), đúng quy ước 132 = 86 + 38 + 8, và bảng **tự đối chiếu với `count_genes()`** trong một bảng riêng — cùng kiểu đối chiếu đã bắt lỗi MISA ở P2-06. Một gen rơi giữa bộ đếm và bảng sẽ hiện ra thành *DISAGREES*, không phải thành một số nhỏ hơn không ai kiểm |
 | 03/10 | **Xuất Word (D2-04 + P2-09, dev quyết)**: `python-docx` là **extra tuỳ chọn** (`pip install 'plastid-suite[docx]'`), import **bên trong hàm** nên bản cài tối thiểu vẫn thuần Python; thiếu nó ⇒ `ExportDependencyError` + exit 3, không phải traceback ImportError. `openpyxl` **chưa thêm** — chưa có gì dùng (YAGNI); sẽ vào cùng extra khi làm Excel ở Giai đoạn 5 |
@@ -55,28 +55,39 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **Gói .docx được tỉa**: template của `python-docx` mang theo cả catalogue style của Word (164 style, ~350 kB) + `stylesWithEffects.xml` (438 kB) + thumbnail + `customXml`; bản xuất chỉ giữ style tài liệu **thực sự dùng** cùng tổ tiên và default của chúng, mọi quan hệ trỏ tới phần đã bỏ đều bị cắt. Đo được: ~800 kB → **13 kB**, có test cấu trúc canh |
 | 03/10 | **[ĐÃ THAY — xem dòng dưới] Tên gen: ánh xạ theo locus, giữ tên gốc (D3-02, dev quyết có bằng chứng)**: `pafI`·`pafII`·`pbf1`·`clpP1` trong `PX923121.1` là **cùng locus** với `ycf3`·`ycf4`·`psbN`·`clpP` — chứng minh bằng synteny + độ dài + `/product` trên 9 bản ghi (§8.9). Tên **chuẩn** giữ bản cổ điển (7/9 bản ghi + genome vàng); tên gốc đi kèm `source_name`, không bao giờ bị bỏ. Tên **in trong bản thảo** và **nộp NCBI** vẫn là quyết định của PI (D3-06). *Chiều chuẩn hoá ở dòng này bị đảo ở dòng dưới, sau khi biết hai bản ghi là của nhóm (§8.10)* |
 | 03/10 | **Tên gen: khoá theo locus, in cả hai tên (D3-02, dev quyết có bằng chứng)**: bốn tên `pafI`·`pafII`·`pbf1`·`clpP1` là **cùng locus** với `ycf3`·`ycf4`·`psbN`·`clpP` (synteny + độ dài + `/product`, §8.9). **Khoá so sánh nội bộ = phương ngữ của nhóm** — vì `PX923121.1` là bản ghi **của nhóm** (Vu,H.-T. = cô Trang) và **đúng loài bản thảo**, và GeSeq sẽ sinh ra đúng bộ tên đó; tên cổ điển đi kèm `source_name`. **In ra thì in cả hai** (`pafI (ycf3)`) — cách các bảng gen công bố đang làm. `gene_groups.yaml` nhận thêm bốn tên vào đúng nhóm chức năng (§8.10) |
-| 03/10 | **Chú giải: công cụ offline là pipeline, GeSeq là bước kiểm tra một lần rồi ghim (D3-01, dev quyết)**: bộ công cụ **phải chạy offline và đóng gói bằng Docker**, mỗi lần chạy phải ghi **tên · phiên bản · đường dẫn · argv** — công cụ web không ghi được cái nào trong số đó, nên đây là **ràng buộc, không phải sở thích**. Chọn **PGA** (GPL-3.0, batch, ra GenBank; ba cái bẫy của nó — thư mục ra phải rỗng, tên file có dấu cách, multi-FASTA — repo này đã tránh sẵn), plann.pl dự phòng. GeSeq chạy tay **một lần cho mỗi loài bản thảo** rồi **ghim** (`panel pin`) ⇒ bước thủ công chỉ xảy ra một lần, các lần sau offline và tái lập được. Kiểm 03/10: GeSeq không có bản chạy rời | Dev | `docs/D3-01_annotator.md` |
+| 03/10 | **[ĐÃ THAY 03/10 — xem dòng "Chloe là annotator" bên dưới] Chú giải: công cụ offline là pipeline, GeSeq là bước kiểm tra một lần rồi ghim (D3-01, dev quyết)**: bộ công cụ **phải chạy offline và đóng gói bằng Docker**, mỗi lần chạy phải ghi **tên · phiên bản · đường dẫn · argv** — công cụ web không ghi được cái nào trong số đó, nên đây là **ràng buộc, không phải sở thích**. Chọn **PGA** (GPL-3.0, batch, ra GenBank; ba cái bẫy của nó — thư mục ra phải rỗng, tên file có dấu cách, multi-FASTA — repo này đã tránh sẵn), plann.pl dự phòng. GeSeq chạy tay **một lần cho mỗi loài bản thảo** rồi **ghim** (`panel pin`) ⇒ bước thủ công chỉ xảy ra một lần, các lần sau offline và tái lập được. Kiểm 03/10: GeSeq không có bản chạy rời | Dev | `docs/D3-01_annotator.md` |
 | 03/10 | **Đa genome (D2-01, dev quyết)**: giữ nguyên contract v0.1 `run(genome, params, ctx)`; thêm contract thứ hai `run(genomes, params, ctx)` chọn bằng `arity` khai báo lúc đăng ký — **không** nới rộng contract cũ, vì module một-genome sẽ phải nhận một dãy nó không dùng (seam 5). Runner cưỡng chế số genome trước khi chạy. Ghi ở `docs/API_v0.2.md` |
 | 03/10 | **π: cửa sổ 600 bp · bước 200 bp (D2-02)** — quy ước kiểu mVISTA; window/step vào params, manifest và report |
+| 03/10 | **Codon usage & amino acid dùng NCBI bảng 1 (D2-03, dev quyết)** — bảng 1 và bảng 11 (bảng plastome khai) **chia sẻ toàn bộ axit amin**, chỉ khác mã khởi đầu (D3-03), nên một bảng mã trả lời cả hai. **Quy ước kèm theo: mã khởi đầu được đọc như axit amin của chính nó** — genome vàng có 5/86 CDS mở đầu bằng GTG/ACG/ATC (§9.J), nên bảng in ra **phải ghi rõ quy ước và bảng mà bản ghi khai**, không ngụ ý dùng bảng của bản ghi. Bảng mã biên dịch trong `core/codon.py`; con số khoá ở `src/plastid/data/defaults.yaml` | Dev | §9.J |
 | 03/10 | **ORF: đọc bảng mã của chính bản ghi, từ chối thay vì đoán (D3-03 + P3-01)**: `Gene` mang `/transl_table` và `/codon_start` của bản ghi; bảng mã ngoài {1, 11} ⇒ `OrfError` (hai bảng này chia sẻ toàn bộ axit amin, chỉ khác mã khởi đầu), `/codon_start` ≠ 1 ⇒ `OrfError` — dịch sai khung là kiểu "sai mà không báo". **ACG được nhận là mã khởi đầu nhưng xếp lớp riêng `non_canonical`**: nó *không* có trong danh sách của bảng 11, nhưng bản ghi đã công bố dùng nó cho rpl2/ndhD (RNA editing ACG→AUG); xếp vào `no_start` sẽ là báo động giả trên 2/86 CDS của genome vàng (§8.11) |
 | 03/10 | **Lớp "annotated, not coding" khớp cả TÊN lẫn VỊ TRÍ (P3-01)**: ycf1 cụt chồng lấn 21 bp với CDS của `ndhF`, nên khớp theo vị trí không thôi thì ndhF "phủ" nó, còn khớp theo tên không thôi thì CDS ycf1 thật ở chỗ khác "phủ" nó — mỗi cách hỏng một kiểu im lặng (§8.11) |
 | 03/10 | **File nộp NCBI: `.fsa` + `.tbl` thuần Python, luôn luôn; `.sqn` chỉ khi có `table2asn` *và* có template `.sbt` (D3-04, P3-05)**: web submission của NCBI nhận thẳng cặp `.fsa`+`.tbl`, nên bản cài tối thiểu vẫn nộp được. `.tbl` mang **tên gốc của bản ghi** (đổi tên là đổi nội dung nộp — D3-06 chỉ nói về *chữ in trong bản thảo*); toạ độ partial đi theo bản ghi, partial ở interval giữa ⇒ **từ chối**, không bỏ im lặng (§8.13) |
-| 03/10 | **Chú giải: Chloe là annotator của pipeline; PGA còn lại cho genome ngoài angiosperm (D3-01 — sửa lại sau khi ĐO, dev quyết)**: ràng buộc cũ vẫn nguyên (offline, ghi được tên · phiên bản · đường dẫn · argv), nhưng *"công cụ offline nào"* chỉ là **giả thuyết cho tới khi chạy thật**. PGA trên genome vàng ra **147 gen** (7 reference) và **130** (1 reference) so với **132**, kèm ba kiểu hỏng im lặng (§8.15) ⇒ **thay bằng Chloe**: offline, có bộ reference chuẩn hoá của chính nó, và **đo qua reader của mình ra đúng 132 = 86 + 38 + 8, 0 CDS lỗi ORF** (§8.17). Giữ `--set annotator=pga` cho plastome không phải thực vật có hoa (Chloe chỉ làm angiosperm). GeSeq vẫn là kiểm tra chéo ghim một lần. **Bài học ghi lại:** công cụ thắng không nằm trong danh sách khảo sát ban đầu | Dev | `docs/D3-01_annotator.md`, `docs/tools/chloe.md` |
+| 03/10 | **[ĐÃ THAY 05/10 — xem dòng D5-08] Chú giải: Chloe là annotator của pipeline; PGA còn lại cho genome ngoài angiosperm (D3-01 — sửa lại sau khi ĐO, dev quyết)**: ràng buộc cũ vẫn nguyên (offline, ghi được tên · phiên bản · đường dẫn · argv), nhưng *"công cụ offline nào"* chỉ là **giả thuyết cho tới khi chạy thật**. PGA trên genome vàng ra **147 gen** (7 reference) và **130** (1 reference) so với **132**, kèm ba kiểu hỏng im lặng (§8.15) ⇒ **thay bằng Chloe**: offline, có bộ reference chuẩn hoá của chính nó, và **đo qua reader của mình ra đúng 132 = 86 + 38 + 8, 0 CDS lỗi ORF** (§8.17). Giữ `--set annotator=pga` cho plastome không phải thực vật có hoa (Chloe chỉ làm angiosperm). GeSeq vẫn là kiểm tra chéo ghim một lần. **Bài học ghi lại:** công cụ thắng không nằm trong danh sách khảo sát ban đầu | Dev | `docs/D3-01_annotator.md`, `docs/tools/chloe.md` |
 | 03/10 | **Nối công cụ chú giải mito (P3-04) — PMGA**, không phải MITOS2 (annotator của động vật có vú, bộ tham chiếu `refseq81m`). PMGA phân phối dạng **singularity container** (Figshare 27201798) + web server, không có repo git và không có tài liệu CLI công khai ⇒ **chưa viết adapter**: viết theo CLI tự nghĩ ra sẽ là một placeholder trông như thật. Cần: kéo container, ghi entry point vào `docs/` |
 | 03/10 | **Bước nặng: chạy ở đâu, và kết quả chạy ở nơi khác phải ghim được (P1-12, làm nốt 03/10)**: luật backend đã có từ 03/10 (giai đoạn 1–5 và 8 chạy tại chỗ; 6–7 chạy máy chủ từ xa) nhưng **thiếu đường thực hiện** cho công cụ chạy bên ngoài: `panel pin` chỉ nhận accession. Bổ sung `plastid panel pin --file … --note …` (§8.19) để kết quả của web service / máy chủ khác vào được panel với đủ checksum + đọc lại + provenance — PMGA là ca đầu tiên dùng nó | Dev | `docs/tools/pmga.md`, §8.19 |
-| 03/10 | **Chú giải mito: PMGA chạy trên web service rồi GHIM, không chạy local (dev quyết, xác nhận bởi anh Trí)**: máy này **không đủ mạnh để chạy annotate** — container PMGA 3,18 GB nén → **11 GB giải nén, 138.045 file**, cần Apptainer và bên trong chạy MAKER; trần WSL 8 GB, ổ C: thật chỉ còn 42 GB. Container đã được tải về, đọc lấy CLI thật, rồi **xoá** (14 GB = một phần ba chỗ trống). Chú giải mito đi theo **đường thứ hai của chính luật P1-12**: chạy PMGA trên web service một lần mỗi loài ⇒ `plastid panel pin --file … --note …` (§8.19) ghim kết quả với đủ checksum + đọc lại ⇒ `mito_genes` đọc offline. **`external/pmga.py` để mở có điều kiện:** viết khi có máy chạy nổi container, và số đầu tiên phải đo khi đó là RAM đỉnh + thời gian | Dev | `docs/tools/pmga.md`, TASKS.md P3-04 |
+| 03/10 | **[ĐÃ THAY 03/10 (cùng ngày) — xem dòng "Bộ gọi gen mito tự viết" bên dưới: PMGA không chạy nổi ở đây, đường chú giải mito là bộ gọi của dự án; dòng này giữ làm bằng chứng đo] Chú giải mito: PMGA chạy trên web service rồi GHIM, không chạy local (dev quyết, xác nhận bởi anh Trí)**: máy này **không đủ mạnh để chạy annotate** — container PMGA 3,18 GB nén → **11 GB giải nén, 138.045 file**, cần Apptainer và bên trong chạy MAKER; trần WSL 8 GB, ổ C: thật chỉ còn 42 GB. Container đã được tải về, đọc lấy CLI thật, rồi **xoá** (14 GB = một phần ba chỗ trống). Chú giải mito đi theo **đường thứ hai của chính luật P1-12**: chạy PMGA trên web service một lần mỗi loài ⇒ `plastid panel pin --file … --note …` (§8.19) ghim kết quả với đủ checksum + đọc lại ⇒ `mito_genes` đọc offline. **`external/pmga.py` để mở có điều kiện:** viết khi có máy chạy nổi container, và số đầu tiên phải đo khi đó là RAM đỉnh + thời gian | Dev | `docs/tools/pmga.md` (P3-04; nay H-05) |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
-
-| 03/10 | **Bộ gọi gen mito tự viết: ranh giới lấy từ alignment, xếp hạng theo identity, và mọi thứ bị loại đều được kể ra (D3A-02 + P3A-03, dev quyết có đo)** — PMGA không chạy nổi ở đây nên Phase 3A tự viết phần chuyển chú giải: `blastx` (protein tham chiếu) + `blastn` (rRNA) qua `run_tool`, rồi `core/mito_caller.py` biến HSP thành gen. Bốn luật, mỗi luật có số đo đỡ lưng (§8.22): (1) **ranh giới từ alignment**, không bao giờ từ ORF-walking — codon stop chỉ được lấy khi chính chuỗi xác nhận, đọc **đúng một** codon, không đi tìm; (2) **chọn tham chiếu theo identity cao nhất** trong số các ứng viên qua được ngưỡng — đo trên `atp6`: xếp theo bitscore kéo gen lệch **381 bp** về thượng nguồn vì một alignment dài 418 aa chỉ khớp 75,6 %, trong khi bản khớp 93,4 % nằm đúng chỗ; tổng sai lệch toạ độ 310 bp so với 655 bp; (3) **ngưỡng 50 % identity / 50 % coverage**, in ra trong mọi bảng và trong `defaults.yaml`; (4) **mọi HSP không dùng đều được liệt kê kèm lý do** — dưới ngưỡng, trùng khung đọc, hay là **bản sao thứ hai** của một phần gen. Kèm theo: `-seg no` (mask làm atp9 mất một nửa điểm), **không** dùng `-parse_seqids` (nó **lỗi** trên chính bộ tham chiếu), và gen tìm thấy mà vocabulary chưa có tên thì **báo cáo chứ không đặt tên** (H-06) | Dev | §8.22, `docs/tools/blast.md`, `TASKS.md` P3A-03 |
-| 04/10 | **Synteny/mVISTA: nucmer (MUMmer4) pin 4.0.1, tham số truyền tường minh (D4-02 + D4-04, dev quyết có đo)**: đường ống đúng như §7 ghi (`nucmer --maxmatch → delta-filter -1 → show-coords -rcl`) qua `run_tool`, đủ name · version · argv trong manifest. `-l 20 -c 65` là mặc định của MUMmer nhưng **truyền tường minh** và để trong `data/defaults.yaml` — số khối đổi theo chúng (12 khối thô ở mặc định, 22 ở `-c 40`), một mặc định là con số không ai viết ra; `-t 1` để số luồng không đổi được kết quả. Check của pha *"21 khối, %IDY 83,7–98,2 (mean 91,5)"* **không tái lập được** từ đầu vào của probe (quét đầy đủ ở §8.26): cặp cùng chi thẳng hàng 98–99 %, dải số đó thuộc một so sánh khác chi và đến từ dòng khảo sát §7.1 đo trên dữ liệu khác ⇒ check thay bằng số **đo được** cho cặp Iris: **7 khối · 89,66–99,11 · mean 97,37 · coverage 99,09 %**, kèm hệ chuẩn hoá. Phát hiện ở §9.H | Dev | §8.26, `docs/tools/mummer4.md` |
+| 03/10 | **Bộ gọi gen mito tự viết: ranh giới lấy từ alignment, xếp hạng theo identity, và mọi thứ bị loại đều được kể ra (D3A-02 + P3A-03, dev quyết có đo)** — PMGA không chạy nổi ở đây nên Phase 3A tự viết phần chuyển chú giải: `blastx` (protein tham chiếu) + `blastn` (rRNA) qua `run_tool`, rồi `core/mito_caller.py` biến HSP thành gen. Bốn luật, mỗi luật có số đo đỡ lưng (§8.22): (1) **ranh giới từ alignment**, không bao giờ từ ORF-walking — codon stop chỉ được lấy khi chính chuỗi xác nhận, đọc **đúng một** codon, không đi tìm; (2) **chọn tham chiếu theo identity cao nhất** trong số các ứng viên qua được ngưỡng — đo trên `atp6`: xếp theo bitscore kéo gen lệch **381 bp** về thượng nguồn vì một alignment dài 418 aa chỉ khớp 75,6 %, trong khi bản khớp 93,4 % nằm đúng chỗ; tổng sai lệch toạ độ 310 bp so với 655 bp; (3) **ngưỡng 50 % identity / 50 % coverage**, in ra trong mọi bảng và trong `defaults.yaml`; (4) **mọi HSP không dùng đều được liệt kê kèm lý do** — dưới ngưỡng, trùng khung đọc, hay là **bản sao thứ hai** của một phần gen. Kèm theo: `-seg no` (mask làm atp9 mất một nửa điểm), **không** dùng `-parse_seqids` (nó **lỗi** trên chính bộ tham chiếu), và gen tìm thấy mà vocabulary chưa có tên thì **báo cáo chứ không đặt tên** (H-06) | Dev | §8.22, `docs/tools/blast.md` |
+| 03/10 | **Ba quyết định phụ của Giai đoạn 3A — ghi lại đây để các mã được trích trong code có chỗ tra (D3A-01 · D3A-04 · D3A-05)**: **D3A-01** = bộ gọi tRNA dùng **ARAGORN 1.2.41** (bioconda, GPLv3; chính là công cụ PMGA chạy bên trong) thay vì tự viết rồi chỉnh cho ra đúng 17 — đó sẽ là overfitting (§8.23); **D3A-04** = call đa exon chỉ báo **các exon mà alignment chứng minh được**, không bao giờ tự nhận một join (gen trans-spliced hiện ra đúng các phần của nó); **D3A-05** = phạm vi prototype: **chỉ chú giải + nộp** — không tìm gen mới, không mô hình intron, không dự đoán RNA editing | Dev | docstring `core/mito_caller.py` · `modules/mito_annotate.py`; §8.23–8.24 |
+| 04/10 | **Synteny/mVISTA: nucmer (MUMmer4) pin 4.0.1, tham số truyền tường minh (D4-02 + D4-04, dev quyết có đo)**: đường ống đúng như §7 ghi (`nucmer --maxmatch → delta-filter -1 → show-coords -rcl`) qua `run_tool`, đủ name · version · argv trong manifest. `-l 20 -c 65` là mặc định của MUMmer nhưng **truyền tường minh** và để trong `src/plastid/data/defaults.yaml` — số khối đổi theo chúng (12 khối thô ở mặc định, 22 ở `-c 40`), một mặc định là con số không ai viết ra; `-t 1` để số luồng không đổi được kết quả. Check của pha *"21 khối, %IDY 83,7–98,2 (mean 91,5)"* **không tái lập được** từ đầu vào của probe (quét đầy đủ ở §8.26): cặp cùng chi thẳng hàng 98–99 %, dải số đó thuộc một so sánh khác chi và đến từ dòng khảo sát §7.1 đo trên dữ liệu khác ⇒ check thay bằng số **đo được** cho cặp Iris: **7 khối · 89,66–99,11 · mean 97,37 · coverage 99,09 %**, kèm hệ chuẩn hoá. Phát hiện ở §9.H | Dev | §8.26, `docs/tools/mummer4.md` |
 | 04/10 | **Ka/Ks: PAML `yn00` (D4-01, dev quyết)**: estimator chuẩn pairwise (Yang & Nielsen 2000), **đã pin sẵn** trong `environment.yml` (`paml=4.10.10`, dùng cho `mcmctree` ở giai đoạn 6 — cùng gói, khác chương trình). Loại: NG86 tự viết (chệch, và một bản cài sai sẽ là "sai mà không báo" không ai kiểm được) và KaKs_Calculator2 (công cụ thứ hai cho cùng một việc). Alignment **theo từng gen trên chính chuỗi CDS** (MAFFT), cắt stop cuối, **kiểm khung ba-ngôi trước khi gọi tool** vì yn00 không kiểm; `dN`/`dS` đọc từ ma trận và đối chiếu chéo với dòng Yang & Nielsen của output. Pooled = trung bình có trọng số theo số site của chính yn00, không phải trung bình các tỉ số | Dev | §8.27, `docs/tools/paml.md` |
 | 04/10 | **Di truyền quần thể: tự viết bằng Python thuần (D4-03, dev quyết có đo)**: DnaSP là GUI Windows (không script được, không vào Docker), pixy/libsequence đòi VCF hoặc dữ liệu read; các estimator là công thức đóng đã công bố, kiểm được bằng vector giải tích, và bản cài tối thiểu vẫn thuần Python (CLAUDE.md). Bằng chứng: Tajima's D · π · θ(S) khớp **scikit-allel 1.3.13** đến 6 chữ số trên 4 vector; Fu & Li D*/F* khoá bằng vector tính tay (EggLib build trên máy này hỏng, `gestimator` không có trên bioconda — đo và ghi lại). **Fst = Nei's Gst**: bản Hudson viết trước cho **−1** với hai nhóm cùng thành phần ở n nhỏ ⇒ bỏ, có ghi lý do | Dev | §8.28 |
 | 04/10 | **Nhãn dữ liệu thay thế đi vào MỌI bảng (`--label`, dev quyết)**: một bộ dữ liệu thay thế không bao giờ được đi mà không có nhãn (CLAUDE.md). Nhãn được áp **một lần** trong runner — nơi duy nhất biến `Result` thành file — bằng cách ghép tiền tố vào `scope.label` của từng bảng, nên nó có mặt ở header CSV, JSON và report mà không module nào phải nhớ. Không có nhãn thì không đổi gì | Dev | §8.30, `docs/P4-05_comparison_tables.md` |
 | 04/10 | **Nửa mito của pha 4 là bản phác khác chi (D4-05, dev quyết)**: hai mitogenome từ hai chi khác nhau, một trong hai là **chú giải nguyên mẫu của chính dự án** (§8.24) ⇒ chạy `kaks` + `popgen`, dán nhãn *cross-genus sketch*, đọc như minh hoạ máy móc chứ không phải kết quả về loài. Một so sánh mito đáng vào bản thảo phải đợi bản ghi thứ hai cùng chi | Dev | §8.30 |
-| 04/10 | **Bộ dữ liệu anh Điềm gửi là BỘ TEST — không phải stand-in, cũng không phải mẫu bản thảo (D4a-01, dev quyết)**: 34 plastome họ Iridaceae × 2 bản chú giải (công bố NCBI · PGA) + 34 chuỗi trần, đặt tại `.data/thanhdiem_data/` (**trong cây làm việc, đã ignore git**; 136 file · 28 MB · sha256 khớp từng file với `D:\business\pts\thanhdiem_data`). Không loài nào là loài bản thảo ⇒ **không đầu ra nào từ đây vào bảng bản thảo**; nhưng `PX516262.1` *E. bulbosa* **là bản ghi của chính nhóm** ⇒ nhãn theo **từng bản ghi**, không theo cả bộ. Đây là bộ dữ liệu đầu tiên không do dự án tự chọn, và nó mang sẵn ba dạng đáp án: bản công bố · PGA · chính chuỗi | Dev | §8.31, `TASKS.md` Phase 4a |
+| 04/10 | **Bộ dữ liệu anh Điềm gửi là BỘ TEST — không phải stand-in, cũng không phải mẫu bản thảo (D4a-01, dev quyết)**: 34 plastome họ Iridaceae × 2 bản chú giải (công bố NCBI · PGA) + 34 chuỗi trần, đặt tại `.data/thanhdiem_data/` (**trong cây làm việc, đã ignore git**; 136 file · 28 MB · sha256 khớp từng file với `D:\business\pts\thanhdiem_data`). Không loài nào là loài bản thảo ⇒ **không đầu ra nào từ đây vào bảng bản thảo**; nhưng `PX516262.1` *E. bulbosa* **là bản ghi của chính nhóm** ⇒ nhãn theo **từng bản ghi**, không theo cả bộ. Đây là bộ dữ liệu đầu tiên không do dự án tự chọn, và nó mang sẵn ba dạng đáp án: bản công bố · PGA · chính chuỗi | Dev | §8.31 |
 | 04/10 | **Ghim bộ test: mỗi bộ chú giải một thư mục panel riêng, `.fasta` đi đường manifest (D4a-03, dev quyết có đo)**: `panel pin --file` khoá bản ghi theo **id của chính bản ghi**, mà PGA đặt id theo voucher (`Aristea_ecklonii_voucher_KK2022_1_NC_072561`) còn NCBI đặt theo accession (`NC_072561.1`) ⇒ ghim chung một thư mục thì **một genome nằm hai lần dưới hai tên, không có gì ghép cặp**; tách `.panel/iridaceae-34/` và `.panel/iridaceae-34-pga/`, cặp được nhận ra bằng **tên file dùng chung**. Chuỗi trần **không** đi được đường GenBank: đo trên một `.fasta` ⇒ pin theo tên file, `parse_error: no GenBank records found`, CLI in UNVERIFIED và **exit 1**; thay bằng `fasta.json` (68 mục: sha256 · bytes · độ dài · sha256 của bản ghi đã pin) — và mỗi chuỗi FASTA **được kiểm là trùng khít** chuỗi của bản ghi đã pin, nên bộ FASTA không mang thêm thông tin nào ngoài cái panel đã có | Dev | §8.31 |
-| 04/10 | **`ndhI`/`ndhL`: alias ĐÃ CÓ, hôm nay chỉ đo lại trên 34 bản ghi (D4a-05)**: `data/gene_aliases.yaml` đã mang mục `ndhI` ← `ndhL` từ **03/10** (§8.17, đo khi Chloe chú giải genome vàng: cùng 543 bp, cùng vị trí, và phức hệ ndh của lục lạp chỉ có tiểu đơn vị A–K). Đo lại trên bộ dữ liệu anh Điềm: locus này được viết khác nhau ở **8/34** cặp, và alias resolve **cả hai cách viết về cùng một khoá chuẩn** (`ndhI`) — kiểm bằng code, không phải bằng mắt. **Không thêm mục mới, không có quyết định mới**; việc của P4a-02 là một test canh nó | — | §8.31, `data/gene_aliases.yaml` (đã có) |
+| 04/10 | **`ndhI`/`ndhL`: alias ĐÃ CÓ, hôm nay chỉ đo lại trên 34 bản ghi (D4a-05)**: `src/plastid/data/gene_aliases.yaml` đã mang mục `ndhI` ← `ndhL` từ **03/10** (§8.17, đo khi Chloe chú giải genome vàng: cùng 543 bp, cùng vị trí, và phức hệ ndh của lục lạp chỉ có tiểu đơn vị A–K). Đo lại trên bộ dữ liệu anh Điềm: locus này được viết khác nhau ở **8/34** cặp, và alias resolve **cả hai cách viết về cùng một khoá chuẩn** (`ndhI`) — kiểm bằng code, không phải bằng mắt. **Không thêm mục mới, không có quyết định mới**; việc của P4a-02 là một test canh nó | — | §8.31, `src/plastid/data/gene_aliases.yaml` (đã có) |
 | 04/10 | **Bản công bố (bộ 01) là ĐÁP ÁN cho bài kiểm annotator; PGA là ý kiến thứ ba (D4a-04, dev quyết)**: bộ 01 là bản NCBI đã công bố, dùng làm chuẩn để đối chiếu; PGA đã bị thay ở §8.15/§8.16 sau khi đo **147 gen** trên genome vàng (so với 132) ⇒ chỉ dùng làm đối tượng so sánh, **không bao giờ làm chuẩn** | Dev | §8.31 |
+| 04/10 | **Nhật ký §8 tách ra `docs/log/`, số mục giữ nguyên (dev quyết, có đo)**: §8 chiếm **1.531/2.379 dòng · 118/216 KB** — hơn nửa PROJECT.md — nên đọc một mục (§8.27, 3,8 KB) phải mở cả file 216 KB, và file đã vượt hạn mức Read mặc định 2.000 dòng. Tách thành **5 file theo giai đoạn** (`phase-1` · `phase-2-3` · `phase-3a` · `phase-4` · `phase-4a`; `phase-5` tiếp theo sau), `PROJECT.md` §8 còn **bảng mục lục** (33 dòng lúc tách). **Số mục tuyệt đối không đổi** vì **271 tham chiếu** (đếm lúc tách; nay đã tăng) trỏ theo số (27 trong docstring code · 36 trong test · 23 trong `docs/` · 115 trong bốn file phiên · 70 trong PROJECT.md) — đánh số lại là phá chúng. Là **phép di chuyển thuần**: nối 5 file lại **giống hệt từng byte** §8 trong git (đã kiểm), phần §1–§7 và §9–§13 không đổi. Luật mới ở CLAUDE.md → "The run log", và `tests/unit/test_project_docs.py` fail build nếu một `§8.N` được trích mà không có mục, nếu index thiếu mục, hoặc nếu một số nằm ở hai file | Dev | `docs/log/`, CLAUDE.md |
+| 04/10 | **Thư viện vẽ hình: matplotlib, để trong extra `[figures]` (D5-01, dev quyết)**: đúng khuôn mẫu D2-04 đã dùng cho `python-docx` — import **bên trong hàm**, thiếu thì `ExportDependencyError` + exit 3 chứ không phải traceback, nên **bản cài tối thiểu vẫn thuần Python** (biopython + PyYAML, CLAUDE.md). Đây là thư viện **offline, cài bằng pip, ghi được SVG · PDF · EPS** và vẽ được cả bản đồ vòng, heatmap lẫn đồ thị thống kê — không có lựa chọn thứ hai nào làm đủ cả ba. Hệ quả phải xử lý: matplotlib **đóng dấu thời gian + chuỗi creator** vào SVG/PDF ⇒ phải ghim như bản xuất Word đã ghim (timestamp cố định), nếu không thì "sinh lại được từ dữ liệu trung gian" là câu sai | Dev | §3 (P5-01) |
+| 04/10 | **Thống kê: scipy trong extra `[stats]`, và MỌI thống kê phải có vector đối chiếu (D5-02, dev quyết)**: lý do D4-03 viết `popgen` bằng tay là *công cụ* (DnaSP = GUI Windows, pixy/libsequence đòi VCF) — lý do đó **không áp dụng cho scipy**, vốn cài được bằng pip và script được. Viết tay Mann–Whitney có hiệu chỉnh ties chính là cách sinh ra "số trông hợp lý nhưng sai". Bù lại, mỗi hàm thống kê đều bị **ghim bằng vector tính tay hoặc nguồn tham chiếu** như `popgen` đã làm | Dev | §3 (P5-03) |
+| 04/10 | **Hình là HÀM THUẦN của `Result`, không bao giờ tính lại (D5-03, dev quyết)**: hình chỉ đọc ô của bảng, nên không thể có chuyện hình và bảng cho hai số khác nhau cho cùng một đại lượng — đúng lỗi §8.25 trong bộ áo mới. Kiểm bằng test: dữ liệu hình đọc phải bằng đúng các ô của bảng nguồn | Dev | §3 (P5-01) |
+| 04/10 | **Quy tắc mở rộng hình theo N: ĐO, không đoán (D5-04, dev quyết)**: vẽ cùng một hình ở N = 2 · 8 · 34 trên bộ dữ liệu anh Điềm (bộ test đầu tiên đủ lớn để một hình 34 series lộ chuyện), rồi viết quy tắc từ chính ba phép đo đó — trần số series, hay đổi sang dạng tổng hợp khi vượt. Một hình 34 series không đọc được là một hình **hỏng**, không phải một hình dày | Dev | §8 (P5-02) |
+| 05/10 | **Hai bào quan — mỗi lần chạy đúng một bào quan, mô-đun khai báo bào quan nó phục vụ (D5-06, dev quyết)**: bộ công cụ phục vụ **lục lạp và ty thể**, nhưng **một lần chạy chỉ thuộc một bào quan** — xác định theo qualifier `/organelle` của chính bản ghi; chuỗi trần thì bộc lộ bằng **đường vào** (`plastid mito annotate` là đường ty thể). **Bộ dữ liệu đầu vào cũng vậy: một lần chạy, một panel — một bào quan, không trộn plastome với mitogenome**; ngoại lệ duy nhất có tên: phân tích **chuyển đoạn giữa các ngăn** — nhân ↔ lục lạp ↔ ty thể (NUPT/MTPT, M6.1). Mô-đun chia **ba nhóm — dùng chung · chỉ lục lạp · chỉ ty thể** — cộng một danh sách **chuyển tiếp**: bảy phân tích dùng chung về bản chất nhưng hôm nay còn gắn vùng lục lạp (bảng ở §13, mục "Hai bào quan"). Tín hiệu duy nhất hôm nay là cờ `requires_ir`, mà nó trả lời "có cần cổng IR không", **không** trả lời "phục vụ bào quan nào" (`gene_table` không cần IR nhưng nội dung là bảng plastome; `codon_usage` không theo vị trí nhưng vẫn bị cổng chặn) ⇒ chuẩn hoá: mô-đun **khai báo nhóm của nó** trong registry, **artifact tự viết phải khai `/organelle`** (hôm nay bản chú giải mito không khai — H-11), và chạy sai bào quan — hoặc một bộ dữ liệu trộn hai bào quan — thì **dừng có tên**; hôm nay cổng IR mới chặn được một chiều, bộ trộn thì chưa (H-09) | Dev | §13 (H-09 · H-10 · H-11) |
+| 05/10 | **Annotate lục lạp sẽ do dự án tự viết — theo khuôn CGAS nhưng sửa đúng các lỗ đã đo (D5-08, dev quyết)**: bước annotate trong pipeline (assembly → **annotate** → thống nhất tên gene → phân tích) là công cụ của mình, lấy **mô hình của CGAS** — bộ tham chiếu · chú giải từng mẫu · report, để phần thống nhất tên và phân tích là các bước sau (toolkit đã có) — nhưng **thay lõi tìm–quyết**: nhiều nguồn BLAST theo loại vùng (`blastx` trên `/translation` công bố cho CDS — không tự dịch, §8.21; `blastn` cho rRNA · IR · vùng không mã hoá), trọng tài **cấu trúc trước, điểm sau** (điểm chỉ so trong cùng chương trình), **chồng lấn giữ cả hai + báo** (đo trên genome vàng: 4 cặp gen chồng lấn thật), nhiều reference ⇒ **một call mỗi locus + liệt kê ứng viên thua** (PGA: 147 gen vì nhân bản, §8.15), mọi ca bị loại **kèm lý do**. **Chloe bị bỏ khỏi kế hoạch** (dev quyết; code hôm nay vẫn mặc định `chloe` tới khi engine mới đạt Done-when — xem CLAUDE.md). Done-when đo trên **bản công bố**: genome vàng ra đúng **132 = 86 + 38 + 8** với mọi ca lệch liệt kê; corpus 34 bản ghi **leave-one-out**. Thiết kế + 4 điểm còn mở (D-a tRNA · D-b bộ tham chiếu · D-c phase · D-e lõi chung): `docs/D5-08_plastid_annotator.md` | Dev | `docs/D5-08_plastid_annotator.md` |
+| 05/10 | **Hình nằm ở tầng `result/`, render ở MỨC RUN từ `result.json` — không phải `core/figure.py` như board viết (dev quyết, có đo)**: (a) `tests/unit/test_architecture.py` chỉ cho `core/` import `plastid.core`, mà một hình là **hàm của `Result`** — `Result` ở tầng `result`; (b) **hai hình đọc bảng của hai module khác nhau** (`circular_map`, `ir_junction`: `genome_stats` ở khung GenBank + `structure` ở khung chuẩn hoá), việc mà một callback theo từng module không làm được. Hệ quả: hình render **sau** vòng lặp module, đọc `result.json` đã ghi — nên **một run được phục vụ hoàn toàn từ cache vẫn có hình**, và `plastid run --figures` với `plastid figures <run-dir>` là **cùng một hàm**. Đo: chạy hai lần trên cặp Iris đã pin ⇒ svg · pdf · eps **byte y hệt**; lần thứ hai là cache hit | Dev | §8.36 |
+| 05/10 | **Luật "đúng một ô" cho report đã sinh: ô CHỮ có chữ cái là văn xuôi, không phải lượng (dev quyết, có đo)**: luật nghiêm (mọi số phải nằm trong giá trị đã render của một ô) hỏng trên chính bộ giao phẩm Pha 4 với **10 phát hiện, 6 lớp** — và **cả 10** là một lượng va vào một số in bên trong một ô *chữ* được report trích nguyên văn (id khối `…_072561.1#10`, chuỗi luật `mean + 1 sd …`, cỡ nhóm `Coleus: 6, Oldenlandia: 5`, một câu ghi chú). Luật nay: giá trị của cột `str` mà chứa chữ cái bị **bỏ khỏi thân report đang quét** và **không tính là ô mang số**; ô `str` render đúng một số trần thì vẫn là ô mang số. Ca *hai dòng render cùng một giá trị* **không** bị coi là mơ hồ — hai ô không thể mâu thuẫn (genome vàng: hai bản IR đều 26.214 bp) | Dev | §8.35 |
+| 05/10 | **Ưu tiên hiện tại: LỤC LẠP trước — ty thể giữ nguyên và chừa hướng tích hợp sau (D5-07, cả nhóm chốt)**: dữ liệu **ty thể thực vật còn rất ít**, nên mọi phát triển mô-đun mới tập trung vào **lục lạp**; đường ty thể đã có (`mito_annotate` · `mito_genes` · bộ tham chiếu mito) **giữ nguyên, không mở rộng**. "Chừa hướng" là các điểm mở của D5-06, giữ nguyên hiệu lực: từ vựng tên theo bào quan · nhóm mô-đun khai báo · bộ dữ liệu một bào quan · bản ghi tự khai `/organelle` — nhờ đó sau này thêm phân tích ty thể **không phải đập lại cấu trúc**. Hệ quả xếp việc: **H-10** (mở 7 phân tích chuyển tiếp cho ty thể) và **H-06** (mở rộng từ vựng mito lên 10 locus chuẩn) **tạm hoãn** tới khi có dữ liệu ty thể; M6.2/M6.3 vẫn chờ dữ liệu như cũ | Cả nhóm (cô Trang) | §13 "Hai bào quan" (H-06 · H-10) |
 
 ## 4. Ai làm gì
 
@@ -133,8 +144,8 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | SSR | MISA standalone 2.1 (`misa.pl`) + cpstools 3.0 `SSRs` | đã chạy thật — 37 SSR (cả hai công cụ) |
 | Repeat phân tán + palindromic | repeat-match (MUMmer3) + Vmatch 2.3.1 | đã chạy thật — 9 match ≥30 bp, có cặp đảo IR 26.214 bp |
 | So sánh nhiều genome (khối LCB, synteny) | Sibelia 3.0.7 | đã chạy thật — 3 plastome |
-| Biểu đồ % tương đồng theo toạ độ | nucmer (MUMmer4) `--maxmatch` → `delta-filter` → `show-coords` + matplotlib | đã chạy thật — 21 khối, %IDY 83,7–98,2 (mean 91,5) |
-| Chú giải plastome | plann.pl (`github.com/daisieh/plann`) + PGA.pl | đã chạy thật, offline theo reference GenBank |
+| Biểu đồ % tương đồng theo toạ độ | nucmer (MUMmer4) `--maxmatch` → `delta-filter` → `show-coords` + matplotlib | đã chạy thật — 21 khối, %IDY 83,7–98,2 (mean 91,5) *(con số này đo 26/9 trên **dữ liệu khác**; cặp Iris = **7 khối · 97,37** — §8.26, §9.H)* |
+| Chú giải plastome | **công cụ tự viết** (D5-08) — hiện tạm: Chloe 0.1.18; PGA đã đo và bị loại (§8.15) | Chloe đã chạy thật: **132 = 86 + 38 + 8**, 0 CDS lỗi ORF (§8.17) |
 | Vẽ bản đồ vòng genome | pycirclize 1.10.1 | đã chạy thật — PNG 494.859 B @300 dpi |
 | Lắp ráp từ reads ngắn | GetOrganelle 1.7.7.1 + SPAdes 4.3.0 | đã chạy với reads **mô phỏng** — 127.679 bp |
 | Lắp ráp long-read (ít RAM) | raven-assembler 1.8.3 (+ OATK 1.0) | đã chạy thật — badread 150x ONT → 2 contig, dài nhất 107.394 bp |
@@ -170,7 +181,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | GeSeq | sống | chú giải | plann.pl + PGA.pl |
 | CPGAVAS2 | sống | chú giải + phân tích | plann.pl / PGA.pl |
 | Chloe | sống | chú giải theo loài họ hàng | plann.pl |
-| mVISTA | sống | biểu đồ % tương đồng | nucmer + matplotlib (21 khối, PNG 243.787 B) |
+| mVISTA | sống | biểu đồ % tương đồng | nucmer + matplotlib (21 khối — probe 26/9, dữ liệu khác; cặp Iris = 7 khối, §8.26; PNG 243.787 B) |
 | MISA-web | sống | SSR | MISA standalone — 37 SSR |
 | REputer | sống | repeat phân tán + palindromic | repeat-match (MUMmer3) + vmatch 2.3.1 |
 | GetOrganelle (Galaxy) | sống | lắp ráp reads ngắn | GetOrganelle 1.7.7.1 local + SPAdes 4.3.0 |
@@ -179,6 +190,10 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | Verdant | **chết** | pipeline chú giải | plann.pl |
 | CGAP | **chết** | phân tích so sánh | cpstools 3.0 + CGAS |
 | PREP-Cp | **chết** | dự đoán RNA editing | không còn web tương đương (PREPACT, CURE-Chloroplast cũng `http=000`) → đo từ RNA-seq |
+
+*Cột "bản local dùng thay" là ảnh chụp 26/9. Riêng các dòng **chú giải**, đường hiện tại khác: từ
+03/10 lục lạp dùng `annotation` (Chloe mặc định — §8.15–8.17; D5-08 sẽ thay bằng công cụ tự viết),
+ty thể dùng `mito_annotate` (P3A); `plann.pl`/`PGA.pl` chỉ còn là lịch sử khảo sát.*
 
 ### 7.5. Ghi chú kỹ thuật đã gặp khi cài/chạy
 
@@ -242,7 +257,7 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 | PyPopART | `github.com/Adamtaranto/pypopart` → `pip install -e '.[viz]'` | ĐÃ GHI |
 | Deepred-Mt | `github.com/aedera/deepredmt` (cần TensorFlow ~2 GB) | ĐÃ GHI |
 | treePL | `github.com/blackrim/treePL` → phải tự build nlopt (nguồn trong `deps/`) + ADOL-C | ĐÃ GHI |
-| PGA / PGA.pl | `github.com/quxiaojian/PGA` (bản 2.0: `github.com/quxiaojian/PGA2`); CGAS `INSTALL.md` cũng ghi PGA phải cài tay từ GitHub | ĐÃ GHI (kiểm 02/10) |
+| PGA / PGA.pl | `github.com/quxiaojian/PGA` (bản 2.0: `github.com/quxiaojian/PGA2`); CGAS `INSTALL.md` cũng ghi PGA phải cài tay từ GitHub. **Nguồn đã đọc mã 05/10/2026: commit `0683a0ec2b2061c49c60ec6c5a2293cd08623253` (29/10/2020) · `PGA.pl` 16.320 dòng · sha256 `0d55b70e53de5d677522cb8fed646898c2ea28bc3f56275a9190128bfd65c3c`** | ĐÃ GHI (kiểm 02/10) |
 | Chloroplot + env R | `remotes::install_github("shuyuzheng/Chloroplot")`; env: r-base · bioconductor-biostrings · bioconductor-genbankr · bioconductor-cordon · r-reutils · r-circlize · r-dplyr · r-magrittr | ĐÃ GHI |
 | CGAS | `github.com/abdullah30/Chloroplast-Genome-Analysis-Suite-CGAS` (19 file `.py`, 21.369 dòng, MIT) | ĐÃ GHI (kiểm 02/10) |
 
@@ -252,7 +267,7 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 |---|---|---|
 | MISA standalone (`misa.pl` + `misa.ini`) | nằm ở `~/toolbox/src/misa/`, không có trong PATH → gọi `perl ~/toolbox/src/misa/misa.pl <fasta>` (perl 5.32.1); `misa.ini` phải cùng thư mục | **ĐÃ ĐÓNG (kiểm 02/10, đối md5 với bản tải lại từ nguồn):** https://webblast.ipk-gatersleben.de/misa/ → `misa_sourcecode_25082020.zip` · 4.946 B · md5 `cf9d3579f7caacd02f99830b329c7d9c` · bản **v2.1 (25/08/2020)** · `misa.pl` 20.148 B md5 `cfebc1d1a36fddfd6e0d897c96babd12` · `misa.ini` 158 B md5 `49a1c56048631647c0364532a6964cf9` · tác giả Thomas Thiel & Sebastian Beier (IPK) · trích dẫn Beier và cs. 2017, Bioinformatics 33:2583–2585 (doi:10.1093/bioinformatics/btx198) · Quyết định 02/10: **đóng gói kèm** (xem §3); image cần perl. |
 | repeat-match | "có sẵn trong env toolbox" | thuộc **MUMmer3**: `https://mummer.sourceforge.net` (MUMmer3.23 tarball trên SourceForge); MUMmer4 (`nucmer`) thì qua bioconda |
-| MAFFT | bản đang chạy: `/home/nthanhdiem/miniconda3/bin/mafft` → `v7.526 (2024/Apr/26)` | **ĐÃ ĐÓNG (kiểm 02/10):** cài từ **conda-forge** — `mafft 7.526` build `h4bc722e_0` (2.610.460 B, md5 `cf3b2acf649bc31e576ed43a2fa4aaa3`); conda-forge cũng có build `h4ab18f5_0` và `ha3fa977_0` của cùng 7.526; bioconda chỉ tới 7.525. Máy còn bản apt: **7.490-1 trên Ubuntu 22.04** (Ubuntu 24.04 là **7.505-1**) ⇒ report/log phải ghi **đường dẫn + phiên bản**, không ghi trần "MAFFT". Chạy lại hàm Ts/Tv bằng cả 2 bản mafft → cùng ra 2,686 ⇒ số vàng không phụ thuộc bản mafft |
+| MAFFT | bản đang chạy: `/home/nthanhdiem/miniconda3/bin/mafft` → `v7.526 (2024/Apr/26)` | **ĐÃ ĐÓNG (kiểm 02/10):** cài từ **conda-forge** — `mafft 7.526` build `h4bc722e_0` (2.610.460 B, md5 `cf3b2acf649bc31e576ed43a2fa4aaa3`); conda-forge cũng có build `h4ab18f5_0` và `ha3fa977_0` của cùng 7.526; bioconda chỉ tới 7.525. Máy còn bản apt: **7.490-1 trên Ubuntu 22.04** (Ubuntu 24.04 là **7.505-1**) ⇒ report/log phải ghi **đường dẫn + phiên bản**, không ghi trần "MAFFT". Chạy lại hàm Ts/Tv bằng cả 2 bản mafft → cùng một kết quả ⇒ số vàng không phụ thuộc bản mafft (số vàng sau đó đo lại trên bộ dùng chung 79 gen — §6, §8.27) |
 | Krait | đã thử, là GUI nên không dùng | chưa ghi nguồn |
 | PGA — giấy phép | PGA = GPL-3.0 | (đã ghi ở §3) |
 
@@ -276,7 +291,7 @@ là **PMGA** (Plant Mitochondrial Genome Annotator, Li và cs. 2025, *Plant Comm
 benchmark của chính tác giả trên *Arabidopsis thaliana* / *Liriodendron tulipifera* cho **1 gen sai**
 so với GeSeq 18 và AGORA 42. Module RNA editing của nó chạy **Deepred-mt** — công cụ §7.8 đã ghi.
 
-*Giá phải trả:* PMGA bọc MAKER · CPGAVAS2 · BLASTn · ARGORN · tRNAscan-SE · MISA · TRF · Vmatch —
+*Giá phải trả:* PMGA bọc MAKER · CPGAVAS2 · BLASTn · ARAGORN · tRNAscan-SE · MISA · TRF · Vmatch —
 nặng hơn nhiều so với PGA (Perl + BLAST). Quyết ở P3-04, không phải bây giờ.
 *Độ mạnh bằng chứng:* phạm vi của MITOS2 là chắc (trang phân phối và tài liệu nói thẳng); số
 benchmark của PMGA đọc từ bản tóm tắt web, **chưa đọc bài gốc** — kiểm lại trước khi chọn.
@@ -292,7 +307,7 @@ và BLAST+ vào `~/toolbox/` trên máy dev — nhưng **không sửa gì trong 
 - Docker image ở Giai đoạn 9 sẽ không chạy được phần cần công cụ.
 
 **Kiểm tra thì phát hiện lỗi nặng hơn:** `environment.yml` cũ liệt kê công cụ **không kèm phiên bản**
-— trong đó có dòng `mafft` trần. Mà §9.B-13 **đã đo**: cùng một đầu vào, aligner khác nhau cho
+— trong đó có dòng `mafft` trần. Mà §9.B-14 **đã đo**: cùng một đầu vào, aligner khác nhau cho
 **Ts/Tv 2,667** so với **2,686**. Tức một người cài theo `environment.yml` cũ sẽ ra **số vàng khác**
 với cùng bộ gen — đúng loại "sai mà không báo" mà dự án đang săn, chỉ khác là nó nổ ở máy người khác.
 
@@ -336,1532 +351,54 @@ thành "intergenic" — mình đã có test cho ca này.
 
 ## 8. Nhật ký các lần đã chạy thật
 
-### 8.1. Cài đặt công cụ — môi trường đã dùng
+**Nhật ký đã tách ra `docs/log/`** (04/10/2026) để đọc được một mục mà không phải mở cả
+file: §8 khi đó chiếm 1.531/2.379 dòng và 118/216 KB. **Số mục giữ nguyên** — `§8.27` vẫn
+là `§8.27` — nên mọi tham chiếu trong repo (đếm lúc tách: 27 trong code, 36 trong test, 23 trong
+`docs/`, 115 trong **bốn** file phiên — nay năm, thêm `docs/handoff-archive.md`) vẫn trỏ đúng. Mục mới: ghi vào file của giai đoạn đang làm, rồi
+thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run log".
 
-| | |
-|---|---|
-| Máy | WSL2 Ubuntu 22.04, glibc 2.35, 8 nhân, RAM 3,7 GB |
-| Conda | 24.11.3, kênh conda-forge + bioconda |
-| Env | `~/toolbox/env/toolbox` (có sẵn) · `~/toolbox/env/thaythe` (cài mới đợt 26/9) · `~/toolbox/pyenv` (Python cho docx) · `~/toolbox/r_bio` (R cho Chloroplot) |
-| Dữ liệu & log | `ke_hoach_new/_thay_the/` |
-| Kết quả cài | **84 công cụ đã thử · 64 chạy được · 2 cài được nhưng test lỗi · 17 không cài được/không chạy** (trong 17: 7 công cụ web còn sống, 5 web đã chết) |
-| Vị trí không nằm trong PATH | `misa.pl` + `misa.ini` ở `~/toolbox/src/misa/` · `nucmer`, `repeat-match` trong env `mummer4` (phải activate) · `trf` không có |
-
-### 8.2. Chạy chuỗi trên máy anh Điềm (26/09/2026 — 15 giây, 18/19 mốc đạt)
-
-| Mốc | Kết quả thô |
-|---|---|
-| Độ dài / GC | 153.724 bp · 37,85 % |
-| Gen | 132 = 86 CDS + 38 tRNA + 8 rRNA (feature `gene` = 133; tên duy nhất 112; gen lặp IR 21) |
-| IR (tự tính) | 26.214 bp · hai bản giống 100,00 % |
-| IR (chú giải GenBank) | 26.214 bp — `repeat_region` 83.128–109.341 và 127.511–153.724 |
-| 4 vùng | IRa 26.214 + IRb 26.214 + LSC 83.127 + SSC 18.169 = 153.724 |
-| Xoay chiều | điểm xoay đặt giữa vùng LSC; IR vẫn 26.214 bp |
-| SSR — MISA standalone 2.1 | **37** (1 bp: 31 · 2 bp: 4 · 3 bp: 2; "SSRs present in compound formation: 3"; file `.misa` có 34 dòng) |
-| SSR — cpstools 3.0 | **37**; `NC_050833_SSRs_loc_results.txt` có cột vị trí gen: `Gene`/`IGS`/`Intron` |
-| Ts/Tv | 317 Ts / 118 Tv = **2,686** (MAFFT, 76 gen CDS dùng chung với Iris gatesii) |
-| Công cụ dò được | `misa.pl`+`misa.ini` = có · `cpstools` 3.0 = có · `mafft` = có · `blastn` = có · `nucmer` = không (phải activate env mummer4) · `trf` = không |
-| Spike RAM | **chưa chạy** — trong `D:\diem\bai bao tool` không có read thô; trên ổ D: chỉ có `D:\diem\Huy_genome\RO0172510A19_010.fastq.gz` (45 MB, nghi amplicon 16S). GetOrganelle có trong env `verify_plastid` và `cgas`; RAM trống 1,9 GB / 3,7 GB |
-| Ts/Tv đã có trong bộ Eleutherine | `KQ_THONG_NHAT\08_SNP\Complete_Substitution_Analysis.csv` — dải **1,095–1,777** (33 taxon × *E. bulbosa*; × *I. domestica* = 1,471 · × *I. gatesii* = 1,548), tính trên **cả plastome** |
-
-### 8.3. Đo trên máy Hermes (26/09/2026 — Python thuần, không thư viện ngoài)
-
-| Việc | Lệnh / cách làm | Kết quả thô |
+| § | Nội dung | File |
 |---|---|---|
-| Lấy danh sách genome | NCBI E-utilities `esearch` (`db=nuccore&term=Iridaceae[Organism] AND refseq[filter] AND chloroplast`) | 76 plastome RefSeq |
-| Tải genome | `efetch` (`id=NC_050833.1&rettype=gbwithparts&retmode=text`) | 302 KB trong **2,3 giây**; gộp 20 genome = 5,9 MB |
-| Nhận diện IR — cách viết đơn giản (k-mer + mở rộng khớp chính xác) | so với chú giải `repeat_region` của NCBI | **đúng 7/9, sai 2/9 (22 %) và không ca nào báo lỗi**: NC_063920 đo 22.998 bp (thật 26.162) · NC_063921 đo 7.727 bp (thật 26.183) |
-| Nguyên nhân 2 ca sai | đo mức giống nhau của 2 bản IR | NC_063920: khớp tổng 92,63 % (1.929 base khác), lõi hoàn hảo 22.998 bp · NC_063921: khớp tổng 53,65 %, lõi 9.179 bp |
-| Hằng số ghép cặp | c = (cuối gen rRNA bản 1) + (đầu gen rRNA bản 2); phép 0-based | **K = c − 2** → IR = **26.214 bp (lệch 0 bp)**; K = c − 1 → khớp 28,56 % (ra 1 bp) |
-| Cổng kiểm tra | "hai bản IR giống ≥ 99,9 %" | bắt **2/2** ca sai · **báo oan 0/7** ca lành; ngưỡng 95 % chỉ bắt 1/2 |
-| Điểm bắt đầu genome | đối chiếu 20 genome RefSeq | 19/20 bắt đầu ở LSC; 1/20 (NC_085783.1) bắt đầu trong IR. Tài liệu dẫn 27,67 % trên GenBank rộng (CPJSdraw, 8.229 genome) |
-| Hiệu năng | chạy trên 20 genome | **4,7 giây**, RAM 331 MB (máy WSL 2,8 GB) |
-| Chuỗi end-to-end bản Python thuần | `chain_e2e.py` | 8 mốc, **9,8 giây**: 153.724 bp · GC 37,85 % · IR 26.214 / 100,00 % · 4 vùng khớp · xoay chiều về 109.341 → IR không đổi · SSR tự viết **36** (1bp:30 · 2bp:4 · 3bp:2) · Ts/Tv difflib = **2,667** · máy này không có công cụ chuẩn |
-| Chỗ lệch 1 SSR | so danh sách với cpstools | cụm compound **48.659–48.679 = `(TA)6` + `(A)10`**; bản tự viết cắt mất cái `(A)10` |
-| Bảng độ nhạy theo ngưỡng mono | cùng dữ liệu | ngưỡng ≥8 → **133** SSR · ≥10 → **36** · ≥12 → **16** |
-| Phân bố SSR theo vùng (cpstools) | `_SSRs_loc_results.txt` | IGS 18 · Intron 8 · Gene 11; motif: A 16 · T 14 · TA 3 · AT 1 · C 1 · CTT 1 · TCT 1 |
-| So sánh cách căn | difflib vs MAFFT | **2,667** (304 Ts/114 Tv) vs **2,686** (317 Ts/118 Tv) |
+| 8.1 | Cài đặt công cụ — môi trường đã dùng | [`docs/log/phase-1.md`](docs/log/phase-1.md) |
+| 8.2 | Chạy chuỗi trên máy anh Điềm (26/09/2026 — 15 giây, 18/19 mốc đạt) | [`docs/log/phase-1.md`](docs/log/phase-1.md) |
+| 8.3 | Đo trên máy Hermes (26/09/2026 — Python thuần, không thư viện ngoài) | [`docs/log/phase-1.md`](docs/log/phase-1.md) |
+| 8.4 | Môi trường dev (01/10/2026) | [`docs/log/phase-1.md`](docs/log/phase-1.md) |
+| 8.5 | Đo lại bằng implementation trong repo (02/10/2026 — P1-03) | [`docs/log/phase-1.md`](docs/log/phase-1.md) |
+| 8.6 | Bộ dữ liệu công khai thay thế — Oldenlandia / Coleus (03/10/2026 — D-04) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.7 | Bảng gen xuất bản + xuất Word (03/10/2026 — P2-09, D2-04) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.8 | Bản nháp bản thảo trên bộ dữ liệu thay thế (03/10/2026 — P2-10) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.9 | Bốn tên gen lạ ở *C. amboinicus* — cùng locus, khác tên (03/10/2026 — D3-02) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.10 | Hai bản ghi là CỦA NHÓM — và cả một phương ngữ đặt tên (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.11 | Kiểm tra ORF — P3-01 (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.12 | Chuẩn hoá tên gen — P3-02 (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.13 | Chú giải & file nộp — P3-03 · P3-04 · P3-05 (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.14 | Đường mito — P3-04 phần chạy được (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.15 | PGA chạy thật trên genome vàng — và ba cái bẫy (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.16 | Đổi công cụ chú giải: Chloe thay PGA (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.17 | Chloe chạy thật qua pipeline của mình — P3-03 chốt (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.18 | Chạy thật `table2asn` — bản `.tbl` của mình bị NCBI chê, và ba lỗi đã sửa (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.19 | Nửa còn lại của luật backend: ghim kết quả công cụ chạy ở nơi khác (03/10/2026) | [`docs/log/phase-2-3.md`](docs/log/phase-2-3.md) |
+| 8.20 | Writer GenBank — mảnh còn thiếu để một annotator tự viết có đầu ra dùng được (P3A-01, 03/10/2026) | [`docs/log/phase-3a.md`](docs/log/phase-3a.md) |
+| 8.21 | Bộ tham chiếu mito — dựng từ 8 bản ghi RefSeq, và cái bẫy nằm trong chính bộ tham chiếu (P3A-02, 03/10/2026) | [`docs/log/phase-3a.md`](docs/log/phase-3a.md) |
+| 8.22 | Bộ gọi gen mito — chuyển chú giải từ bộ tham chiếu, và sáu cái bẫy đo được (P3A-03, 03/10/2026) | [`docs/log/phase-3a.md`](docs/log/phase-3a.md) |
+| 8.23 | Bộ gọi tRNA — ARAGORN 1.2.41, và 17 không phải là một tập hợp (P3A-04, 03/10/2026) | [`docs/log/phase-3a.md`](docs/log/phase-3a.md) |
+| 8.24 | Chạy trên mẫu chưa ai chú giải — `AP045469.1`, và tám locus không gọi được (P3A-07, 03/10/2026) | [`docs/log/phase-3a.md`](docs/log/phase-3a.md) |
+| 8.25 | Chạy thật hai module so sánh — và một lỗi im lặng sống sót vì chưa từng chạy dữ liệu thật (P2-07/P2-08, 03/10/2026) | [`docs/log/phase-3a.md`](docs/log/phase-3a.md) |
+| 8.26 | Synteny chạy thật — "21 khối" không tái lập được, và con số thật của cặp Iris (P4-01, 04/10/2026) | [`docs/log/phase-4.md`](docs/log/phase-4.md) |
+| 8.27 | Ka/Ks chạy thật — và ba locus mà cách viết tên che mất (P4-02, 04/10/2026) | [`docs/log/phase-4.md`](docs/log/phase-4.md) |
+| 8.28 | Di truyền quần thể viết tay — công thức, hai lần kiểm chứng, và cái bẫy Fst (P4-03, 04/10/2026) | [`docs/log/phase-4.md`](docs/log/phase-4.md) |
+| 8.29 | Barcode + vùng siêu biến chạy thật — π dùng lại, và hai lỗi tên lộ ra (P4-04, 04/10/2026) | [`docs/log/phase-4.md`](docs/log/phase-4.md) |
+| 8.30 | Bộ bảng so sánh cho hai bản thảo — ba run trên panel đã pin (P4-05, 04/10/2026) | [`docs/log/phase-4.md`](docs/log/phase-4.md) |
+| 8.31 | Bộ dữ liệu anh Điềm gửi — bộ test đầu tiên không do dự án tự chọn (P4a-01, 04/10/2026) | [`docs/log/phase-4a.md`](docs/log/phase-4a.md) |
+| 8.32 | Quy mô: 34 bản ghi tốn bao nhiêu (P4a-03, 04/10/2026) | [`docs/log/phase-4a.md`](docs/log/phase-4a.md) |
+| 8.33 | Ba cách đọc một chuỗi — công bố · PGA · Chloe trên 34 plastome (P4a-04, 04/10/2026) | [`docs/log/phase-4a.md`](docs/log/phase-4a.md) |
+| 8.34 | Ba số đo cho annotator lục lạp — gen chồng lấn · chiều SSC · độ sạch bộ tham chiếu (D5-08, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
+| 8.35 | Kiểm thử truy vấn số trên report đã sinh — 10 va chạm buộc thu hẹp luật (P5-05, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
+| 8.36 | Hình vẽ — công thức xuất vector tất định, và dải vùng không lấy từ mép cửa sổ (P5-01, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
+| 8.37 | Bảy hình đầu tiên, và quy tắc mở rộng theo N đo bằng ba lần vẽ (P5-02, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
+| 8.38 | Thống kê — vector tính tay, và một so sánh thật cho ra 0 khác biệt có ý nghĩa (P5-03, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
+| 8.39 | Xuất bản phẩm — Excel tất định, gói Supplementary, và 34 trang PDF (P5-04, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 
-### 8.4. Môi trường dev (01/10/2026)
-
-| Hạng mục | Kết quả đo |
-|---|---|
-| Máy Windows | RAM **15,7 GB** (trống 6,2 GB) · C: 62,3 GB trống / 363,8 GB · D: 60,6 GB trống / 97,7 GB |
-| WSL | Ubuntu 24.04.2 · WSL 2.7.14.0 · nhân 6.18.33.2 · WSLg 1.0.73.2. Trước khi sửa `.wslconfig`: RAM 2,8 GB, 8 core |
-| `.wslconfig` | memory=8GB, processors=6, swap=8GB, sparseVhd=true, autoMemoryReclaim=gradual (bản cũ lưu `.wslconfig.bak`) |
-| Docker | Có Docker Desktop trên Windows; `docker` gọi từ WSL báo *"The command 'docker' could not be found in this WSL 2 distro"* trước khi bật WSL Integration |
-| Công cụ trong WSL (máy này, trước khi cài gì) | `misa.pl`, `cpstools`, `mafft`, `blastn`, `mummer`, `trf` = **đều không có** |
-| Python | có sẵn `uv` 0.11.16 + CPython **3.11.15** (`/root/.local/bin/python3.11`) |
-| Claude Code | bản Linux **2.1.286** tại `/root/.local/bin/claude` (installer `https://claude.ai/install.sh`); `which claude` trỏ bản Linux |
-| Cấu hình Claude Code | khối `env` chuyển từ `C:\Users\ADMIN\.claude\settings.json` sang `/root/.claude/settings.json` (quyền 600): `ANTHROPIC_BASE_URL=https://opencode.ai/zen/go`, `ANTHROPIC_MODEL=deepseek-v4.1-flash`, `CLAUDE_CODE_EFFORT_LEVEL`, `ANTHROPIC_API_KEY` |
-| Chạy thử Claude Code | tự gọi `make golden` → báo đúng 6/6 chỉ số của bộ số vàng; tự gọi `make test` → đọc đúng lý do các test bị skip |
-| Cảnh báo đã gặp | *"Ignoring 17 permissions … this workspace has not been trusted"* (đã đặt `projects["/root/work/plastid-suite"].hasTrustDialogAccepted = true`) · `[claude-code:unrecognized_model] deepseek-v4.1-flash` (vẫn gọi được; API 2,2 giây/lần) |
-
-### 8.5. Đo lại bằng implementation trong repo (02/10/2026 — P1-03)
-
-Chạy đúng 20 genome Iridaceae của §8.3 qua `core/ir.py` của bộ công cụ:
-
-| Việc | Kết quả đo |
-|---|---|
-| Detector de novo (port `strict_best` từ `ir_probe.py`) | khớp GenBank **7/9**, sai đúng 2 ca như §8.3: NC_063921 → không ra kết quả (**fail ồn ào**), NC_063920 → 22.998 bp (**im lặng** — lõi khớp chính xác) |
-| Cổng IR trên cặp chú giải | bắt **2/2** ca sai · **báo oan 0/7** ca lành — tái lập đúng §8.3 |
-| NC_085783.1 (không chú giải, bắt đầu trong IR) | de novo ra **21.148 bp @ 100,00 %**, cổng đạt; chuẩn hoá xoay được về đầu LSC |
-| **Phát hiện mới — `detect_v2` nở quá**: `ir_probe_v2.py` (mở rộng chịu mismatch) không phải bản đã kiểm chứng | NC_086581: ra **27.601 bp** trong khi GenBank và `strict_best` là **26.217 bp**. Nguyên nhân: nó nhận từng khối 100 bp theo *tỉ lệ giống của toàn vùng đã mở rộng*, nên vượt ranh giới IR mà không dừng. **Bản đã kiểm chứng là `strict_best` trong `ir_probe.py`** (đường chéo mirror K=20 + run khớp chính xác + cửa sổ hợp lệ 10–35 kb, ≥ 95 %) — đã port đúng bản này |
-| **Đo lại NC_063921** | với cách ghép cấu trúc C = a1 + b2 − 1: **98,87 %**, không phải 53,65 % như ghi ở §8.3. Kết luận cổng **không đổi** (98,87 < 99,9 ⇒ cắm cờ) |
-| Đối chiếu chéo annotation ↔ de novo | có: NC_063920 ghi nhận lệch **3.163 bp** (26.161 vs 22.998) — không im lặng; golden lệch 0 |
-
-### 8.6. Bộ dữ liệu công khai thay thế — Oldenlandia / Coleus (03/10/2026 — D-04)
-
-**Đây KHÔNG phải mẫu của nhóm** — là bản GenBank công khai tải về để dev (quy tắc: CLAUDE.md →
-"Data — real samples vs development stand-ins"). Lệnh tái lập (một lần; sau đó chạy offline):
-
-```
-plastid panel pin --groups data/oldenlandia-coleus.yaml      --out .panel/oldenlandia-coleus
-plastid panel pin --groups data/oldenlandia-coleus-mito.yaml --out .panel/oldenlandia-coleus-mito
-```
-
-Payload `.gb` **không commit** (`.panel/` bị gitignore); `PINNED.json` giữ ngày tải + sha256 từng file.
-Bảng dưới **sinh thẳng từ `PINNED.json`** (không gõ tay): `pin()` đọc lại từng file bằng
-`core/genbank.py` rồi đo bằng `core/ir.py` — cổng IR chỉ **ghi lại**, không chặn ở bước pin
-(seam 4: cổng chỉ có hiệu lực lúc chạy). GC% không nằm ở đây — nó là số của module `genome_stats`
-lúc chạy, không phải thuộc tính provenance.
-
-| Accession | Dài (bp) | CDS | tRNA | rRNA | Topology | IR (bp, identity) · cổng |
-|---|---|---|---|---|---|---|
-| `NC_057985.1` | 153.653 | 85 | 37 | 8 | circular | 26.286 (1,0000) PASS |
-| `PP078674.1` | 153.676 | 86 | 37 | 8 | circular | 26.323 (1,0000) PASS |
-| `PQ325515.1` | 153.640 | **0** | **0** | **0** | circular | 26.323 (1,0000) PASS |
-| `NC_057983.1` | 152.327 | 85 | 37 | 8 | circular | 25.286 (1,0000) PASS |
-| `PX977793.1` | 152.414 | 85 | 37 | 8 | circular | 25.308 (1,0000) PASS |
-| `PX923121.1` | 152.544 | 88 | 37 | 8 | circular | 25.711 (1,0000) PASS |
-| `PZ428230.1` | 152.510 | **0** | **0** | **0** | **linear** | **15.756** (1,0000) PASS |
-| `NC_069583.1` | 152.484 | 87 | 36 | 8 | circular | 25.709 (1,0000) PASS |
-| `AP045470.1` | 152.481 | **0** | **0** | **0** | circular | 25.709 (1,0000) PASS |
-| `NC_058328.1` | 152.190 | 88 | 37 | 8 | circular | 25.792 (1,0000) PASS |
-| `NC_057679.1` | 152.603 | 85 | 37 | 8 | circular | 25.716 (1,0000) PASS |
-| `OX459128.1` | 258.274 | 31 | 17 | 3 | circular | IRDetectionError |
-| `AP045469.1` | 313.585 | **0** | **0** | **0** | linear | IRDetectionError |
-
-**sha256 ổn định:** pin lại cùng ngày 03/10 — cả **13/13 sha256 không đổi**, tức NCBI trả đúng
-từng byte như lần tải đầu (bằng chứng bộ dữ liệu tái lập được).
-
-Số đo mới, phải nhớ:
-
-- **5 bản GenBank bị loại vì trùng khít RefSeq** (so chuỗi trực tiếp, không suy từ metadata):
-  `MT767006.1`≡`NC_057983.1` · `MT767008.1`≡`NC_057985.1` · `MT473748.1`≡`NC_058328.1` ·
-  `MW538954.1`≡`NC_057679.1` · `OP611428.1`≡`NC_069583.1`.
-- **3/11 plastome tải về không có annotation** (`PQ325515.1`, `PZ428230.1`, `AP045470.1` — 0 CDS):
-  dùng được cho phân tích theo vị trí (SNP · π · SSR), **không** dùng được cho phân tích theo gen.
-  Bài học: `entry_from_summary` cũ đặt `annotated=True` vô điều kiện — đã sửa thành chỉ tin RefSeq;
-  annotation của bản GenBank **đo sau khi tải**, không giả định.
-- **`PZ428230.1` — ĐÃ KẾT LUẬN: lỗi ở dữ liệu, không phải ở detector.** IR de novo ra **15.756 bp**
-  trong khi cả 5 loài Coleus còn lại đều ~25,7 kb, và bản ghi khai báo **`linear`**. Đo để phân biệt
-  "detector cắt cụt IR thật" với "bản ghi hỏng": mở rộng vùng IR ra mỗi bên rồi đo lại identity
-  — với `PZ428230.1`, identity **rơi ngay lập tức** (1,0000 → 0,9556 ở +500 bp → 0,9187 ở +1 kb),
-  tức **không hề có** cặp repeat ~25,7 kb nào bị bỏ sót; bản ghi này đúng là thiếu ~10 kb IR.
-  (Bản cùng loài `PX923121.1` cho cùng dạng đường rơi sau 25.711 bp — tức detector hành xử nhất quán.)
-  **Kết luận: loại `PZ428230.1` khỏi mọi phân tích theo vị trí** (và nó vốn đã trống annotation).
-  **Bài học:** khi bản ghi không có chú giải thì không có gì đối chiếu IR — cổng chỉ kiểm *identity*,
-  không kiểm *độ dài*, nên một repeat 15,7 kb vẫn PASS. Xem §9.A.
-- **IR của 12/13 plastome là de novo**, chỉ `NC_058328.1` có annotation để đối chiếu — nghĩa là cột IR
-  ở bảng trên chưa có cross-check từ chú giải cho phần lớn bản ghi (đúng loại chỗ §9A cảnh báo).
-- Đồng nghĩa taxonomy: *Oldenlandia diffusa* hiện mang tên **Scleromitrion diffusum** trong NCBI —
-  cột "genus" của panel theo lineage sẽ là `Scleromitrion`, không phải `Oldenlandia`.
-- Mito: cả hai đều `IRDetectionError: no valid IR pair found (annotation absent; de-novo scan failed)`
-  — **đúng**, mito không có IR canonical; module đòi cổng IR sẽ không chạy được trên mito cho tới khi
-  có đường riêng (Phase 3+).
-
-### 8.7. Bảng gen xuất bản + xuất Word (03/10/2026 — P2-09, D2-04)
-
-Chạy thật: `plastid run -m gene_table -i tests/data/NC_050833.1.gb --docx --dataset golden`.
-
-**Bảng phân nhóm, đo trên genome vàng** (132 bản sao, 18 nhóm, 112 tên phân biệt):
-
-| Nhóm | Bản sao | Ghi chú |
-|---|---|---|
-| Subunits of photosystem I / II | 5 · 15 | |
-| Subunits of cytochrome b/f · ATP synthase | 6 · 6 | |
-| Large subunit of rubisco | 1 | |
-| Subunits of NADH dehydrogenase | 12 | gồm **ndhL** (mảnh) |
-| Ribosomal RNA · Transfer RNA | 8 · 38 | khớp theo tiền tố `rrn` / `trn` |
-| Small · Large subunit of ribosome | 15 · 11 | |
-| DNA-dependent RNA polymerase | 4 | |
-| Other genes (6 nhóm) | 6 | infA · matK · cemA · accD · ccsA · clpP |
-| Genes of unknown function | 5 | ycf1, ycf2 (×2), ycf3, ycf4 |
-| **Total** | **132** | = 86 CDS + 38 tRNA + 8 rRNA, khớp `count_genes()` |
-
-Đối chiếu trong `gene_reconciliation`: CDS 86/86 · tRNA 38/38 · rRNA 8/8 · Total 132/132 — **`agrees` cả 4**.
-Gen không nhóm nào nhận: **0**.
-
-**Tài liệu Word — đo được, không phải cảm nhận:**
-
-- **Tái lập từng byte**: hai lần dựng cách nhau 2,1 giây cho **cùng sha256** (mốc thời gian zip là
-  2 giây/lần, nên khoảng cách đó thật sự vượt qua ngưỡng); chạy lại qua **cache** cũng ra **đúng byte đó**
-  (`e4a65ddf…` cho gene_table). Test canh: mọi entry mang `date_time = 1980-01-01`, thứ tự sắp xếp,
-  `create_system = 0`.
-- **Kích thước gói**: ~800 kB (template thô) → **13 kB**; style giữ lại **< 25** trên **164** của template.
-- **Render thật** bằng LibreOffice (`soffice --headless`) → PDF → PNG và **xem tận mắt**: tiêu đề theo
-  style `Title`, mục theo `Heading 1`, lưới provenance (Dataset · Run · Input + sha256 · Coordinates ·
-  Module · Generated by), bảng có caption ở trên + dòng scope, header tô nền **lặp lại ở mỗi trang**,
-  hàng không bị cắt ngang trang, cột số căn phải, dòng **Total in đậm**, chân trang
-  `PlastidToolSuite · <accession> · <module> · Page X of Y`.
-- **Bảng 16 cột** (`genome_stats`) tự chuyển sang **khổ ngang** theo **bề rộng nội dung ước lượng**, không
-  theo số cột — bản đầu chọn theo số cột nên đẩy một bảng 7 cột, 1 hàng sang trang ngang gần như trắng.
-
-### 8.8. Bản nháp bản thảo trên bộ dữ liệu thay thế (03/10/2026 — P2-10)
-
-Công thức ở `docs/P2-10_manuscript_draft.md`. Chạy thật **một lệnh cho mỗi loài**, 7 module:
-
-```
-plastid run -m genome_stats -m structure -m gene_table -m codon_usage -m amino_acid \
-            -m introns -m ssr -i <genome>.gb --docx --dataset <nhãn>
-```
-
-**Phát hiện quan trọng — bộ "thay thế" chứa đúng hai loài bản thảo:**
-
-- `PP078674.1` = ***Scleromitrion diffusum*** — **tên hiện hành của *Oldenlandia diffusa***
-- `PX923121.1` = ***Coleus amboinicus*** — **đúng loài thứ hai**
-
-Tức hai bản ghi này **không phải loài họ hàng** mà là bản công khai **của chính hai loài**.
-
-⚠️ **ĐÍNH CHÍNH (xem §8.10):** kết luận trên còn thiếu một nửa. `PX923121.1` **là bản ghi do nhóm
-mình nộp** (Vu,H.-T. = cô Trang), nên với *C. amboinicus* nhãn đúng là
-**`own-record-coleus-amboinicus`**, không phải `standin-…`. `PP078674.1` (*O. diffusa*) là của
-Shen,C. nên nhãn `standin-oldenlandia-diffusa` **vẫn đúng**. Bản chạy lại theo nhãn mới nằm ở
-`.runs/standin/own-record-coleus-amboinicus/`; các số trong bảng dưới không đổi (cùng một bản ghi).
-
-**Nhãn từng loài (đính chính §8.10):** *C. amboinicus* = **`own-record-coleus-amboinicus`** (bản ghi
-của nhóm) · *O. diffusa* = **`standin-oldenlandia-diffusa`** (bản ghi của Shen,C.).
-
-**Số đo được (mỗi số là một ô trong bảng của lần chạy, không gõ tay):**
-
-| | *S. diffusum* `PP078674.1` | *C. amboinicus* `PX923121.1` |
-|---|---|---|
-| Chiều dài · GC | 153.676 bp · 37,61 % | 152.544 bp · 37,75 % |
-| Gen | **131 = 86 CDS + 37 tRNA + 8 rRNA** | **133 = 88 CDS + 37 tRNA + 8 rRNA** |
-| LSC · SSC · IR | 83.835 · 17.195 · 26.323 | 83.404 · 17.718 · 25.711 |
-| Cổng IR | PASS 100,00 % (de novo) | PASS 100,00 % (de novo) |
-| Bảng gen ↔ `count_genes()` | 86/86 · 37/37 · 8/8 · 131/131 — `agrees` | 88/88 · 37/37 · 8/8 · 133/133 — `agrees` |
-| Codon | 26.085 codon · ENC 50,65 · CAI 0,5603 · CBI 0,2645 · Fop 0,5067 | 26.721 codon · ENC 49,80 · CAI 0,5343 · CBI 0,2794 · Fop 0,5170 |
-| Amino acid | GRAVY −0,0856 · aromaticity 0,1116 | GRAVY −0,0962 · aromaticity 0,1105 |
-| Intron | 16 intron / 11 gen · 12.287 bp · dài nhất 1.142 | 17 intron / 12 gen · 12.134 bp · dài nhất 1.022 |
-| Trans-splicing | 2 điểm nối, đều rps12 — `agrees` với chú giải | 2 điểm nối, đều rps12 — `agrees` |
-| SSR | 32 = mono 32 · di 0 · tri 0 (3 compound) | 32 = mono 31 · di 1 · tri 0 (2 compound) |
-| Internal stop | 0 | 0 |
-
-**Điểm đáng chú ý:** trans-splicing được nhận đúng trên **hai genome mới**, không chỉ genome vàng —
-`annotation_check` ghi `agrees` cả hai, tức logic tách intron/trans-splicing của P2-05 không phải
-may mắn trên một ca. **Số gen khác 132** (131 và 133) là **đúng**: 132 là con số của genome vàng
-*Iris domestica*, không phải hằng số cho mọi loài — quy ước đếm mới là hằng số.
-
-**Chưa có trong bản nháp:** mục π và Ts/Tv (cần MAFFT 7.526 — máy này không có), và **hình** (Giai
-đoạn 5). Bản nháp ghi rõ phần thiếu là phần vắng, không phải phần ngắn im lặng.
-
-### 8.9. Bốn tên gen lạ ở *C. amboinicus* — cùng locus, khác tên (03/10/2026 — D3-02)
-
-`PX923121.1` (*C. amboinicus*) và `PX977793.1` (*O. corymbosa*) có **bốn tên gen không khớp** bộ
-nhóm chức năng: `pafI` · `pafII` · `pbf1` · `clpP1`. Tra theo **vị trí** (không tra theo tên) trên
-9 bản ghi có chú giải:
-
-| Tên trong `PX923121.1` | Nằm giữa | Ở 7 bản ghi còn lại, đúng chỗ đó là | Độ dài |
-|---|---|---|---|
-| `pafI` | `psaA` … `trnS-GGA` | **`ycf3`** | 507 bp (510 bp ở cả hai bên) |
-| `pafII` | `psaI` … `cemA` | **`ycf4`** | 531 bp (555 bp ở cả hai bên) |
-| `pbf1` | `psbT` … `psbH` | **`psbN`** | **132 bp — khớp tuyệt đối** |
-| `clpP1` | `rps12` … `psbB` | **`clpP`** | 591 bp |
-
-Ba lớp bằng chứng độc lập: **synteny** (hàng xóm hai bên giống hệt, 7 bản ghi) · **độ dài** (khớp
-từng cặp, khớp cả theo chi: 507 bp ở Oldenlandia / 510 bp ở Coleus) · **`/product`** ("photosystem I
-assembly factor I" ↔ "photosystem I assembly protein Ycf3"). Ngoài ra `pbf1` = **132 bp** trùng khít
-`orf43/psbN` (43 codon + stop).
-
-**Vì sao tên đổi:** `ycf` = *hypothetical chloroplast open reading frame* — tên đặt khi chưa biết gen
-làm gì. Đã biết rồi thì đổi sang tên chức năng: Ycf3/Ycf4 là yếu tố lắp ráp PSI (PafI/PafII); `psbN`
-→ `pbf1` do Krech và cs. 2013 đề xuất sau khi chứng minh sản phẩm gen tham gia sinh tổng hợp **cả**
-PSI lẫn PSII. Một bảng gen công bố ghi thẳng `pafI(ycf3)`, `pafII(ycf4)`.
-
-**Quyết định (dev, có bằng chứng):** tên chuẩn giữ **tên cổ điển** — `ycf3` · `ycf4` · `psbN` ·
-`clpP` — vì **7/9 bản ghi và genome vàng** dùng chúng, mà genome vàng là hợp đồng của dự án.
-Tên gốc **không bị bỏ**: đi kèm là `source_name`, truy ngược được về bản ghi. Lý do phải ánh xạ:
-so sánh chéo genome khoá theo **tên gen**, để nguyên thì `pafI` và `ycf3` thành hai gen khác nhau và
-bảng π theo gen / bảng gen xuất bản **tách đôi một gen** — đúng loại "sai mà không báo".
-
-**Còn lại của PI:** tên **in trong bản thảo** và tên **nộp NCBI** (D3-06) — hai việc đó mới đổi nội
-dung công bố. Ghi chú: hai bản ghi dùng tên mới là **Direct Submission** nộp 24/01/2026 và
-07/02/2026 bởi cùng một nhóm (`Vu,H.-T.` và cs.) — tức đây là **quy ước của một nhóm**, không phải
-chuẩn cộng đồng; nhóm mình cần xác nhận có phải bản ghi của mình không.
-
-**Bài học phương pháp:** lần đầu tôi xếp việc này vào cột PI vì *chưa có bằng chứng*. Đo xong thì nó
-thành quyết định của dev. Escalate khi thiếu bằng chứng là đúng; **giữ nguyên** mức escalate sau khi
-đã có bằng chứng là sai — ở đây nó chỉ nằm trong board một lúc, chưa gây thiệt hại, nhưng cơ chế thì
-sai: một việc dev làm được mà bị xếp cho PI sẽ **chặn im lặng** cho tới khi có người hỏi.
-
-### 8.10. Hai bản ghi là CỦA NHÓM — và cả một phương ngữ đặt tên (03/10/2026)
-
-**Xác nhận của anh Trí:** `Vu,H.-T.` = **Vũ Thị Huyền Trang** = **cô Trang, PI**. (Tên này cũng chính
-là tên file kế hoạch gốc ở §11 — lẽ ra phải nhận ra sớm hơn.)
-
-**Ai nộp bản ghi nào** (đo từ khối REFERENCE của cả 11 plastome):
-
-| Bản ghi | Loài | Người nộp |
-|---|---|---|
-| `PX923121.1` | ***Coleus amboinicus*** | **Vu,H.-T. and Nguyen,T.-V.H.** — 24/01/2026 |
-| `PX977793.1` | *Oldenlandia corymbosa* | **Vu,H.-T. and Duong,T.-H.** — 07/02/2026 |
-| `PP078674.1` | *Scleromitrion diffusum* | Shen,C. |
-| `PQ325515.1` | *Scleromitrion diffusum* | huang,z. |
-| `AP045470.1` · `PZ428230.1` · `NC_057679.1` · `NC_058328.1` · `NC_069583.1` | — | Furuta,Y. và cs. · Rahmat,E. và cs. · NCBI Genome Project · Zhao,F. và cs. |
-
-**Hệ quả 1 — nhãn `standin-coleus-amboinicus` là SAI.** `PX923121.1` **đúng loài bản thảo *C. amboinicus***
-và là **bản ghi do nhóm mình nộp**. Bản nháp P2-10 cho loài này dựng trên **dữ liệu của chính nhóm**, không
-phải dữ liệu thay thế. Còn `PP078674.1` (*O. diffusa* = *S. diffusum*) là của **Shen,C.** — bản đó **đúng
-là** dữ liệu thay thế. Ghi chú: mẫu đã công bố **không chắc** là mẫu bản thảo sẽ dùng; vẫn phải hỏi anh Điềm.
-
-**Hệ quả 2 — tên gen trong hai bản ghi đó là do nhóm đặt, qua GeSeq.** Khối COMMENT ghi
-`Assembly Method :: GetOrganelle v.1.7+` và bản ghi thiếu `##Annotation-Data`; tài liệu cho thấy GeSeq
-chú giải theo tương đồng với bộ tham chiếu dùng **tên chức năng mới** ⇒ đầu ra là `pafI`·`pafII`·`pbf1`.
-Nghĩa là **Giai đoạn 3 chạy GeSeq sẽ tự sinh ra đúng bộ tên đó** — việc chuẩn hoá tên không phải việc
-phụ, mà là việc bắt buộc.
-
-**Hệ quả 3 — khác biệt không phải 4 gen, mà là CẢ MỘT PHƯƠNG NGỮ.** Đo trên 11 bản ghi:
-
-| Khía cạnh | Dạng | Số bản ghi |
-|---|---|---|
-| tRNA anticodon | hyphen `trnA-UGC` | **8** |
-| | ngoặc `trnA(UGC)` | 1 (`NC_058328.1`) |
-| | **trần, không anticodon** `trnK` · `trnI` | 2 (`PX923121.1` · `NC_069583.1`) |
-| rRNA | trơn `rrn16` | 6 |
-| | có S `rrn16S` | 3 |
-| protein | tên cổ điển `ycf3`·`ycf4`·`psbN`·`clpP` | 7 + genome vàng |
-| | tên chức năng `pafI`·`pafII`·`pbf1`·`clpP1` | 2 (của nhóm) |
-
-**Tên trần giải được bằng TRÌNH TỰ, không bằng phỏng đoán** — so với các tRNA đã có tên ở bản ghi khác:
-
-- `trnK` ở `PX923121.1` ≡ **`trnK-UUU`** — **100,0 %** trùng với `NC_069583.1` và `NC_057679.1`
-- `trnI` ở `NC_069583.1` ≡ **`trnI-GAU`** — **100,0 %** trùng với `PX977793.1`
-
-*(Thử đọc anticodon theo offset cố định đã KHÔNG hội tụ: offset 34 chỉ khớp 106/293 — anticodon không
-nằm ở một vị trí cố định trong bộ này. So trình tự là cách đúng.)*
-
-**Quyết định (dev, có bằng chứng):**
-- **Khoá so sánh nội bộ = phương ngữ của nhóm** (`pafI`·`pafII`·`pbf1`·`clpP1`), tên cổ điển đi kèm ở
-  `source_name`. Lý do không phải "đa số": bản ghi *C. amboinicus* **là của nhóm**, là **loài bản thảo**,
-  và GeSeq — công cụ nhóm dùng — sẽ sinh ra đúng bộ tên đó. Chuẩn hoá về tên cổ điển sẽ làm **bài báo
-  của nhóm in tên khác với bản ghi của chính nhóm**.
-- **In ra thì in CẢ HAI**: `pafI (ycf3)`. Đây là cách các bảng gen công bố đang làm, và nó gỡ được câu
-  hỏi "tên nào" cho người đọc — mỗi tên vẫn truy được về bản ghi tương ứng.
-- **`gene_groups.yaml` phải nhận thêm bốn tên này** vào đúng nhóm chức năng (pafI/pafII → photosystem I;
-  pbf1 → photosystem II; clpP1 → protease). Hiện chúng rơi vào *unclassified* — đúng như thiết kế
-  fail-loud, và chính nó đã chỉ ra vấn đề này.
-- **D3-01 (chọn công cụ) giờ có bằng chứng**: quy trình thật của nhóm là **GetOrganelle → GeSeq**.
-
-### 8.11. Kiểm tra ORF — P3-01 (03/10/2026)
-
-**Đã làm:** `core/orf.py` (phân loại) + `modules/orf.py` (báo cáo) + `Gene` nay mang `/transl_table`
-và `/codon_start` của chính bản ghi. Không có CDS nào bị viết lại để "cho qua".
-
-**Đo trên genome vàng (NC_050833.1) — đúng hợp đồng P3-01:**
-
-| Chỉ số | Số đo |
-|---|---|
-| CDS kiểm tra | **86** (khớp `count_genes().cds`, có bảng đối chiếu riêng) |
-| `ok` | **81** |
-| `alternative_start` | **5** = rps19 **GTG** ×2 · rpl2 **ACG** ×2 · ndhD **ATC** |
-| `no_start` · `no_stop` · `internal_stop` · `not_multiple_of_three` | **0 · 0 · 0 · 0** |
-| `gene` feature không có CDS nào cùng tên phủ | **1** — ycf1 cụt 108.448–109.347 (`pseudo`) |
-
-Mọi CDS khai `/transl_table=11` và `/codon_start=1`; module đọc đúng khai báo đó (D3-03).
-
-**Hai phát hiện mới, mỗi cái thành một luật:**
-
-1. **ACG không có trong danh sách mã khởi đầu của bảng 11 (NCBI)** — nhưng bản ghi đã công bố dùng nó:
-   đo trên panel được **4 ACG** (đều ở `ndhD`) cộng **2** ở genome vàng (`rpl2`); tài liệu cho thấy
-   ACG→AUG do RNA editing ở thực vật. Nếu xếp ACG vào `no_start` thì đúng hai CDS của genome vàng bị
-   báo động giả. Quyết định: ACG **được nhận là start** nhưng mang lớp riêng `non_canonical`
-   (khác `alternative` là codon có trong bảng) — vừa không báo động giả, vừa không im lặng.
-2. **ycf1 cụt chồng lấn 21 bp với CDS của `ndhF`** (109.327–109.347). Nên lớp "annotated, not coding"
-   phải khớp **cả tên lẫn vị trí**: khớp theo vị trí không thôi thì `ndhF` "phủ" nó và nó biến mất;
-   khớp theo tên không thôi thì CDS ycf1 thật ở chỗ khác (122.984–128.404) sẽ "phủ" nó. Cả hai cách
-   đều là im lặng — mỗi cách hỏng một kiểu.
-
-**Từ chối thay vì đoán:** bảng mã không nằm trong {1, 11} (hai bảng này chia sẻ toàn bộ axit amin,
-chỉ khác mã khởi đầu — D3-03) → `OrfError`; `/codon_start` ≠ 1 → `OrfError`. Dịch sai khung là kiểu
-"sai mà không báo", thà dừng.
-
-**Kiểm chứng:** `make check` xanh — **229 fast + 30 golden**; chạy thật `plastid run -m orf` trên
-genome vàng sinh đủ 5 bảng + report, 0 CDS lỗi.
-
-### 8.12. Chuẩn hoá tên gen — P3-02 (03/10/2026)
-
-**Đã làm:** `core/gene_names.py` (**một** chỗ duy nhất đổi tên gen) · `data/gene_aliases.yaml`
-(4 locus ngữ nghĩa, mỗi entry mang bằng chứng) · `modules/gene_names.py` (báo cáo trên nhiều bản
-ghi) · `gene_groups.yaml` nhận 4 tên mới · normalizer được nối vào `gene_table`, `genome_stats`,
-`orf`.
-
-**Ba loại khác biệt, xử lý và báo cáo riêng:**
-
-| Loại | Ví dụ | Nguồn tri thức |
-|---|---|---|
-| cú pháp | `trnL(UAA)` → `trnL-UAA` · `rrn16S` → `rrn16` | quy tắc, không cần dữ liệu ngoài |
-| ngữ nghĩa | `ycf3` → **`pafI`** (in ra `pafI (ycf3)`) | `gene_aliases.yaml` + D3-02 |
-| trình tự | `trnK` → `trnK-UUU` | so 100 % với bản sao có tên ở bản ghi khác |
-
-**Đo trên panel 11 bản ghi (chạy thật qua CLI):**
-
-| Chỉ số | Số đo |
-|---|---|
-| Gen được đếm | 1.048 |
-| Tên khác nhau *như bản ghi viết* | **155** |
-| Tên chuẩn khác nhau sau chuẩn hoá | **115** |
-| Viết khác cú pháp | 34 (30 tên ngoặc ở `NC_058328.1` + `rrn*S`) |
-| Một locus hai tên | 8 (4 locus × 2 chi) |
-| Giải bằng trình tự | **2** — `trnK` → `trnK-UUU`, `trnI` → `trnI-GAU` (đúng như §8.10 đo) |
-| Không giải được | **0** |
-| *Unclassified* (gene_groups) | **0** trên cả 11 bản ghi |
-
-Genome vàng: 112 tên đến **nguyên vẹn** (normalizer không viết lại tên nào) và cho **112** tên
-chuẩn — không mất, không gộp. Panel ∪ genome vàng = **156** tên (khớp board).
-
-**Ba việc sửa được trong lúc làm:**
-
-1. **Feature `gene` không mang trình tự.** Bản ghi `PX923121.1` có cả feature `gene` (trùm cả
-   intron) lẫn feature `tRNA` cùng tên `trnK`. Giải tên theo *từng feature* thì so intron với
-   tRNA → báo unresolved oan. Sửa: chỉ giải từ feature `tRNA`, rồi áp tên đã giải cho mọi feature
-   cùng tên. (Test panel bắt được, không phải review.)
-2. **CLI chặn panel.** `cli.py` so `len(genomes) != arity` — tài liệu API v0.2 ghi arity ≥ 2 là
-   "**at least**", runner cũng đã làm đúng, chỉ CLI sai. Hệ quả thật: module `arity=2` không chạy
-   được trên panel 11 bản ghi. Đã sửa + test hồi quy.
-3. **Dạng in ra:** mọi output in **`tên chuẩn (tên đồng nghĩa)`** — `pafI (ycf3)` — kể cả khi bản
-   ghi vốn đã dùng tên chuẩn, để người đọc không phân biệt được bản ghi nào dùng phương ngữ nào.
-   Tên gốc vẫn nằm trong `name_mappings` (cột `name`) và trong chính bản ghi.
-
-**Ràng buộc đã biết (chưa xử lý, cần team biết):** test quét template cấm **mọi** chữ số ngoài
-`{{…}}`, nên template không thể viết tên gen có số (`ycf3`, `rps19`) hay mã quyết định (`D3-02`).
-Hai template mới phải né bằng cách để dữ liệu trong bảng. Guard này vẫn giữ nguyên (không nới);
-nếu sau này prose cần tên gen, cách đúng là tham chiếu một ô bảng.
-
-**Kiểm chứng:** `make check` xanh — **255 fast + 30 golden**; chạy thật `plastid run -m gene_names`
-trên 11 bản ghi panel.
-
-### 8.13. Chú giải & file nộp — P3-03 · P3-04 · P3-05 (03/10/2026)
-
-**P3-03 · PGA (adapter + module).** `external/pga.py` chạy PGA qua `run_tool()` (argv lấy từ
-README chính thức: `perl PGA.pl -r <refdir> -t <targetdir> -o <outdir>`), trong thư mục tạm mới
-mỗi lần, tên file đã slugify, **một bản ghi mỗi lần chạy** — ba thói quen xấu của PGA (xoá thư mục
-ra, vỡ ở tên có dấu cách, multi-FASTA) đã bị chặn từ trước. Đầu ra GenBank được **đọc lại bằng
-reader của mình** rồi đi qua đúng bộ kiểm tra ORF + chuẩn hoá tên như một bản ghi tải về.
-
-*Đo được ở máy này:* thiếu `PGA.pl` ⇒ `ToolError` có tên + exit 3. Đường đi từ "annotator ghi ra
-GenBank" tới "bộ gen đi qua kiểm tra" chạy với một **stub** thay PGA (test ghi rõ điều đó): ra
-**132 = 86 + 38 + 8**, 0 CDS lỗi ORF, 5 alternative start, 4 tên có đồng nghĩa. **Đây là kiểm tra
-dây nối của mình, không phải bằng chứng PGA chú giải đúng** — stub chép lại chính chú giải của
-genome vàng. Test thật (tier B) skip kèm lý do; `PTS_REQUIRE_TOOLS=1` sẽ biến skip thành fail.
-
-**P3-04 · mito — quyết định đã chốt, adapter chưa viết.** Chọn **PMGA** (không phải MITOS2). PMGA
-không nằm trên conda, không có repo git: bài báo phân phối nó dưới dạng **singularity container**
-(Figshare 27201798) và web server, và **không có tài liệu CLI công khai** nào tra được. Viết
-`external/pmga.py` theo một CLI tự nghĩ ra sẽ là placeholder trông như thật ⇒ dừng lại, ghi yêu cầu
-cụ thể vào TASKS.md. Hai số đo để phiên sau khỏi đo lại: bản ghi mito thay thế `OX459128.1`
-**không có qualifier `/gene`** (mọi "tên" trong model là chuỗi `/product`, ví dụ "NADH
-dehydrogenase subunit 1") ⇒ muốn báo "tên gen mito" thì phải có từ vựng product→symbol trước; và
-CDS của nó có start `CCT`, `CGC` — không bảng mã nào nhận, đúng như bộ kiểm tra ORF sẽ báo.
-
-**P3-05 · file nộp NCBI.** `.fsa` + `.tbl` viết thuần Python; `.sqn` là tuỳ chọn (`--set
-sqn=true`) và cần cả `table2asn` **lẫn** template `.sbt` — template chứa tên người và cơ quan, bộ
-công cụ không tự bịa. Thiếu công cụ ⇒ `ToolError` tên rõ ràng + exit 3 (`table2asn` không có ở
-máy này; bản tải dở 12 MB nằm ở `~/toolbox/bin/table2asn.gz`).
-
-*Quy tắc định dạng lấy từ tài liệu NCBI, không lấy từ trí nhớ* — mỗi lỗi trong số này chỉ lộ ra ở
-bước upload, sau khi đã làm xong hết:
-
-| Quy tắc | Ghi chú |
-|---|---|
-| 5 cột, tab: start · stop · feature key · **qualifier name (cột 4)** · value (cột 5) | định nghĩa cột theo tài liệu NCBI |
-| `join()` **không tồn tại** trong định dạng này | interval **xếp tầng**, key chỉ ở dòng đầu |
-| mạch âm | interval **đảo** (toạ độ lớn trước), từng interval một — nên gen trans-spliced khác mạch vẫn viết được |
-| `<` luôn ở cột 1, `>` luôn ở cột 2, **bất kể mạch** | và cả hai đều là **tiền tố**: `>1050`, không phải `1050>` |
-| partial ở interval **giữa** | NCBI từ chối ("internal partials") ⇒ bộ ghi **raise**, không bỏ dấu |
-
-*Đo được:* vòng tròn khép kín trên genome vàng — **265/265** feature (133 `gene` + 86 CDS + 38 tRNA
-+ 8 rRNA) đọc lại đúng kind, tên, interval (kể cả partial), product và bảng mã; 0 vấn đề first-pass.
-Chạy thật qua CLI: `submission.fsa` (156.300 B) + `submission.tbl` (15.503 B) nằm trong thư mục
-run, có trong `manifest.json`, và lần chạy thứ hai (cache hit) phục hồi **byte-identical**.
-
-*Đối chiếu với bảng THẬT (bổ sung cuối phiên).* Ba file `.tbl` do **chính pipeline của NCBI** sinh ra
-(đầu ra VADR, vendor ở `tests/data/real_*.tbl` kèm nguồn + sha256 + giấy phép public domain) đã được
-đọc lại và ghi lại **byte-identical từng dòng một** — tức là mọi quy ước "chết ở bước upload" đều đã
-đối chiếu với bảng thật, không chỉ với tài liệu. Đọc chúng làm **sửa writer hai lần**: (1) dòng
-interval chỉ có **3 trường**, không đệm 2 cột rỗng như bản đầu; (2) một file `.tbl` **có thể chứa
-nhiều bản ghi** — một file VADR chứa **8 bản ghi**, và parser cũ **gộp im lặng** tất cả feature của 8
-bản ghi vào một danh sách, tức là gán feature của bản ghi này cho sequence của bản ghi khác. Nay
-`parse_tbl` trả về `TblRecord` (seq_id + features) và có test riêng cho ca 8 bản ghi.
-*Hai khoảng trống còn lại:* (1) quy ước **join/xếp tầng** vẫn chỉ đối chiếu với ví dụ trong tài liệu
-NCBI — không tìm được file thật nào có feature nhiều đoạn; (2) nửa `.sqn` chưa chạy lần nào (thiếu
-template của nhóm).
-
-**Cập nhật cuối phiên — `table2asn` đã cài và đã khai báo.** Tải trọn 20.213.344 B (nén) →
-56.847.504 B, `table2asn -h` → **1.29.324**; md5 nhị phân `8b5b6cbede9d38b47c7c4cae29a25a0a`.
-Khai báo theo invariant trong `docs/tools/table2asn.md` (nguồn + dòng tải nguyên văn + lý do không
-vendored). Đo được hai lỗi có tên, đúng như thiết kế: thiếu công cụ ⇒ `ToolError` chỉ luôn
-`--set table2asn=`; có công cụ nhưng thiếu template ⇒ `ToolError` chỉ trang sinh `.sbt` của NCBI —
-**exit 3**, manifest ghi `status: failed` kèm thông báo, run vẫn truy lại được.
-Thử hai cách viết `.sbt` bằng tay: cả hai bị `Error loading template file` — nên **không đoán**
-định dạng đó nữa; `.sbt` là file của nhóm, sinh từ form NCBI. Nửa `.sqn` vì vậy vẫn chờ đúng một
-thứ: template.
-
-**Một ràng buộc mới phát hiện:** test quét template cấm **mọi** chữ số ngoài `{{…}}`, nên template
-không thể viết tên gen có số (`ycf3`, `rps19`), mã quyết định (`D3-02`), hay `ASN.1`. Guard vẫn
-giữ nguyên (không nới); hai template mới né bằng cách để dữ liệu trong bảng. Nếu sau này prose cần
-tên gen, cách đúng là tham chiếu một ô bảng — và nếu team muốn nới guard thì phải là một quyết định
-riêng, có test âm đi kèm.
-
-### 8.14. Đường mito — P3-04 phần chạy được (03/10/2026)
-
-**Đã làm:** `modules/mito_genes.py` + `data/mito_gene_names.yaml` (31 locus) + `load_mito_aliases()`.
-Module **không bao giờ** gọi `ctx.require_ir()` — có test chạy nó với `ctx.ir=None`, và một test
-đối chứng cho thấy module có gate vẫn dừng trên đúng context đó (gate vẫn thật, chỉ là nó nằm trước
-phân tích theo vị trí, không nằm trước việc đếm gen).
-
-**Đo trên mitogenome thay thế `OX459128.1`:** **51 = 31 CDS + 17 tRNA + 3 rRNA**; **31/31 CDS được
-gọi bằng ký hiệu chuẩn** (`nad1`·`nad2`·`cox1`·`atp6`·`ccmFn`·`matR`·`sdh4` …); **0 tên không map
-được**; run không đụng gate.
-
-**Vì sao phải có từ vựng riêng:** bản ghi này **không có qualifier `/gene`** trên bất kỳ feature
-nào, nên "tên" mà reader trả về thực chất là **câu `/product`** ("NADH dehydrogenase subunit 1").
-Và **vì sao file phải tách khỏi `gene_aliases.yaml`**: đo được chuỗi product **trùng giữa hai bào
-quan** — "ribosomal protein S3" là product của cả CDS plastid (genome vàng) lẫn CDS mito. Dùng
-chung một bảng thì một gen plastid có thể bị đổi sang ký hiệu mito. Có test canh đúng ca này.
-
-**Chất lượng bằng chứng, nói thẳng:** chuỗi synonym thì **đo được** (trích nguyên văn từ
-`OX459128.1`); còn ký hiệu là **danh pháp chuẩn của mito thực vật** và **chưa** đối chiếu với một
-chú giải tham chiếu đã công bố. Đây là file có bằng chứng yếu nhất trong repo, và chính nó nói ra
-điều đó; việc đối chiếu thuộc Giai đoạn 8 (kiểm thử chéo). Tên nào không map được thì **báo nguyên
-dạng**, không đoán — có bảng `unmapped_names` riêng.
-
-**Còn lại của P3-04:** adapter PMGA. Không viết, vì PMGA chỉ phát hành dạng singularity container
-(Figshare 27201798) và không có tài liệu CLI công khai — viết theo CLI tự nghĩ ra là placeholder.
-
-### 8.15. PGA chạy thật trên genome vàng — và ba cái bẫy (03/10/2026)
-
-**Bối cảnh:** mục "chờ anh Trí chạy PGA một lần" trên board hoá ra **không phải chờ người**: cùng
-một cái máy, việc bị chặn là *quyền* của agent, không phải khả năng. Anh Trí cấp quyền trong
-`.claude/settings.local.json` (file này đã vào `.gitignore`), và PGA chạy được ngay sau đó.
-
-**Đo được** (genome vàng đã gỡ chú giải làm target, reference là các plastome chi *Iris*):
-
-| Cấu hình | Kết quả | So với chuẩn 132 = 86 + 38 + 8 |
-|---|---|---|
-| 7 reference (6 RefSeq + *I. gatesii*) | **147 = 95 CDS + 44 tRNA + 8 rRNA** | thừa 15 gen |
-| 1 reference (*I. gatesii*) | **130 = 87 CDS + 35 tRNA + 8 rRNA** | thiếu 2, lệch 4 |
-
-→ **Done-when của P3-03 ("tái tạo đúng số gen của genome vàng") KHÔNG đạt** với PGA. Đây là số đo
-về annotator, không phải lỗi module: module chạy đúng, đọc lại output, và báo cáo trung thực.
-
-**Chênh lệch đến từ đâu (đo được, không suy đoán):** 4 CDS trượt kiểm tra ORF (2 `no_start`,
-1 `no_stop`, 1 `internal_stop`); **4 locus bị gọi hai lần dưới hai tên** — `clpP`/`clpP1`,
-`ycf3`/`pafI`, `ycf4`/`pafII`, `psbN`/`pbf1` — vì PGA lấy tên từ **từng reference**, mà bộ reference
-có cả hai phương ngữ; 4 gen không nhóm chức năng nào nhận.
-
-**Ba cái bẫy, mỗi cái thành một lỗi có tên hoặc một lần thử lại (thay vì "sai mà không báo"):**
-
-1. **Reference có toạ độ partial ⇒ PGA chú giải RỖNG và vẫn exit 0.** Đo được: reference
-   `NC_024936.1` (có `<153124`, `>83020`) → 0 gen, "Finish annotating", exit 0. Adapter nay **từ
-   chối theo tên**, liệt kê file nào có partial.
-2. **Tên file tạm của PGA chứa `$`** (bảng ký tự random của chính nó), rồi
-   `system("blastn … $reference1_random …")` đưa chuỗi đó qua shell lần nữa ⇒ shell nuốt `$…` ⇒
-   blastn nhận đường dẫn không tồn tại ⇒ **0 gen, exit 0**. Xác suất 1 − (63/64)¹⁴ ≈ **20 %/lần**.
-   Adapter **thử lại một lần** và ghi vào report khi phải thử lại.
-3. **Dò version suýt xoá dữ liệu.** `run_tool` hỏi version bằng cách chạy `perl <tool> -e …`; PGA.pl
-   nhận cờ lạ, chạy với tham số **mặc định**, và việc đầu tiên nó làm là `rm -rf gb` — tức xoá thư
-   mục tên `gb` trong thư mục làm việc hiện tại. Nay `tool_version` **không bao giờ chạy script
-   Perl** (hỏi version của chính `perl`), và binary được dò trong thư mục tạm. Regression test:
-   `tests/unit/test_run.py::test_the_version_probe_never_runs_a_perl_tool`.
-
-**Một phát hiện phụ, ảnh hưởng D3-02:** ba bản ghi RefSeq trong bộ reference
-(`NC_085782.1`, `NC_085783.1`, `NC_086581.1`) **cũng dùng phương ngữ chức năng**
-(`clpP1`·`pafI`·`pafII`·`pbf1`). Nghĩa là đây không chỉ là "quy ước của nhóm" như §8.10 viết — nó
-đã xuất hiện trong các bản nộp RefSeq khác cùng chi. Quyết định D3-02 (khoá = tên chức năng, in
-cả hai) vì thế **đứng vững hơn**, không yếu đi.
-
-### 8.16. Đổi công cụ chú giải: Chloe thay PGA (03/10/2026)
-
-**Vì sao đổi — theo nguyên tắc "sản phẩm quyết định, không phải bộ công cụ" (CLAUDE.md).** PGA đã
-được đo (§8.15) và không tái tạo được số vàng: 147 gen (7 reference) và 130 gen (1 reference) so
-với **132 = 86 + 38 + 8**. Nguyên nhân nằm ở chính thiết kế của nó: PGA bắt người dùng tự đưa bộ
-reference, và lấy tên gen từ từng reference ⇒ gọi cùng một locus hai lần dưới hai tên.
-
-**Chloe** (Ian Small, ĐH Tây Úc; `github.com/ian-small/Chloe.jl`, Julia, CLI
-`julia --project=. chloe.jl annotate <fasta>`) có sẵn **bộ reference chuẩn hoá của chính nó**
-(10 plastome tham chiếu, tải qua Julia artifact `Chloe_refs 1.0.1`) — đúng chỗ PGA thiếu.
-
-**Đo trên genome vàng đã gỡ chú giải (cùng một input như §8.15):**
-
-| Công cụ | Tổng | CDS | tRNA | rRNA | Thời gian |
-|---|---|---|---|---|---|
-| **Chloe** | **134** | **88** | **38** ✓ | **8** ✓ | 11,1 giây |
-| PGA 7 reference | 147 | 95 | 44 | 8 | ~13 giây |
-| PGA 1 reference | 130 | 87 | 35 | 8 | ~7 giây |
-| *genome vàng (sự thật)* | *132* | *86* | *38* | *8* | — |
-
-**tRNA và rRNA khớp tuyệt đối (38/38, 8/8).** CDS lệch đúng 2, và lệch đó **giải thích được**:
-Chloe ghi `rps12` thành **4 dòng gen** (ghép theo exon 5'/3' của cả hai bản IR), genome vàng ghi 2
-(mỗi bản IR một dòng, trans-spliced) ⇒ +2. Đây là khác biệt **cách biểu diễn**, không phải lỗi chú
-giải — và bộ chuẩn hoá của mình gộp được nó.
-
-**Còn phải làm trước khi chốt (ghi vào TASKS.md):** (1) viết `external/chloe.py` + đọc GFF bằng
-reader của mình (GFF, không phải GenBank — Biopython đọc được), đi qua đúng bộ kiểm tra ORF +
-chuẩn hoá tên; (2) gộp rps12 theo exon rồi đếm lại ⇒ kỳ vọng **132 = 86 + 38 + 8**; (3) **giấy
-phép: Chloe không có file LICENSE** — cùng loại với MISA, phải vào đợt rà soát M9.3 trước khi phát
-hành; (4) Chloe chỉ dành cho **thực vật có hoa** (angiosperm) — đúng phạm vi bộ công cụ, nhưng phải
-nói rõ trong tài liệu; (5) phụ thuộc **Julia** (conda-forge) — nặng hơn perl, chấp nhận được vì
-annotator là bước tuỳ chọn và Docker image chứa được.
-
-**Chưa chốt vội:** cần đọc lại output bằng reader của mình và đếm lại sau khi gộp rps12 — nếu ra
-đúng 132 thì D3-01 được sửa thành **Chloe là pipeline offline, GeSeq ghim là kiểm tra chéo**.
-
-**Đính chính (03/10/2026, sau khi đọc lại GFF bằng reader của mình — §8.17):** hai điều ở trên
-phải sửa. (1) **134/88 là do cách đếm, không phải do Chloe**: gộp các dòng exon theo `parent` mà
-chúng chia sẻ thì file ra **86 CDS** — đúng số vàng, và **không cần "gộp rps12"** như dự kiến.
-(2) Bảng trên đo trên GFF **mặc định**, tức GFF có **biến đổi trình tự** — số gen vẫn đúng nhưng
-toạ độ nằm ở hệ khác; xem §8.17.
-
-### 8.17. Chloe chạy thật qua pipeline của mình — P3-03 chốt (03/10/2026)
-
-**Kết quả: 132 = 86 + 38 + 8, và 0 CDS hỏng ORF** (80 `ok` + 6 `alternative_start`). Đây là
-Done-when của P3-03, đo bằng **reader của mình** (`core/gff.py`) trên **file GFF thật của Chloe**,
-rồi chạy lại lần nữa end-to-end qua CLI với Chloe thật.
-
-| | |
-|---|---|
-| Gen chú giải được | **132** = 86 CDS + 38 tRNA + 8 rRNA (khớp số vàng) |
-| Kiểm tra ORF | **80 ok + 6 alternative_start, 0 lỗi** (bản ghi vàng: 81 + 5, 0 lỗi) |
-| Tên gen | 5 tên có tên đồng nghĩa, **0 tên không xếp được nhóm** |
-| Chạy end-to-end | 22 giây (10 giây chú giải + ~12 giây Julia khởi động/biên dịch) |
-| Provenance ghi được | `chloe 0.1.18` (pinned) · `julia version 1.13.0` · argv đầy đủ · rc 0 |
-
-**File thật được lưu vào repo:** `tests/data/chloe_NC_050833.1.gff` (sha256 `c8b660b7…`, ghi ở
-`tests/data/PROVENANCE.md`). Nhờ nó, ba con số trên kiểm lại được **trên máy không có Julia** —
-đúng tinh thần "công cụ chỉ nằm trên một máy thì không phải một phần của bộ công cụ" (§7.8c).
-
-**Phát hiện lớn nhất — Chloe mặc định BIẾN ĐỔI trình tự, và đếm gen không thấy điều đó.**
-`--no-transform` được chính Chloe mô tả là *"do not flip and orient sequence to standard
-configuration"*. Đo trên genome vàng, hai lần chạy chỉ khác đúng cờ đó:
-
-| | Mặc định (có biến đổi) | Có `--no-transform` |
-|---|---|---|
-| Số gen | **132** — y hệt | **132** |
-| Tên gen | y hệt | y hệt |
-| Kiểm tra ORF | **12/86 CDS hỏng** (8 `no_start`, 4 `no_stop`) | **0 hỏng** |
-| Trình tự viết kèm | `.chloe.fa` khác input ở **13.001 vị trí**, đúng dải **109.342–127.510** | không viết file nào |
-
-Dải đó **chính là SSC** (18.169 bp): Chloe **đảo ngược chiều vùng sao chép đơn** rồi chú giải hệ
-toạ độ đó. Ví dụ cụ thể: `ndhH` trong file mặc định nằm ở **114.734–115.915 (+)** — dịch xuôi vùng
-đó ra `IPTPITGRKIQIETNSSRGPESIKLEFWTLNSLYP…`, không phải ndhH; còn ndhH thật ở 120.937–122.118 (−),
-dịch ngược ra `MTVPATRKDFMIVNMGPHHPSMHGVLRLILTLDGE…`. Vì **số gen và tên gen không đổi**, một
-pipeline chỉ đếm gen sẽ báo "khớp số vàng" trong khi một phần ba bộ gen nằm sai khung — đúng loại
-"sai mà không báo" mà dự án này tồn tại để chặn.
-
-⇒ Adapter **luôn truyền `--no-transform`**, và **từ chối mọi lần chạy có viết file FASTA biến đổi**
-(so từng base với input đã đưa vào). Có test cho cả hai đường: stub (không cần công cụ) và chạy
-thật với Chloe (tier B, đo lại đúng hiện tượng trên).
-
-**Hai khác biệt tên gen lộ ra khi đối chiếu với bản ghi vàng:**
-
-1. **`ndhI` (Chloe) vs `ndhL` (bản ghi vàng) — cùng locus, đã chốt.** Cùng vị trí, **cùng
-   protein** (543 bp, dịch ra một chuỗi y hệt); `/product` của chính bản ghi vàng ghi *"NADH-
-   plastoquinone oxidoreductase subunit I"*; họ ndh của plastome có tiểu đơn vị A–K, **không có L**
-   ⇒ thêm cặp alias thứ năm vào `data/gene_aliases.yaml` (canonical `ndhI`, synonym `ndhL`).
-2. **`trnG-GCC` (Chloe) vs `trnG-UCC` (bản ghi vàng) — CHƯA chốt, và không tự chốt.** Bản ghi vàng
-   dùng tên `trnG-UCC` cho **cả hai** bản tRNA glycine, dù hai bản **khác trình tự**; Chloe gọi bản
-   không intron là `trnG-GCC`. Bộ tRNA chuẩn của plastome thực vật có hoa có **cả hai** gen
-   (`trnG-UCC` có intron và `trnG-GCC`), nên khả năng cao bản ghi vàng đặt trùng tên — nhưng **đo
-   không đủ để kết luận**: đọc anticodon theo offset cố định chỉ khớp **11/38** tRNA của bản ghi
-   vàng (đúng như ghi chú của bộ chuẩn hoá), nên không có cách đọc máy móc nào đủ tin ở đây. Đây là
-   **câu hỏi cho cô Trang** (§10): tên nào in trong bảng bản thảo.
-
-**Phạm vi & giấy phép (cho M9.3 và cho phần Methods):** Chloe chỉ chú giải **thực vật có hoa**
-(angiosperm) — đúng phạm vi ba loài bản thảo, nhưng phải nói rõ trong tài liệu; plastome ngoài
-nhóm này thì dùng `--set annotator=pga`. Checkout **không có file LICENSE**; bản công bố trên
-Zenodo (doi:10.5281/zenodo.18194040, v0.1.18) ghi **MIT** — hai chuyện khác nhau, đã ghi cả hai
-vào `docs/tools/chloe.md` để đợt rà soát M9.3 quyết.
-
-**Một lỗi nhỏ của chính mình, ghi lại vì cùng loại:** helper `_length()` trong test tier B đọc
-độ dài ở `LOCUS.split()[1]` — đúng với bản ghi tự chế mà nó được viết ra để phục vụ, **sai** với
-bản ghi thật (`LOCUS NC_050833 153724 bp`, vị trí 1 là tên bản ghi). Nó chỉ lộ ra khi test Chloe
-chạy trên genome vàng, vì máy này không có PGA nên nhánh test kia chưa từng chạy. Một helper chỉ
-được chạy với đúng fixture nó sinh ra thì chưa phải là helper đã được kiểm.
-
----
-
-### 8.18. Chạy thật `table2asn` — bản `.tbl` của mình bị NCBI chê, và ba lỗi đã sửa (03/10/2026)
-
-**Vì sao chạy:** nửa `.sqn` của P3-05 bị xếp là "chờ file `.sbt` của nhóm". Form của NCBI cần đăng
-nhập, nhưng **`.sbt` chỉ là một file ASN.1 văn bản theo một cấu trúc xác định** — tìm được các mẫu
-công khai (Cenote-Taker3, enviro-lab/ncbi-submit) và viết một bản **stand-in** cho repo
-(`tests/data/standin_template.sbt`, tên/địa chỉ là chỗ trống, dòng tiêu đề ghi rõ "NOT FOR
-SUBMISSION"). Có nó thì chạy được cả bước.
-
-**Kết quả lần chạy đầu — bản `.tbl` của mình KHÔNG đạt:** NCBI's validator trả về **13 lỗi
-(ERROR) và 27 cảnh báo** cho genome vàng. Ba nguyên nhân, cả ba đều là của mình:
-
-| Lỗi NCBI báo | Nguyên nhân | Sửa |
-|---|---|---|
-| `NoSourceDescriptor` + `BioSourceMissing` (2) | `.tbl` **không có feature `source`** — người nộp phải nói trình tự là gì | ghi feature `source` từ **qualifier của chính bản ghi** (organism · organelle · cultivar · specimen_voucher…) |
-| `SEQ_FEAT.StartCodon` (2) | `rpl2` mở đầu bằng **ACG** — không phải mã khởi đầu của bảng 11, vì RNA editing C→U biến nó thành AUG | `/exception` của bản ghi **đi theo gene** vào bảng (trước đây bị bỏ) |
-| `SEQ_INST.BadProteinStart` (2) | cùng CDS đó, không có mã khởi đầu nên dịch ra protein có gap ở đầu | ghi **start partial** (`<`) — giữ nguyên toạ độ, chỉ thêm dấu |
-
-**Thêm một phát hiện nhỏ nhưng chặn đường:** `mol_type` và `db_xref` **không phải qualifier của
-định dạng bảng** — table2asn gọi chúng là "Unrecognized qualifier name" và **exit 2** (dù vẫn ghi
-`.sqn`). Hai giá trị đó NCBI tự suy ra, nên bảng để chúng ở lại trên genome và **không ghi vào
-`.tbl`**; module nói rõ điều này trong notes. Bảng nộp thật của *Dioscorea alata* có `mol_type` và
-cũng exit 2 vì nó.
-
-**Đối chứng — và đây là chỗ chứng minh phần còn lại không phải lỗi của mình.** Lấy **một bảng nộp
-thật đã được chấp nhận**: `Dalata-cp.tbl` + `Dalata-cp.fasta` của *Dioscorea alata*
-(bredeson/Dioscorea-alata-genomics, bảng dùng cho bản nộp GenBank thật), chạy qua **đúng
-validator đó**:
-
-| | Lỗi | Trong đó `GeneXrefStrandProblem` | Cảnh báo |
-|---|---|---|---|
-| Bảng nộp thật (Dioscorea) | **9** | **7** | 19 |
-| Bảng của mình — trước khi sửa | 13 | 7 | 27 |
-| **Bảng của mình — sau khi sửa** | **7** | **7** | 98 |
-
-**7 lỗi còn lại là `GeneXrefStrandProblem`** — lớp lỗi mà định dạng này sinh ra cho **mọi** gene
-nằm trong IR (có hai bản, một + một −) khi có feature `gene` riêng: bảng nộp thật của Dioscorea
-cũng đúng 7 lỗi cùng lớp, còn có thêm 2 lỗi vị trí `rps12` mà bảng của mình không có. Nói cách
-khác: **bảng của mình giờ ngang một bản nộp đã được chấp nhận**, và lỗi còn lại là thuộc tính của
-định dạng + genome có IR, không phải của writer.
-
-**Cảnh báo:** 98, trong đó **86 là `SEQ_FEAT.GenCodeMismatch`** với nội dung tự mâu thuẫn —
-"conflict between CDS (code 11) and BioSource… (uses code 11)" — tức bảng mã hai bên *giống nhau*;
-nó xuất hiện khi bản ghi khai `organelle`, và bản ghi vàng (RefSeq, đã được chấp nhận) cũng ghi
-`/transl_table=11` trên mọi CDS. **Không hành động được.**
-
-**Module giờ đọc file `.val` chứ không chỉ giữ nó:** số lỗi/cảnh báo vào bảng tổng, phân loại theo
-mã vào bảng `validator_findings`, `.val` đi kèm như artifact, và báo cáo in ra đúng câu "đọc
-`.val` trước khi nộp" — một file không ai đọc thì không phải là một phép kiểm.
-
-**Ý nghĩa cho sản phẩm:** trước lần chạy này, bộ công cụ có thể tạo ra một cặp `.fsa` + `.tbl`
-*trông* đúng và **bị NCBI từ chối ở khâu upload** — sau khi đã làm xong mọi thứ. Đúng loại lỗi mà
-P3-05 tồn tại để chặn, và nó chỉ lộ ra khi có công cụ của chính NCBI để đối chiếu.
-
----
-
-### 8.19. Nửa còn lại của luật backend: ghim kết quả công cụ chạy ở nơi khác (03/10/2026)
-
-**Luật đã có, không phải quyết định mới.** §3 (P1-12) và §13.10 đã chốt: bước nặng thì **chạy ở
-đâu cho phù hợp** — máy phổ thông khi chạy được, web/máy chủ khác khi không. Nhưng kiểm lại thì
-thiếu đúng một mảnh: `plastid panel pin` **chỉ nhận accession NCBI**, tức là kết quả của một công
-cụ chạy ở nơi khác **không ghim được**. Luật có mà đường thực hiện thì không.
-
-**Đã bổ sung:** `plastid panel pin --file <path> [--note "PMGA web, 03/10/2026"]` — ghim một bản
-ghi do nơi khác sinh ra, với **đúng những gì một lần tải NCBI có**: bytes · sha256 · md5 · bản ghi
-được **đọc lại bằng reader của mình** (kèm đo IR như mọi pin khác) · và `source`/`note` nói rõ nó
-từ đâu tới. Hai khác biệt so với ghim theo accession: khoá là **id của chính bản ghi** (không có
-accession thì lấy tên file — đúng ca một mẫu chưa có accession), và `PINNED.json` được **thêm vào**
-chứ không bị thay, vì ghim một file là ghim *vào* một panel đã có.
-
-Đo trên mitogenome thay thế: `pinned OX459128.1: 381931 bytes · sha256 e31da1d3… (258274 bp ·
-31 CDS + 17 tRNA + 3 rRNA · circular)` — khớp đúng số §8.14. Bản ghi không đọc được vẫn được ghim
-kèm `parse_error` (từ chối ghim sẽ để lại một con số mà không ai giữ nguồn).
-
-**Chưa chạy, và đo ra thì KHÔNG chạy được — cả hai đường (03/10).** Tôi đã khép task này trên một
-đường chưa từng chạy; kiểm lại thì:
-* trang chủ `www.1kmpg.cn/pmga/` trả **HTTP 200 nhưng chỉ là redirect** sang
-  `47.96.249.172:16084/home`, và host đó **từ chối kết nối** (`Connection refused`, ~0,2–2 giây)
-  trên **cả ba cổng 16084 · 16081 · 16086** — tức không có gì đang lắng nghe; `www.1kmpg.cn/mgavas/`
-  cũng chỉ là frame trỏ vào `47.96.249.172:16081`;
-* nên **cả hai đường đều không chạy được hôm nay**: local vì máy yếu, web vì **service của tác giả
-  đang chết**. Phép kiểm số gen mito vì thế **vẫn mở**, và cách đóng nó là *chạy lại*, không phải
-  một task mới: `curl -sS -o /dev/null -w '%{http_code}' http://47.96.249.172:16084/home` — khi nào
-  có đáp án thì một lần chạy web + `panel pin --file` là xong.
-* bước `panel pin --file` thì **đã test**, nhưng bằng **một file stand-in** (bản ghi NCBI copy ra
-  đĩa), **không phải output PMGA thật** — hai chuyện khác nhau, không được gộp. Và một điểm
-không phải việc của dev: đẩy genome **chưa công bố** của nhóm lên server bên thứ ba là **quyết định
-của cô Trang** (dữ liệu rời khỏi lab) — chạy kiểm bằng genome công khai thì không vướng gì.
-
-**Hệ quả cho P3-04:** PMGA giờ có **đủ hai đường** đúng như luật: (1) container local — đã có trên
-máy này (11 GB, cần Apptainer; **không phải đường cho máy 4–8 GB**), (2) chạy web service một lần
-rồi **ghim file** — chạy được ngay, không cần container. Adapter `external/pmga.py` vì thế là tiện
-ích về sau, **không còn là thứ chặn task**; điều kiện viết nó là có máy chạy nổi container, và số
-đầu tiên phải đo khi đó là **RAM đỉnh + thời gian**.
-
----
-
-
-**Đo được thêm, cùng ngày — dung lượng ĐĨA THẬT.** Container 3,18 GB giải nén ra 11 GB, và nó bị
-xoá ngay sau khi đọc xong CLI, vì: `df` **bên trong WSL báo còn ~905 GB — đó là trần đĩa ảo 1 TB,
-không phải dung lượng thật**. Ổ **C: thật chỉ còn 42 GB (đã dùng 89 %)**, và file `ext4.vhdx`
-(54 GB) **không co lại khi xoá file bên trong** — WSL từ chối chế độ sparse của chính nó
-("currently disabled due to potential data corruption"), nên dòng `sparseVhd=true` trong
-`.wslconfig` **không có tác dụng**; muốn lấy lại phải compact thủ công từ Windows. Bài học: mọi
-thứ tải/cài trong WSL đều nằm trong một file không tự nhỏ đi, nên **phải đo `df -h /mnt/c`**, và
-cân nhắc đường không-cần-cài (web service + `panel pin --file`) trước.
-
----
-
-### 8.20. Writer GenBank — mảnh còn thiếu để một annotator tự viết có đầu ra dùng được (P3A-01, 03/10/2026)
-
-**Vì sao cần.** Tới giờ cả toolkit chỉ **đọc** GenBank (`core/genbank.py`); chưa có đường nào
-**ghi** ra. Đường `.fsa` + `.tbl` của P3-05 đủ cho NCBI nộp bài, nhưng `panel pin --file` và mọi
-bước sau đó đều đọc bằng **reader của mình** — nên một annotator tự viết (Phase 3A) mà không có
-writer thì sản phẩm của nó không vào được pipeline.
-
-**Đo hình dạng bản ghi vàng trước khi viết** (không đoán):
-* **265/265** feature gen đều có `/gene`, và với cả CDS · tRNA · rRNA thì **tên khác `/product`**;
-  feature `gene` chỉ có `/gene`.
-* **0 partial** trên toàn bản ghi · 2 `repeat_region` · 3 `misc_feature` (model không mang).
-* Qualifier model **không giữ**, nên writer không ghi lại: `locus_tag` (268) · `db_xref` (266) ·
-  `protein_id` (86) · `translation` (86) · `note` (51) · `rpt_type` (2).
-
-**Cái bẫy đo được — BioPython viết qualifier trần SAI.** `/pseudo` và `/trans_splicing` trong mọi
-bản ghi thật **không có giá trị**; BioPython gặp `{"pseudo": [""]}` thì ghi `/pseudo=""` — một file
-khác — còn gặp `None` mới ghi `/pseudo` trần. Đối chiếu chính file vàng: nó viết `/trans_splicing`
-trần, `/codon_start=1` và `/transl_table=11` (**số, không trích dẫn**) — đúng những gì BioPython
-sinh ra với `None` và với `str`. Từ đó thành quy ước trong model: **`None` nghĩa là qualifier trần**
-(§9.B-25).
-
-**Một hàm qualifier dùng chung.** Đường `.tbl` (P3-05) đã có `_qualifiers_of`; writer GenBank cần
-đúng thứ đó ⇒ theo luật DRY-sau-lần-trùng-thứ-hai nó thành `model.gene_qualifiers()`, **cả hai
-đường gọi chung một hàm** — một feature không thể ra hai kiểu ở hai định dạng. Nhân đó chốt thêm
-một quy tắc: **`/gene` chỉ ghi khi nó nói điều `/product` chưa nói** — đo trên `OX459128.1` (không
-có `/gene` nào, tên feature là cả câu `/product`), ghi cả hai sẽ gán cho bản ghi một *ký hiệu gen*
-là một câu văn.
-
-**Kết quả đo:** đọc → ghi → đọc lại trên genome vàng cho **265/265** feature trùng khớp
-(kind · tên · các part **theo đúng thứ tự transcript** · mạch · cờ partial · product ·
-`transl_table` · `codon_start` · `exception` · `pseudo` · `trans_splicing`), trình tự và `source`
-nguyên vẹn. Thêm 8 test cho writer (join mạch trừ, partial, tên-trùng-product, qualifier trần,
-`source`, và ca từ chối ghi feature vượt quá độ dài trình tự). **324 test unit vẫn xanh** — đường
-`.tbl` của P3-05 (đối chiếu byte-với-byte với bảng thật của NCBI) **không đổi hành vi**.
-
-**Writer này KHÔNG phải trình sửa GenBank bất tổn thất** — nó ghi *model*, không ghi lại file gốc:
-các qualifier kể trên rơi mất, `misc_feature` không có trong model, và phần LOCUS (division `PLN`,
-ngày hôm nay) được sinh lại. Điều đó đúng cho thứ nó phục vụ — đầu ra của annotator mình — và được
-nói thẳng trong docstring thay vì để người đọc tự phát hiện.
-
----
-
-### 8.21. Bộ tham chiếu mito — dựng từ 8 bản ghi RefSeq, và cái bẫy nằm trong chính bộ tham chiếu (P3A-02, 03/10/2026)
-
-**Nguồn:** 8 mitogenome RefSeq ghim bằng `panel pin` (5,2 MB, sha256 trong `PINNED.json`), chọn
-theo **đúng luật taxonomy của Reference Panel** — cùng họ trước: 3 họ Lamiaceae (*Salvia
-miltiorrhiza* · *Ajuga reptans* · *Rotheca serrata*) cho *Coleus*, 3 họ Rubiaceae (*Psychotria
-viridis* · *Scyphiphora hydrophyllacea*) cho *Oldenlandia*, cộng 3 loài mẫu (Arabidopsis ·
-Nicotiana · Oryza) làm outgroup. Kết quả: `mito_reference_proteins.faa` (**287 protein, 100 KB**)
-+ `mito_reference_rrna.fa` (**25 rRNA, 49 KB**).
-
-**Đo được — tự dịch protein là KHÔNG THỂ, không phải chỉ kém chính xác.** Cả **530/530** CDS tham
-chiếu đều có `/translation` và **không bản nào khai `/transl_table`**; và CDS mito thực vật mở đầu
-bằng codon như `ACG` mà **không bảng mã nào nhận làm codon khởi đầu** — dịch ở chế độ CDS thì
-BioPython **ném lỗi trước khi ra được protein nào**. Nên bộ tham chiếu lấy **chính `/translation`
-của người chú giải**: nó cũng xử lý luôn trans-splicing và các đầu do RNA editing, những thứ module
-này không có việc phải suy diễn lại.
-
-**Đo được — chính bộ tham chiếu bị ô nhiễm, và đây là cái bẫy lớn nhất của task.** Bản ghi mito
-thực vật chú giải **ORF vô danh như CDS**: *Nicotiana* **121 cái**, *Salvia* **97**, *Oryza* **22**
-— tổng **236**. Thêm 7 feature tên là cả câu (`hypothetical protein`, `LAGLIDADG endonuclease`).
-Thêm gen **nguồn gốc lục lạp** nằm trong mito: `rbcL` · `petG` · `petL` · `atpB` · `atpE` (cả 5
-trong bản ghi *Salvia*), và gen chuyển ngang `citB` · `epd` · `ltrA` · `rnhA` · `tuf` (*Psychotria*).
-Thêm rRNA **sai kích thước**: *Psychotria* gọi một feature **722 bp** là "5S" và một **1112 bp** là
-"18S" (khoảng thật: 5S 107–122 · 18S 1692–1935 · 26S 2907–3507). Một build ngây thơ sẽ nuốt hết.
-Nên builder **trả về và in ra** mọi thứ bị loại, không bỏ im lặng.
-
-**Kết quả:** phủ **31/31** locus của vocabulary, và artifact được **giữ đúng** bằng một test dựng
-lại từ panel đã ghim rồi so với file đã commit — tức FASTA là **bằng chứng**, không phải file sót
-lại. Đường pin (`panel pin` → `PINNED.json`) giữ sha256 của cả 8 nguồn.
-
-**Lỗ hổng đo được, để mở có tên (H-06):** tham chiếu còn **23 gen mà toolkit chưa có tên**, trong
-đó **10 gen mito chuẩn** — `rpl2` · `rpl10` · `rpl16` · `rpl23` · `rps2` · `rps7` · `rps12` ·
-`rps14` · `rps19` · `sdh3`. `mito_gene_names.yaml` chỉ có 31 locus vì nó được dựng từ **một** bản
-ghi; đây đúng là phép kiểm chéo mà chính file đó ghi là còn thiếu. Chúng **được giữ lại trong bộ
-tham chiếu** với dấu `-` ở cột vocabulary, để một lần chạy có thể **nói ra** là nó tìm thấy `rps12`
-thay vì im lặng về một gen nó không có tên.
-
-### 8.22. Bộ gọi gen mito — chuyển chú giải từ bộ tham chiếu, và sáu cái bẫy đo được (P3A-03, 03/10/2026)
-
-**Vì sao.** P3-04 chọn PMGA rồi không chạy nổi (11 GB + MAKER so với trần 8 GB, web service từ
-chối kết nối). Luật của CLAUDE.md cho ca đó là *thay — hoặc tự viết phần đó*, và các mảnh đã có
-sẵn: BLAST+ 2.17.0, bộ tham chiếu 287 protein + 25 rRNA (P3A-02), vocabulary 31 locus, các phép
-kiểm ORF, reader/writer của mình. P3A-03 là **bộ gọi gen**: `blastx` cho CDS, `blastn` cho rRNA,
-rồi `core/mito_caller.py` biến các HSP thành `Gene`.
-
-**Kết quả đo trên bản ghi đáp án `OX459128.1`** (chạy thật, BLAST+ 2.17.0, bộ tham chiếu đã commit):
-
-| Số đo | Giá trị |
-|---|---|
-| Gen gọi được | **31 CDS + 3 rRNA**, `not_called` **rỗng** |
-| Span trùng khít bản công bố | **18/31**; 13 ca còn lại lệch **≤ 75 bp** ở một đầu |
-| Mạch | khớp **31/31** (kể cả 2 gen mixed-strand: nad1, nad5) |
-| Hồ sơ ORF của các call | **21 ok · 3 no_start · 7 no_stop** (bản ghi gốc: 21 ok · 4 pseudo · 3 no_stop · 3 no_start) |
-| Exon | 11 gen một exon khớp; nad1/nad5 ra **4 exon so với 5** của bản ghi — hai exon 19 và 7 codon của bản ghi **không alignment nào tìm được**, và bộ gọi **không bịa** chúng |
-| Gen tìm thấy mà chưa có tên (H-06) | **15 hit** được báo cáo: rps19 · rps14 · rpl16 · rps2 · ccmFN2 · rbcL · atpB · orfX · orfB |
-| Hit không dùng | **68**, mỗi cái một lý do |
-| Thời gian | vài giây cho cả hai lượt tìm (bộ tham chiếu 287 + 25 chuỗi) |
-
-**Sáu cái bẫy, tất cả đều đo được và đều đã thành test:**
-
-1. **BLAST cắt `sseqid` tại khoảng trắng đầu tiên.** Header tham chiếu kết thúc bằng tên loài
-   (`…|Nicotiana tabacum`) nên nó về tới nơi là `…|Nicotiana`. Khoá chủ thể **phải** là ba field
-   đầu; parser **từ chối** một id ngắn hơn thay vì đoán.
-2. **Một header có thể là hai chuỗi khác nhau.** FASTA đã commit có **8 header trùng**: 6 là bản
-   sao y hệt (gen nằm trong repeat), nhưng *Arabidopsis* `atp6` là **385 và 349 aa**, *Psychotria*
-   `cox2` là **257 và 390 aa**. Nên một HSP thuộc về **độ dài nhỏ nhất chứa được khoảng subject
-   của nó**, và HSP của hai chuỗi cùng khoá **không bao giờ được nối chung** — đó chính là cách
-   một gen khảm được dựng lên.
-3. **`-seg no`.** SEG che các đoạn ít phức tạp của *query* — hợp lý khi đi tìm protein lạ, sai khi
-   chuyển chú giải cho một mitogenome thực vật vốn đầy protein màng kỵ nước. Đo được: `atp9` mất
-   **137 → 67 bits**, 21 locus khác cũng mất điểm. Ngưỡng identity mới là thứ giữ rác ở ngoài.
-4. **`makeblastdb -parse_seqids` là flag phá hoại.** Nó **lỗi thẳng**:
-   `Error: Duplicate seq_ids are found: LCL|NC_006581.1|SDH3|-|NICOTIANA` (bộ tham chiếu có bản
-   sao repeat một cách hợp pháp), và với id nó parse được thì nó **viết hoa** — phá mọi ký hiệu
-   gen viết thường trong khoá.
-5. **Mạch của rRNA đến từ phía subject, không phải query.** Tham chiếu lưu theo chiều 5'→3' của
-   gen, nên `sstart > send` nghĩa là gen nằm trên **mạch âm** của query — ngược với trực giác và
-   ngược với quy ước của blastx (nơi frame quyết định). Đo lại đúng cả ba rRNA của bản ghi đáp án.
-6. **`blastx` chỉ nhận `-version`, không nhận `--version`.** `run_tool` chỉ thử `--version`/`-v`/`-V`
-   ⇒ công cụ vừa trở thành mấu chốt của cả một module bị ghi là **"unknown"** trong khi mọi lần dò
-   đều "thành công" (thất bại). Đã thêm `-version` vào danh sách dò, kèm test.
-
-**Một phát hiện về chính bản ghi đáp án:** ba CDS `no_stop` của nó (ccmFc · ccmC · nad6) **kết thúc
-đúng ở codon cuối của protein và bỏ codon stop nằm ngay sau** — đo được: bộ gọi lấy codon đó khi
-chuỗi xác nhận, nên nad6/ccmFc của mình dài hơn bản ghi **3 bp**. Đây là khác biệt *có thật* giữa
-hai cách chú giải, không phải lỗi của bên nào.
-
-**Đã khai báo công cụ:** `environment.yml` ghim `blast=2.17.0` (trước đó là `blast>=2.8.1` chỉ vì
-PGA cần), `docs/tools/blast.md` ghi nguồn, phiên bản, đường cài, ba quyết định đo được và lý do
-không vendor (52 MB nhị phân).
-
----
-
-### 8.23. Bộ gọi tRNA — ARAGORN 1.2.41, và 17 không phải là một tập hợp (P3A-04, 03/10/2026)
-
-**Vì sao.** CDS đến từ BLAST+ (P3A-03); tRNA thì không thể chuyển từ bộ tham chiếu protein, nên
-cần một bộ gọi riêng. Chọn **ARAGORN 1.2.41** (D3A-01): 147 kB trên bioconda, GPLv3, và chính là
-công cụ mà PMGA chạy bên trong. Một bộ gọi tự viết rồi chỉnh cho ra đúng 17 sẽ là overfitting
-đúng nghĩa.
-
-**Kết quả đo trên `OX459128.1`:** ARAGORN gọi **17 tRNA**, bản ghi công bố có **17** — **nhưng
-không phải cùng một tập**:
-
-| Khác biệt | Chi tiết |
-|---|---|
-| Thiếu | `trnA-UGC 13244-13348` — bản ghi chú giải, ARAGORN không gọi (feature dài **105 bp**, hơn một tRNA thường) |
-| Thừa | `trnL-AAG 36355-36427` — ARAGORN gọi, bản ghi không có gì ở đó |
-| Lệch anticodon | tRNA-His ở 11741-11819: ARAGORN đọc **`trnH-AUG`**, bản ghi ghi **`trnH-GUG`** |
-| Lệch toạ độ | **9** feature lệch 1–6 bp; lớn nhất là tRNA **vắt qua origin** — ARAGORN in `[258274,73]`, bản ghi viết `1-79` |
-| Trùng khít | 15 feature còn lại |
-
-Con số **17 = 17** vì vậy không phải bằng chứng khớp: nó che một ca thiếu, một ca thừa và một ca
-lệch anticodon. Đây đúng là lý do bài kiểm tra so **từng feature**, không đếm tên: 17 tRNA của bản
-ghi chỉ mang **14 tên khác nhau** (`trnH-GUG` · `trnK-UUU` · `trnM-CAU` mỗi tên hai lần) — gộp theo
-tên sẽ ra 14 và sai.
-
-**Ba cái bẫy đo được, đã thành test:**
-
-1. **`-V` của ARAGORN không phải cờ phiên bản.** Nó thoát với mã **0** và in
-   "No sequence file specified, type aragorn -h for help" — `run_tool` ghi nguyên câu đó làm
-   **phiên bản** của công cụ gọi tRNA. Một chuỗi trông hợp lý trong hồ sơ provenance còn tệ hơn
-   "unknown": không ai phát hiện được. Bộ dò giờ chỉ nhận dòng **có chữ số**, và adapter tự xác
-   minh bản phát hành từ banner của `-h`.
-2. **ARAGORN in anticodon dưới dạng DNA** (`(cat)`) còn tên công bố dùng RNA (`trnM-CAU`), và in
-   axit amin bằng chữ (`tRNA-Met`). Adapter đổi Met→M, `cat`→`CAU` rồi đưa qua
-   `core/gene_names.normalize_name` — **cùng một bộ chuẩn hoá** mà một bản ghi tải về phải đi qua.
-3. **Gene vắt qua origin**: ARAGORN in `[258274,73]` (đầu > cuối). Đó không phải toạ độ GenBank;
-   adapter tách thành hai part theo đúng thứ tự phiên mã, tức một `join()`.
-
-**Đã khai báo:** `environment.yml` ghim `aragorn=1.2.41`, `docs/tools/aragorn.md` ghi nguồn
-(bioconda — upstream `ansikte.se` trả HTTP 455), licence GPLv3, đường cài và ba quyết định trên.
-
----
-
-### 8.24. Chạy trên mẫu chưa ai chú giải — `AP045469.1`, và tám locus không gọi được (P3A-07, 03/10/2026)
-
-**Input:** `AP045469.1` (*Coleus hadiensis*, **313.585 bp**, **0 feature** — đo được), đưa vào qua
-`plastid mito annotate` dưới dạng FASTA trần. Đây là hình dạng mọi lần chạy mito sau này sẽ đi:
-chuỗi vào → GenBank ra → `panel pin --file` ghim → đọc lại offline.
-
-**Kết quả:** **45 gen = 23 CDS + 19 tRNA + 3 rRNA**, ghim với sha256 `3e7c7114ae5d…`
-(402.318 B, `parse_error: null`). `mito_genes` đọc thẳng từ bản ghim, **không cần công cụ, không
-cần bộ tham chiếu**.
-
-**Tám locus vocabulary KHÔNG gọi được — và đây là phát hiện, không phải lỗi cần giấu.** Bảng
-`not_called` ghi rõ từng locus; đo thêm bằng cách nới E-value lên **10** (so với ngưỡng 1e-5 của
-lần chạy) để trả lời câu "ngưỡng có quá chặt không?":
-
-| Locus | Ở E-value ≤ 10 |
-|---|---|
-| `mttB` · `rps1` · `rps13` · `rps4` | **không có alignment nào cả** |
-| `cox2` | một mảnh 40 aa, 67,5 % — quá ngắn để phủ |
-| `ccmFn` · `matR` · `rps3` | mảnh 21–52 aa ở E-value 0,05–2,8 — không phải bằng chứng tương đồng |
-
-Nên **không phải ngưỡng** đang giữ chúng ở ngoài. Câu hỏi "các gen đó vắng trong genome hay vắng
-trong bản lắp ráp này" **không phải câu một bộ chuyển chú giải trả lời được** — nó cần người chú
-giải, hoặc một phép kiểm tra từ read. Ghi lại đúng như vậy thay vì hạ ngưỡng cho đủ 31.
-
-**Hồ sơ ORF của 23 call:** **10 ok · 9 no_start · 3 no_stop · 1 internal_stop**. Chín `no_start`
-phần lớn là các call bắt đầu giữa protein (alignment không tới đầu N của tham chiếu) — module đánh
-dấu `partial_start` chứ không dịch chuyển toạ độ. **Đây là prototype, không phải bản nộp** — dòng
-scope trong mọi bảng và ghi chú của lần chạy đều nói vậy.
-
-**Nhắc lại giới hạn (D3A-05):** không tự tìm gen mới, không mô hình intron, không dự đoán RNA
-editing. Bốn gen không tìm thấy **không** được suy đoán là "không có".
-
----
-
-### 8.25. Chạy thật hai module so sánh — và một lỗi im lặng sống sót vì chưa từng chạy dữ liệu thật (P2-07/P2-08, 03/10/2026)
-
-**Bối cảnh.** P2-07 (π) và P2-08 (Ts/Tv) được viết và kiểm bằng unit test từ Phase 2, nhưng chưa
-bao giờ chạy trên dữ liệu thật vì thiếu MAFFT 7.526. Hôm nay MAFFT đã cài và pin đúng §7.8, nên
-đây là lần chạy thật đầu tiên — và nó tìm ra một lỗi.
-
-**Lỗi đo được: MAFFT 7.526 in căn thẳng ra CHỮ THƯỜNG.** Bộ đếm phân loại cột theo `_DNA =
-{"A","C","G","T"}` (chữ hoa), nên **mọi cột của một alignment chữ thường bị tính là "skipped"**:
-lần chạy Ts/Tv thật đầu tiên báo **0 cột so sánh được và Ts/Tv để trống** — không phải một con số
-sai, mà là *không có con số nào*, trong khi mọi bảng vẫn ra bình thường. Unit test không thấy được
-vì chúng tự dựng `Alignment` bằng chữ hoa; adapter MAFFT **chưa từng có test nào**. Đã sửa hai đầu:
-adapter **upper-case** khi đọc output (kèm comment ghi rõ số đo), và `Alignment` **từ chối** một
-hàng có chữ thường — fail loud thay vì đếm ra số 0.
-
-**Ts/Tv — tái lập đúng số vàng §6, bằng chính đường của toolkit:** thêm scope `cds` (các gen hai
-genome dùng chung, mỗi gen một bản — IR tính một lần, align từng gen):
-
-| | Lần chạy này | §6 |
-|---|---|---|
-| Gen dùng chung | **76** | 76 |
-| Cột căn | **66.066** | 66.066 |
-| Ts / Tv | **317 / 118** | 317 / 118 |
-| Ts/Tv | **2,686** | 2,686 |
-
-Scope mặc định (cả bộ gen) cho **1,8416** trên 152.338 cột — một con số khác, và mọi bảng đều ghi
-rõ scope nào. Đây là lý do module có hẳn hai scope: §6 chỉ đúng trong scope hẹp.
-
-**π — lần chạy thật đầu tiên:** π toàn alignment **0,007181**; theo vùng **LSC 0,009185 · IRa
-0,001682 · IRb 0,001681 · SSC 0,014066**; kèm π theo gen và cửa sổ trượt 600/200. Tín hiệu đúng
-sinh học: **hai bản IR gần như trùng nhau và thấp hơn hẳn** hai vùng đơn bản — một phép kiểm hình
-dạng mà một lỗi "đếm ra 0" sẽ xoá sạch. **Còn thiếu:** π theo **intron/IGS** (H-07) — cần tách phép
-suy intron ra tầng dùng chung trước.
-
-### 8.26. Synteny chạy thật — "21 khối" không tái lập được, và con số thật của cặp Iris (P4-01, 04/10/2026)
-
-**Bối cảnh.** P4-01 (M4.2, biểu đồ % tương đồng kiểu mVISTA) mang check của pha: *"biểu đồ phải ra
-**21 khối**, %IDY 83,7–98,2 (mean 91,5) — kết quả của chính probe"*. D4-04 đã ghi trước: tham số
-nucmer chính xác **không có** trong cây probe; phải dựng lại, và nếu không dựng lại được thì **đó là
-một phát hiện cho §9, không phải một con số để chỉnh**.
-
-**Đầu vào đã kiểm trước khi đo.** `/mnt/d/business/pts/probe/run_local/{target,compare}.fa` so
-từng base với hai bản ghi vàng: `target.fa` **= NC_050833.1** (153.724 bp), `compare.fa`
-**= NC_024936.1** (153.441 bp) — đúng cặp, đúng chiều. Vậy đầu vào không phải nghi vấn.
-
-**Quét tham số (MUMmer 4.0.1, bioconda).** `--mum`/`--mumreference`/`--maxmatch`/mặc định ×
-`delta-filter` {`-1`,`-g`,`-q`,`-r`,`-m`,`-h`,`-i`,`-o`} × `nucmer -l` ∈ {15…40} × `-c` ∈ {18…65}
-× lọc độ dài tối thiểu {0…2.000 bp}: **không tổ hợp nào cho 21 khối.** Số khối dao động 7–43 và
-%IDY luôn ở dải 97–99 (giá trị nhỏ nhất từng thấy: 72,34). Vài mốc:
-
-| Tham số | Khối thô | Sau `delta-filter -1` | %IDY (min–max) |
-|---|---|---|---|
-| `--maxmatch` (mặc định `-l 20 -c 65`) | 12 | **7** | 89,66–99,11 |
-| `--maxmatch -l 20 -c 40` | 22 | 7 | 72,34–100,00 |
-| `--maxmatch -l 15 -c 15` | 435 | 7 | 59,76–100,00 |
-| `--mum` | 10 | 7 | — |
-
-**Kết luận đo được.** *I. domestica* × *I. gatesii* là **hai loài cùng chi**: vùng thẳng hàng
-giống nhau **98–99 %**, không phải 91,5 %. Dải 83,7–98,2 (mean 91,5) mô tả một so sánh **khác
-chi** — đo đối chứng ngay trong phiên này (*I. domestica* × *O. diffusa*, khác họ): 74 khối thô,
-81,89–98,84, mean 89,54, cùng vùng giá trị. Nguồn gốc con số: dòng §7.1 *"mVISTA | sống | biểu đồ
-% tương đồng | nucmer + matplotlib (21 khối, PNG 243.787 B)"* — đo **26/9** trong đợt khảo sát
-công cụ, trên dữ liệu khác, rồi được chép vào §13.4/ROADMAP như thể là của cặp Iris. Ghi thành
-phát hiện **§9.H**; check của pha thay bằng số đo được kèm tham số (bảng dưới).
-
-**Số thật của module** — pipeline §7 ghi (`nucmer --maxmatch → delta-filter → show-coords`), tham
-số truyền tường minh `-l 20 -c 65 -t 1`, lọc `-1`, target ở **hệ chuẩn hoá** (hai genome vàng vốn
-đã bắt đầu tại LSC nên `rotation_offset = 0`):
-
-| | |
-|---|---|
-| Khối thẳng hàng | **7** (đều xuôi; hai genome cùng chiều) |
-| %IDY mỗi khối | 98,00 · 98,85 · 98,52 · 98,53 · 98,91 · **89,66** · 99,11 |
-| %IDY min–max · mean (không trọng số) | **89,66–99,11** · **97,37** |
-| Cặp base thẳng hàng | **152.332** / 153.724 = **99,09 %** coverage |
-| Identity trên cặp base (bỏ gap) | **99,31 %** |
-| Series | cửa sổ 600 bp / bước 200 bp, 769 cửa sổ |
-
-**Định dạng delta của MUMmer 4 — đo và khoá bằng test.** Hai điều không có trong tài liệu nào của
-pipeline và sai thì im lặng: (1) file delta ghi **một dòng `>` cho mỗi cặp trình tự**, mọi
-alignment của cặp nằm dưới header đó, mỗi bản ghi kết thúc bằng dòng `0` — đọc theo kiểu "một
-header một alignment" sẽ trả về **1 khối** cho một so sánh có 7; (2) trong danh sách gap, giá trị
-`d` tiêu thụ `|d| − 1` cột **có cặp base**, rồi `d > 0` đẩy con trỏ target một mình, `d < 0` đẩy
-query. Kiểm trên cả 12 alignment thô của cặp vàng: **mọi khối kết thúc đúng toạ độ header khai, và
-`mismatch + base lẻ` = đúng số lỗi của header** (khối 1: 152 + 120 = 272). Parser ở
-`core/delta.py`, fixture thật ở `tests/data/iris_pair_sample.delta`.
-
-**Công cụ đã khai.** `mummer4=4.0.1` pin trong `environment.yml` (§7.8 trước đó ghi *không có
-phiên bản* — giờ là bản đo được), `docs/tools/mummer4.md` ghi nguồn, dòng cài, argv và hai số đo
-định dạng ở trên.
-
-### 8.27. Ka/Ks chạy thật — và ba locus mà cách viết tên che mất (P4-02, 04/10/2026)
-
-**Bối cảnh.** P4-02 dùng PAML `yn00` (D4-01) trên alignment codon của từng gen. Checklist có một
-mục tưởng như phụ — *"gen mà một genome không mang phải được LIỆT KÊ, không được bỏ im lặng"* —
-và chính nó tìm ra một lỗi thật.
-
-**Cách chạy.** Mỗi gen dùng chung: MAFFT căn **chính chuỗi CDS** (không dịch protein rồi chiếu
-ngược), cắt codon stop cuối, **kiểm khung ba-ngôi** (yn00 đọc 3 base một lần và *không* kiểm
-khung — đo được: một gap 1 base làm nó báo stop codon giả rồi exit 255, tức là may mắn chứ không
-phải kiểm tra), rồi mới gọi yn00. dN/dS đọc từ ma trận `2YN.dN`/`2YN.dS` và **đối chiếu chéo**
-với dòng Yang & Nielsen của chính output — hai đường code trong PAML, lệch nhau thì không lấy
-trung bình.
-
-**Kết quả đo (cặp vàng, sau khi sửa tên — xem dưới):**
-
-| | |
-|---|---|
-| Gen dùng chung | **79** |
-| Chấm được | **78** |
-| Không chấm được | **1** — `accD`: MAFFT đặt gap sau 1.445 base, không phải bội số của 3 ⇒ xếp `frameshift`, **không** đưa cho yn00 |
-| Ks = 0 (tỉ số không xác định) | **25 gen** — kiểm lại: các gen này **giống hệt** hoặc lệch **1 base** giữa hai bản ghi, nên Ks = 0 là số thật |
-| Pooled (trọng số theo site của yn00) | Ka **0,003586** · Ks **0,016550** · Ka/Ks **0,2167** |
-| Ví dụ | `rbcL` Ka 0,0019 · Ks 0,0299 · **0,0635**; `matK` 0,0087/0,0174 = **0,5000**; `ndhF` 0,0094/0,0473 = 0,1987 |
-
-**Lỗi tìm ra: ba locus bị cách viết tên che mất.** Lần chạy đầu báo `atpI`·`psaI`·`psbB`
-"absent from this genome" và `atpL`·`psaL`·`bspB` "absent from the reference". Đo từng cặp:
-
-| Cặp | Dài | Khác biệt | `/product` (giống nhau) |
-|---|---|---|---|
-| `atpI` (NC_050833.1) / `atpL` (NC_024936.1) | 744 bp | **0 base** | "ATP synthase CF0 A subunit IV" |
-| `psaI` / `psaL` | 111 bp | 1 base | "photosystem I subunit VIII" |
-| `psbB` / `bspB` | 1.527 bp | 7 base | "photosystem II p680 chlorophyll A apoprotein" |
-
-Trên cả 13 bản ghi của panel: `atpL`/`psaL`/`bspB` chỉ xuất hiện ở **đúng một** bản ghi
-(NC_024936.1); 9 bản ghi có chú giải dùng tên chuẩn. Ba alias vào `data/gene_aliases.yaml` kèm
-bằng chứng, canonical theo tên chuẩn (luật D3-02).
-
-**Hệ quả dây chuyền — số vàng Ts/Tv §6 đo lại.** Bộ gen dùng chung của cặp vàng từ **76 → 79**,
-nên phép đo Ts/Tv theo scope CDS đổi theo: **2,686** (317 Ts / 118 Tv trên 66.066 cột) →
-**2,6917** (323 Ts / 120 Tv trên 68.448 cột). Đây là **đo lại vì phép đo cũ đếm gen theo cách
-viết tên**, không phải chỉnh số cho khớp công cụ; phạm vi (chỉ CDS · gen dùng chung · MAFFT ·
-bỏ IR) không đổi. Số cũ giữ nguyên trong §8.25 như số đo của bộ hẹp hơn. Ba locus thêm vào chỉ
-lệch ít nên tỉ số đổi rất nhỏ (+0,2 %) — nhưng nếu chúng lệch nhiều thì đây đã là một bảng
-manuscript sai.
-
-**Bài học.** *"Gen không được chia sẻ"* và *"gen bị viết tên khác"* là hai chuyện khác nhau, và
-chỉ một mục checklist bắt **liệt kê** cái không chấm được mới làm lộ ra. Cùng họ với §8.9–8.10
-(bốn tên chức năng) và §8.17 (`ndhI`/`ndhL`).
-
-**Công cụ đã khai.** PAML 4.10.10 đã pin sẵn trong `environment.yml` (cho `mcmctree`); nay
-`yn00` của cùng gói là estimator của pha này — `docs/tools/paml.md` ghi ctl, ba cái bẫy đo được
-(không có flag phiên bản; đọc codon mà không kiểm khung; stop codon là thuốc độc) và cách gọi.
-
-### 8.28. Di truyền quần thể viết tay — công thức, hai lần kiểm chứng, và cái bẫy Fst (P4-03, 04/10/2026)
-
-**Bối cảnh (D4-03).** DnaSP là GUI Windows (không script được, không chạy trong Docker);
-pixy/libsequence cần VCF hoặc dữ liệu read mà dự án không có. Nên các estimator được viết trong
-`core/popgen.py` bằng Python thuần (chỉ stdlib) — bản cài tối thiểu chạy được, đúng luật
-CLAUDE.md. Đổi lại, mỗi công thức phải có **nguồn** và mỗi hàm phải kiểm được bằng **vector giải
-tích**.
-
-**Kiểm chứng 1 — đối chiếu một implementation độc lập.** Tajima's D, π, θ(S) và S khớp
-**scikit-allel 1.3.13** (gói Python độc lập, có bài bình duyệt) trên 4 vector ngẫu nhiên
-(n = 4…12, S = 21…243), **chính xác đến 6 chữ số** — ví dụ n=12: D = −0.454318, π = 72.6970 ở cả
-hai bên.
-
-**Kiểm chứng 2 — công thức Fu & Li và một lần đo thất bại đáng ghi.** Công thức D\*/F\* có nguồn
-Fu & Li (1993) và hằng số phương sai của Simonsen, Churchill & Aquadro (1995); chúng được đọc
-trực tiếp trong mã nguồn **EggLib 3.6.1** (`Diversity1.cpp`) — một implementation đã công bố.
-Nhưng **EggLib build từ sdist trên máy này trả về site view sai** (đo trên vector giải tích: site
-thứ sáu ra `['A','A']` trong khi dữ liệu là A/C, vị trí 9.0 thay vì 5), nên nó **không dùng được
-làm đối chứng số**. Vì vậy D\*/F\* được khoá bằng **vector tính tay từng bước** trong test
-(n = 4, một singleton: D\* = −0,6123724356957945 · F\* = −0,4787135538781689). Đường khác cũng
-đóng: `gestimator` của libsequence **không có trên bioconda** (package chỉ ship thư viện — đo:
-`bin/` chỉ có `libsequenceConfig`), còn `Bio::PopGen` không còn trong BioPerl hiện hành.
-Ghi lại vì "không kiểm được bằng công cụ" là một sự thật phải nói, không phải một chỗ để đoán.
-
-**Kiểm chứng 3 — một định danh thú vị, và một cái bẫy thật.** Với **n = 4 và mọi đột biến đều là
-singleton**, D\* ≡ D (đo: cả hai = −0,7545 ở S = 3…63; chứng minh được: tử số tỉ lệ 11 và phương
-sai cũng tỉ lệ 11², nên hai thống kê trùng nhau). Không phải lỗi — nhưng là lý do phải in **cả
-hai** cột chứ không suy cột này từ cột kia.
-
-**Fst — viết Hudson trước, đo rồi bỏ.** Bản đầu dùng Hudson, Slatkin & Maddison (1992)
-(`1 − H_w/H_b`). Đo trên vector giải tích: **hai nhóm có cùng thành phần haplotype (n = 2 mỗi
-nhóm) cho Fst = −1**, vì H_w chỉ là một cặp — một artifact mẫu nhỏ sẽ vào bảng bản thảo như một
-giá trị âm. Thay bằng **Nei's Gst (1973)**: hai nhóm cùng thành phần ⇒ **0** đúng, không haplotype
-chung ⇒ **1** đúng, mất hết đa dạng ⇒ để trống. Gst đọc **tần số haplotype**: các gen mà mọi
-trình tự đều khác nhau cho **cùng một giá trị Fst** bất kể chúng xa nhau bao nhiêu (đo trên panel:
-33/80 gen cùng ra 0,1852) — mức độ khác biệt nằm ở π, và module ghi rõ điều đó.
-
-**Kết quả đo trên panel stand-in (11 bản ghi, 2 nhóm Coleus 6 · Oldenlandia 5):** 80 gen được
-căn; phần lớn mỗi nhóm n = 4 (gen có mặt ở cả 4 bản ghi có chú giải của nhóm). Ví dụ `rbcL`
-Oldenlandia: n = 4 · S = 41 · π 0,01844071 · D 1,8434; `matK` Coleus: D −0,7284. **19 dòng để
-trống** vì n < 4 hoặc không có site phân ly — mỗi dòng mang lý do trong cột Note ("n = 3: cần ít
-nhất 4 trình tự"), và 3 bản ghi **không có CDS** (AP045470.1 · PQ325515.1 · PZ428230.1) được
-liệt kê trong notes thay vì lặng lẽ góp zero. Fst giữa hai nhóm có đủ 80 dòng.
-
-### 8.29. Barcode + vùng siêu biến chạy thật — π dùng lại, và hai lỗi tên lộ ra (P4-04, 04/10/2026)
-
-**Bối cảnh.** P4-04 xếp hạng cửa sổ/vùng theo độ biến thiên, gọi tên các locus mã vạch ứng viên,
-và **dùng lại** π của module diversity (cùng một hàm lõi, cùng window/step) chứ không tính lại.
-
-**Đo được (cặp vàng, 600/200, 773 cửa sổ):** mean π **0,007332** · ngưỡng vùng **0,014157**
-(mean + 1 sd của chính run) · **26 vùng siêu biến** · 10 locus ứng viên, **8 tìm thấy**:
-
-| Locus | Kiểu | Vị trí (bp) | Dài | π | Hạng |
-|---|---|---|---|---|---|
-| atpF-atpH | intergenic | 12.889–13.263 | 375 | 0,024064 | 1 |
-| psbK-psbI | intergenic | 7.284–7.677 | 394 | 0,015424 | 2 |
-| ndhF | gene | 109.327–111.540 | 2.214 | 0,013134 | 3 |
-| ycf1 | gene | 122.984–128.404 | 5.421 | 0,011852 | 4 |
-| matK | gene | 1.663–3.231 | 1.569 | 0,010835 | 5 |
-| trnL-trnF | intergenic | 47.944–48.324 | 381 | 0,010499 | 6 |
-| rbcL | gene | 55.212–56.672 | 1.461 | 0,008898 | 7 |
-| rps16 | gene | 4.697–5.808 | 252 (2 exon) | 0,000000 | 8 |
-| trnH-psbA | intergenic | — | — | — | không tìm thấy |
-| ITS | nuclear | — | — | — | không phải locus lục lạp |
-
-**Bài kiểm "dùng lại": hai module, một con số.** Một tier-B test chạy `-m barcodes -m diversity`
-trên cùng dữ liệu rồi so **từng cửa sổ**: 773/773 π trùng nhau. Đây là kiểm chứng *giữa hai
-module*, không phải một bản cài lại.
-
-**Phát hiện 1 — `trnH-psbA` không tồn tại như một spacer trong hai bản ghi vàng.** Bản đầu của
-module báo locus này "not carried" — một lời khai **sai** về dữ liệu. Đo lại: `trnH-GUG` và `psbA`
-**đều có**, nhưng **rps19 nằm giữa** chúng ở cả hai bản ghi (trình tự quanh điểm gốc:
-`rpl2 → trnH-GUG → rps19 → [gốc] → psbA`). Dòng bảng giờ nói đúng: *"present but not adjacent in
-this record's annotation"*. Kèm theo, code xử lý spacer **vắt qua origin** (bản ghi bắt đầu ở đâu
-là quy ước của người nộp) được viết và có test riêng — đo được rằng một spacer hoàn toàn có thể
-nằm hai bên vị trí 1.
-
-**Phát hiện 2 — hai tên tRNA viết thường làm mất locus trong im lặng.** `NC_024936.1` viết
-`trnk-UUU` và `trnl-GUA`; bản vàng viết `trnK-UUU` và `trnI-GAU`. Đo bằng trình tự: locus
-`trnk-UUU` **giống hệt từng base** `trnK-UUU` (77 bp), và `trnl-GUA` **giống hệt từng base**
-`trnI-GAU` (77 bp, cả hai bản IR). Hai sửa:
-* **quy tắc cú pháp**: chữ cái axit amin trong `trnX-YYY` không phân biệt hoa/thường —
-  `trnk-UUU` → `trnK-UUU`; `trnfM-CAU` **không** bị đụng (chữ `f` của nó là một phần của tên, ký
-  tự kế tiếp là `M` chứ không phải `-`);
-* **một alias mới**: `trnL-GUA` → `trnI-GAU` (GUA không phải anticodon của Leu; bản ghi không có
-  `/product` lẫn `/anticodon` để đối chiếu, nhưng trình tự thì trùng khít).
-Không sửa thì mỗi so sánh theo tên — gene table, thống kê tên, và bất kỳ module nào khoá theo
-tên chuẩn — **âm thầm bỏ hai locus** khỏi bảng.
-
-### 8.30. Bộ bảng so sánh cho hai bản thảo — ba run trên panel đã pin (P4-05, 04/10/2026)
-
-**Bối cảnh.** P4-05 là chính sản phẩm của pha: nội dung so sánh cho hai bản thảo. Ba run, tất cả
-trên panel đã pin (dữ liệu công khai, **không phải mẫu của nhóm**), không cần mạng:
-
-| Run | Tham chiếu | Nội dung |
-|---|---|---|
-| `standin-oldenlandia` | `NC_057985.1` (*O. diffusa*, RefSeq) | substitutions (scope CDS) · kaks · synteny · barcodes · popgen |
-| `standin-coleus` | `PX923121.1` (*C. amboinicus* — **bản ghi của chính nhóm**) | như trên |
-| `standin-mito` | `OX459128.1` × `AP045469.1` | kaks · popgen — bản phác khác chi (D4-05) |
-
-**Nhãn dữ liệu đi vào từng bảng.** Thêm `--label TEXT` cho `plastid run`: nhãn được ghép vào
-`scope.label` của **mọi** bảng ở đúng một chỗ — runner, nơi duy nhất biến `Result` thành file —
-nên nó có mặt ở header CSV, JSON và report mà không module nào phải nhớ. Panel chạy với
-`--label "stand-in (public records, not the team's samples)"`.
-
-**Một lỗi thật do panel làm lộ ra.** Scope CDS của `substitutions` yêu cầu *mọi* genome phải có
-tên gen chung; panel có **3/11 bản ghi không có chú giải** (0 CDS) ⇒ bảng rỗng cho cả run
-(`ValueError: table 'substitutions_by_gene' has no rows`, đo trên lần chạy đầu). Sửa: bản ghi
-không có CDS **được nêu tên trong notes** và bị loại khỏi so sánh CDS, thay vì làm hỏng cả run;
-không còn genome có chú giải nào ⇒ lỗi nói rõ lý do. Test riêng cho cả hai nhánh.
-
-**Vài số đo được (hai run loài, 04/10/2026):**
-
-**standin-oldenlandia** (tham chiếu NC_057985.1, 8 genome có chú giải): Ts/Tv scope CDS gộp **1.5157** = 16959 Ts / 11189 Tv trên **77 gen dùng chung** và 68743 cột; **bảng theo từng cặp** (`substitutions_by_genome.csv`) cho 0.9583–1.5173. Synteny: gần nhất `PP078674.1` 1 khối @ 98.39 %, xa nhất `NC_057679.1` 61 khối @ 89.07 %. Barcodes: 29 vùng siêu biến, 9/10 locus ứng viên, biến thiên nhất `trnH-psbA` (π 0.251894), `psbK-psbI` (π 0.212766). Ka/Ks pooled theo từng genome: 0.1585, 0.1007, 0.0986, 0.0853, 0.0857, 0.0959, 0.0868. Popgen: 80 gen, Coleus: 6, Oldenlandia: 5, 19/160 dòng không có kiểm định trung tính, 2/80 dòng Fst để trống.
-
-**standin-coleus** (tham chiếu PX923121.1, 8 genome có chú giải): Ts/Tv scope CDS gộp **1.5395** = 15235 Ts / 9896 Tv trên **77 gen dùng chung** và 68743 cột; **bảng theo từng cặp** (`substitutions_by_genome.csv`) cho 1.3065–1.5424. Synteny: gần nhất `PZ428230.1` 1 khối @ 99.70 %, xa nhất `PP078674.1` 63 khối @ 89.10 %. Barcodes: 20 vùng siêu biến, 9/10 locus ứng viên, biến thiên nhất `trnL-trnF` (π 0.260571), `atpF-atpH` (π 0.250487). Ka/Ks pooled theo từng genome: 0.1663, 0.2468, 0.2067, 0.0853, 0.0831, 0.0856, 0.0922. Popgen: 80 gen, Coleus: 6, Oldenlandia: 5, 19/160 dòng không có kiểm định trung tính, 2/80 dòng Fst để trống.
-
-**Một phát hiện về vận hành (ghi thành H-08, §9.C-21):** cache của run layer nằm ở
-`.runs/.cache` **dùng chung giữa các run** và khoá cache **không gồm mã nguồn module** — sửa
-`substitutions` xong chạy lại thì nó trả `cached` và phục vụ payload cũ (thiếu cả bảng mới), vì
-`MODULE_VERSION` chưa đổi. Luật "đổi hành vi thì bump version" đã bị vi phạm trong chính phiên
-này; bốn module đổi hành vi được bump lên **0.2.0**, cache cũ bị xoá, và việc mở H-08 ghi lại
-cách sửa tận gốc.
-
-**Một hạn chế đo được, phải nói ra:** căn CDS bằng MAFFT ở cặp **khác chi** đặt indel lệch khung
-ở **19–21/80 gen** (cùng chi 5–11/80), nên các gen đó mang trạng thái `frameshift` chứ không có
-số — MAFFT không phải công cụ căn theo codon, và đây là cái giá của việc căn thẳng trên chuỗi CDS
-(đúng như yêu cầu "không dịch protein rồi chiếu ngược"). Con số nằm trong bảng chứ không bị giấu:
-cột Status của `kaks_genes` in ra đúng lý do cho từng gen.
-
-**Nửa mito — hai lỗi nữa, cả hai đều là "một cái tên che mất dữ liệu".** Lần chạy mito đầu
-tiên chết với `table 'popgen_groups' has no rows`, và lý do không phải dữ liệu thiếu:
-1. **Bản ghi tham chiếu đúng nhưng bản ghi truy vấn sai**: `AP045469.1` trong panel
-   `oldenlandia-coleus-mito` là **bản ghi thô không có feature** (0 CDS — đúng như đo lúc pin);
-   bản chú giải của chính dự án nằm ở `.panel/mito-prototype/` (P3A-07). Run dùng nhầm file thô ⇒
-   không có gen nào để so. Sửa: dùng file prototype, và `popgen` nay **báo lỗi nói rõ** khi không
-   có gen nào được ≥2 genome mang, thay vì để lỗi validation của bảng.
-2. **Hai genome, không gen nào trùng tên**: `OX459128.1` **không có `/gene`** trên bất kỳ feature
-   nào — "tên" của mỗi CDS thực ra là **câu `/product`** ("NADH dehydrogenase subunit 1") — trong
-   khi bản chú giải của mình ghi ký hiệu chuẩn (`nad1`). Bảng từ vựng mito
-   (`data/mito_gene_names.yaml`, có từ P3-04) map đúng những câu đó, nhưng các module so sánh
-   **truyền bảng alias plastid một cách tường minh**, nên từ vựng mito không bao giờ được hỏi.
-   Sửa: `core/gene_names.aliases_for(genome)` chọn bảng theo `/organelle` của chính bản ghi, và
-   `cds_by_canonical_name` mặc định dùng nó; bốn module so sánh bỏ tham số bảng tường minh. Đo
-   lại: OX 27 CDS có tên, prototype 23, **19 gen dùng chung** (trước đó: 0).
-
-**Kết quả mito (`standin-mito`)** — 19 gen chung; kaks chấm **12/27**, pooled Ka 0,028443 · Ks
-0,112924 · Ka/Ks 0,2519; phần còn lại mang lý do (6 frameshift · 8 không có ở genome này · 4
-không có ở tham chiếu · 1 stop codon nội bộ). popgen: mỗi nhóm **1 trình tự** ⇒ mọi thống kê để
-trống kèm lý do, **19/19 dòng Fst không tính được** — đúng như thiết kế sau khi thấy bẫy Fst.
-
-**Điều chỉnh ở `popgen` sau khi thấy mito:** Fst cần **ít nhất 2 trình tự mỗi nhóm** — với nhóm
-1 trình tự, đa dạng trong nhóm bằng 0 theo cấu trúc và Fst luôn ra đúng **1,0** cho hai nhóm khác
-nhau (một con số trông như "khác biệt hoàn toàn" nhưng chỉ là artifact cỡ mẫu). Từ chối thay vì
-đưa số, kèm lý do trong cột Note.
-
-### 8.31. Bộ dữ liệu anh Điềm gửi — bộ test đầu tiên không do dự án tự chọn (P4a-01, 04/10/2026)
-
-**Bối cảnh.** Giai đoạn 1–4 được dev và test trên dữ liệu **tự chọn**. Anh Điềm gửi hai bộ — một
-bộ tải trực tiếp từ database (chưa xử lý), một bộ đã qua xử lý sơ bộ — mỗi bộ ở hai dạng input
-(`.gb` đã chú thích, `.fasta` chỉ có chuỗi) vì mỗi công cụ cần một loại input khác nhau. Đo ra:
-**34 plastome họ Iridaceae × 2 bản chú giải** = 68 `.gb` + 68 `.fasta` · 28 MB · 136 file.
-
-**Chỗ đặt và tốc độ.** Đặt trong cây làm việc tại `.data/thanhdiem_data/`, thêm `.data/` vào
-`.gitignore` (28 MB không commit); **136/136 sha256 khớp bản gốc** trên `D:\`. Lý do đặt trong WSL
-là tốc độ, và con số đo được nói rõ nó đến từ đâu:
-
-| Việc | `/mnt/d` | trong WSL |
-|---|---|---|
-| đọc một lượt 28 MB | 0,55 s | 0,38 s (**1,4×**) |
-| 300 file nhỏ (ghi / đọc) | 700 / 614 ms | 7 / 3 ms (**~100×**) |
-
-Đọc thô nhanh hơn **không đáng kể** — thứ đáng kể là **thao tác file nhỏ**, và một run chính là
-hàng nghìn file nhỏ (run Phase 4 có 616 lượt MAFFT ⇒ 1.232 file log). Đây là lý do thật, không
-phải "copy cho nhanh".
-
-**Hai bộ chú giải là hai cách đọc CÙNG MỘT chuỗi.** Đo: **34/34 chuỗi giống nhau từng byte** giữa
-hai bộ. Nghĩa là mọi khác biệt giữa hai bộ **chỉ có thể là khác biệt chú giải** — một phép thử tự
-nhiên mà dự án chưa từng có: cùng đầu vào, hai đường ống, so thẳng kết luận.
-
-**Bản ghi vàng nằm trong bộ dữ liệu.** `01_…/Iris_domestica_NC_050833.1.gb` có sha256
-`a946f23e6e5f6a886eea93c52d72497209531aaf855ec08853dbef7997638493` — **trùng khít** file fixture
-đang vendored ở `tests/data/NC_050833.1.gb`. Bộ test chứa luôn chính cái hợp đồng nó kiểm.
-
-**Bộ 02 = PGA chú giải lại genome vàng:** 153.724 bp · GC 37,85 % · IR 26.214 bp @ 100,00 % — nhưng
-**85 CDS, không phải 86**, thiếu đúng **bản sao thứ hai của `rps12`**. Trên bộ 01, *E. bulbosa*
-`PX516262.1` (bản ghi của chính nhóm) đọc ra **133 = 87 + 38 + 8**; bộ 02 ra **131 = 85 + 38 + 8**
-— cùng một kiểu mất bản sao.
-
-**Gate IR bắt được 3/34 bản ghi của PGA:**
-
-| Bản ghi | IR theo annotation (PGA) | de-novo trên **cùng chuỗi đó** |
-|---|---|---|
-| *Chasmanthe floribunda* | 26.440 bp @ **29,24 %** | 26.440 bp @ **100,00 %** |
-| *Iris hermona* | 26.180 bp @ **26,36 %** | 26.132 bp @ **100,00 %** |
-| *Trimezia steyermarkii* | 26.169 bp @ **27,78 %** | 26.169 bp @ **100,00 %** |
-
-*Chasmanthe* là ca rõ nhất: de-novo trả về **đúng span PGA đã ghi** nhưng ở 100 % ⇒ PGA chọn đúng
-đoạn, **ghép cặp sai**. Bộ 01 của cả ba bản ghi đều qua gate ở 100 % ⇒ đây là lỗi của **bản chú
-giải**, không phải của chuỗi. Tức **3/34 = 8,8 %** số bản ghi sẽ hỏng im lặng nếu ai đó tin IR
-trong annotation — đúng lý do gate tồn tại (§9.A).
-
-**34/34 bản ghi viết tên gen khác nhau giữa hai chú giải.** Phân loại:
-
-| Khác biệt | Số bản ghi | Loại |
-|---|---|---|
-| `clpP1` → `clpP` | 23/34 | từ vựng |
-| `pbf1` → `psbN` | 21/34 | từ vựng |
-| `ndhL` → `ndhI` | 8/34 | từ vựng (cùng locus — xem dưới) |
-| `atpL`/`psaL`/`bspB` → `atpI`/`psaI`/`psbB` (bộ ba của §8.27) | 7/34 | từ vựng |
-| `lhbA` → `psbZ` | 1/34 | từ vựng |
-| tRNA viết tên trần (không anticodon) | 8/34 | từ vựng |
-| rRNA kiểu `16S ribosomal RNA` vs `rrn16` | 1/34 | từ vựng |
-| **`ycf1` có CDS ở bản công bố, KHÔNG có ở PGA** | **24/34** | **khác kết luận** |
-| **`rps12` mất một bản sao** | 12/34 | **khác kết luận** |
-
-Hai dòng cuối **không phải khác cách viết mà khác kết luận**: ở **71 %** bộ dữ liệu, hai chú giải
-bất đồng về việc một gen **có tồn tại hay không**. Đây là bài học của §8.27 ở quy mô 34 bản ghi —
-và là lý do mọi so sánh theo tên phải nói ra nó đang khoá theo tên ai.
-
-**Bản chú giải tự khai công cụ — và đây là bằng chứng, không phải suy đoán.** Cả **34/34** bản ghi
-bộ 02 mang `/note="Annotation Method :: PGA-Plastid Genome Annotator"` trên feature `source`;
-bộ 01: **0** bản ghi. Việc gọi bộ 02 là "bản PGA" vì thế đọc thẳng từ file, không phải đoán theo
-kiểu đặt tên.
-
-**`ndhI` (PGA) và `ndhL` (công bố): alias đã có từ 03/10, hôm nay đo lại (D4a-05).** Trên chính
-genome vàng, hai bản chú giải đặt locus ở **cùng toạ độ `118156-118698(-)` với chuỗi 543 bp giống
-hệt** (`ATGTTCCCT…TAA`) — đúng như §8.17 đã đo khi Chloe chú giải genome này, và mục `ndhI` ←
-`ndhL` đã nằm trong `data/gene_aliases.yaml` từ đó. Bộ dữ liệu mới chỉ **xác nhận lại ở quy mô**:
-locus được viết khác nhau ở **8/34** cặp, và kiểm bằng code thì **cả hai cách viết resolve về cùng
-một khoá chuẩn `ndhI`** — nên một so sánh trải qua cả hai bộ vẫn ghép đúng locus này. Cặp genome
-vàng **không đổi số** (cả hai bản NCBI đều viết `ndhL`). **Không có mục alias mới nào được thêm**:
-một mục đã đúng thì việc phải làm là một test canh nó, không phải viết lại nó.
-
-**Đã ghim — P4a-01, Done-when đạt:**
-
-| Panel | Nội dung | Kiểm lại |
-|---|---|---|
-| `.panel/iridaceae-34/` | 34 bản công bố + `fasta.json` | 34 bản ghi · integrity OK (sha256 · md5 · bytes · số đo đọc lại) · **0** rớt gate · 2.924 CDS + 1.292 tRNA + 272 rRNA |
-| `.panel/iridaceae-34-pga/` | 34 bản PGA | 34 bản ghi · integrity OK · **3** rớt gate, từng bản ghi được nêu tên · 2.887 CDS |
-| `fasta.json` | 68 mục (2 × 34) | mỗi sha256 đọc lại đúng · **68/68 chuỗi FASTA trùng khít bản ghi đã pin** |
-
-**Một khoảng trống đo được, thuộc P4a-04:** `plastid run -i` **chỉ đọc GenBank**
-(`cli.py` → `read_genbank`); `read_fasta` mới chỉ có ở đường `mito annotate`. Muốn chạy Chloe trên
-34 chuỗi trần thì `plastid run` cần một cửa FASTA — hoặc chạy trên bản ghi đã bóc chú giải (cách
-P3A-07 đã làm), vì hai đường mang **cùng chuỗi** (đã kiểm 68/68).
-
-**Bộ fixture đã vendor (P4a-02, Done-when đạt).** Bộ dữ liệu 28 MB không commit; cái được vendor là
-**tập nhỏ nhất mà mỗi file mang sẵn một đáp án viết ra được** — 5 file · 1,3 MB ở
-`tests/data/corpus/`, ba cặp:
-
-| Cặp | Bản công bố | Bản PGA | Điều nó kiểm |
-|---|---|---|---|
-| genome vàng | `NC_050833.1.gb` (**đã có sẵn**, sha256 trùng khít file của bộ) | 85 CDS | hợp đồng §6 không phải thuộc tính của chuỗi, mà của chú giải |
-| *Iris hermona* | 26.132 bp @ 100,00 % — **qua gate** | 26.180 bp @ **26,36 %** — **rớt gate** | một chuỗi, hai phán quyết; fixture hồi quy cho §9.A |
-| *E. bulbosa* (bản ghi của nhóm) | **133 = 87 + 38 + 8** | **131 = 85 + 38 + 8** | cùng kiểu mất bản sao, trên chính bản ghi nhóm quan tâm |
-
-12 test tier-A trong `tests/golden/test_corpus.py` khoá từng con số trên, **và khoá cả điều làm
-cho cặp fixture có nghĩa: hai file của một cặp mang chuỗi giống nhau** (nếu điều đó thôi đúng thì
-mọi kết luận "hai chú giải khác nhau" đang đo một thứ khác). Kèm một test mới canh **mọi file dưới
-`tests/data` đều có trong `SHA256SUMS` và khớp** — một file đã vendor mà không ai kiểm được thì
-không phải là file đã ghim. Cặp hermona còn được chạy qua CLI: **exit 0** và **exit 2**, không có
-output module nào sau khi gate chặn. `make check` xanh: **545 fast + 42 golden**.
-
-**Một đính chính trong chính phiên này:** bảng Phase 4a ban đầu ghi D4a-05 là "thêm alias
-`ndhI`↔`ndhL`". Kiểm lại thì **mục đó đã nằm trong `data/gene_aliases.yaml` từ 03/10** (§8.17, đo
-khi Chloe chú giải genome vàng — cùng toạ độ, cùng 543 bp, và phức hệ ndh chỉ có tiểu đơn vị A–K).
-Hôm nay chỉ là đo lại ở quy mô 34 bản ghi, **không có mục alias mới nào được thêm** — việc phải
-làm là một test canh nó, và test đó đã có.
-
-### 8.32. Quy mô: 34 bản ghi tốn bao nhiêu (P4a-03, 04/10/2026)
-
-**Máy đo — phải nói ra, vì một con số quy mô không có máy thì không phải là con số:** Intel
-i7-1165G7 @ 2,80 GHz · 6 vCPU trong WSL2 · **8.135.488 kB RAM** (~7,8 GB), ~4 GB trống. Đúng lớp
-máy phổ thông mà dự án nhắm tới, và đúng trần bộ nhớ đã ghi ở §9.14.
-
-**Cách đo:** mỗi lần một module, `plastid run -m <module> -i <genome…>`, tham chiếu đứng đầu, và
-**`--force` mọi lượt** — cache của run layer khoá theo `module_version` chứ không theo mã nguồn
-(H-08), nên một lượt ăn cache là một lượt đo … việc tra cache. Số là `Elapsed` và `Maximum
-resident set size` của `/usr/bin/time -v`; đã kiểm GNU time **có** tính RSS đỉnh của tiến trình
-con (đo bằng một tiến trình con ngốn 300 MB: báo 317 MB).
-
-**Chín module một-genome, cả 34 bản ghi:**
-
-| Module | 34 lượt | RAM đỉnh |
-|---|---|---|
-| `genome_stats` | 20,5 s | 87 MB |
-| `structure` | 21,6 s | 87 MB |
-| `introns` | 21,9 s | 87 MB |
-| `ssr` (MISA kèm theo) | 25,5 s | 87 MB |
-| `codon_usage` | 22,8 s | 87 MB |
-| `amino_acid` | 23,9 s | 87 MB |
-| `orf` | 12,9 s | 51 MB |
-| `gene_table` | 15,3 s | 51 MB |
-| `submission` | 12,7 s | 52 MB |
-
-**Cả một panel chỉ là chuyện vài phút, không cần chia lô.** 87 MB không phải ngẫu nhiên: đó là
-giá của một lần BioPython đọc một bản ghi ~300 kB, và nó giống nhau ở mọi module có đọc gen.
-
-**Hình dạng đắt tiền: một phép align cả bộ gen.** Ba module align **tham chiếu + mọi genome, cả
-chuỗi**: `substitutions` (scope mặc định `whole`), `diversity` và `barcodes` — cùng một phép toán
-trên cùng đầu vào, nên một đường cong mô tả cả ba:
-
-| Số genome | Thời gian | RAM đỉnh | Kết cục |
-|---|---|---|---|
-| 4 | 1 ph 12 s | 91 MB | xong |
-| 8 | 2 ph 44 s | 97 MB | xong |
-| 16 | — | — | **vượt 7 phút**, dừng |
-| 34 | — | — | **vượt 11 phút**, dừng |
-
-**Giới hạn ở đây là sự kiên nhẫn, không phải RAM.** Align cả bộ gen của 34 plastome đỉnh dưới
-100 MB trên máy 8 GB — trần bộ nhớ mà dự án lo (§9.14) **không phải** thứ chặn nó. Thứ chặn nó là
-thời gian: MAFFT căn tiến dần trên 5,2 Mbp ở độ phân kỳ này tốn hàng chục phút một lõi, và chi phí
-tăng **nhanh hơn** số genome — 4 → 8 genome gấp đôi thời gian, 8 → 16 gấp hơn hai lần nữa.
-
-**Đường rẻ là đường mà hai bản thảo vốn đã dùng.** `substitutions --set scope=cds` thoát **trước**
-khi dựng alignment cả bộ gen (mã module: `if scope == "cds": return _cds_scope(...)`) và align theo
-từng gen. Đó đúng là scope **chỉ CDS · gen dùng chung · không tính IR** của số vàng §6, và là con số
-hai bản thảo trích dẫn. Đo ở N = 34: **5 ph 24 s · 179 MB · xong** — trong khi scope cả bộ gen chưa
-xong sau 11 phút trên đúng 34 chuỗi đó. Scope CDS tốn RAM hơn (179 MB so với 97 MB, vì giữ 79
-alignment theo gen trong bộ nhớ) và là cái duy nhất chạy xong: trên máy 8 GB, **RAM là thứ rẻ hơn**.
-
-**Hai module theo từng cặp, ở N = 34** — và đây là chỗ một dự đoán đọc từ code bị số đo cãi:
-
-| Module | Lượt gọi tool | Thời gian | RAM đỉnh |
-|---|---|---|---|
-| `synteny` (`nucmer` → `delta-filter` → `show-coords` mỗi query) | 99 | **19,6 s** | 145 MB |
-| `popgen` (MAFFT mỗi gen, thống kê tự viết) | 80 | **6 ph 13 s** | 179 MB |
-| `kaks` (MAFFT + `yn00` mỗi gen dùng chung, mỗi cặp) | 5.202 MAFFT + 4.766 yn00 = **9.968** | **8 ph 26 s** | 98 MB |
-
-**Số lượt gọi tool không phải thứ đắt — kích thước một alignment mới là.** 9.968 alignment hai
-chuỗi ngắn xong trong 8 ph 26 s; **một** alignment 34 plastome nguyên vẹn thì 11 phút chưa xong.
-Và 33 lượt `nucmer` — thứ được đoán là nửa chậm — hoá ra là phần nhanh nhất: **19,6 giây**. Đây
-đúng là lý do phép đo này tồn tại: giá của một module **không đọc được từ vòng lặp của nó** (con số
-viết tay ở bản nháp đầu nói "khoảng 2.600 mỗi loại"; đo được là 5.202 và 4.766).
-
-**Quy tắc chia lô, viết ra để dùng:**
-
-- Việc một-genome **không cần chia lô**: 34 genome × 9 module dưới 4 phút, dưới 100 MB.
-- Align **cả bộ gen** thoải mái tới **8 genome** (2 ph 44 s), quá 16 là vượt 7 phút ⇒ trên mức đó
-  dùng scope theo gen.
-- Thiết kế **theo từng cặp** (nhiều lượt gọi nhỏ) chạy tốt ở N = 34: `kaks` 9.968 lượt gọi vẫn
-  xong trong 8,5 phút.
-- **Ngoại suy bị cấm**: mọi con số ở đây đo trên máy này (i7-1165G7, WSL2, trần 8 GB). Chúng chặn
-  một *hình dạng* chi phí, không phải một lời hứa cho máy khác.
-
-### 8.33. Ba cách đọc một chuỗi — công bố · PGA · Chloe trên 34 plastome (P4a-04, 04/10/2026)
-
-**Bối cảnh.** Bộ dữ liệu có 34 chuỗi trần (`.fasta`) và hai bản chú giải của **chính 34 chuỗi đó**.
-P4a-04 cho annotator của dự án (Chloe 0.1.18) chạy trên 34 chuỗi trần — lần đầu annotator gặp một
-bộ dữ liệu thật ở n = 34 — rồi đặt ba cách đọc cạnh nhau. Chuỗi giống nhau từng byte ở cả ba
-(đã kiểm: 34/34 cặp, và 68/68 FASTA khớp bản ghi đã pin, §8.31), nên **mọi khác biệt dưới đây là
-khác biệt chú giải, không phải khác biệt dữ liệu.**
-
-**Một điều kiện phải mở trước.** `plastid run -i` chỉ đọc GenBank, nên không trỏ được vào một
-`.fasta` trần. Đã thêm cửa FASTA (chọn reader theo **dòng đầu của file**, không theo đuôi file —
-`.fa`/`.fasta`/`.fna`/`.fas` đều có ngoài kia), và việc đó làm lộ ra lỗi thứ ba cùng họ: `orf`
-**nói** trong comment rằng bản ghi không có CDS là input hợp lệ, nhưng bảng per-CDS được dựng
-**trước** dòng bảo vệ nó, nên đường đó chưa từng chạy (§9.I.3).
-
-**Kết quả: 34/34 chú giải được, không bản ghi nào lỗi.**
-
-| | CDS | tRNA | rRNA |
-|---|---|---|---|
-| Bản công bố (bộ 01) | 2.924 | 1.292 | 272 |
-| PGA (bộ 02) | 2.887 | 1.292 | 272 |
-| **Chloe 0.1.18** | **2.922** | 1.292 | 272 |
-
-Chloe: **0 CDS lỗi kiểm ORF** trên 2.922 CDS (201 `alternative_start`, còn lại `ok`), **0** gen
-không xếp được nhóm, 340 tên in kèm synonym, ~35 s mỗi bản ghi. Mọi đầu ra đọc lại bằng chính
-reader của dự án (đó là cách module `annotation` sinh ra bảng).
-
-**Không bản ghi nào ba cách đọc đồng ý (0/34)** — kể cả ở mức đếm gen. Khác biệt chia hai loại, và
-tỉ lệ giữa chúng mới là kết quả:
-
-**Loại 1 — từ vựng: cùng locus, khác cách viết.** Ở 4 bản ghi, bản công bố viết `trmA-UGC` ·
-`trnL-CAU` · `trnL` (trần) · `trnG-UCC` nơi **PGA và Chloe cùng** viết `trnA-UGC` · `trnI-CAU` ·
-`trnL-UAG` · `trnG-GCC`. Không có anticodon leucine `CAU` — bộ ba Leu là UUA/UUG/CUU/CUC/CUA/CUG —
-nên `trnL-CAU` là cách viết của `trnI-CAU`: đúng họ với alias `trnL-GUA → trnI-GAU` đã ghi ở §8.28.
-
-**Loại 2 — kết luận khác nhau: gen có/không, hoặc bao nhiêu bản sao.**
-
-| Khác biệt | Số bản ghi |
-|---|---|
-| `ycf1` có CDS ở bản công bố, **cả PGA và Chloe đều không gọi** | **24/34** |
-| `rps12` (trans-spliced): Chloe gọi **2 bản sao**, hai bên kia gọi 1 | **22/34** |
-| `pafII` (`ycf4`) chỉ bản công bố có | 2/34 |
-| `rps19` chỉ bản công bố có | 1/34 |
-| `rps16` chỉ bản công bố có (chính bản ghi *Libertia* ở §9.I.2) | 1/34 |
-
-**Đọc kết quả này cho đúng — đây không phải bảng xếp hạng annotator.**
-
-- Không bản ghi nào ba bên đồng ý, nên *"annotator nào đúng"* không phải câu bộ dữ liệu này trả
-  lời được. Câu nó trả lời được: **ba đường ống đọc cùng một chuỗi ra ba tập gen khác nhau, và
-  khác nhau ở những chỗ xác định** — không phải nhiễu rải rác.
-- Năm khác biệt về gen đều xoay quanh hai locus khó nhất của plastome: **`ycf1`** (nằm ở ranh giới
-  IR/SSC, gen dài nhất, nhiều bản ghi cụt hoặc chồng `ndhF` — đúng cái bẫy §8.11 đã ghi cho genome
-  vàng, nơi ycf1 cụt và **không có CDS**) và **`rps12`** (trans-spliced, 3 exon, hai bản sao nằm ở
-  hai IR — gọi 1 hay 2 bản sao là quyết định của annotator, không phải của chuỗi).
-- **`132 = 86 + 38 + 8` không phải hằng số.** Trong bộ này bản công bố cho 84–87 CDS, Chloe 84–87,
-  PGA 84–85. Đúng cái bẫy P2-10 đã đo (131 và 133 ở hai loài khác) — và là lý do không check nào
-  được hard-code "86 CDS".
-
-**§8.15 đo lại ở n = 34.** Kết luận cũ — PGA bị thay sau khi đo **một** genome (147 gen so với 132
-của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mất 37 CDS** so với bản công bố và
-**3/34 bản ghi rớt gate IR** (§8.31). Chloe, trên cùng bộ dữ liệu: 34/34 chú giải, 0 CDS lỗi ORF.
-
-**Còn lại của pha:** không — P4a-01…04 xong.
-
----
 
 ---
 
@@ -1870,7 +407,7 @@ của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mấ
 ### A. Lỗi "sai mà không báo" ở khâu nhận diện IR
 
 1. Cách viết đơn giản khớp chú giải NCBI **7/9** ca, **sai 2/9** và **không báo lỗi** (số ở §8.3).
-2. **2/9 IR có hai bản đã phân hoá** (khớp tổng 92,63 % và 53,65 %) ⇒ phép so khớp **không cho phép gap** sai ở nhóm này.
+2. **2/9 IR có hai bản đã phân hoá** (khớp tổng 92,63 %; ca thứ hai **đo lại ở §8.5 = 98,87 %**, không phải 53,65 % của bản đo đầu — cổng vẫn cắm cờ vì < 99,9 %) ⇒ phép so khớp **không cho phép gap** sai ở nhóm này.
 3. Ranh giới IR trong chú giải GenBank là **quy ước của người chú giải**, không phải kết quả so khớp.
 4. **Hằng số ghép cặp phải là c − 2**; lệch 1 base → IR đo ra **1 bp** mà chương trình **không báo lỗi**.
 5. **Điểm bắt đầu genome**: 1/20 genome RefSeq bắt đầu ngoài LSC; tài liệu dẫn 27,67 % trên GenBank rộng.
@@ -1881,17 +418,18 @@ của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mấ
    5 loài Coleus còn lại đều ~25,7 kb → cổng **PASS** (cổng chỉ kiểm *identity*, không kiểm *độ dài*).
    Đo mở rộng vùng ra hai bên cho thấy identity rơi ngay lập tức ⇒ **dữ liệu sai**, không phải detector
    bỏ sót. Hệ quả: **bản ghi không chú giải thì không có gì đối chiếu IR** — cần kiểm tra chéo độ dài IR
-   với các bản cùng chi trước khi dùng cho phân tích theo vị trí (ghi thành việc mở, chưa làm).
+   với các bản cùng chi trước khi dùng cho phân tích theo vị trí (việc mở: **H-13**).
 
 ### B. Đếm gen, SSR, Ts/Tv
 
-8. **"135 gen" không tái lập được** từ bất kỳ cách đếm nào: 132 (CDS+tRNA+rRNA) · 133 (feature `gene`) · 112 (tên duy nhất) · 21 (gen lặp IR).
-9. **1 bản `ycf1` cụt** gây lệch cách đếm: tại 108.448–109.347 chỉ có `gene` + `misc_feature` (không CDS); bản thật ở 122.984–128.404 mới có CDS.
-10. Bản tự viết đếm SSR ra **36** (thiếu 1); MISA và cpstools đều ra **37**.
-11. **"mono 10 · di 6 · tri 5 · tetra 4 · penta 4 · hexa 4" là ngưỡng MISA, không phải số lượng.** Phân loại thật: mono 31 · di 4 · tri 2.
-12. **Số SSR phụ thuộc ngưỡng**: ≥8 → 133 · ≥10 → 36 · ≥12 → 16. `misa.ini` của anh Điềm dùng `(1/10)(2/6)(3/5)(4/5)(5/5)(6/5)`; tài liệu MISA ghi mặc định 4 cho unit 5–6 bp.
-13. **Ts/Tv phụ thuộc cách căn**: difflib 2,667 vs MAFFT 2,686.
-14. **Mới 03/10/2026 — parser GFF của MISA đọc thiếu một nửa từ vựng (im lặng).** MISA ghi SSR
+9. **"135 gen" không tái lập được** từ bất kỳ cách đếm nào: 132 (CDS+tRNA+rRNA) · 133 (feature `gene`) · 112 (tên duy nhất) · 21 (gen lặp IR).
+10. **1 bản `ycf1` cụt** gây lệch cách đếm: tại 108.448–109.347 chỉ có `gene` + `misc_feature` (không CDS); bản thật ở 122.984–128.404 mới có CDS.
+11. Bản tự viết đếm SSR ra **36** (thiếu 1); MISA và cpstools đều ra **37**.
+12. **"mono 10 · di 6 · tri 5 · tetra 4 · penta 4 · hexa 4" là ngưỡng MISA, không phải số lượng.** Phân loại thật: mono 31 · di 4 · tri 2.
+13. **Số SSR phụ thuộc ngưỡng**: ≥8 → 133 · ≥10 → 36 · ≥12 → 16. `misa.ini` của anh Điềm dùng `(1/10)(2/6)(3/5)(4/5)(5/5)(6/5)`; tài liệu MISA ghi mặc định 4 cho unit 5–6 bp.
+14. **Ts/Tv phụ thuộc cách căn**: difflib 2,667 vs MAFFT 2,686 — đo trên bộ 76 gen lúc đó;
+    số vàng nay là **2,6917** trên 79 gen (§8.27). Phép đo này là về *aligner*, không về bộ gen.
+15. **Mới 03/10/2026 — parser GFF của MISA đọc thiếu một nửa từ vựng (im lặng).** MISA ghi SSR
     monomeric là `monomeric_repeat`, nhưng **mọi** unit dài hơn là `microsatellite` (lớp nằm
     trong cột Note), và một cụm compound là **một** dòng `repeat_region` chứa nhiều thành phần.
     Parser cũ chỉ nhận `monomeric_repeat` ⇒ **mất 7/37 SSR** (bảng per-SSR còn 30 dòng) trong khi
@@ -1899,53 +437,53 @@ của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mấ
     Phát hiện bằng cột đối chiếu của P2-06. **Bài học:** fixture test cũ tự bịa type
     `dinucleotide_repeat` mà MISA không bao giờ ghi ⇒ test xanh nhưng sai; fixture phải lấy
     **hình dạng dòng thật**.
-15. **Mới 03/10/2026 — thứ tự các phần của CDS trans-spliced.** Sắp xếp lại các part, hoặc đọc
+16. **Mới 03/10/2026 — thứ tự các phần của CDS trans-spliced.** Sắp xếp lại các part, hoặc đọc
     tất cả theo mạch của gen, đều cho ORF sai. Đo trên **cả hai** bản rps12 của genome vàng:
     chỉ cách "đọc từng part theo mạch của chính nó, giữ nguyên thứ tự annotation" mới ra
     `ATG…TAA` (sắp xếp lại → `AAT…TAT`; đọc xuôi hết → `ATA…ATT`).
-16. **Mới 03/10/2026 — khoá bảng trùng thì tham chiếu rơi vào một dòng bất kỳ.** Gen nằm trong IR
+17. **Mới 03/10/2026 — khoá bảng trùng thì tham chiếu rơi vào một dòng bất kỳ.** Gen nằm trong IR
     có 2 bản nên `intron_id`/tên gen lặp; `Table` đã được vá để **từ chối** khoá trùng.
-17. **Mới 03/10/2026 — `yaml.YAMLError` KHÔNG phải `ValueError`.** File YAML hỏng làm `load_groups`
+18. **Mới 03/10/2026 — `yaml.YAMLError` KHÔNG phải `ValueError`.** File YAML hỏng làm `load_groups`
     ném traceback thay vì thông báo; đã dịch lỗi tại biên.
-18. **Mới 03/10/2026 — `annotated=True` là một lời khai chưa ai kiểm.** `entry_from_summary` cũ
+19. **Mới 03/10/2026 — `annotated=True` là một lời khai chưa ai kiểm.** `entry_from_summary` cũ
     đặt `annotated=True` cho mọi bản ghi; thực đo trên bộ dữ liệu thay thế: **3/11 plastome có
     0 CDS** (GenBank không mặc nhiên có chú giải). Đã sửa: chỉ tin RefSeq, bản GenBank **đo sau
     khi tải**.
-19. **Mới 03/10/2026 — dòng `Total` của bảng đối chiếu tự tố cáo chính nó.** Lần chạy đầu của
+20. **Mới 03/10/2026 — dòng `Total` của bảng đối chiếu tự tố cáo chính nó.** Lần chạy đầu của
     `gene_table`: CDS 86/86 · tRNA 38/38 · rRNA 8/8 đều `agrees`, nhưng dòng **Total ra
     `in_table = 0`** — `by_kind.get("Total")` trên một `Counter` chỉ có ba khoá CDS/tRNA/rRNA.
     Đúng loại lỗi mà cột đối chiếu sinh ra để bắt: nếu bảng chỉ in số mà không tự so, một dòng
     tổng bằng 0 sẽ nằm giữa bảng và **không ai kiểm**. Đã sửa (`_in_table`), thành test.
 
-20. **Mới 03/10/2026 — biến đổi trình tự làm đúng SỐ GEN mà sai TOÀN BỘ KHUNG (§8.17).**
+21. **Mới 03/10/2026 — biến đổi trình tự làm đúng SỐ GEN mà sai TOÀN BỘ KHUNG (§8.17).**
     Chloe mặc định đảo chiều vùng sao chép đơn rồi chú giải hệ toạ độ đó. Hệ quả đo được: **132 gen
     — y hệt, tên y hệt**, nhưng **12/86 CDS hỏng ORF** khi đọc với trình tự người dùng đưa vào, và
     vị trí các gen ở SSC lệch hẳn (ndhH ở 114.734–115.915 (+) thay vì 120.937–122.118 (−)).
     **Bài học:** một con số đếm được không chứng minh được hệ toạ độ; phải có một phép kiểm *theo
     vị trí* (ở đây: dịch ORF) mới thấy. Đây là lý do P3-03 bắt buộc "đọc lại bằng reader của mình"
     chứ không tin output của annotator.
-21. **Mới 03/10/2026 — annotator và bản ghi vàng gọi CÙNG một locus bằng hai tên khác nhau.**
+22. **Mới 03/10/2026 — annotator và bản ghi vàng gọi CÙNG một locus bằng hai tên khác nhau.**
     `ndhI` (Chloe) = `ndhL` (bản ghi vàng): cùng vị trí, **cùng protein**, và `/product` của bản
     ghi vàng ghi "subunit I" ⇒ thành cặp alias thứ năm. Ca thứ hai **chưa chốt**: `trnG-GCC` vs
     `trnG-UCC` — bản ghi vàng dùng **một tên cho hai bản tRNA khác trình tự**, mà bộ gen chuẩn có
     cả hai gen. Không tự sửa: đo anticodon bằng offset cố định chỉ khớp 11/38 tRNA ⇒ **không đủ
     bằng chứng**, đưa vào §10 cho PI quyết.
 
-22. **Mới 03/10/2026 — ba thứ định dạng nộp bắt buộc mà model gene không mang (§8.18).**
+23. **Mới 03/10/2026 — ba thứ định dạng nộp bắt buộc mà model gene không mang (§8.18).**
     Chạy `table2asn` thật trên genome vàng: **13 lỗi**, sửa ba chỗ còn **7**. Hai chỗ đầu là
     *passthrough* (feature `source`, qualifier `/exception`) — bản ghi có, mình bỏ. Chỗ thứ ba là
     một quy ước: **CDS không mở đầu bằng mã khởi đầu hợp lệ thì phải ghi start partial**, nếu
     không NCBI báo `BadProteinStart`. Bài học: một model chỉ giữ những gì module *hiện tại* cần
     thì mỗi định dạng xuất ra sẽ phát hiện lại từ đầu những gì nó bỏ.
-23. **Mới 03/10/2026 — "exit 0" không phải là tiêu chí của `table2asn`.** Nó **exit 2** khi chỉ
+24. **Mới 03/10/2026 — "exit 0" không phải là tiêu chí của `table2asn`.** Nó **exit 2** khi chỉ
     *cảnh báo* về một qualifier lạ (`mol_type`, `db_xref`) trong khi `.sqn` vẫn đúng; bảng nộp
     thật của *Dioscorea alata* cũng exit 2 vì lý do đó. Nghĩa là: đọc `.val`/`.stats`, đừng tin
     mã thoát. Và ngược lại — `.tbl` thiếu feature `source` thì **vẫn exit 0** nhưng bị đánh 2 lỗi.
-24. **Mới 03/10/2026 — phép kiểm mới chỉ có giá trị khi có ĐỐI CHỨNG.** 7 lỗi
+25. **Mới 03/10/2026 — phép kiểm mới chỉ có giá trị khi có ĐỐI CHỨNG.** 7 lỗi
     `GeneXrefStrandProblem` trông như lỗi của mình cho tới khi chạy **cùng validator** trên một
     bảng nộp đã được chấp nhận (Dioscorea) và thấy nó cũng đúng 7 lỗi cùng lớp. Không có đối
     chứng thì hoặc là sửa những thứ không hỏng, hoặc là bỏ qua những thứ hỏng thật.
-25. **Mới 03/10/2026 — thư viện viết GenBank ghi ra cú pháp không ai dùng, và round-trip bằng
+26. **Mới 03/10/2026 — thư viện viết GenBank ghi ra cú pháp không ai dùng, và round-trip bằng
     chính nó thì vẫn xanh.** BioPython gặp qualifier trần (`/pseudo`, `/trans_splicing`) dưới dạng
     **chuỗi rỗng** thì ghi `=""`; gặp `None` mới ghi `/pseudo` trần. File `=""` vẫn đọc lại được
     bằng chính BioPython, nên một test kiểu "ghi rồi đọc bằng thư viện đã ghi" **xanh trong khi
@@ -1955,7 +493,7 @@ của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mấ
 
 ### C. Môi trường & vận hành
 
-20. **`chloroplast[filter]` của NCBI bỏ sót bản ghi ghi "plastid"** (đo 03/10/2026, khi chạy
+27. **`chloroplast[filter]` của NCBI bỏ sót bản ghi ghi "plastid"** (đo 03/10/2026, khi chạy
     Reference Panel thật): `Iridaceae[Organism] AND refseq[filter] AND chloroplast[filter]` → **71**;
     đổi sang `plastid[filter]` (hoặc `(chloroplast OR plastid)`) → **76**, khớp con số §8.3. Ca cụ thể:
     **NC_024936.1** (*Iris gatesii* — chính genome so sánh của bộ số vàng) có title
@@ -1966,13 +504,13 @@ của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mấ
     `a946f23e…` — **khớp đúng byte** với dữ liệu vàng đang vendor trong repo; NC_024936.1 ra
     `fd441727…` cũng khớp. Nguồn dữ liệu vàng được xác nhận lại end-to-end.
 
-14. **Máy 8 GB không đủ cho phần lắp ráp:** WSL2/Docker mặc định ~50 % RAM host → còn **1,5–2,5 GB mỗi việc**; 120.000 cặp read là hết RAM (phải hạ còn 20.000); flye cần ≥8 GB.
-15. **Dò công cụ theo PATH là không đủ**: `misa.pl` ở `~/toolbox/src/misa/`; `nucmer`/`repeat-match` phải activate env `mummer4`; `trf` không có.
-16. **Đường dẫn có dấu tiếng Việt** gây lệch đường dẫn giữa hai máy (thư mục "chạy Trí").
-17. Script gửi kèm **không tới được máy anh Điềm** — anh làm ở thư mục khác (`D:\diem\bai bao tool\ke_hoach_new\chạy Trí\probe`).
-18. `docker` không gọi được từ WSL trước khi bật WSL Integration (thông báo lỗi ở §8.4).
-19. Chuỗi phân tích trên máy 2,8 GB dùng 331 MB và 9,8 giây.
-20. **Mới 03/10/2026 — bộ tỉa style đọc sai chỗ, và bản render vẫn "trông ổn".** Style trong
+28. **Máy 8 GB không đủ cho phần lắp ráp:** WSL2/Docker mặc định ~50 % RAM host → còn **1,5–2,5 GB mỗi việc**; 120.000 cặp read là hết RAM (phải hạ còn 20.000); flye cần ≥8 GB.
+29. **Dò công cụ theo PATH là không đủ**: `misa.pl` ở `~/toolbox/src/misa/`; `nucmer`/`repeat-match` phải activate env `mummer4`; `trf` không có.
+30. **Đường dẫn có dấu tiếng Việt** gây lệch đường dẫn giữa hai máy (thư mục "chạy Trí").
+31. Script gửi kèm **không tới được máy anh Điềm** — anh làm ở thư mục khác (`D:\diem\bai bao tool\ke_hoach_new\chạy Trí\probe`).
+32. `docker` không gọi được từ WSL trước khi bật WSL Integration (thông báo lỗi ở §8.4).
+33. Chuỗi phân tích trên máy 2,8 GB dùng 331 MB và 9,8 giây.
+34. **Mới 03/10/2026 — bộ tỉa style đọc sai chỗ, và bản render vẫn "trông ổn".** Style trong
     OOXML được tham chiếu bằng **phần tử con** (`<w:pStyle w:val="Heading1"/>`), không phải
     thuộc tính. Bản đầu đọc `element.get("w:pStyle")` ⇒ không thấy style nào được dùng ⇒ tỉa
     gần hết, kể cả `Title` và `Heading 1`. **LibreOffice vẫn render ra hình như bình thường**
@@ -1982,7 +520,7 @@ của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mấ
 
 ---
 
-21. **Mới 04/10/2026 — cache không biết code đã đổi, nếu version không đổi.** Cache của run layer
+35. **Mới 04/10/2026 — cache không biết code đã đổi, nếu version không đổi.** Cache của run layer
     nằm ở `.runs/.cache` — **dùng chung giữa các run** — và khoá cache gồm `module_id ·
     module_version · params · sha256(input) · IR fingerprint`, **không** gồm mã nguồn module. Đo
     được: sửa scope CDS của `substitutions` xong chạy lại, module trả về **`cached`** và phục vụ
@@ -1992,7 +530,7 @@ của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mấ
     việc mở (H-08): hoặc cache khoá thêm hash mã nguồn, hoặc CI kiểm rằng một module đổi hành vi
     mà không đổi version thì không được cache.
 
-22. **Mới 04/10/2026 — log của công cụ bị GHI ĐÈ: mọi run chỉ giữ lần gọi cuối cùng.** Bộ đếm
+36. **Mới 04/10/2026 — log của công cụ bị GHI ĐÈ: mọi run chỉ giữ lần gọi cuối cùng.** Bộ đếm
     thứ tự log dùng `glob("*__{tên}__*.stdout.log")` — pattern này **không khớp** tên file nó sắp
     ghi (`001__mafft__stdout.log`, không có dấu chấm trước `stdout`), nên bộ đếm luôn bằng 0 và
     **mỗi lần gọi ghi đè lên lần trước**. Đo được trên một run thật: 616 lần gọi MAFFT ⇒ **1 file
@@ -2056,8 +594,8 @@ của genome vàng) — nay có nền rộng hơn: trên 34 plastome, PGA **mấ
    tay; **adapter MAFFT chưa từng có test**. Bài học: một adapter không có test thì hành vi thật
    của công cụ chưa từng được kiểm — "đã kiểm bằng unit test" không đồng nghĩa với "đã chạy thật".
    Đã sửa: upper-case ở biên, và model **từ chối** chữ thường.
-2. **Hai scope, hai con số, không được lẫn**: Ts/Tv 2,686 (chỉ CDS, 76 gen, bỏ IR) so với 1,8416
-   (cả bộ gen). Cùng một cặp genome. Mọi bảng phải mang nhãn scope — đây là ca chứng minh vì sao
+2. **Hai scope, hai con số, không được lẫn**: Ts/Tv **2,6917** (chỉ CDS · 79 gen · bỏ IR — số đo
+   lại 04/10, §8.27; trước đó là 2,686 trên 76 gen) so với **1,8416** (cả bộ gen). Cùng một cặp genome. Mọi bảng phải mang nhãn scope — đây là ca chứng minh vì sao
    luật đó tồn tại.
 
 ### H. Một con số được ghi vào kế hoạch nhưng không thuộc về dữ liệu của nó (P4-01/D4-04)
@@ -2118,9 +656,44 @@ thứ 12 của một bộ 34** — cả hai đều nằm trong dữ liệu công
 một bản ghi thành không phân tích được. Một bộ fixture do mình tự chọn sẽ không bao giờ có chúng,
 vì mình chọn những bản ghi chạy được.
 
+### J. Hai bào quan trong mã nguồn — bốn số đo (05/10/2026)
+
+Đo khi soát lại luật "mỗi lần chạy đúng một bào quan" (D5-06) và D5-07 trong chính mã nguồn. Ba
+trong bốn số thuộc **đường ty thể** ⇒ chúng được **ghi tên**: H-09 và H-11 **mở**, H-12 **hoãn**
+cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào bảng của bản thảo lục lạp.
+
+37. **`gene_names` không chọn từ vựng theo bào quan.** Bảng nhóm ở §13 xếp module này vào "Dùng
+    chung" vì "chọn từ vựng theo `/organelle` của bản ghi" — nhưng `modules/gene_names.py` nạp
+    `load_gene_aliases()` (bảng plastid) cho **mọi** bản ghi; hàm chọn từ vựng thật
+    (`core/gene_names.aliases_for`) chỉ được `cds_by_canonical_name` dùng (substitutions · kaks ·
+    popgen). Đo: `plastid run -m gene_names` trên `OX459128.1` + `AP045469.1` → **0** renamed ·
+    **0** "two nomenclatures"; cùng lúc `mito_genes` trên đúng `OX459128.1` → **31/51** gen được
+    gọi bằng ký hiệu chuẩn. Một module khai "dùng chung" mà trả lời bằng từ vựng plastid là kiểu
+    "im lặng" quen thuộc ⇒ **H-12**.
+38. **Bảng mã dịch: hai câu trả lời cho "lục lạp dùng bảng nào".** `core/codon.py` viết "Plastids
+    use the standard code" và `codon_usage`/`amino_acid` in "NCBI table 1", trong khi
+    `modules/annotation.py` khẳng định "plastids translate with NCBI table 11" — và D3-03 đã đo
+    cả 1.099 CDS đều khai 11. Đo trên genome vàng: **5/86 CDS** mở đầu bằng mã không-ATG
+    (`rps19` GTG ×2 · `rpl2` ACG ×2 · `ndhD` ATC) và `translate()` đọc chúng thành **V · T · I**,
+    trong khi protein công bố mở đầu bằng M. Sửa 05/10: nhãn bảng nay ghi **bảng mà bản ghi
+    khai** kèm quy ước "mã khởi đầu đọc như chính nó" (**không con số nào đổi**), và dòng D2-03
+    vào §3. **Cùng gốc, đo cùng ngày:** `orf` chọn bảng mặc định **1** khi bản ghi không khai
+    `/transl_table`, còn đường chú giải lục lạp đóng dấu **11** cho đúng sự im lặng đó — hai đường
+    trả lời một câu hỏi theo hai cách (`src/plastid/data/defaults.yaml`; H-09).
+39. **Artifact mito không khai `/organelle` (xác nhận lại H-11).** Đo trên
+    `.panel/mito-prototype/AP045469.1.gb`: **0** feature `source`, **0** qualifier `/organelle`,
+    `Genome.source == {}` — `read_fasta` không có gì để khai và `mito_annotate` chép nguyên
+    `source` của input. Hệ quả: `aliases_for` trên chính artifact đó rơi về từ vựng plastid.
+40. **Artifact mito không qua nổi chính bộ kiểm của `submission`.** `plastid run -m submission`
+    trên artifact đó → **24 first-pass problems**, **23** là "CDS carries no /product" (module
+    `mito_annotate` cố ý không viết `/product` — lý do có ghi trong docstring của nó), và các
+    file **vẫn được ghi ra** kèm ghi chú "not ready to submit". Tức `submission` **báo, không
+    chặn** — chữ "refuses" trong H-11 đã sửa lại cho đúng hành vi. Hai chốt (D3A-05 "chú giải +
+    nộp" và "không tự bịa `/product`") va nhau ở đây; theo D5-07 ghi vào H-11 rồi hoãn.
+
 ## 10. Câu hỏi còn treo
 
-1. ~~Phạm vi con số Ts/Tv~~ — **ĐÃ CHỐT 02/10**: cổng dùng **chỉ vùng CDS · 76 gen dùng chung · căn bằng MAFFT**, **không tính vùng lặp IR** ⇒ mốc **2,686** (317 Ts / 118 Tv). Số Ts/Tv của bộ Eleutherine (1,095–1,777) là phạm vi khác (SNP cả plastome) — chỉ dùng cho nội dung riêng của bộ đó và **phải dán nhãn phạm vi** ở mọi chỗ xuất ra.
+1. ~~Phạm vi con số Ts/Tv~~ — **ĐÃ CHỐT 02/10**: cổng dùng **chỉ vùng CDS · gen dùng chung · căn bằng MAFFT**, **không tính vùng lặp IR**. Bộ gen dùng chung được đo lại 04/10 **bằng locus, không bằng cách viết tên** ⇒ **79 gen, 2,6917** (323 Ts / 120 Tv, 68.448 cột — §6, §8.27). Số Ts/Tv của bộ Eleutherine (1,095–1,777) là phạm vi khác (SNP cả plastome) — chỉ dùng cho nội dung riêng của bộ đó và **phải dán nhãn phạm vi** ở mọi chỗ xuất ra.
 2. ~~Ngưỡng `misa.ini`~~ — **ĐÃ ĐÓNG 02/10**: file `misa.ini` đang dùng trên máy anh Điềm **chính là file gốc trong zip của IPK** (md5 `49a1c56048631647c0364532a6964cf9` khớp bản tải lại): `1-10 2-6 3-5 4-5 5-5 6-5`, interruptions 100, GFF true ⇒ **dùng đúng mặc định của MISA**, không phải tuỳ chỉnh.
 3. Ai có máy Mac để kiểm.
 4. **Dữ liệu còn thiếu:** có lấy được reads Illumina thật của 1 mẫu không (để đo ngưỡng bộ nhớ — hiện mới có read mô phỏng).
@@ -2128,13 +701,17 @@ vì mình chọn những bản ghi chạy được.
 6. ~~Hệ toạ độ sau chuẩn hoá~~ — **ĐÃ CHỐT 02/10**: bảng theo từng genome ghi **toạ độ GenBank**; hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá** (các vùng thẳng hàng nhau); mọi bảng ghi rõ hệ đang dùng; `rotation_offset` lưu trong `00_run_info`.
 7. ~~Cách sinh report~~ — **ĐÃ CHỐT 02/10**: sinh từ đối tượng `Result`. Mỗi số trong report trỏ về **đúng một ô** bảng gốc; template chỉ trỏ (`{{bảng.cột}}`, `{{bảng[dòng].cột}}`), không gõ số; ref không giải được ⇒ **raise**, không in trống. Yêu cầu "kiểm thử truy vấn số" (§13.5) được thoả bằng cấu trúc, không bằng kỷ luật.
 8. ~~Reference Panel: snapshot hay truy vấn sống~~ — **ĐÃ CHỐT 02/10**: engine gợi ý qua **cache RefSeq có ngày** (lệnh làm mới tường minh); người dùng chốt danh sách thì **tải + ghim checksum**; chạy lại offline, tái lập được.
-9. Mục **(c)** của Reference Panel còn thiếu
+9. Mục **(c)** của Reference Panel còn thiếu — đoạn văn bản nguồn (kế hoạch 22/9) **bị cụt đúng
+   ở đây**, cần cô Trang bổ sung — xem §13.1, mục (c)
 10. **Tên gen `trnG` in trong bảng bản thảo là tên nào (§8.17).** Bản ghi vàng NC_050833.1
     dùng `trnG-UCC` cho **cả hai** bản tRNA glycine (hai bản khác trình tự), Chloe gọi bản không
     intron là `trnG-GCC`, và bộ tRNA chuẩn của plastome có **cả hai** gen. Đây là chuyện *chữ in
     trong bản thảo / bản nộp*, tức việc của cô Trang (D3-06), không phải việc dev tự quyết — dev
     đã ghi lại đủ bằng chứng để cô Trang quyết trong một lần xem.
- — đoạn văn bản nguồn bị cụt.
+11. **Câu do máy sinh được phép khẳng định điều gì (D5-05).** Mặc định code đang chạy: chỉ nhắc
+    cột mà bảng nguồn mang, kèm n và tên kiểm định; **không** dùng từ ngữ nhân quả/thích nghi.
+    Đây là **phạm vi một tuyên bố khoa học** nên thuộc cô Trang — chờ chốt trước khi P5-03 viết
+    câu diễn giải (D5-05).
 
 ## 11. Nguồn tài liệu (ngoài file này)
 
@@ -2157,7 +734,7 @@ Nằm trong `D:\business\pts\`:
 ```bash
 conda create -y -p ~/toolbox/env/thaythe -c conda-forge -c bioconda \
   sibelia bandage getorganelle spades oatk mummer4 mreps trf vmatch \
-  raven-assembler novoplasty minimap2 samtools wgsim blast paml beast2 \
+  raven-assembler novoplasty minimap2 samtools wgsim blast aragorn paml beast2 \
   mafft perl perl-bioperl perl-xml-simple
 conda install -y -c conda-forge pycirclize
 conda install -y -c bioconda cpstools        # SỬA 02/10: cpstools KHÔNG có trên conda-forge (§7.8)
@@ -2174,9 +751,12 @@ md5sum misa_sourcecode_25082020.zip    # phải ra cf9d3579f7caacd02f99830b329c7
 unzip misa_sourcecode_25082020.zip -d ~/toolbox/src/misa
 ```
 
-**Sửa 02/10/2026:** thêm `mafft` và `perl` (thiếu thì không ra được số vàng Ts/Tv 2,686 và SSR 37);
+**Sửa 02/10/2026:** thêm `mafft` và `perl` (thiếu thì không ra được số vàng Ts/Tv và SSR 37);
 tách `cpstools` sang kênh bioconda; thêm lệnh tải MISA kèm md5. Lệnh cũ trong báo cáo anh Điềm giữ
 nguyên ở §8.1 để đối chiếu.
+
+**Sửa 05/10/2026:** thêm `aragorn` (bộ gọi tRNA mito, P3A-04). **Nguồn pin đầy đủ và luôn cập nhật
+là `environment.yml`** — khối này giữ làm bản gọn để đối chiếu §8.1.
 
 ---
 
@@ -2186,16 +766,30 @@ nguyên ở §8.1 để đối chiếu.
 
 **Điều kiện chung cho mọi giai đoạn** (đọc trước khi làm bất kỳ giai đoạn nào):
 
-- **Áp dụng cho cả lục lạp và ty thể** — trừ phần ước tính thời gian phân kỳ (chỉ cần cho bài báo công cụ).
+- **Áp dụng cho cả lục lạp và ty thể** — trừ phần ước tính thời gian phân kỳ (chỉ cần cho bài báo công cụ). Riêng **bảy phân tích chuyển tiếp** (bảng nhóm bên dưới) hôm nay **chỉ chạy được trên lục lạp**: chạy trên mitogenome thì dừng ở cổng IR trước khi mô-đun chạy — mở cho ty thể là H-10, **tạm hoãn** theo D5-07.
 - **Cổng bắt buộc ở mọi phân tích theo vị trí: hai bản IR phải giống ≥ 99,9 %.** Không đạt ⇒ cờ đỏ, **dừng**, không cho phân tích theo vị trí chạy tiếp. Lý do đo được: cách nhận diện IR thông thường sai âm thầm **2/9 ca (22 %)**, cổng này bắt đúng 2/2 ca sai và báo oan 0/7 ca lành (chi tiết §9 mục A).
 - **Cách đếm gen (không ghi trần "132 gen"):** **132 = 86 CDS + 38 tRNA + 8 rRNA**, không dùng feature `gene` (feature `gene` = 133, thừa 1 bản `ycf1` cụt; tên gen duy nhất = 112; gen lặp trong IR = 21). Khớp bài công bố Ai và cs. 2019.
-- **Phạm vi con số Ts/Tv dùng làm cổng:** **chỉ vùng CDS · 76 gen dùng chung · căn bằng MAFFT** ⇒ 2,686 (317 Ts / 118 Tv, 66.066 cột căn). Số của bộ Eleutherine (1,095–1,777) là **khác phạm vi** (SNP của cả plastome) — không được lấy ra đối chiếu trực tiếp. **Phạm vi này đã chốt 02/10** (chỉ CDS, không tính IR).
+- **Phạm vi con số Ts/Tv dùng làm cổng:** **chỉ vùng CDS · 79 gen dùng chung · căn bằng MAFFT · không tính IR** ⇒ **2,6917** (323 Ts / 120 Tv, 68.448 cột căn). Phạm vi chốt 02/10; **bộ gen dùng chung đo lại 04/10 bằng locus** — ba locus viết tên khác (`atpI`·`psaI`·`psbB` ↔ `atpL`·`psaL`·`bspB`) được tính vào (76 → 79 gen; 2,686 → 2,6917, §8.27). Số của bộ Eleutherine (1,095–1,777) là **khác phạm vi** (SNP của cả plastome) — không được lấy ra đối chiếu trực tiếp.
 - Mỗi lần chạy phải xuất **report công cụ + thông số** (tên công cụ · phiên bản · đường dẫn · tham số/ngưỡng · thời gian) và **chia output theo thư mục** để người dùng truy lại — yêu cầu đã chốt 02/10 (§2). Đây là điểm CGAS đang thiếu (§7.7).
 - **Chuẩn hoá bộ gen dùng chung**: xác định điểm bắt đầu/chiều và tách 4 vùng LSC/IRa/SSC/IRb — làm ở giai đoạn 1 rồi mọi giai đoạn dùng lại.
-- **Chạy ở đâu**: các giai đoạn 1–5 và 8 chạy trên **máy phổ thông**; giai đoạn 6 (thời gian phân kỳ) và giai đoạn 7 (lắp ráp) cần **máy chủ từ xa** (máy 8 GB không đủ — §9 mục 14).
+- **Chạy ở đâu**: các giai đoạn 1–5 và 8 chạy trên **máy phổ thông**; giai đoạn 6 (thời gian phân kỳ) và giai đoạn 7 (lắp ráp) cần **máy chủ từ xa** (máy 8 GB không đủ — §9.C-28).
 - **Ca kiểm thử chuẩn**: bộ dữ liệu **Eleutherine bulbosa** + **bộ số vàng** ở §6.
 - **Kiểm thử ngay trong từng giai đoạn, không dồn về cuối**: mỗi giai đoạn phải có mục *“Kiểm tra trong giai đoạn”* và chỉ được coi là xong khi số kiểm tra khớp; sai thì **dừng lại sửa ngay trong giai đoạn đó**, không để lỗi trôi sang giai đoạn sau. Giai đoạn 8 chỉ làm phần **kiểm thử chéo**.
 - **Chưa chốt (dev tự quyết khi lập kế hoạch với Claude)**: cách tổ chức mô-đun/plugin, định dạng dữ liệu trung gian giữa các bước, và quy trình chạy tự động nhiều bước.
+
+**Hai bào quan — mỗi lần chạy đúng một bào quan (D5-06).** Lục lạp và ty thể dùng chung khung, nhưng một lần chạy chỉ phục vụ **một** bào quan: xác định theo qualifier `/organelle` của chính bản ghi; chuỗi trần không có bản ghi để hỏi thì bộc lộ bằng **đường vào** (`plastid mito annotate` là đường ty thể). **Bộ dữ liệu đầu vào cũng một bào quan: không trộn.** Một lần chạy nhận nhiều bản ghi (`-i` lặp lại) và một panel ghim nhiều bản ghi — cả hai đều phải **cùng một bào quan**. **Ngoại lệ duy nhất, có tên: phân tích chuyển đoạn giữa các ngăn — nhân ↔ lục lạp ↔ ty thể (NUPT/MTPT, M6.1).** Nó đọc cả ba ngăn trong cùng một phân tích một cách có chủ đích (muốn thấy một đoạn lục lạp nằm trong ty thể thì phải đọc cả hai cùng lúc), và là nội dung riêng của Giai đoạn 6 — không phải một bộ dữ liệu trộn. Mô-đun chia nhóm — bảng này là nguồn duy nhất; thêm mô-đun mới thì khai vào đúng nhóm:
+
+| Nhóm | Mô-đun | Vì sao ở nhóm đó (đo được) |
+|---|---|---|
+| **Dùng chung** | `orf` · `gene_names` · `kaks` · `popgen` · `submission` | theo gen/chuỗi, không theo vị trí. `kaks` + `popgen` **đã chạy trên mito thật** (`standin-mito`, §8.30); `orf` chấm chính bản chú giải mito (§8.22); `gene_names` là **tầng tên** dùng chung (hàm `aliases_for` chọn từ vựng theo `/organelle`), nhưng **hôm nay module `gene_names` chỉ nạp bảng plastid** — đo 05/10: 0 renamed / 0 aliased trên bản ghi mito trong khi `mito_genes` gọi tên được 31/51 locus (§9.J) ⇒ **H-12**, tạm hoãn theo D5-07 |
+| **Chỉ lục lạp** | `structure` · `genome_stats` · `annotation` · `gene_table` · `barcodes` | định nghĩa bằng IR/vùng LSC/IRa/SSC/IRb (`structure`, `genome_stats`), bằng công cụ chú giải lục lạp (`annotation` — hiện là Chloe, D5-08 sẽ thay bằng công cụ tự viết; ty thể có `mito_annotate`), hoặc bằng **dữ liệu plastome**: `gene_groups.yaml` → `gene_table` · `barcode_loci.yaml` → `barcodes` |
+| **Chỉ ty thể** | `mito_annotate` · `mito_genes` | chú giải mitogenome từ bộ tham chiếu + bộ gen ty thể; không cổng IR (§8.21–8.24) |
+| **Chuyển tiếp — dùng chung về bản chất, chưa mở cho ty thể** | `ssr` · `introns` · `codon_usage` · `amino_acid` · `substitutions` · `diversity` · `synteny` | SSR · codon usage · amino acid · intron · Ts/Tv · π · mVISTA đều là phân tích chuẩn của bài mitogenome, nhưng mỗi mô-đun báo theo **vùng plastome** hoặc gọi `ctx.require_ir()` ⇒ chạy trên mitogenome thì run **dừng ở cổng, trước khi mô-đun chạy** (đo 03/10: cả hai mitogenome stand-in ném `IRDetectionError`, §8.6). Mở cho ty thể = một chế độ "không vùng" — H-10 |
+
+**Hiện trạng, nói thẳng:** hôm nay cờ `requires_ir` là tín hiệu duy nhất mô-đun mang, nên hai chiều lệch **không đối xứng**: chạy mô-đun lục lạp trên mitogenome thì **cổng IR đã chặn**, còn chạy `mito_genes` / `mito_annotate` trên plastome thì **không có gì chặn** (không mô-đun nào hỏi bào quan của bản ghi) — và một bộ dữ liệu **trộn hai bào quan** cũng không có gì chặn: không chỗ nào trong run/panel hỏi bào quan của **cả bộ**. Thêm một lỗ của chính luật này, đo 05/10: **artifact do bộ công cụ tự viết chưa khai bào quan** — `plastid mito annotate` xuất GenBank **không có `source` feature và không có `/organelle`**, nên đường chọn từ vựng tên rơi về bảng plastid (H-11). Việc còn lại có tên: **H-09** (khai báo nhóm trong registry + từ chối khi lệch, **kể cả** khi bộ dữ liệu trộn bào quan), **H-10** (mở bảy mô-đun chuyển tiếp), **H-11** (artifact tự viết phải khai `/organelle`) và
+**H-12** (`gene_names` chỉ nạp từ vựng plastid — §9.J).
+
+**Ưu tiên (D5-07, cả nhóm chốt 05/10): lục lạp trước.** Dữ liệu ty thể thực vật còn rất ít ⇒ phát triển mô-đun mới tập trung vào **lục lạp**; đường ty thể **giữ nguyên, không mở rộng** (H-10 và H-06 **tạm hoãn**, không phải bỏ — mở lại khi có dữ liệu ty thể). Bảng nhóm ở trên và các điểm mở của D5-06 chính là **cửa để sau này tích hợp phân tích ty thể mà không phải đập lại cấu trúc**.
 
 ### 13.1. Giai đoạn 1 — Khung chạy & dữ liệu dùng chung
 
@@ -2221,7 +815,7 @@ Làm trước tiên: đây là thứ mọi giai đoạn sau phụ thuộc, nếu
 - Xử lý gia tăng: chỉ chạy phần mới, không chạy lại từ đầu
 - Cách đóng gói dự án (`pyproject.toml` + conda)
 - Execution backend cho bước nặng RAM (chạy tại chỗ hay đẩy ra máy chủ từ xa)
-- Cân nhắc dùng engine điều phối có sẵn (Snakemake) thay vì tự viết
+- Cân nhắc dùng engine điều phối có sẵn (Snakemake) thay vì tự viết — **đã chốt 02/10: không dùng ở giai đoạn đầu** (§3); chỉ xem lại khi pipeline vượt ~20 bước hoặc cần chạy lại từng phần
 
 #### Reference Panel — định nghĩa 4 tầng taxonomy (nguyên văn kế hoạch 22/9, mục 0.7 chế độ B)
 
@@ -2258,7 +852,7 @@ Dữ liệu vào: file GenBank (kể cả tải từ NCBI). Chưa cần dữ li�
 - SSR (vi vệ tinh): phân loại theo vùng và motif
 - Đa dạng nucleotide (π) theo gen/intron/vùng liên gen, sliding-window
 
-**Áp dụng cho:** cả **lục lạp** và **ty thể**.
+**Áp dụng cho:** cả **lục lạp** và **ty thể** — nhưng hôm nay phần lớn phân tích dưới đây nằm trong **danh sách chuyển tiếp** (bảng nhóm ở đầu §13): chạy trên mitogenome thì dừng ở cổng IR, việc mở cho ty thể là H-10 (tạm hoãn, D5-07).
 
 **Ra được:** bảng số + hình cho **2 bản thảo Oldenlandia / Coleus** (bản nháp mục Results).
 
@@ -2268,12 +862,12 @@ Dữ liệu vào: file GenBank (kể cả tải từ NCBI). Chưa cần dữ li�
 
 Chạy được trên bộ gen đã có sẵn.
 
-- Chú giải: PGA (lục lạp), MITOS2/GeSeq (ty thể)
+- Chú giải: PGA (lục lạp), MITOS2/GeSeq (ty thể) — **[ĐÃ THAY — xem §3 (D3-01 · D3A-02 · D5-08): lục lạp = Chloe từ 03/10 (§8.15–8.17), công cụ tự viết theo D5-08 sẽ là giai đoạn mới 3B; ty thể = annotator tự viết từ Giai đoạn 3A]**
 - Kiểm tra & chuẩn hoá tên gen
 - Kiểm tra khung đọc (start/stop/internal codon)
 - Chuẩn bị hồ sơ nộp NCBI (FASTA/TBL/SQN)
 
-**Kiểm tra trong giai đoạn:** đọc lại file kết quả bằng chính bộ đọc GenBank (không hỏng định dạng) · kiểm tra khung đọc · đếm lại gen theo cách đếm đã chốt (132). *Riêng bộ gen tự lắp ráp* (chỉ có ở giai đoạn 7): phải đối chiếu họ hàng gần hoặc read bắc qua ranh giới LSC–IR / SSC–IR, nếu không thì dán nhãn *chưa xác định* — ở giai đoạn 3 phần này bỏ qua.
+**Kiểm tra trong giai đoạn:** đọc lại file kết quả bằng chính bộ đọc GenBank (không hỏng định dạng) · kiểm tra khung đọc · đếm lại gen theo **cách đếm** đã chốt (CDS + tRNA + rRNA, cả hai bản IR) — **132 là giá trị của genome vàng, không phải hằng số**: P2-10 đo 131 và 133 ở hai loài khác, cả hai đều đúng. *Riêng bộ gen tự lắp ráp* (chỉ có ở giai đoạn 7): phải đối chiếu họ hàng gần hoặc read bắc qua ranh giới LSC–IR / SSC–IR, nếu không thì dán nhãn *chưa xác định* — ở giai đoạn 3 phần này bỏ qua.
 
 ### 13.4. Giai đoạn 4 — So sánh nhiều bộ gen
 
@@ -2283,11 +877,11 @@ Chạy được trên bộ gen đã có sẵn.
 - Di truyền quần thể kiểu DnaSP (Hd, θ, Tajima's D, Fu & Li, Fst…)
 - Dự đoán RNA editing (cần dữ liệu RNA)
 
-**Áp dụng cho:** cả **lục lạp** và **ty thể**.
+**Áp dụng cho:** cả **lục lạp** và **ty thể** — nhưng hôm nay phần lớn phân tích dưới đây nằm trong **danh sách chuyển tiếp** (bảng nhóm ở đầu §13): chạy trên mitogenome thì dừng ở cổng IR, việc mở cho ty thể là H-10 (tạm hoãn, D5-07).
 
 **Ra được:** nội dung so sánh cho 2 bản thảo.
 
-**Kiểm tra trong giai đoạn:** Ts/Tv = **2,686** cho cặp *Iris domestica* × *Iris gatesii* (**chỉ CDS · 76 gen · MAFFT** — đúng phạm vi ở điều kiện chung) · biểu đồ tương đồng phải ra **21 khối**, %IDY 83,7–98,2 (mean 91,5). Số không khớp ⇒ dừng, kiểm lại dữ liệu vào và tham số.
+**Kiểm tra trong giai đoạn:** Ts/Tv = **2,6917** cho cặp *Iris domestica* × *Iris gatesii* (**chỉ CDS · 79 gen dùng chung · MAFFT · không tính IR** — đúng phạm vi ở điều kiện chung; số đo lại 04/10, §8.27) · biểu đồ tương đồng phải ra **7 khối**, %IDY 89,66–99,11 (mean 97,37), coverage 99,09 % — số đo 04/10 trên chính cặp Iris (§8.26). *Con số "21 khối · mean 91,5" trong kế hoạch cũ không tái lập được từ đầu vào của nó và thuộc một so sánh khác chi — ghi thành phát hiện ở §9.H.* Số không khớp ⇒ dừng, kiểm lại dữ liệu vào và tham số.
 
 ### 13.5. Giai đoạn 5 — Hình và báo cáo
 
@@ -2346,13 +940,18 @@ Cần dữ liệu đọc thô; nặng về bộ nhớ.
 
 ### 13.10. Đã chạy thử được gì (chỉ ghi chỗ có bằng chứng — nguồn §7.1, §8)
 
+*Bảng dưới là **ảnh chụp 26/9** (đợt khảo sát §7.1) — nhật ký sống là §8, nơi mọi mục từ §8.6 trở
+đi đã thay thế các dòng ở đây. Đọc bảng này như lịch sử, không phải trạng thái hiện tại; ví dụ dòng
+"chưa chạy thử lần nào" gồm nhiều việc đã chạy xong ở Giai đoạn 2–4 (bảng gen Word §8.7 · codon/AA/
+intron §8.8 · π §8.25 · Ka/Ks §8.27 · popgen §8.28 · barcode §8.29 · ORF §8.11 · nộp NCBI §8.18).*
+
 | Việc | Kết quả thô |
 |---|---|
 | Reading/thống kê gen | 132 gen = 86 CDS + 38 tRNA + 8 rRNA trên NC_050833.1 |
 | Cấu trúc bộ gen | IR 26.214 bp (2 bản giống 100,00 %) · LSC 83.127 · SSC 18.169 · xoay chiều giữ nguyên IR |
-| SNP/thay thế | Ts/Tv = 2,686 (76 gen CDS, MAFFT); bộ Eleutherine (cả plastome) có dải 1,095–1,777 |
+| SNP/thay thế | Ts/Tv = 2,686 (76 gen CDS, MAFFT) *(số của bộ 76 gen lúc đó; số vàng nay là **2,6917**/79 gen — §6, §8.27)*; bộ Eleutherine (cả plastome) có dải 1,095–1,777 |
 | SSR | 37 SSR — MISA standalone 2.1 **và** cpstools 3.0 cùng ra 37; mono 31 · di 4 · tri 2; IGS 18 · Intron 8 · Gene 11 |
-| Synteny/mVISTA | nucmer → 21 khối, %IDY 83,7–98,2 (mean 91,5); PNG 243.787 B |
+| Synteny/mVISTA | nucmer → 21 khối, %IDY 83,7–98,2 (mean 91,5) *(số probe 26/9 trên dữ liệu khác — **không tái lập được** từ đầu vào của nó; cặp Iris đo lại = **7 khối · 97,37**, §8.26/§9.H)*; PNG 243.787 B |
 | RNA editing | mô phỏng 20 vị trí C→U: recall 100 % ngoài IR, precision 74 %; 6 vị trí sót trong IR |
 | Mạng haplotype | PyPopART trên 13 trình tự matK → rc=0 |
 | Bản đồ vòng genome | pycirclize 1.10.1 → PNG 494.859 B @300 dpi |

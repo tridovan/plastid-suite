@@ -2,9 +2,13 @@
 
 Toolkit for **plastid (chloroplast) and mitochondrial genome analysis** — academic, non-commercial.
 
-**Status: Phase 1 (framework).** Working analyses today: `genome_stats` (tier A) and `ssr`
-(tier B, needs perl + the vendored MISA). Progress: `ROADMAP.md` · current work: `TASKS.md` ·
-rules: `CLAUDE.md`.
+**Status: Phase 5 (figures & reports) in progress.** Nineteen analysis modules run end-to-end —
+genome statistics, structure (LSC/SSC/IR), gene tables, codon usage, amino-acid composition,
+introns, SSR, substitutions (Ts/Tv), diversity (π), barcodes, Ka/Ks, population genetics, synteny,
+ORF checks, gene-name unification, annotation, NCBI submission, and the mitochondrial path
+(`mito annotate` · `mito genes`) — each
+writing a run directory with its tables, a report and every tool's provenance. Progress:
+`ROADMAP.md` · current work: `TASKS.md` · rules: `CLAUDE.md`.
 
 ## Install
 
