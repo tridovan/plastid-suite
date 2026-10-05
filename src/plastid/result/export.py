@@ -10,9 +10,9 @@ import csv
 import io
 import json
 
-from plastid.result.result import Result, Table
+from plastid.result.result import Column, Result, Scope, Table
 
-__all__ = ["Payload", "export_csv", "export_json", "export_markdown"]
+__all__ = ["Payload", "export_csv", "export_json", "export_markdown", "read_result"]
 
 # What a result becomes on disk: text for csv/json/markdown, bytes for a Word document.
 Payload = dict[str, str | bytes]
@@ -57,6 +57,7 @@ def export_json(result: Result) -> str:
                     for column in table.columns
                 ],
                 "key": table.key,
+                "emphasis": list(table.emphasis),
                 "rows": [
                     {column.name: row.get(column.name) for column in table.columns}
                     for row in table.rows
@@ -68,6 +69,54 @@ def export_json(result: Result) -> str:
         "citations": list(result.citations),
     }
     return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+
+
+def read_result(text: str) -> Result:
+    """Rebuild a ``Result`` from :func:`export_json` output.
+
+    A run directory is the record: everything a figure, the supplementary package or the
+    queryable-number audit needs is in ``result.json``, so none of them have to re-run an
+    analysis. Two things deliberately do not round-trip, both documented at the schema:
+
+    * ``Result.artifacts`` — file-like outputs live beside ``result.json``, listed by the
+      manifest; serializing them here would duplicate every one of them;
+    * a row missing a column exports as ``null`` and comes back as a blank cell (``None``),
+      which is how the exporters already render a missing value.
+    """
+    payload = json.loads(text)
+    tables: dict[str, Table] = {}
+    for table_id, blob in payload["tables"].items():
+        scope = blob["scope"]
+        tables[table_id] = Table(
+            id=table_id,
+            title=blob["title"],
+            columns=tuple(
+                Column(
+                    name=column["name"],
+                    label=column["label"],
+                    dtype=column["dtype"],
+                    unit=column["unit"],
+                    precision=column["precision"],
+                )
+                for column in blob["columns"]
+            ),
+            rows=tuple(dict(row) for row in blob["rows"]),
+            scope=Scope(
+                label=scope["label"],
+                coord_system=scope["coord_system"],
+                include=tuple(scope.get("include") or ()),
+                exclude_regions=tuple(scope.get("exclude_regions") or ()),
+            ),
+            key=blob.get("key"),
+            emphasis=tuple(blob.get("emphasis") or ()),
+        )
+    return Result(
+        module=payload["module"],
+        module_version=payload["module_version"],
+        tables=tables,
+        notes=tuple(payload.get("notes") or ()),
+        citations=tuple(payload.get("citations") or ()),
+    )
 
 
 def export_markdown(result: Result) -> str:

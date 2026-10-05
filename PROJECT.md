@@ -391,6 +391,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.32 | Quy mô: 34 bản ghi tốn bao nhiêu (P4a-03, 04/10/2026) | [`docs/log/phase-4a.md`](docs/log/phase-4a.md) |
 | 8.33 | Ba cách đọc một chuỗi — công bố · PGA · Chloe trên 34 plastome (P4a-04, 04/10/2026) | [`docs/log/phase-4a.md`](docs/log/phase-4a.md) |
 | 8.34 | Ba số đo cho annotator lục lạp — gen chồng lấn · chiều SSC · độ sạch bộ tham chiếu (D5-08, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
+| 8.35 | Kiểm thử truy vấn số trên report đã sinh — 10 va chạm buộc thu hẹp luật (P5-05, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 
 
 ---

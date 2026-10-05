@@ -55,3 +55,53 @@ công bố thật; người dùng sẽ phải loại nó khỏi bộ tham chiế
 
 **Ba số này là đầu vào cho các luật trong `docs/D5-08_plastid_annotator.md`** — mục "The
 reference-set audit" và "Arbitration". Chúng không được dùng để chọn số; chúng chọn luật.
+
+---
+
+### 8.35. Kiểm thử truy vấn số trên report **đã sinh** — và lớp va chạm buộc phải thu hẹp luật (P5-05, 05/10/2026)
+
+**Bối cảnh.** §13.5 yêu cầu: mỗi số trong report phải trỏ về **đúng một ô** của bảng gốc. Hôm nay
+việc đó đúng **theo cấu trúc** — template chỉ trỏ `{{bảng.cột}}`, và `find_bare_digits` đã chặn số
+gõ tay trong template — nhưng chưa có gì kiểm **report đã sinh**. `report/audit.py` (P5-05) làm việc
+đó: bỏ ra ba khoảng không do bảng nào trả lời (khối trích dẫn · nhãn dữ liệu của run · banner nháp),
+rồi đòi mỗi số còn lại phải nằm trong **giá trị đã render** của một ô.
+
+**1. Luật nghiêm (không miễn trừ gì thêm) hỏng trên chính bộ giao phẩm Pha 4 — 10 phát hiện, 6 lớp.**
+Chạy trên **12 report** của hai run `.runs/phase4/standin-oldenlandia` và `standin-coleus`:
+
+| Số | Bảng | Ô thứ hai cùng chứa số đó |
+|---|---|---|
+| `10` | `synteny_blocks` | id khối `NC_057983.1#10` (cột khoá `block`) |
+| `1` | `barcodes_summary` | chuỗi luật `mean + 1 sd of this run's windows` |
+| `6` · `5` | `popgen_*` | chuỗi cỡ nhóm `Coleus: 6, Oldenlandia: 5` |
+| `1` | `popgen_*` | cùng chuỗi trên + một câu ghi chú |
+| `80` | `kaks_*` | ghi chú `row 'reference': a gap starts after 80 base(s) — not a codon boundary` |
+
+**Cả 10 phát hiện đều thuộc đúng một lớp: một lượng (ô số) va vào một số in bên trong một ô
+*chữ* được report trích nguyên văn.** Không phát hiện nào là "số không có bảng nào mang" — tức
+kiểm tra *orphan* chưa hề báo động giả.
+
+**2. Luật sau khi đo: ô chữ có chữ cái là văn xuôi, không phải lượng.** Một giá trị của cột `str`
+mà chứa chữ cái (câu luật, ghi chú, id khối) bị **bỏ khỏi thân report đang quét** và **không được
+tính là ô mang số**; một ô `str` render đúng một con số trần (ví dụ `"80"`) thì vẫn là ô mang số.
+Sau luật này: **12/12 report sạch, 0 phát hiện**, và cả bốn lý do miễn trừ đều thực sự có mặt
+(12 report × 4 lý do).
+
+**3. Bộ đếm của lần đo đó.** 12 report · **44 số phân biệt** được kiểm. Con số nhỏ vì report của
+module là văn xuôi ngắn (bảng mới là nơi chứa số) — nên phép kiểm này canh **report**, không thay
+`find_bare_digits`.
+
+**4. Cắm thử một số mồ côi vào report thật thì bắt được.** Chèn `About 99.5 % of each genome
+aligned` vào `03_synteny/report.md` của run `standin-oldenlandia` (đọc lại `result.json` bằng
+`read_result`): kết quả **`orphan number '99.5' — no table cell carries it`**.
+
+**5. `read_result` đọc lại được `result.json` thành `Result`.** Đo: `export_json` → `read_result`
+→ `export_json` cho ra **chuỗi y hệt** trên fixture genome vàng, và ô trống (`null`) trở về đúng
+`None`, không thành 0. Đúng **một** thứ không round-trip, có chủ ý: `Result.artifacts` — đầu ra
+dạng file nằm **cạnh** `result.json` và manifest liệt kê, chép vào JSON sẽ nhân đôi mọi file.
+`Table.emphasis` trước đây thiếu trong JSON và đã được bổ sung trong chính task này.
+
+**Hệ quả.** Bản ghi của một run nay **đọc lại được** — hình, gói Supplementary và QC report
+(P5-04) không phải chạy lại phân tích nào. Và luật "đúng một ô" có hiệu lực thật: nó bắt số lạ,
+còn ca "hai dòng cùng render một giá trị" **không** bị coi là mơ hồ — hai ô không thể mâu thuẫn,
+nên số vẫn có đúng một câu trả lời (đo trên chính genome vàng: hai bản IR đều 26.214 bp).

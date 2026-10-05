@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from plastid.result.export import export_csv, export_json, export_markdown
+from plastid.result.export import export_csv, export_json, export_markdown, read_result
 from plastid.result.result import Column, Result, ResultRefError, Scope, Table
 
 
@@ -165,6 +165,38 @@ def test_json_export_round_trips_with_scope() -> None:
     assert table["scope"]["coord_system"] == "genbank"
     assert table["rows"][0]["gc_pct"] == 37.8536
     assert payload["notes"] == ["Draft — needs human review."]
+
+
+def test_a_result_read_back_carries_the_same_numbers_and_exports_identically() -> None:
+    """A run directory is the record: what a figure or an audit reads must be what the run wrote."""
+    original = _result()
+    restored = read_result(export_json(original))
+    assert restored.module == original.module
+    assert restored.module_version == original.module_version
+    assert restored.notes == tuple(original.notes)
+    assert restored.citations == tuple(original.citations)
+    assert set(restored.tables) == set(original.tables)
+    assert export_json(restored) == export_json(original)
+    assert export_csv(restored.tables["genome_stats"]) == export_csv(
+        original.tables["genome_stats"]
+    )
+    assert restored.value("genome_stats.length_bp") == 153_724
+    assert restored.format("genome_stats.gc_pct") == "37.8536"
+
+
+def test_reading_back_keeps_a_blank_cell_blank_rather_than_zero() -> None:
+    table = Table(
+        id="windows",
+        title="Windows",
+        columns=(Column("pi", "π", dtype="float", precision=6),),
+        rows=({"pi": None},),
+        scope=Scope(label="whole alignment"),
+    )
+    restored = read_result(
+        export_json(Result(module="diversity", module_version="0.1.0", tables={table.id: table}))
+    )
+    assert restored.value("windows.pi") is None
+    assert restored.format("windows.pi") == ""
 
 
 def test_markdown_export_contains_title_scope_and_rows() -> None:
