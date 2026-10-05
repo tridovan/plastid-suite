@@ -1,4 +1,4 @@
-"""Optional-dependency guard shared by the byte exporters (D2-04, D5-01).
+"""Optional-dependency guard for the extras (D2-04, D5-01, D5-02).
 
 The minimum install is biopython + PyYAML (CLAUDE.md), so an export that needs more — a Word
 document, a figure, a multi-sheet workbook — imports its library *inside the function* and, when

@@ -371,7 +371,7 @@ def test_asking_for_a_figure_without_the_extra_is_a_named_exit_3(
             raise ImportError("no matplotlib here")
         return real_import(name, package)
 
-    monkeypatch.setattr("plastid.result.deps.import_module", refuse)
+    monkeypatch.setattr("plastid.core.deps.import_module", refuse)
     code = main(
         [
             "run",

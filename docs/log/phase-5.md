@@ -199,3 +199,43 @@ sửa bằng ngưỡng 4° cộng khoảng cách tối thiểu 8° giữa hai nh
 đúng **hai ô** — chiều dài và `rotation_offset`. Genome vàng có offset 0 nên hai khung trùng nhau;
 đó chính là lý do một hình bỏ qua phép đổi khung vẫn "đúng" trên ca kiểm chuẩn và **sai** trên một
 bản ghi bắt đầu giữa IR. Test đặt offset = 250 để bắt buộc đi qua đường đó.
+
+---
+
+### 8.38. Thống kê: vector tính tay, và một so sánh thật cho ra 0 khác biệt có ý nghĩa (P5-03, 05/10/2026)
+
+**Bối cảnh.** P5-03 dựng `core/stats.py` (mô tả · Mann–Whitney U · Kruskal–Wallis H · Spearman ·
+Pearson · Benjamini–Hochberg · Bonferroni) và module `stats` — so sánh **có thật** mà bảng FDR đứng
+trên: mỗi locus CDS được đo trong từng bộ gen (chiều dài · GC · GC3 · ENC), rồi hỏi hai nhóm có
+khác nhau ở locus đó không. scipy 1.17.1 trong extra `[stats]`, import trong hàm (D5-02).
+
+**1. Mọi hàm ghim bằng vector tính tay — và hai vector đầu của tôi đã SAI.** Ví dụ đã sửa:
+Mann–Whitney trên a = [1,2,3,4] vs b = [2,3,4,5]; gộp hạng có ties trung bình
+(1 · 2,5 2,5 · 4,5 4,5 · 6,5 6,5 · 8) ⇒ R(a) = 14,5 ⇒ **U = 4,5**, không phải 1 như tôi viết lần
+đầu. Pearson trên ba điểm thẳng hàng: p **không** bằng 0 mà ~1,3e-08 (t phân kỳ, scipy chặn dưới).
+Bài học giống hệt lý do D5-02 tồn tại: số "trông hợp lý" viết tay rất dễ sai, nên **vector đối
+chiếu cũng phải viết ra được cách suy**.
+
+**2. Chuyển `deps.py` xuống `core/`.** `core/stats.py` không được import tầng `result` (guard kiến
+trúc), mà `ExportDependencyError`/`require_module` khi đó nằm ở `result/deps.py`. Guard phụ thuộc
+tuỳ chọn nay ở tầng thấp nhất; guard kiến trúc cũng đã **nhìn thấy tên module truyền vào
+`require_module`** (trước đó nó chỉ thấy câu lệnh `import`, nên một phụ thuộc khai bằng chuỗi vô
+hình với allowlist).
+
+**3. So sánh thật trên panel stand-in — và kết quả là 0.** 11 bản ghi, 2 nhóm (Coleus ·
+Oldenlandia), **80 locus × 4 độ đo = 320 test**, 303 có p-value, 17 không tính được (mỗi dòng nêu
+lý do), **0 test dưới α = 0,05 sau hiệu chỉnh BH**. p nhỏ nhất là 0,01312 (sáu test đồng hạng —
+tách hoàn toàn giữa hai nhóm với n = 4 vs 4), BH = 0,063. Với 4 vs 4 quan sát mỗi locus, đây là
+**kết quả thật**: dữ liệu này không đủ để tách hai chi sau khi hiệu chỉnh đa kiểm định — và bảng
+nói đúng như vậy thay vì bán một p-value thô.
+
+**4. Một phần ba panel không có chú giải — và bản tóm tắt phải nói ra.** Đo: **3/11** bản ghi
+(`AP045470.1` · `PQ325515.1` · `PZ428230.1`) **không mang CDS nào**, nên chỉ **8** bộ gen đóng góp
+quan sát. Câu đầu của report vì thế đọc "80 loci were measured in **8 of the 11** input genome(s)",
+và một ô riêng liệt kê tên ba bản ghi đó — nếu không, "11 genomes" là nói quá một phần ba.
+
+**5. Câu diễn giải chỉ được nói điều bảng đã mang (D5-05, cơ chế).** Mọi số trong câu do máy sinh
+đều là `Table.format` của một ô; test **cắm số vào câu rồi đối chiếu ngược** với các ô của bảng
+tóm tắt, nên một câu mang số không có trong bảng sẽ hỏng build. Nội dung giữ đúng mặc định an toàn
+của D5-05: nêu tên kiểm định, n, α và số test — không một chữ nào mang nghĩa "thích nghi", "chọn
+lọc" hay "nguyên nhân".

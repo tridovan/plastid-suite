@@ -394,6 +394,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.35 | Kiểm thử truy vấn số trên report đã sinh — 10 va chạm buộc thu hẹp luật (P5-05, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 | 8.36 | Hình vẽ — công thức xuất vector tất định, và dải vùng không lấy từ mép cửa sổ (P5-01, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 | 8.37 | Bảy hình đầu tiên, và quy tắc mở rộng theo N đo bằng ba lần vẽ (P5-02, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
+| 8.38 | Thống kê — vector tính tay, và một so sánh thật cho ra 0 khác biệt có ý nghĩa (P5-03, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 
 
 ---

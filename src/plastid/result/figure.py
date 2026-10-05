@@ -26,7 +26,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
-from plastid.result.deps import require_module
+from plastid.core.deps import require_module
 from plastid.result.result import Result
 
 __all__ = [

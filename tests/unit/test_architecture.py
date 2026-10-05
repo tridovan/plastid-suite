@@ -26,10 +26,10 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "plastid"
 # Third-party top-level imports allowed inside the package (besides the stdlib).
 #
 # ``docx`` and ``lxml`` are the optional Word-export extra (D2-04), ``matplotlib`` the figures
-# extra (D5-01). They are imported inside functions, never at module import time, so the minimum
-# install still runs without them — the allowlist is what says the dependency is deliberate
-# rather than accidental.
-THIRD_PARTY_ALLOWED = frozenset({"Bio", "yaml", "docx", "lxml", "matplotlib"})
+# extra (D5-01) and ``scipy`` the statistics extra (D5-02). They are imported inside functions,
+# never at module import time, so the minimum install still runs without them — the allowlist is
+# what says the dependency is deliberate rather than accidental.
+THIRD_PARTY_ALLOWED = frozenset({"Bio", "yaml", "docx", "lxml", "matplotlib", "scipy"})
 
 # layer -> allowed `plastid.*` import prefixes
 LAYERS: dict[str, frozenset[str]] = {

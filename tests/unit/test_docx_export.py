@@ -10,7 +10,7 @@ from dataclasses import replace
 
 import pytest
 
-from plastid.result.deps import ExportDependencyError
+from plastid.core.deps import ExportDependencyError
 from plastid.result.docx_export import DocxMeta, export_docx
 from plastid.result.result import Column, Result, Scope, Table
 

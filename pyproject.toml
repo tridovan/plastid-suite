@@ -25,6 +25,9 @@ docx = [
 figures = [
     "matplotlib>=3.8",
 ]
+stats = [
+    "scipy>=1.11",
+]
 
 [dependency-groups]
 dev = [

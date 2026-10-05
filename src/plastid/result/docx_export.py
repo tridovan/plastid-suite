@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from plastid.result.deps import require_module
+from plastid.core.deps import require_module
 from plastid.result.result import Result, Table
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from plastid.result.deps import ExportDependencyError
+from plastid.core.deps import ExportDependencyError
 from plastid.result.export import export_json
 from plastid.result.figure import FIGURE_FORMATS, Figure, FigureSpec, export_figure
 from plastid.result.figures import all_figures, get, pi_window

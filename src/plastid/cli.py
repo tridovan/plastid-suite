@@ -23,6 +23,7 @@ from functools import partial
 from pathlib import Path
 
 from plastid import __version__
+from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
 from plastid.core.model import Genome
@@ -41,7 +42,6 @@ from plastid.core.samples import group_of, load_groups
 from plastid.modules import registry
 from plastid.report.citations import Citation, format_citation, load_citations
 from plastid.report.engine import CitationError, load_template, render
-from plastid.result.deps import ExportDependencyError
 from plastid.result.docx_export import DocxMeta, export_docx, merge_documents
 from plastid.result.result import Result
 from plastid.run.cache import Cache
