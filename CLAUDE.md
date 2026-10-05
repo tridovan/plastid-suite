@@ -26,8 +26,10 @@ install (pip only) runs the pure-Python analyses without any external tools.
 **Two organelles, one per run.** Every run serves exactly one organelle — plastid or mitochondrion —
 and the record says which through its own `/organelle` qualifier; a bare sequence declares it by the
 path it enters (`plastid mito annotate` is the mito path). A run's input set is single-organelle
-too: a run — and a panel — holds plastid records or mito records, **never both** (cross-organelle
-work such as NUPT/MTPT is its own content, not a mixed set). Every module belongs to one of three
+too: a run — and a panel — holds plastid records or mito records, **never both**. The one named
+exception is the **transfer analysis across compartments** — nucleus ↔ plastid ↔ mito (NUPT/MTPT,
+Phase 6): it reads all three deliberately, and it is not a mixed set fed to the single-organelle
+modules. Every module belongs to one of three
 groups — **shared** · **plastid only** · **mito only** — and a module run against the wrong organelle
 must stop by name rather than describe the wrong genome. The group table, the measured reason per
 module, and what is still to build (the declaration in the registry, the input-set check, the seven
