@@ -23,7 +23,15 @@ Non-negotiable product requirements: every run emits a **tool + parameters repor
 **split by run/dataset** so results are traceable (never overwritten in place), and the minimum
 install (pip only) runs the pure-Python analyses without any external tools.
 
-**Current state: Phase 1 in progress.** Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
+**Two organelles, one per run.** Every run serves exactly one organelle — plastid or mitochondrion —
+and the record says which through its own `/organelle` qualifier; a bare sequence declares it by the
+path it enters (`plastid mito annotate` is the mito path). Every module belongs to one of three
+groups — **shared** · **plastid only** · **mito only** — and a module run against the wrong organelle
+must stop by name rather than describe the wrong genome. The group table, the measured reason per
+module, and what is still to build (the declaration in the registry, the seven shared analyses not
+yet opened to mito): PROJECT.md §13 → "Hai bào quan".
+
+**Current state: Phase 5 in progress.** Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
 checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
 
 ## Supreme objective — the deliverables decide, not the tools
