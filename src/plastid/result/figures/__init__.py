@@ -7,11 +7,27 @@ Importing this package pulls in no plotting library — each figure imports matp
 from __future__ import annotations
 
 from plastid.result.figure import FigureSpec
-from plastid.result.figures import pi_window
+from plastid.result.figures import (
+    barcode_assessment,
+    circular_map,
+    identity_synteny,
+    ir_junction,
+    pi_window,
+    rscu_heatmap,
+    ssr_distribution,
+)
 
 __all__ = ["all_figures", "get", "specs_for"]
 
-_SPECS: tuple[FigureSpec, ...] = (pi_window.SPEC,)
+_SPECS: tuple[FigureSpec, ...] = (
+    pi_window.SPEC,
+    circular_map.SPEC,
+    ir_junction.SPEC,
+    rscu_heatmap.SPEC,
+    ssr_distribution.SPEC,
+    identity_synteny.SPEC,
+    barcode_assessment.SPEC,
+)
 
 
 def all_figures() -> tuple[FigureSpec, ...]:

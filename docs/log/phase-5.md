@@ -155,3 +155,47 @@ nhau**, việc mà một callback theo-từng-module không làm được. Nên:
 (`docx_export.py` đã là tiền lệ cho một exporter phụ thuộc tuỳ chọn nằm ở đó), và render ở **mức
 run** sau khi mọi module chạy xong — một hàm dùng chung cho `plastid run --figures` lẫn
 `plastid figures <run-dir>`, nên cache không bao giờ chen vào được.
+
+---
+
+### 8.37. Bảy hình đầu tiên, và quy tắc mở rộng theo N đo bằng ba lần vẽ (P5-02, 05/10/2026)
+
+**Bối cảnh.** P5-02 dựng sáu hình còn lại — `circular_map` · `ir_junction` · `rscu_heatmap` ·
+`ssr_distribution` · `identity_synteny` · `barcode_assessment` — và **đo** quy tắc mở rộng D5-04
+thay vì đoán. Cả bảy hình nay render từ **một thư mục run** (`plastid figures <run-dir>`), mỗi
+hình khai báo bảng nguồn theo **(module, bảng)** và hình nào thiếu bảng thì **bị bỏ qua kèm lý do
+có tên**, không vẽ rỗng.
+
+**1. Quy tắc N (D5-04): đo ở N = 2 · 8 · 34 trên bộ dữ liệu anh Điềm, cùng một hình
+(`identity_synteny`).**
+
+| N | thời gian run `synteny` + vẽ | đỉnh RSS | hình đọc được? |
+|---|---|---|---|
+| 2 | 2,35 s | 124 MB | có |
+| 8 | 6,16 s | 131 MB | có — 7 series, legend 4 cột |
+| 34 | 22,07 s | 165 MB | **không** — legend phủ kín panel, 33 đường nhoè thành một khối xám |
+
+Ngưỡng lấy từ chính ba lần đo: **trần 8 series**. Trên trần, hình đổi sang **dạng tổng hợp**: dải
+phủ giữa đường thấp nhất và cao nhất của mọi bộ gen tại từng cửa sổ — **hai mép dải đều là giá trị
+ô**, không sinh ra số mới, và bảng vẫn giữ nguyên từng series. Canvas và panel khối cũng nở theo N
+(33 nhãn bộ gen trên chiều cao cố định là một vệt, không phải nhãn). Sau khi sửa, N = 34 **đọc
+được**: dải phủ cho thấy rõ vùng tụt sâu quanh 110–120 kb — đúng vùng `ycf1`/SSC.
+
+**2. Một lỗi vẽ chỉ mắt thấy, lần thứ hai trong cùng giai đoạn.** `barcode_assessment` vẽ dải ứng
+viên theo toàn trục: hình hợp lệ, test xanh, nhưng **nhìn thì sai**. Nguyên nhân là một giả định
+sai *trong bản khảo sát viết ra cho task này* — "locus vắt qua gốc thì `reference_start >
+reference_end`". Đo lại trên hai run giao phẩm Pha 4: **mỗi run đúng một** ứng viên có
+`start > end`, đó là **`rps16`** — gen hai phần (intron) chạy ngược — và `note` của nó **rỗng**.
+Vắt qua gốc là ca *khác*, và thứ duy nhất nói ra điều đó là **`note` do module tự viết**
+(`spans the origin: 153273–153724 and 1–71`). Hình nay: `start ≤ end` ⇒ một dải; `start > end` mà
+note nói vắt gốc ⇒ hai dải; còn lại ⇒ **footprint** `[end, start]`.
+
+**3. Đo lại bằng mắt, không chỉ bằng assert.** Nhìn bốn hình đầu tiên cũng bắt được: dải GC-skew
+trên bản đồ vòng bị **khe hở 50%** (bề rộng bar tính bằng nửa cung), và nhãn gen **đè lên nhau** —
+sửa bằng ngưỡng 4° cộng khoảng cách tối thiểu 8° giữa hai nhãn liền kề trên cùng một mạch.
+
+**4. `read_run_results` + `Frame`.** Bản đồ vòng và sơ đồ IR junction đọc **hai module cùng lúc**
+(`genome_stats` ở khung GenBank, `structure` ở khung chuẩn hoá) nên cần đổi khung: `Frame` nhận
+đúng **hai ô** — chiều dài và `rotation_offset`. Genome vàng có offset 0 nên hai khung trùng nhau;
+đó chính là lý do một hình bỏ qua phép đổi khung vẫn "đúng" trên ca kiểm chuẩn và **sai** trên một
+bản ghi bắt đầu giữa IR. Test đặt offset = 250 để bắt buộc đi qua đường đó.

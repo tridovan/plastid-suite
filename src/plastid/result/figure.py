@@ -140,7 +140,9 @@ class Figure:
 class FigureSpec:
     """A figure type: which tables it needs, and how to build it from a run's results.
 
-    ``requires`` is keyed by **(module, table)** and never by table id alone — ``regions`` exists
+    ``build`` receives the matplotlib **figure**, not an axes: a figure may be one panel, several,
+    or a polar projection, and only the figure can make all three. ``requires`` is keyed by
+    **(module, table)** and never by table id alone — ``regions`` exists
     in two modules with different columns, and a figure that resolved the wrong one would draw a
     picture of a different table without saying so.
     """
@@ -230,11 +232,15 @@ def export_figure(
     figsize: tuple[float, float],
     formats: Sequence[str] = FIGURE_FORMATS,
 ) -> Figure:
-    """Draw once, export each format, and return the payloads as data."""
+    """Draw once, export each format, and return the payloads as data.
+
+    ``build`` is handed the figure and makes its own axes — ``figure.subplots()`` for one panel,
+    ``figure.subplots(1, 2)`` for two, ``figure.add_subplot(projection="polar")`` for a circle.
+    """
     with themed() as pyplot:
-        fig, axes = pyplot.subplots(figsize=figsize)
+        fig = pyplot.figure(figsize=figsize)
         try:
-            build(axes)
+            build(fig)
             data = tuple((fmt, _save(fig, fmt)) for fmt in formats)
         finally:
             pyplot.close(fig)

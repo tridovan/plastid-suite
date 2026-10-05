@@ -132,7 +132,8 @@ def caption(data: PiWindowSeries) -> str:
 
 
 def _build(data: PiWindowSeries, title: str) -> Any:
-    def build(axes: Any) -> None:
+    def build(figure: Any) -> None:
+        axes = figure.subplots()
         axes.set_title(title, loc="left", fontsize=THEME.font_size, color=THEME.line, pad=6)
         for region, start, end in data.bands:
             axes.axvspan(start, end, color=THEME.region_fill(region), linewidth=0, zorder=0)
