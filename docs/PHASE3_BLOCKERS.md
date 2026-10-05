@@ -4,6 +4,11 @@ Written 2026-10-03. Purpose: so the next session can run Phase 3 A→Z without s
 anything. Each blocker names **what exactly is needed** and **from whom** — a blocker that says
 "needs the team's call" is not a blocker, it is a delay.
 
+> **Update 05/10/2026:** the annotator decision moved again — **Chloe is dropped** (D5-08,
+> PROJECT.md §3); the annotate step becomes the project's own tool (design:
+> `docs/D5-08_plastid_annotator.md`, phase 3B in `ROADMAP.md`). This file stays as the 03/10
+> clearance record.
+
 ## Cleared here, verified
 
 | Blocker | Was | Now |

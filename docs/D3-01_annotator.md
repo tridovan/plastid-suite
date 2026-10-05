@@ -14,6 +14,15 @@ The naming problem is handled by D3-02 either way, so it does not decide this.
 > `docs/tools/chloe.md`). PGA is kept for the genomes Chloe does not cover — it annotates
 > flowering plants only. GeSeq's job is unchanged.
 
+> **Update, 2026-10-05 — the annotator changes again, and this time it is ours.** The team's
+> decision (D5-08, PROJECT.md §3): the annotate step becomes this project's own tool — CGAS's flow
+> with our search-and-decide core — and **Chloe is dropped from the pipeline**. This file stays as
+> the record of how the 03/10 decision was measured (PGA 147 genes, §8.15; Chloe 132 = 86 + 38 + 8,
+> §8.17). The new engine's design, its reference-set audit and its Done-when live in
+> `docs/D5-08_plastid_annotator.md`, its phase is **3B** in `ROADMAP.md`, and `--set
+> annotator=chloe|pga` in `modules/annotation.py` remains the current code until that engine passes
+> its Done-when.
+
 
 
 ## Why this is a constraint, not a preference

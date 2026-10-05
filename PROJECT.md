@@ -1,7 +1,7 @@
 # PlastidToolSuite — ngữ cảnh dự án
 
 > Nguồn ngữ cảnh duy nhất của dự án. Đọc trước khi làm bất cứ việc gì.
-> Cập nhật: 02/10/2026. Toàn bộ nội dung là **dữ kiện đã kiểm tra / đã chạy thật**.
+> Cập nhật: 05/10/2026. Toàn bộ nội dung là **dữ kiện đã kiểm tra / đã chạy thật**.
 > Mục lục nhanh: §1 bối cảnh · §2 mục tiêu & yêu cầu đầu ra · §3 quyết định · §4 vai trò · §5 nền tảng · §6 số vàng · §7 công cụ (nguồn tải: §7.8) · §8 nhật ký đã chạy · §9 lỗi đã gặp · §10 câu hỏi treo · §11 nguồn tài liệu · §12 lệnh cài · **§13 ROADMAP — mô-đun & thứ tự triển khai**.
 
 ---
@@ -66,8 +66,8 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **Bước nặng: chạy ở đâu, và kết quả chạy ở nơi khác phải ghim được (P1-12, làm nốt 03/10)**: luật backend đã có từ 03/10 (giai đoạn 1–5 và 8 chạy tại chỗ; 6–7 chạy máy chủ từ xa) nhưng **thiếu đường thực hiện** cho công cụ chạy bên ngoài: `panel pin` chỉ nhận accession. Bổ sung `plastid panel pin --file … --note …` (§8.19) để kết quả của web service / máy chủ khác vào được panel với đủ checksum + đọc lại + provenance — PMGA là ca đầu tiên dùng nó | Dev | `docs/tools/pmga.md`, §8.19 |
 | 03/10 | **Chú giải mito: PMGA chạy trên web service rồi GHIM, không chạy local (dev quyết, xác nhận bởi anh Trí)**: máy này **không đủ mạnh để chạy annotate** — container PMGA 3,18 GB nén → **11 GB giải nén, 138.045 file**, cần Apptainer và bên trong chạy MAKER; trần WSL 8 GB, ổ C: thật chỉ còn 42 GB. Container đã được tải về, đọc lấy CLI thật, rồi **xoá** (14 GB = một phần ba chỗ trống). Chú giải mito đi theo **đường thứ hai của chính luật P1-12**: chạy PMGA trên web service một lần mỗi loài ⇒ `plastid panel pin --file … --note …` (§8.19) ghim kết quả với đủ checksum + đọc lại ⇒ `mito_genes` đọc offline. **`external/pmga.py` để mở có điều kiện:** viết khi có máy chạy nổi container, và số đầu tiên phải đo khi đó là RAM đỉnh + thời gian | Dev | `docs/tools/pmga.md`, TASKS.md P3-04 |
 | 03/10 | **Dữ liệu thay thế cho dev (dev quyết, cô Trang chưa có mẫu)**: khi mẫu thật chưa có, **được tải bản công khai tương tự** (cùng chi, hoặc họ hàng gần nhất) để dev/test — chỉ qua `plastid panel pin` (accession · ngày · sha256), **mọi đầu ra phải ghi nhãn**, **không bao giờ** để số của bản thay thế vào bảng manuscript. Định nghĩa bộ dữ liệu commit ở `data/`; payload `.gb` không commit. Quy tắc ở CLAUDE.md → "Data — real samples vs development stand-ins"; bộ đầu tiên ở §8.6 |
-
 | 03/10 | **Bộ gọi gen mito tự viết: ranh giới lấy từ alignment, xếp hạng theo identity, và mọi thứ bị loại đều được kể ra (D3A-02 + P3A-03, dev quyết có đo)** — PMGA không chạy nổi ở đây nên Phase 3A tự viết phần chuyển chú giải: `blastx` (protein tham chiếu) + `blastn` (rRNA) qua `run_tool`, rồi `core/mito_caller.py` biến HSP thành gen. Bốn luật, mỗi luật có số đo đỡ lưng (§8.22): (1) **ranh giới từ alignment**, không bao giờ từ ORF-walking — codon stop chỉ được lấy khi chính chuỗi xác nhận, đọc **đúng một** codon, không đi tìm; (2) **chọn tham chiếu theo identity cao nhất** trong số các ứng viên qua được ngưỡng — đo trên `atp6`: xếp theo bitscore kéo gen lệch **381 bp** về thượng nguồn vì một alignment dài 418 aa chỉ khớp 75,6 %, trong khi bản khớp 93,4 % nằm đúng chỗ; tổng sai lệch toạ độ 310 bp so với 655 bp; (3) **ngưỡng 50 % identity / 50 % coverage**, in ra trong mọi bảng và trong `defaults.yaml`; (4) **mọi HSP không dùng đều được liệt kê kèm lý do** — dưới ngưỡng, trùng khung đọc, hay là **bản sao thứ hai** của một phần gen. Kèm theo: `-seg no` (mask làm atp9 mất một nửa điểm), **không** dùng `-parse_seqids` (nó **lỗi** trên chính bộ tham chiếu), và gen tìm thấy mà vocabulary chưa có tên thì **báo cáo chứ không đặt tên** (H-06) | Dev | §8.22, `docs/tools/blast.md`, `TASKS.md` P3A-03 |
+| 03/10 | **Ba quyết định phụ của Giai đoạn 3A — ghi lại đây để các mã được trích trong code có chỗ tra (D3A-01 · D3A-04 · D3A-05)**: **D3A-01** = bộ gọi tRNA dùng **ARAGORN 1.2.41** (bioconda, GPLv3; chính là công cụ PMGA chạy bên trong) thay vì tự viết rồi chỉnh cho ra đúng 17 — đó sẽ là overfitting (§8.23); **D3A-04** = call đa exon chỉ báo **các exon mà alignment chứng minh được**, không bao giờ tự nhận một join (gen trans-spliced hiện ra đúng các phần của nó); **D3A-05** = phạm vi prototype: **chỉ chú giải + nộp** — không tìm gen mới, không mô hình intron, không dự đoán RNA editing | Dev | docstring `core/mito_caller.py` · `modules/mito_annotate.py`; §8.23–8.24 |
 | 04/10 | **Synteny/mVISTA: nucmer (MUMmer4) pin 4.0.1, tham số truyền tường minh (D4-02 + D4-04, dev quyết có đo)**: đường ống đúng như §7 ghi (`nucmer --maxmatch → delta-filter -1 → show-coords -rcl`) qua `run_tool`, đủ name · version · argv trong manifest. `-l 20 -c 65` là mặc định của MUMmer nhưng **truyền tường minh** và để trong `data/defaults.yaml` — số khối đổi theo chúng (12 khối thô ở mặc định, 22 ở `-c 40`), một mặc định là con số không ai viết ra; `-t 1` để số luồng không đổi được kết quả. Check của pha *"21 khối, %IDY 83,7–98,2 (mean 91,5)"* **không tái lập được** từ đầu vào của probe (quét đầy đủ ở §8.26): cặp cùng chi thẳng hàng 98–99 %, dải số đó thuộc một so sánh khác chi và đến từ dòng khảo sát §7.1 đo trên dữ liệu khác ⇒ check thay bằng số **đo được** cho cặp Iris: **7 khối · 89,66–99,11 · mean 97,37 · coverage 99,09 %**, kèm hệ chuẩn hoá. Phát hiện ở §9.H | Dev | §8.26, `docs/tools/mummer4.md` |
 | 04/10 | **Ka/Ks: PAML `yn00` (D4-01, dev quyết)**: estimator chuẩn pairwise (Yang & Nielsen 2000), **đã pin sẵn** trong `environment.yml` (`paml=4.10.10`, dùng cho `mcmctree` ở giai đoạn 6 — cùng gói, khác chương trình). Loại: NG86 tự viết (chệch, và một bản cài sai sẽ là "sai mà không báo" không ai kiểm được) và KaKs_Calculator2 (công cụ thứ hai cho cùng một việc). Alignment **theo từng gen trên chính chuỗi CDS** (MAFFT), cắt stop cuối, **kiểm khung ba-ngôi trước khi gọi tool** vì yn00 không kiểm; `dN`/`dS` đọc từ ma trận và đối chiếu chéo với dòng Yang & Nielsen của output. Pooled = trung bình có trọng số theo số site của chính yn00, không phải trung bình các tỉ số | Dev | §8.27, `docs/tools/paml.md` |
 | 04/10 | **Di truyền quần thể: tự viết bằng Python thuần (D4-03, dev quyết có đo)**: DnaSP là GUI Windows (không script được, không vào Docker), pixy/libsequence đòi VCF hoặc dữ liệu read; các estimator là công thức đóng đã công bố, kiểm được bằng vector giải tích, và bản cài tối thiểu vẫn thuần Python (CLAUDE.md). Bằng chứng: Tajima's D · π · θ(S) khớp **scikit-allel 1.3.13** đến 6 chữ số trên 4 vector; Fu & Li D*/F* khoá bằng vector tính tay (EggLib build trên máy này hỏng, `gestimator` không có trên bioconda — đo và ghi lại). **Fst = Nei's Gst**: bản Hudson viết trước cho **−1** với hai nhóm cùng thành phần ở n nhỏ ⇒ bỏ, có ghi lý do | Dev | §8.28 |
@@ -141,7 +141,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | SSR | MISA standalone 2.1 (`misa.pl`) + cpstools 3.0 `SSRs` | đã chạy thật — 37 SSR (cả hai công cụ) |
 | Repeat phân tán + palindromic | repeat-match (MUMmer3) + Vmatch 2.3.1 | đã chạy thật — 9 match ≥30 bp, có cặp đảo IR 26.214 bp |
 | So sánh nhiều genome (khối LCB, synteny) | Sibelia 3.0.7 | đã chạy thật — 3 plastome |
-| Biểu đồ % tương đồng theo toạ độ | nucmer (MUMmer4) `--maxmatch` → `delta-filter` → `show-coords` + matplotlib | đã chạy thật — 21 khối, %IDY 83,7–98,2 (mean 91,5) |
+| Biểu đồ % tương đồng theo toạ độ | nucmer (MUMmer4) `--maxmatch` → `delta-filter` → `show-coords` + matplotlib | đã chạy thật — 21 khối, %IDY 83,7–98,2 (mean 91,5) *(con số này đo 26/9 trên **dữ liệu khác**; cặp Iris = **7 khối · 97,37** — §8.26, §9.H)* |
 | Chú giải plastome | **công cụ tự viết** (D5-08) — hiện tạm: Chloe 0.1.18; PGA đã đo và bị loại (§8.15) | Chloe đã chạy thật: **132 = 86 + 38 + 8**, 0 CDS lỗi ORF (§8.17) |
 | Vẽ bản đồ vòng genome | pycirclize 1.10.1 | đã chạy thật — PNG 494.859 B @300 dpi |
 | Lắp ráp từ reads ngắn | GetOrganelle 1.7.7.1 + SPAdes 4.3.0 | đã chạy với reads **mô phỏng** — 127.679 bp |
@@ -178,7 +178,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | GeSeq | sống | chú giải | plann.pl + PGA.pl |
 | CPGAVAS2 | sống | chú giải + phân tích | plann.pl / PGA.pl |
 | Chloe | sống | chú giải theo loài họ hàng | plann.pl |
-| mVISTA | sống | biểu đồ % tương đồng | nucmer + matplotlib (21 khối, PNG 243.787 B) |
+| mVISTA | sống | biểu đồ % tương đồng | nucmer + matplotlib (21 khối — probe 26/9, dữ liệu khác; cặp Iris = 7 khối, §8.26; PNG 243.787 B) |
 | MISA-web | sống | SSR | MISA standalone — 37 SSR |
 | REputer | sống | repeat phân tán + palindromic | repeat-match (MUMmer3) + vmatch 2.3.1 |
 | GetOrganelle (Galaxy) | sống | lắp ráp reads ngắn | GetOrganelle 1.7.7.1 local + SPAdes 4.3.0 |
@@ -385,6 +385,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "Nhật k�
 | 8.31 | Bộ dữ liệu anh Điềm gửi — bộ test đầu tiên không do dự án tự chọn (P4a-01, 04/10/2026) | [`docs/log/phase-4a.md`](docs/log/phase-4a.md) |
 | 8.32 | Quy mô: 34 bản ghi tốn bao nhiêu (P4a-03, 04/10/2026) | [`docs/log/phase-4a.md`](docs/log/phase-4a.md) |
 | 8.33 | Ba cách đọc một chuỗi — công bố · PGA · Chloe trên 34 plastome (P4a-04, 04/10/2026) | [`docs/log/phase-4a.md`](docs/log/phase-4a.md) |
+| 8.34 | Ba số đo cho annotator lục lạp — gen chồng lấn · chiều SSC · độ sạch bộ tham chiếu (D5-08, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 
 
 ---
@@ -884,6 +885,11 @@ Cần dữ liệu đọc thô; nặng về bộ nhớ.
 ---
 
 ### 13.10. Đã chạy thử được gì (chỉ ghi chỗ có bằng chứng — nguồn §7.1, §8)
+
+*Bảng dưới là **ảnh chụp 26/9** (đợt khảo sát §7.1) — nhật ký sống là §8, nơi mọi mục từ §8.6 trở
+đi đã thay thế các dòng ở đây. Đọc bảng này như lịch sử, không phải trạng thái hiện tại; ví dụ dòng
+"chưa chạy thử lần nào" gồm nhiều việc đã chạy xong ở Giai đoạn 2–4 (bảng gen Word §8.7 · codon/AA/
+intron §8.8 · π §8.25 · Ka/Ks §8.27 · popgen §8.28 · barcode §8.29 · ORF §8.11 · nộp NCBI §8.18).*
 
 | Việc | Kết quả thô |
 |---|---|

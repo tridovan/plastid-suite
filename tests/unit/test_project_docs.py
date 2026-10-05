@@ -82,10 +82,10 @@ def _citations(pattern: re.Pattern[str], paths: list[Path] | None = None) -> dic
 
 
 def test_the_log_entries_did_not_move_house_twice() -> None:
-    """33 entries, each in exactly one file, none lost — the count is the split's own record."""
+    """One entry per number, none lost — 33 from the 04/10 split plus phase 5's first entry."""
     entries = _log_entries()
-    assert len(entries) == 33, f"expected 33 logged entries, found {len(entries)}"
-    assert set(entries) >= {"8.1", "8.31", "8.33"}, "the first, the corpus and the newest entry"
+    assert len(entries) == 34, f"expected 34 logged entries, found {len(entries)}"
+    assert set(entries) >= {"8.1", "8.31", "8.34"}, "the first, the corpus and the newest entry"
 
 
 def test_every_cited_log_entry_exists() -> None:
@@ -139,7 +139,8 @@ def test_every_cited_error_item_exists() -> None:
 
 
 @pytest.mark.parametrize(
-    "name", ["phase-1.md", "phase-2-3.md", "phase-3a.md", "phase-4.md", "phase-4a.md"]
+    "name",
+    ["phase-1.md", "phase-2-3.md", "phase-3a.md", "phase-4.md", "phase-4a.md", "phase-5.md"],
 )
 def test_each_log_file_says_which_numbers_it_holds(name: str) -> None:
     """A reader who lands in the file (not the index) must be able to tell what it is."""

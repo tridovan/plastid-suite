@@ -7,6 +7,11 @@ it is a Julia package plus a 1.7 MB reference artifact that Julia fetches on fir
 declared here, with its source and its install line, and every run records name · version · path ·
 argv (see `src/plastid/external/chloe.py`).
 
+> **Pipeline decision changed 05/10/2026 (D5-08):** Chloe is dropped from the pipeline — the
+> annotate step becomes this project's own tool (`docs/D5-08_plastid_annotator.md`, phase 3B in
+> `ROADMAP.md`). This file stays as the tool's record while `modules/annotation.py` still offers
+> `--set annotator=chloe` / `pga`, until the new engine passes its Done-when.
+
 **What it is.** An offline chloroplast annotator from Ian Small's group (UWA / Curtin), written in
 Julia. It aligns a target plastome against its own curated reference set and projects gene models,
 which is why it does not need the caller to supply references the way PGA does.

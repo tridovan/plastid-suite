@@ -1,9 +1,10 @@
 # D5-08 — a self-built plastid annotator (proposal)
 
-**Status: proposal.** This shapes the tool; the open decisions at the end need a call before any
-code. When they are settled, the decision row goes into `PROJECT.md` §3 and this file stands as its
-design record. It extends `D3-01` ("which annotator") — D3-01 picked an offline tool from what
-existed; this builds ours.
+**Status: the decision is recorded — D5-08 in `PROJECT.md` §3 — and this file is its design
+record.** The team's call of 2026-10-05: CGAS's flow with our search-and-decide core, a
+reference-set audit in front of every run, **Chloe dropped**. The open decisions at the end still
+need a call before coding. It extends `D3-01` ("which annotator") — D3-01 picked an offline tool
+from what existed and now carries an update pointing here; this builds ours.
 
 ## What it is, and where it sits
 
@@ -52,6 +53,35 @@ assembly (Phase 7: GetOrganelle · OATK)  →  ANNOTATE (this tool)  →  gene-n
 | IR features taken from PGA's `repeat_region`, regions labeled by order and by size; fewer than two IR features → debug-level silent skip | structural IR detection + the ≥ 99.9 % gate before anything position-based |
 | module 3 renames genes to one reference, name-based only, original spelling overwritten in the file | arbitration by structure first; name unification stays a **separate** step with its evidence (`gene_names` + the alias tables) |
 | no tool provenance; module outputs to fixed folder names | `run_tool()` records name · version · argv · exit code; every run is run-scoped |
+
+## The reference-set audit — settled 2026-10-05
+
+A gate in front of every annotation run, and available stand-alone (`--audit-only`) so the user can
+fix and re-check without annotating anything: every audit failure stops the run — **exit 2, nothing
+annotated, the manifest records the error** — and the loop is *fix or drop the bad file → run
+again → the audit runs from scratch*.
+
+| Verdict | Checks | Why it is the right verdict |
+|---|---|---|
+| **BLOCK** — this file cannot be used | unreadable / no GenBank record · no gene features · a CDS missing `/translation` · a gene feature with partial coordinates (`<`, `>`) · IR copies not disjoint/ordered, or the ≥ 99.9 % gate fails · a CDS whose own sequence fails the ORF check | blastx needs the published translation (§8.21 — self-translation is impossible for plant mito, and not trusted for plastid); a partial reference stamps partial flags on the target (§8.15 trap 1); the IR structure is what positions are normalized against |
+| **REPORT, do not block** | SSC inverted relative to the majority (flip-flop) · gene-set deviations from the majority — compared as **name sets**, and only with N ≥ 3 (with N = 2 the report says "the two references disagree") | measured 2026-10-05 (§8.34): 32/34 published records share one SSC orientation and **2/34 are inverted — with all 12 SSC CDS translating cleanly**, i.e. flip-flop, not an error. Blocking would refuse two published plastomes, one of them an *Iris*. Gene presence genuinely varies between annotations (`ycf1` 24/34, §8.31) — auto-blocking on it would refuse real references |
+
+**The error message is `file — reason`**, specific to the feature or coordinate, **and nothing
+else** — no suggested fix. `NC_024936.1.gb: CDS rps12 — partial coordinates (<153124)`.
+
+**The confirmation layers** for the classes no rule can settle alone: MAFFT `--adjustdirection`
+over the region names which references came out reverse-oriented; a dotplot (the Phase-5 figure
+system) lets the user see it; the user confirms **once**, and the confirmed exception is pinned
+next to the reference set **bound to the file's sha256** — change the file and the exception is
+void, and the audit starts over.
+
+**Batch.** One run takes 1..N samples × 1..N reference records; every sample gets its own artifact
+and the run gets one report. A failed sample is marked and named **without killing the run**, but
+the exit code reflects that something failed. Provenance records every reference file with its
+sha256 — the same sample annotated against 1 vs 7 references measurably differs (§8.15).
+
+**The report.** English `.docx` (the D2-04 pattern: optional extra, byte-reproducible, and every
+number traced to a table cell).
 
 ## The engine — four layers
 
@@ -137,11 +167,12 @@ evidence, no RNA-editing prediction, no repeat discovery beyond the gate's need,
 
 ## Evidence this rests on
 
-§8.15 · §8.17 · §8.20–§8.25 · §8.27 · §8.31 · §8.33; the 2026-10-05 source review of PGA
-(`PGA.pl:1337–1393` query sets: blastn for tRNA/rRNA and intron-bearing genes, tblastn for CDS
-and per-exon; `:1518–1560` the four OS branches; `grep -i overlap` = 0; README: "One genome
-should be chosen as the reference") and of CGAS (`cgas_module2.py` passes the whole reference
-directory to PGA; `cgas_module3.py` renames to one reference; `cgas_module5.py` keys everything on
-post-normalization names). The one measurement taken this session — the golden's four overlap
-pairs, 2026-10-05 — is recorded here with its date; it belongs in the §8 log once this becomes a
-phase.
+§8.15 · §8.17 · §8.20–§8.25 · §8.27 · §8.31 · §8.33 · **§8.34** (the three measurements of
+2026-10-05: the golden's four overlapping pairs · 32/2 SSC orientation with clean ORFs · the
+corpus reference-quality counts); the 2026-10-05 source review of PGA (`PGA.pl:1337–1393` query
+sets: blastn for tRNA/rRNA and intron-bearing genes, tblastn for CDS and per-exon; `:1518–1560`
+the four OS branches; `grep -i overlap` = 0; README: "One genome should be chosen as the
+reference") and of CGAS (`cgas_module2.py` passes the whole reference directory to PGA and adds no
+arbitration — measured on the golden: 147 genes from 7 references, §8.15; `cgas_module3.py`
+renames to one reference; `cgas_module5.py` keys everything on post-normalization names, so a
+spelling its synonym table does not know splits one locus into two genes).
