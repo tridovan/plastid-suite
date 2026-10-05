@@ -70,9 +70,15 @@ def render_run_figures(
         if missing:
             skipped.append((spec.id, f"needs {', '.join(missing)} — not in this run"))
             continue
+        wanted_formats = [fmt for fmt in formats if fmt in spec.formats]
+        if not wanted_formats:
+            skipped.append(
+                (spec.id, f"carries {'/'.join(spec.formats)} only, none of {'/'.join(formats)}")
+            )
+            continue
         figure: Figure = spec.build(results)
         target.mkdir(parents=True, exist_ok=True)
-        for fmt in formats:
+        for fmt in wanted_formats:
             path = target / f"{figure.id}.{fmt}"
             path.write_bytes(figure.payload(fmt))
             files.append(path)

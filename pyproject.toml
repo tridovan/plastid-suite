@@ -28,6 +28,9 @@ figures = [
 stats = [
     "scipy>=1.11",
 ]
+excel = [
+    "openpyxl>=3.1",
+]
 
 [dependency-groups]
 dev = [

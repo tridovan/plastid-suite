@@ -151,6 +151,7 @@ class FigureSpec:
     title: str
     requires: tuple[tuple[str, str], ...]
     build: Callable[[Mapping[str, Result]], Figure]
+    formats: tuple[str, ...] = FIGURE_FORMATS  # a page is PDF only; the others carry all three
 
     def missing(self, results: Mapping[str, Result]) -> tuple[str, ...]:
         """The required tables this run does not hold — named as ``module.table``."""

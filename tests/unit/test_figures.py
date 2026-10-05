@@ -334,17 +334,19 @@ def test_a_figure_that_cannot_find_its_module_says_which_one() -> None:
 
 
 def test_the_catalogue_holds_the_seven_scheduled_figures_and_no_untyped_source() -> None:
-    """M5.1 lists eleven figure types; seven have a source table today, and these are the seven."""
+    """M5.1 lists eleven figure types; seven have a source table and the page is P5-04's eighth."""
     specs = {spec.id: spec for spec in all_figures()}
     assert sorted(specs) == [
         "barcode_assessment",
         "circular_map",
+        "genome_page",
         "identity_synteny",
         "ir_junction",
         "pi_window",
         "rscu_heatmap",
         "ssr_distribution",
     ]
+    assert specs["genome_page"].formats == ("pdf",), "a page is a document, not a vector asset"
     for spec in specs.values():
         assert spec.requires, f"{spec.id} declares no source table"
         for module, table in spec.requires:

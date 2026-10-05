@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import io
 import re
-import zipfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from plastid.core.deps import require_module
+from plastid.result.package import deterministic_zip, zip_parts
 from plastid.result.result import Result, Table
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
@@ -166,7 +166,7 @@ def merge_documents(
         etree, [part["word/document.xml"] for part in parts]
     )
     merged["word/styles.xml"] = _merge_styles(etree, [part["word/styles.xml"] for part in parts])
-    return _with_title(_deterministic_zip(merged), title, label)
+    return _with_title(deterministic_zip(merged), title, label)
 
 
 def _merge_bodies(etree: Any, blobs: Sequence[bytes]) -> bytes:
@@ -222,8 +222,7 @@ def _merge_styles(etree: Any, blobs: Sequence[bytes]) -> bytes:
 
 
 def _package_parts(blob: bytes) -> dict[str, bytes]:
-    with zipfile.ZipFile(io.BytesIO(blob)) as archive:
-        return {name: archive.read(name) for name in archive.namelist()}
+    return zip_parts(blob)
 
 
 def _with_title(blob: bytes, title: str | None, label: str | None = None) -> bytes:
@@ -257,7 +256,7 @@ def _with_title(blob: bytes, title: str | None, label: str | None = None) -> byt
             parts[name] = etree.tostring(
                 root, xml_declaration=True, encoding="UTF-8", standalone=True
             )
-    return _deterministic_zip(parts)
+    return deterministic_zip(parts)
 
 
 def _load_docx() -> Any:
@@ -763,24 +762,11 @@ def _deterministic_package(data: bytes) -> bytes:
     ``python-docx`` stamps each entry with the wall-clock time, so two identical builds differ
     at the byte level. Everything below is what makes the export reproducible.
     """
-    return _deterministic_zip(_pruned_parts(data))
-
-
-def _deterministic_zip(parts: dict[str, bytes]) -> bytes:
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        for name in sorted(parts):
-            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.create_system = 0  # same bytes on Linux and Windows, not just on one
-            info.external_attr = 0o600 << 16
-            archive.writestr(info, parts[name])
-    return buffer.getvalue()
+    return deterministic_zip(_pruned_parts(data))
 
 
 def _pruned_parts(data: bytes) -> dict[str, bytes]:
-    with zipfile.ZipFile(io.BytesIO(data)) as archive:
-        parts = {name: archive.read(name) for name in archive.namelist()}
+    parts = zip_parts(data)
 
     for name in UNUSED_PARTS:
         parts.pop(name, None)

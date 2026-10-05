@@ -252,3 +252,63 @@ def test_the_hermona_pair_runs_clean_and_stops_loudly(tmp_path: Path, data_dir: 
 
     failed = sorted((tmp_path / "hermona_pga").iterdir())[0]
     assert not (failed / "01_genome_stats").exists(), "no module output after a failed gate"
+
+
+# --------------------------------------------------------------- the corpus at full scale
+
+CORPUS_PANEL = Path(__file__).resolve().parents[2] / ".panel" / "iridaceae-34"
+CORPUS_RECORDS = sorted(CORPUS_PANEL.glob("*.gb")) if CORPUS_PANEL.is_dir() else []
+
+
+@pytest.mark.skipif(
+    not CORPUS_RECORDS,
+    reason="the pinned Iridaceae panel is not in this working tree (.panel/ is gitignored)",
+)
+def test_a_one_page_pdf_is_produced_for_every_corpus_record(tmp_path: Path) -> None:
+    """P5-04's Done-when: 34 records, not one — a page per genome, none failing.
+
+    The page is the PDF-only figure, so the run itself does the analysis and the figure pass
+    renders the page from the results the run stored. Every record is checked, and a failure
+    names the record rather than the loop.
+    """
+    import importlib.util
+
+    from plastid.run.figures import render_run_figures
+
+    if importlib.util.find_spec("matplotlib") is None:
+        pytest.skip("the 'figures' extra is not installed — pip install 'plastid-suite[figures]'")
+
+    failures: list[str] = []
+    pages = 0
+    for source in CORPUS_RECORDS:
+        code = main(
+            [
+                "run",
+                "--module",
+                "genome_stats",
+                "--module",
+                "structure",
+                "--input",
+                str(source),
+                "--out",
+                str(tmp_path),
+                "--dataset",
+                "corpus-page",
+            ]
+        )
+        if code != 0:
+            failures.append(f"{source.name}: run exited {code}")
+            continue
+        run_dir = sorted((tmp_path / "corpus-page").iterdir())[-1]
+        outcome = render_run_figures(run_dir, figures=["genome_page"])
+        written = [path for path in outcome.files if path.name == "genome_page.pdf"]
+        if len(written) != 1:
+            failures.append(f"{source.name}: {outcome.files or outcome.skipped}")
+            continue
+        if b"/Type /Page" not in written[0].read_bytes():
+            failures.append(f"{source.name}: the PDF has no page object")
+            continue
+        pages += 1
+
+    assert not failures, "the one-page PDF failed on:\n" + "\n".join(failures)
+    assert pages == len(CORPUS_RECORDS) == 34, f"{pages} pages for {len(CORPUS_RECORDS)} records"

@@ -239,3 +239,43 @@ và một ô riêng liệt kê tên ba bản ghi đó — nếu không, "11 geno
 tóm tắt, nên một câu mang số không có trong bảng sẽ hỏng build. Nội dung giữ đúng mặc định an toàn
 của D5-05: nêu tên kiểm định, n, α và số test — không một chữ nào mang nghĩa "thích nghi", "chọn
 lọc" hay "nguyên nhân".
+
+---
+
+### 8.39. Xuất bản phẩm: Excel tất định, gói Supplementary, và 34 trang PDF (P5-04, 05/10/2026)
+
+**Bối cảnh.** P5-04 giao bốn thứ: Excel nhiều sheet (`[excel]`, openpyxl 3.1.5) · gói Supplementary
+sinh lại từ thư mục run · **một trang PDF cho mỗi bộ gen** · báo cáo QC kỹ thuật. Kèm hai lệnh mới
+`plastid package <run-dir>` và `plastid qc <run-dir>`.
+
+**1. Excel tất định, cùng cách Word đã làm.** `openpyxl` ghi một file zip mang thời gian thực và
+`docProps/core.xml` mang `created`/`modified`. Cả hai bị ghim: thuộc tính đặt về 1980-01-01, rồi
+archive **dựng lại từng entry** bằng hàm dùng chung `deterministic_zip` — đây là **bản sao thứ hai**
+của đoạn mã đó (bản đầu ở `docx_export.py`), nên nó thành `result/package.py` thay vì một helper
+private chép lại. Đo: hai lần xuất cùng dữ liệu ra **byte y hệt**; mỗi bảng một sheet, tên sheet
+làm sạch + cắt 31 ký tự + chống trùng bằng digest.
+
+**2. Gói Supplementary sinh lại từ `result.json`, không chép tay.** `plastid package <run-dir>`
+đọc kết quả đã ghi, sinh `report/supplementary/` gồm `tables/*.csv` · `tables.xlsx` · `figures/` ·
+`index.md` (mỗi file kèm số dòng và sha256) · `MANIFEST.json`. Manifest **không liệt kê chính nó** —
+một file không thể mang digest của chính mình.
+
+**3. Một trang PDF cho **34/34** bản ghi của bộ anh Điềm — và không bản nào hỏng.** Chạy thật:
+`ok=34 fails=0`, **114 giây** cho cả bộ khi render đủ ba hình mỗi bản ghi; đường kiểm trong test chỉ
+vẽ trang nên còn **21 giây**. Mỗi PDF đúng **1 trang** (`/Type /Page` đếm được 1), 20,5–21,4 KB.
+Trang là hình **chỉ-PDF**: một trang là một tài liệu, SVG/EPS của nó là file không ai xin — nên
+`FigureSpec` có thêm trường `formats`, và một hình chỉ-PDF mà bị hỏi SVG thì **được bỏ qua kèm lý do**
+chứ không hỏng.
+
+**4. Nhìn lại lần thứ ba trong giai đoạn.** Trang PDF render ra hợp lệ, test xanh, nhưng **hỏng bố
+cục**: ba dòng số liệu nằm **trong** khung GC-skew (đặt ở y = 0,60/0,568/0,536 trong khi khung skew
+chiếm 0,14–0,58). Sửa bằng cách đưa chúng lên trên dải vùng (y = 0,89). Ba lần trong một giai đoạn
+— dải vùng chồng nhau (§8.36) · dải ứng viên phủ toàn trục và vành skew bị khe (§8.37) · và lần này
+— đều là loại lỗi mà **không test nào bắt được**, chỉ mắt bắt được.
+
+**5. Báo cáo QC mang theo chính khâu kiểm của giai đoạn.** `report/qc.md` liệt kê: lệnh đã chạy ·
+input kèm sha256 và số byte · từng module với version và trạng thái · **từng công cụ** (tên ·
+version · đường dẫn · exit code) · tham số · cổng IR và khung toạ độ · hình nào đã vẽ, hình nào bị
+bỏ qua kèm lý do · và **kết quả audit số** (P5-05) của từng report — nên một run mang số mồ côi sẽ
+tự nói ra ở đây. Xuất Word vẫn nguyên: 23 test docx cũ vẫn xanh sau khi `deterministic_zip` được
+tách ra dùng chung.
