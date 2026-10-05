@@ -18,6 +18,10 @@
 ## Cross-phase rules (apply to every phase)
 
 - Applies to **both plastid and mitochondrion**, except divergence-time work (tool paper only).
+- **Plastid first** (team decision 05/10/2026, D5-07): plant mito data is still scarce, so new module
+  work serves the plastome. The existing mito path stays as it is — not extended — and the
+  two-organelle structure is kept so mito analyses can be integrated later without rework
+  (PROJECT.md §13 → "Hai bào quan"; H-06 · H-10 on hold in `TASKS.md`).
 - **IR gate ≥ 99.9 %** before any position-based analysis. Fail ⇒ red flag, stop. No exceptions.
 - Gene counting: **132 = 86 CDS + 38 tRNA + 8 rRNA**. Never "133 genes" (that is the `gene` feature
   count, diagnostic only).
