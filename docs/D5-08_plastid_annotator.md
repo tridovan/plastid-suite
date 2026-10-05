@@ -14,24 +14,44 @@ assembly (Phase 7: GetOrganelle · OATK)  →  ANNOTATE (this tool)  →  gene-n
 (modules/gene_names.py + the alias tables)  →  the analyses (Phases 2/4 modules)
 ```
 
-- **In:** one assembled plastome as a single-record FASTA (no features — the assembler's output),
-  plus a **reference set** of annotated GenBank records pinned by the project's taxonomy rule
-  (same family first — the Reference Panel / `mito-reference` pattern).
-- **Out:** a GenBank artifact that **re-reads with our own reader** (P3A-01's rule: a file that
-  does not re-read is not a result), tables, and a report. The next steps — name unification and
-  every analysis module — consume it unchanged; no second code path.
+- **In:** assembled plastomes as single-record FASTA files (no features — the assembler's output),
+  **one or many per run** (batch is part of the CGAS model the team wants), plus a **reference
+  set** of annotated GenBank records pinned by the project's taxonomy rule (same family first —
+  the Reference Panel / `mito-reference` pattern).
+- **Out:** a GenBank artifact per sample that **re-reads with our own reader** (P3A-01's rule: a
+  file that does not re-read is not a result), tables, and one report. The next steps — name
+  unification and every analysis module — consume it unchanged; no second code path.
 - **Plastid first** (D5-07). The mitochondrial counterpart already exists
   (`core/mito_caller.py` + `modules/mito_annotate.py`); this is its plastid sibling.
+- **Chloe is dropped from the pipeline** (team call, 2026-10-05). When this engine passes the
+  Done-when it becomes the annotate step, and `modules/annotation.py`'s engine set (`chloe`,
+  `pga`) changes with it.
 
 ## Why build it at all
 
-- **PGA is measurably not the answer**: 147 genes where the golden has 132, plus three silent
-  failure modes (§8.15). The reference-transfer idea is sound; that implementation is not.
-- **Chloe is the current pipeline annotator** (§8.17: 132 = 86 + 38 + 8, 0 ORF errors, 34/34 on
-  the corpus) — it is the bar, not the target. Building ours adds: the arbitration layer below,
-  no Julia in the annotation path, and one engine whose every decision is ours to record.
+- **CGAS's model is the right shape; its search-and-decide core is measurably broken.** The team's
+  call (2026-10-05): the annotate step follows CGAS's flow — a reference set, per-sample
+  annotation, a summary, then normalization and comparison (this toolkit already has those as
+  `gene_names` + the alias tables + the analysis modules) — but not its core. CGAS module 2 is a
+  PGA wrapper, and PGA returned 147 genes where the golden has 132 with three silent failure modes
+  (§8.15); CGAS adds no arbitration of its own (source review 2026-10-05: `grep -i overlap` = 0 in
+  `PGA.pl`; references pooled into one query set, `:1106-1141`).
+- **The current annotators are not wanted.** Chloe is third-party and Julia-dependent — dropped
+  per the team's call; PGA is measurably not the answer. The annotate step becomes ours.
 - **The pieces exist**: `external/blast.py` (run_blastx · run_blastn · HSP parsing, BLAST+ 2.17.0
   pinned), `core/orf.py`, the GenBank reader/writer, `run_tool()`, the IR gate, the run manifest.
+
+## The model — CGAS's flow, with its measured defects fixed
+
+| CGAS (source review, 2026-10-05) | Here |
+|---|---|
+| module 2 passes the reference directory straight to PGA; each reference's sequences pool into one query set | our own search layer below; the reference set is pinned, versioned and recorded like every other input |
+| no arbitration: a locus called by two references stands twice (measured: 147 genes from 7 references, §8.15) | one call per locus; losing candidates listed with their reasons |
+| no overlap logic anywhere (`grep -i overlap` = 0 in 16,320 lines) | overlap kept and reported by default — the golden itself carries four overlapping pairs |
+| "total genes" counts `gene` **features**, and that same number is used as the reference denominator (annotation rate ≡ 100 %) | the counting convention is 132 = 86 + 38 + 8, reconciled by the project's own table — never a self-congratulating rate |
+| IR features taken from PGA's `repeat_region`, regions labeled by order and by size; fewer than two IR features → debug-level silent skip | structural IR detection + the ≥ 99.9 % gate before anything position-based |
+| module 3 renames genes to one reference, name-based only, original spelling overwritten in the file | arbitration by structure first; name unification stays a **separate** step with its evidence (`gene_names` + the alias tables) |
+| no tool provenance; module outputs to fixed folder names | `run_tool()` records name · version · argv · exit code; every run is run-scoped |
 
 ## The engine — four layers
 
@@ -86,25 +106,28 @@ external call goes through `run_tool()`.
    38 tRNA + 8 rRNA**, and **every difference from the published record listed** — the P3A-06
    pattern, kinds and spans, nothing summarized away.
 2. **Corpus, leave-one-out**: all 34 bare FASTAs, each with a reference set that **excludes the
-   target**; diff each result against the published record **and** Chloe; classify every
+   target**; diff each result against the published record (the answer key) and against PGA's
+   reading of the same sequence, which the corpus already carries (§8.31); classify every
    difference as vocabulary or conclusion, the way §8.33 did.
 3. **No silent failure**: a search that finds nothing is a failed run; every below-floor hit is
    reported with its reason.
 4. **Provenance**: every tool call recorded (name · version · path · argv · exit code); the
    artifact re-reads; `/organelle` present.
 
-**The bar: equal-or-better than Chloe on (1) and (2).** "Better than PGA" is not a claim worth
-making — PGA is measurably broken here.
+**The bar is the published record, not another tool**: (1) exact, and (2) every difference named
+and classified — with fewer conclusion-level differences than PGA's reading of the same sequences.
 
 ## Open decisions (a call is needed before coding)
 
 | # | Question | Options (recommendation in bold) |
 |---|---|---|
-| D-a | tRNA calling | **ARAGORN de novo** (already declared, `aragorn=1.2.41`; matches the mito path; no reference needed) vs `blastn` transfer from reference tRNAs (PGA's way) |
+| D-a | tRNA/rRNA calling | `blastn` transfer from the reference set's tRNA/rRNA sequences (the CGAS/PGA way; what "blastn for non-coding" implies) vs **ARAGORN de novo** for tRNA (already declared, `aragorn=1.2.41`; matches the mito path; no reference needed) + `blastn` for rRNA |
 | D-b | The plastid reference set | built and pinned by the taxonomy rule (same family first, like `mito-reference`); for validation, leave-one-out on the corpus. Which records — a dev call with the rule applied |
 | D-c | Phase slot | **a separate phase (3B, mirroring 3A) after Phase 5** vs inside Phase 6 |
-| D-d | Replacement policy | if it passes the Done-when: **replace Chloe as the pipeline annotator** (D3-01 gains an update line) vs stay an alternative |
 | D-e | Shared core | **extract the calling core from `core/mito_caller.py`** (the second real copy is arriving — DRY's own rule) with the mito tests as the regression guard |
+
+D-d (replacement policy) was settled on 2026-10-05: **Chloe is dropped**; this engine becomes the
+annotate step when it passes the Done-when, and `D3-01` gains an update line then.
 
 ## Non-goals (deliberately kept out)
 
