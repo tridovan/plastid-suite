@@ -23,13 +23,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from plastid.result.deps import require_module
 from plastid.result.result import Result, Table
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
     from docx.document import Document as _Document
     from docx.text.paragraph import Paragraph
 
-__all__ = ["DocxMeta", "ExportDependencyError", "export_docx", "merge_documents"]
+__all__ = ["DocxMeta", "export_docx", "merge_documents"]
 
 # WordprocessingML namespace, spelled out so this module needs lxml only through python-docx.
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -74,10 +75,6 @@ UNUSED_PREFIXES = ("customXml/",)
 
 _INLINE = re.compile(r"(\*\*.+?\*\*|\*[^*]+?\*|`[^`]+?`)")
 _LIST_ITEM = re.compile(r"^[-*]\s+(.*)$")
-
-
-class ExportDependencyError(RuntimeError):
-    """The optional dependency this export needs is not installed."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -264,14 +261,7 @@ def _with_title(blob: bytes, title: str | None, label: str | None = None) -> byt
 
 
 def _load_docx() -> Any:
-    try:
-        import docx
-    except ImportError as error:  # pragma: no cover - exercised by a monkeypatched import
-        raise ExportDependencyError(
-            "Word export needs python-docx, which is an optional dependency — "
-            "install it with: pip install 'plastid-suite[docx]'"
-        ) from error
-    return docx
+    return require_module("docx", extra="docx", purpose="Word export")
 
 
 def _apply_base_style(document: _Document) -> None:

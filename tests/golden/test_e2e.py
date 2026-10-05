@@ -6,6 +6,7 @@ cache hit on an identical second run; byte-identical restore after deleting an o
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import json
 from pathlib import Path
@@ -13,6 +14,7 @@ from pathlib import Path
 import pytest
 from Bio import SeqIO
 
+from conftest import require_tools
 from plastid.cli import main
 from plastid.run.manifest import validate
 
@@ -296,6 +298,98 @@ def test_one_run_carries_several_modules_and_combines_their_documents(
     )
     again = sorted((tmp_path / "iris_domestica").iterdir())[-1]
     assert (again / "report" / "report.docx").read_bytes() == first
+
+
+def test_a_run_writes_its_figure_and_a_second_run_writes_the_same_bytes(
+    tmp_path: Path, data_dir: Path, tools: dict[str, str | None]
+) -> None:
+    """P5-01's Done-when, end to end: the figure lands in the run directory and regenerates."""
+    import hashlib
+
+    require_tools(tools, "mafft")
+    if importlib.util.find_spec("matplotlib") is None:
+        pytest.skip("the 'figures' extra is not installed — pip install 'plastid-suite[figures]'")
+
+    def run() -> int:
+        return main(
+            [
+                "run",
+                "--module",
+                "diversity",
+                "--input",
+                str(data_dir / "NC_050833.1.gb"),
+                "--input",
+                str(data_dir / "NC_024936.1.gb"),
+                "--out",
+                str(tmp_path),
+                "--dataset",
+                "golden_figures",
+                "--figures",
+            ]
+        )
+
+    assert run() == 0
+    first_dir = _only_run_dir(tmp_path, "golden_figures")
+    figure = first_dir / "figures" / "pi_window.svg"
+    assert figure.is_file(), "the run did not write its figure"
+    digest = hashlib.sha256(figure.read_bytes()).hexdigest()
+
+    manifest = json.loads((first_dir / "manifest.json").read_text(encoding="utf-8"))
+    entry = next(item for item in manifest["files"] if item["path"] == "figures/pi_window.svg")
+    assert entry["module"] == "figures" and entry["sha256"] == digest
+    assert manifest["figures"]["rendered"] == [
+        "pi_window.svg",
+        "pi_window.pdf",
+        "pi_window.eps",
+    ]
+    assert "--figures" in manifest["command"]
+
+    # The second run is served from the cache — and must still get its figure, from the result
+    # the first run stored rather than from the module.
+    assert run() == 0
+    second_dir = sorted((tmp_path / "golden_figures").iterdir())[-1]
+    assert hashlib.sha256((second_dir / "figures" / "pi_window.svg").read_bytes()).hexdigest() == (
+        digest
+    )
+
+    # The report of that run carries no number its own tables do not (P5-05, on a fresh run).
+    from plastid.report.audit import audit_run
+
+    audits = audit_run(first_dir)
+    assert audits and all(report.audit.ok for report in audits)
+
+
+def test_asking_for_a_figure_without_the_extra_is_a_named_exit_3(
+    tmp_path: Path, data_dir: Path, tools: dict[str, str | None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A minimum install runs every pure-Python analysis; asking for a figure says what to add."""
+    require_tools(tools, "mafft")
+    real_import = importlib.import_module
+
+    def refuse(name: str, package: str | None = None):  # type: ignore[no-untyped-def]
+        if name.startswith("matplotlib"):
+            raise ImportError("no matplotlib here")
+        return real_import(name, package)
+
+    monkeypatch.setattr("plastid.result.deps.import_module", refuse)
+    code = main(
+        [
+            "run",
+            "--module",
+            "diversity",
+            "--input",
+            str(data_dir / "NC_050833.1.gb"),
+            "--input",
+            str(data_dir / "NC_024936.1.gb"),
+            "--out",
+            str(tmp_path),
+            "--dataset",
+            "no_figures_extra",
+            "--figures",
+        ]
+    )
+    assert code == 3  # the missing extra is a named failure, never a traceback
+    assert not (_only_run_dir(tmp_path, "no_figures_extra") / "figures").exists()
 
 
 def test_naming_a_module_twice_is_a_usage_error(tmp_path: Path, data_dir: Path) -> None:

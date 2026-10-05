@@ -105,3 +105,53 @@ dạng file nằm **cạnh** `result.json` và manifest liệt kê, chép vào J
 (P5-04) không phải chạy lại phân tích nào. Và luật "đúng một ô" có hiệu lực thật: nó bắt số lạ,
 còn ca "hai dòng cùng render một giá trị" **không** bị coi là mơ hồ — hai ô không thể mâu thuẫn,
 nên số vẫn có đúng một câu trả lời (đo trên chính genome vàng: hai bản IR đều 26.214 bp).
+
+---
+
+### 8.36. Hình vẽ: công thức xuất vector tất định, và dải vùng không được lấy từ mép cửa sổ (P5-01, 05/10/2026)
+
+**Bối cảnh.** P5-01 dựng hệ thống hình: `[figures]` (matplotlib 3.11.2, extra tuỳ chọn, import
+trong hàm) · `result/figure.py` (theme + `Figure` + driver) · `result/figures/` (một file mỗi hình,
+registry) · `run/figures.py` (render ở **mức run**, đọc `result.json` đã ghi) · CLI `plastid run
+--figures` và `plastid figures <run-dir>`.
+
+**1. Cái gì trong file vector làm hai lần render khác nhau — đo bằng cách render cách nhau 1,2 giây.**
+matplotlib đóng dấu thời gian thật vào cả ba định dạng, và **SVG còn thêm một salt ngẫu nhiên theo
+tiến trình** cho id của các phần tử:
+
+| Định dạng | Dấu bị đóng | Cách ghim | Còn khác không? |
+|---|---|---|---|
+| SVG | `<dc:date>2026-10-05T21:11:09.509605</dc:date>` **và** id kiểu `#m3b5f8bc5b3` | `rcParams["svg.hashsalt"]="plastid"` **+** `savefig(metadata={"Date": None})` | không |
+| PDF | `/CreationDate (D:20261005211110+07'00')` | `savefig(metadata={"CreationDate": None})` | không |
+| EPS | `%%CreationDate: Mon Oct  5 21:11:12 2026` | backend PostScript **không nhận metadata** ⇒ thay dòng đó bằng mốc cố định | không |
+
+Đo riêng: SVG với `metadata={"Date": None}` mà **không** có `hashsalt` vẫn khác nhau (id phần tử
+đổi theo tiến trình) — nên phải cả hai. `metadata` cũng **không** dùng chung một dict cho ba backend
+được. Kiểm chứng end-to-end: chạy `plastid run --figures` hai lần trên cặp Iris đã pin ⇒
+**svg · pdf · eps đều byte-identical**, và lần thứ hai là **cache hit** — hình vẫn ra, vì nó render
+từ `result.json` đã ghi chứ không từ đối tượng `Result` trong bộ nhớ.
+
+**2. Dải vùng LSC/SSC/IR không được lấy từ mép cửa sổ — cửa sổ chồng nhau 400 bp.** Đo trên chính
+hình π của cặp Iris (600 bp/cửa sổ, bước 200 bp): lấy mép cửa sổ làm mép dải thì
+`LSC 1–84000` và `IRa 83601–110200` **chồng nhau 399 bp**, SSC và IRb cũng vậy — tức là tô vùng này
+đè lên vùng kia. Sửa: ranh giới đặt ở **trung điểm giữa cửa sổ cuối của vùng cũ và cửa sổ đầu của
+vùng mới**, được `LSC 1–83800 · IRa 83800–110000 · SSC 110000–128600 · IRb 128600–154827`.
+So với mốc thật của khung chuẩn hoá (`83127 · 109341 · 127510`): lệch **670 · 660 · 1090 bp** —
+đúng độ phân giải của cách cửa sổ hoá, và hình **không** giả vờ chính xác hơn.
+
+**3. Số in trên hình là chính ô của bảng, không có lần làm tròn thứ hai.** Dòng tiêu đề hình π in
+`whole-alignment π 0.007181` — lấy từ `diversity_summary.format("pi")`, đúng chuỗi mà CSV và report
+in. Test canh cả chữ lẫn số: chữ phải nằm trong SVG dưới dạng `<text>` (đặt `svg.fonttype: none` —
+SVG là bản **để sửa**), còn PDF nhúng TrueType (`pdf.fonttype: 42` — bản **để nộp**).
+
+**4. Hình phải được NHÌN, không chỉ assert.** Bài học §9.C-34 áp lại đúng lần này: hình render ra
+hợp lệ, test xanh, nhưng **mắt mới thấy** dải vùng chồng nhau ở mục 2 — và thấy π tụt hẳn trong IR,
+vọt lên ở SSC, khớp các số vàng (`LSC 0.009185 · IRa 0.001682 · SSC 0.014066`).
+
+**Quyết định kiến trúc kèm theo (ghi để lần sau khỏi hỏi lại).** `TASKS.md` viết `core/figure.py`,
+nhưng `tests/unit/test_architecture.py` chỉ cho `core/` import `plastid.core` — mà một hình là **hàm
+của `Result`**, và `Result` nằm ở tầng `result`. Hơn nữa hai hình đọc bảng của **hai module khác
+nhau**, việc mà một callback theo-từng-module không làm được. Nên: hình ở tầng `result`
+(`docx_export.py` đã là tiền lệ cho một exporter phụ thuộc tuỳ chọn nằm ở đó), và render ở **mức
+run** sau khi mọi module chạy xong — một hàm dùng chung cho `plastid run --figures` lẫn
+`plastid figures <run-dir>`, nên cache không bao giờ chen vào được.
