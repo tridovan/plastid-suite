@@ -341,6 +341,7 @@ across 3 environments (WSL · CI · Docker).
 | ~~Reports generated from `Result` objects~~ — decided 2026-10-02: reports reference table cells (`{{table.column}}`); an unresolvable reference raises | — | PROJECT.md §3 |
 | ~~Reference Panel: pinned snapshot vs live NCBI~~ — decided 2026-10-02: propose from a dated RefSeq cache, pin + checksum on the user's confirmation, runs stay offline | — | PROJECT.md §3 |
 | Reference Panel item (c) — source text truncated | documentation only — does not block M1.10 | PROJECT.md §10.9 |
+| **The slot for the self-built plastid annotator (D5-08)** — a new phase **3B** (proposed: after Phase 5, mirroring 3A) or inside Phase 6; the annotate step becomes this project's own tool (CGAS's model, our core) and **Chloe is dropped** | opening the 3B board — nothing already scheduled waits on it | PROJECT.md §3 (D5-08) · `docs/D5-08_plastid_annotator.md` (D-c · D-a · D-b · D-e open) |
 
 ## Waiting on data / people
 

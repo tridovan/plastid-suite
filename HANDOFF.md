@@ -16,6 +16,14 @@ the one that can be written first) or **P5-01** (the figure system + the first f
 eleven figure types, **seven have a source table and four do not** — the four are named in the board
 and in ROADMAP, not scheduled.
 
+**Pending, not yet scheduled — the self-built plastid annotator (D5-08).** The annotate step
+becomes this project's own tool (CGAS's model, our search-and-decide core; **Chloe is dropped**,
+PGA stays only as the measured counter-example), with a reference-set audit gating every annotation
+run. Proposed as a new phase **3B after Phase 5**; the four open decisions (D-a tRNA caller ·
+D-b reference set · D-c slot · D-e shared core) and the full design are in
+`docs/D5-08_plastid_annotator.md`, and the slot question is in `ROADMAP.md` → Open decisions.
+Nothing in Phase 5 waits on it.
+
 **The corpus is now a permanent part of the test set.** 34 Iridaceae plastomes × 2 annotations of
 the same sequences (published NCBI · PGA) + 34 bare FASTAs, in **`.data/thanhdiem_data/`** (working
 tree, **gitignored**, 136 files · 28 MB, every sha256 matching `D:\`); both annotation sets pinned as
