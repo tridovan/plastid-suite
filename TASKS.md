@@ -32,7 +32,8 @@ Five tasks, each closed with its Done-when measured. The evidence is in `docs/lo
 |---|---|---|
 | Plant mito data — a real mitogenome dataset | anh Điềm / cô Trang | **H-06 · H-10 · H-12** (on hold by D5-07) and Phase 6's mito content (M6.2 · M6.3) |
 | One RNA-seq sample (any tissue) | team | M4.5 RNA editing |
-| The team's own Oldenlandia/Coleus samples | anh Điềm / cô Trang | the manuscript tables being *the team's* — the stand-in tables exist today |
+| The team's own Oldenlandia/Coleus samples | anh Điềm / cô Trang | the manuscript tables being *the team's* — the stand-in tables exist today, and the *O. diffusa* half of the draft runs on `PP078674.1` (Shen C.'s submission) until a team record exists |
+| Confirmation of who `Vu,H.-T.` is, and whether `PX923121.1` is the specimen the *C. amboinicus* manuscript reports | cô Trang | the *C. amboinicus* numbers being quoted as the manuscript's (moved here 07/10/2026 from `docs/PHASE3_BLOCKERS.md`, which was deleted) |
 | A nuclear genome of a manuscript species | cô Trang | the **NUPT/MTPT figure** (M6.1) |
 | A haplotype table (`popgen` counts haplotypes today, it does not list them) | **us** — a task, once a figure needs it | the **haplotype network** figure |
 | A phylogeny | us (M6.4) or an external tree | the **annotated tree** figure |
@@ -45,7 +46,6 @@ Five tasks, each closed with its Done-when measured. The evidence is in `docs/lo
 |---|---|---|---|
 | D-03 | Fill Reference Panel item (c) in PROJECT.md §13.1 | BLOCKED on cô Trang | the text exists |
 | H-04 | `trnG-GCC` vs `trnG-UCC` (§10.10) | OPEN | cô Trang decides the name printed in the manuscript table |
-| H-05 | PMGA web service re-test (re-tested 03/10: still refuses connections) | OPEN | the `curl` in ROADMAP answers; then one web run + `panel pin --file` — nothing waits on it |
 | H-06 | `src/plastid/data/mito_gene_names.yaml` holds **31** loci; the references carry **10 standard genes more** (`rpl2` · `rpl10` · `rpl16` · `rpl23` · `rps2` · `rps7` · `rps12` · `rps14` · `rps19` · `sdh3`) | ON HOLD — team decision 05/10 (D5-07: plastid first); measured 03/10 | each new locus carries the reference `/product` string that justifies it, and a test proves the vocabulary covers the set — it changes naming for **every** mito record, so it is its own task; reopen when plant mito data arrives |
 | H-07 | π per **intron/IGS** — the last piece of M2.9 | OPEN | intron spans are derived inside `modules/introns.py` and IGS spans nowhere: extract that derivation to the shared layer first (DRY's second copy) and feed `diversity`'s region machinery; a run whose regions cover LSC/IR/SSC **plus** every intron and IGS, cross-checked against `introns`' own count (17 on the golden genome) |
 | H-08 | The run cache keys on `module_version` but not on the module's source: a behaviour change without a version bump serves a stale payload (measured 04/10, §9.C-35) | OPEN | either the cache key carries a source hash, or CI fails a changed module whose version did not move |

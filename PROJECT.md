@@ -239,7 +239,7 @@ Kết luận về câu hỏi "CGAS có phải output ra một đống không tru
 
 Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / địa chỉ; **CHƯA GHI** = tài liệu chỉ có tên công cụ, chưa ghi nguồn.
 
-**Qua conda (conda-forge + bioconda)** — lệnh gộp đầy đủ ở §12:
+**Qua conda (conda-forge + bioconda)** — lệnh cài đầy đủ và có pin: [`environment.yml`](environment.yml):
 
 | Công cụ | Kênh | Trạng thái |
 |---|---|---|
@@ -733,34 +733,14 @@ Nằm trong `D:\business\pts\`:
 | `thanhdiem_result/` | Trả lời phiếu việc của anh Điềm + kết quả thô (`.misa`, `.statistics`, cpstools, MAFFT per-gene) |
 | `probe/` | Script + dữ liệu dùng để đo các lỗi ở §8–9 (`chain_e2e.py`, `chain_tools.py`, `ir_gate.py`, `iridaceae20.gb`) |
 
-## 12. Lệnh cài gọn cho máy mới (nguyên văn từ báo cáo anh Điềm)
+## 12. Lệnh cài cho máy mới
 
-```bash
-conda create -y -p ~/toolbox/env/thaythe -c conda-forge -c bioconda \
-  sibelia bandage getorganelle spades oatk mummer4 mreps trf vmatch \
-  raven-assembler novoplasty minimap2 samtools wgsim blast aragorn paml beast2 \
-  mafft perl perl-bioperl perl-xml-simple
-conda install -y -c conda-forge pycirclize
-conda install -y -c bioconda cpstools        # SỬA 02/10: cpstools KHÔNG có trên conda-forge (§7.8)
-git clone https://github.com/daisieh/plann ~/toolbox/src/plann
-git clone https://github.com/Adamtaranto/pypopart ~/toolbox/src/pypopart \
-  && pip install -e '~/toolbox/src/pypopart[viz]'
-curl -L -o embryophyta_pltd.fam \
-  https://github.com/c-zhou/OatkDB/raw/main/v20230921/embryophyta_pltd.fam
-get_organelle_config.py -a embplant_pt,embplant_mt   # 1 lần, cần mạng
-# MISA standalone (misa.pl + misa.ini) — nguồn IPK, kiểm md5 trước khi dùng:
-curl -L -o misa_sourcecode_25082020.zip \
-  https://webblast.ipk-gatersleben.de/misa/misa_sourcecode_25082020.zip
-md5sum misa_sourcecode_25082020.zip    # phải ra cf9d3579f7caacd02f99830b329c7d9c
-unzip misa_sourcecode_25082020.zip -d ~/toolbox/src/misa
-```
+**Nguồn duy nhất, có pin phiên bản: [`environment.yml`](environment.yml)** — mọi công cụ ở đó được
+ghim đúng bản mà §7.8 ghi, và đó là thứ `make env` cùng image Docker dùng.
 
-**Sửa 02/10/2026:** thêm `mafft` và `perl` (thiếu thì không ra được số vàng Ts/Tv và SSR 37);
-tách `cpstools` sang kênh bioconda; thêm lệnh tải MISA kèm md5. Lệnh cũ trong báo cáo anh Điềm giữ
-nguyên ở §8.1 để đối chiếu.
-
-**Sửa 05/10/2026:** thêm `aragorn` (bộ gọi tRNA mito, P3A-04). **Nguồn pin đầy đủ và luôn cập nhật
-là `environment.yml`** — khối này giữ làm bản gọn để đối chiếu §8.1.
+*Khối lệnh cũ (nguyên văn báo cáo anh Điềm, **không pin phiên bản** — chính là lỗi §9.B-14 đã đo)
+đã được gỡ ngày 07/10/2026 để không ai copy-paste nó. Bản gốc 26/9 giữ ở §8.1 làm lịch sử khảo sát;
+nguồn và cách cài từng công cụ: §7.8.*
 
 ---
 
@@ -1034,26 +1014,10 @@ Cần dữ liệu đọc thô; nặng về bộ nhớ.
 
 ### 13.10. Đã chạy thử được gì (chỉ ghi chỗ có bằng chứng — nguồn §7.1, §8)
 
-*Bảng dưới là **ảnh chụp 26/9** (đợt khảo sát §7.1) — nhật ký sống là §8, nơi mọi mục từ §8.6 trở
-đi đã thay thế các dòng ở đây. Đọc bảng này như lịch sử, không phải trạng thái hiện tại; ví dụ dòng
-"chưa chạy thử lần nào" gồm nhiều việc đã chạy xong ở Giai đoạn 2–4 (bảng gen Word §8.7 · codon/AA/
-intron §8.8 · π §8.25 · Ka/Ks §8.27 · popgen §8.28 · barcode §8.29 · ORF §8.11 · nộp NCBI §8.18).*
-
-| Việc | Kết quả thô |
-|---|---|
-| Reading/thống kê gen | 132 gen = 86 CDS + 38 tRNA + 8 rRNA trên NC_050833.1 |
-| Cấu trúc bộ gen | IR 26.214 bp (2 bản giống 100,00 %) · LSC 83.127 · SSC 18.169 · xoay chiều giữ nguyên IR |
-| SNP/thay thế | Ts/Tv = 2,686 (76 gen CDS, MAFFT) *(số của bộ 76 gen lúc đó; số vàng nay là **2,6917**/79 gen — §6, §8.27)*; bộ Eleutherine (cả plastome) có dải 1,095–1,777 |
-| SSR | 37 SSR — MISA standalone 2.1 **và** cpstools 3.0 cùng ra 37; mono 31 · di 4 · tri 2; IGS 18 · Intron 8 · Gene 11 |
-| Synteny/mVISTA | nucmer → 21 khối, %IDY 83,7–98,2 (mean 91,5) *(số probe 26/9 trên dữ liệu khác — **không tái lập được** từ đầu vào của nó; cặp Iris đo lại = **7 khối · 97,37**, §8.26/§9.H)*; PNG 243.787 B |
-| RNA editing | mô phỏng 20 vị trí C→U: recall 100 % ngoài IR, precision 74 %; 6 vị trí sót trong IR |
-| Mạng haplotype | PyPopART trên 13 trình tự matK → rc=0 |
-| Bản đồ vòng genome | pycirclize 1.10.1 → PNG 494.859 B @300 dpi |
-| Chú giải | plann.pl + PGA.pl chạy offline theo reference GenBank |
-| Lắp ráp (giai đoạn 6) | GetOrganelle + SPAdes: 20.000 cặp read mô phỏng → 127.679 bp · raven 1.8.3: 2 contig, dài nhất 107.394 bp · OATK 1.0: 126.660 bp, identity 100,00 % · flye: chết vì hết RAM (máy 3,7 GB) |
-| Đồ thị assembly | Bandage 0.9.0 → PNG 103.289 B |
-| Thời gian phân kỳ | mcmctree (PAML 4.10.10) + BEAST2 2.7.7 chạy được, **chưa** chạy phân tích thật; treePL đã build nlopt + ADOL-C |
-| **Chưa chạy thử lần nào** | Bảng gen Word · codon usage · amino acid · intron · π · Ka/Ks · DNA barcode · di truyền quần thể · NUPT/MTPT · cấu trúc ty thể · ancestral state · thời gian phân kỳ (phân tích thật) · kiểm tra khung đọc · nộp NCBI · thống kê · xuất bản · kiểm thử · đóng gói |
+*Ảnh chụp **26/9/2026** (đợt khảo sát §7.1) đã được gỡ ngày 07/10/2026 — từng dòng của nó nay nằm
+ở **§8** (nhật ký sống, từ §8.6 trở đi) hoặc **§7.1** (bản tổng của đợt khảo sát đó), và dòng
+"chưa chạy thử lần nào" đã sai từ lâu (Giai đoạn 2–5 chạy hết danh sách ấy). Không còn con số nào
+chỉ sống ở đây.*
 
 ### 13.11. Bảng tra để đối chiếu với kế hoạch 22/9 (chỉ dùng khi cần tra ngược tài liệu gốc)
 

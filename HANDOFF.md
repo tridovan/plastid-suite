@@ -84,12 +84,20 @@ reference-driven naming step) and fixed every contradiction the review found.
 
 * **Two more false statements the stale sweep found, corrected in place**: `README.md` still said
   "Phase 5 in progress" and "Nineteen analysis modules" (it is 20 — `stats` arrived in Phase 5);
-  `core/gene_names.py`'s docstring still stated D3-02's direction as current. **Left as proposals**
-  (see the session's chat report): deleting §13.10's 26/9 snapshot table (keep the heading — a log
-  entry cites §13.10), replacing §12's *unpinned* install block with a pointer to `environment.yml`
-  (an unpinned `mafft` is the §9.B-14 hazard), and deleting `docs/PHASE3_BLOCKERS.md` after its one
-  live ask (who `Vu,H.-T.` is / whether `PX923121.1` is the manuscript's specimen) moves into
-  `TASKS.md` → "Waiting on data / people" — that ask lives nowhere else today.
+  `core/gene_names.py`'s docstring still stated D3-02's direction as current.
+* **Three more places still stated the old pipeline order** (CLAUDE.md had been fixed first):
+  ROADMAP's Phase-3B goal, D5-08's pipeline diagram and its "next steps" bullet, and the D5-08
+  decision row in PROJECT.md §3.
+* **The four dead items removed**, one commit: `docs/PHASE3_BLOCKERS.md` (its "still blocked — a
+  decision on the mito annotator" item was false since 03/10; its one live ask — who `Vu,H.-T.` is
+  / whether `PX923121.1` is the manuscript's specimen — moved to `TASKS.md` → "Waiting on data /
+  people", and `environment.yml`'s pointer to the file was re-pointed) · `TASKS.md` **H-05** (PMGA
+  web re-test — nothing waits on it; the mito path is settled by D3A-02 and frozen by D5-07) ·
+  PROJECT.md **§13.10's** 26/9 snapshot table (heading kept — a log entry cites it; every row of it
+  now lives in §8 or §7.1) · PROJECT.md **§12's** unpinned install block (the §9.B-14 hazard;
+  `environment.yml` is the pinned source, and §7.8's pointer was re-pointed). `docs/tools/pmga.md`
+  **stays** — it is the marked record of a measured dead end and keeps a later agent from
+  re-investigating PMGA.
 
 **Validation.** `make check` green (lint · 668 fast tests · golden with named skips). The
 §13.0 ↔ D5-09 §1 diagram diff is empty. Committed as two commits: the design record as received,
