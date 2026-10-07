@@ -11,17 +11,18 @@ from what existed and now carries an update pointing here; this builds ours.
 The **annotate** step of the pipeline the team described:
 
 ```
-assembly (Phase 7: GetOrganelle · OATK)  →  ANNOTATE (this tool)  →  gene-name unification
-(modules/gene_names.py + the alias tables)  →  the analyses (Phases 2/4 modules)
+gene_normalize on the reference set (D5-09)  →  assembly (Phase 7: GetOrganelle · OATK)  →
+ANNOTATE (this tool)  →  gene_normalize, verify mode (D5-09)  →  the analyses (Phases 2/4 modules)
 ```
 
 - **In:** assembled plastomes as single-record FASTA files (no features — the assembler's output),
   **one or many per run** (batch is part of the CGAS model the team wants), plus a **reference
   set** of annotated GenBank records pinned by the project's taxonomy rule (same family first —
-  the Reference Panel / `mito-reference` pattern).
+  the Reference Panel / `mito-reference` pattern), and **name-normalized before it is used**
+  (D5-09 — the reference set is itself normalized to the naming reference first).
 - **Out:** a GenBank artifact per sample that **re-reads with our own reader** (P3A-01's rule: a
-  file that does not re-read is not a result), tables, and one report. The next steps — name
-  unification and every analysis module — consume it unchanged; no second code path.
+  file that does not re-read is not a result), tables, and one report. The next steps — the name
+  **verify** pass (D5-09) and every analysis module — consume it unchanged; no second code path.
 - **Plastid first** (D5-07). The mitochondrial counterpart already exists
   (`core/mito_caller.py` + `modules/mito_annotate.py`); this is its plastid sibling.
 - **Chloe is dropped from the plan** (D5-08, 2026-10-05). When this engine passes the Done-when it
@@ -51,7 +52,7 @@ assembly (Phase 7: GetOrganelle · OATK)  →  ANNOTATE (this tool)  →  gene-n
 | no overlap logic anywhere in **PGA.pl** (`grep -i overlap` = 0 in its 16,320 lines — commit `0683a0ec…`); CGAS adds no arbitration of its own, and its own `overlap` matches are coordinate-range merging (`cgas_module5.py:545`), not gene-call arbitration | overlap kept and reported by default — the golden itself carries four overlapping pairs |
 | "total genes" counts `gene` **features**, and that same number is used as the reference denominator (annotation rate ≡ 100 %) | the counting convention is 132 = 86 + 38 + 8, reconciled by the project's own table — never a self-congratulating rate |
 | IR features taken from PGA's `repeat_region`, regions labeled by order and by size; fewer than two IR features → debug-level silent skip | structural IR detection + the ≥ 99.9 % gate before anything position-based |
-| module 3 renames genes to one reference, name-based only, original spelling overwritten in the file | arbitration by structure first; name unification stays a **separate** step with its evidence (`gene_names` + the alias tables) |
+| module 3 renames genes to one reference, name-based only, original spelling overwritten in the file | arbitration by structure first; name unification stays a **separate** step with its evidence (`gene_names` + the alias tables) — **[07/10/2026, D5-09: that step now runs before annotation, on the reference DB, and writes the normalized GenBank; the reference set must itself be name-normalized before the annotator uses it — `docs/D5-09_reference_naming.md`]** |
 | no tool provenance; module outputs to fixed folder names | `run_tool()` records name · version · argv · exit code; every run is run-scoped |
 
 ## The reference-set audit — settled 2026-10-05
@@ -153,8 +154,11 @@ and classified — with fewer conclusion-level differences than PGA's reading of
 |---|---|---|
 | D-a | tRNA/rRNA calling | `blastn` transfer from the reference set's tRNA/rRNA sequences (the CGAS/PGA way; what "blastn for non-coding" implies) vs **ARAGORN de novo** for tRNA (already declared, `aragorn=1.2.41`; matches the mito path; no reference needed) + `blastn` for rRNA |
 | D-b | The plastid reference set | built and pinned by the taxonomy rule (same family first, like `mito-reference`); for validation, leave-one-out on the corpus. Which records — a dev call with the rule applied |
-| D-c | Phase slot | **a separate phase (3B, mirroring 3A) after Phase 5** vs inside Phase 6 |
 | D-e | Shared core | **extract the calling core from `core/mito_caller.py`** (the second real copy is arriving — DRY's own rule) with the mito tests as the regression guard |
+
+D-c (phase slot) was settled on 2026-10-07: **a separate phase 3B after Phase 5, opening next**,
+with the naming step (**D5-09**) as its **M3B.0** in front of the annotator — the reference set
+must be name-normalized before this engine uses it (`ROADMAP.md`).
 
 D-d (replacement policy) was settled on 2026-10-05: **Chloe is dropped**; this engine becomes the
 annotate step when it passes the Done-when, and `D3-01` gains an update line then.

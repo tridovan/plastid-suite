@@ -4,7 +4,10 @@
 # (a naming convention, not a fact about our code), and the next record will bring names this
 # list has not seen.
 #
-# THE RULE (D3-02, PROJECT.md §8.10). `canonical` is the name this toolkit compares and prints;
+# THE RULE (D3-02, PROJECT.md §8.10) — [ĐÃ THAY 07/10/2026: D5-09 reverses the direction — the
+# canonical forms follow the project's naming reference (the ★ record the end user picks), not the
+# group's dialect. This table keeps D3-02's direction until the naming step is built, so the shipped
+# code and its tests stay consistent]. `canonical` is the name this toolkit compares and prints;
 # every other name of that locus is a synonym and is printed beside it: `pafI (ycf3)`. The
 # direction is not a majority vote — the canonical forms are the ones the team's own records and
 # submissions use (their records come out of GeSeq, which emits them), so normalizing to the

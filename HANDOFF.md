@@ -10,10 +10,15 @@
 05/10/2026**: five tasks, each Done-when measured, recorded in `docs/log/phase-5.md` (§8.35–§8.39)
 and ticked in `ROADMAP.md`. `TASKS.md` holds no open phase — only the Housekeeping table.
 
-**Immediate next action:** the next board is **Phase 3B — the self-built plastid annotator**
-(D5-08), whose slot is the one open decision (ROADMAP.md → Open decisions; design and the four open
-questions in `docs/D5-08_plastid_annotator.md`). Nothing in Phase 5 waits on it, and nothing else
-is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
+**Immediate next action:** open the **Phase 3B** board — the slot was **decided 07/10/2026**: this
+phase (after Phase 5, mirroring 3A), with the naming step (**D5-09**) as its **M3B.0** in front of
+the annotator, because the reference set must be name-normalized before the annotator uses it.
+Build the board from ROADMAP's **M3B.0–M3B.5** with the `make-tasks` skill. Still open: D5-08's
+D-a · D-b · D-e and D5-09 §9's items 1–4 · 6–9; on hold by D5-07: H-06 · H-10 · H-12. ROADMAP's
+"The pipeline" maps every step of the canonical diagram to its owner milestone — and, since session
+23, **every tool named inside a box** (the tool-level pass added **M7.6**, the long-read path, and
+named the read map-back in **M7.1**). Nothing else is scheduled: Phase 6 waits on mito/nuclear
+data, Phase 7 on real reads (Illumina **and** ONT/HiFi).
 
 **What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
 `[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
@@ -43,6 +48,126 @@ H-11 · H-13 · H-14. **Waiting on the PI:** H-04 (`trnG`) and D5-05 (what a gen
 claim — the mechanism is built and follows the conservative default).
 
 ## Log
+
+### 2026-10-07 · Claude · dev WSL · session 23 (the coverage check re-run at tool level — three ownerless tools, one ownerless artifact)
+
+**Did.** Re-ran ROADMAP's coverage check ("How to use" 5) over "The pipeline" — this time **per tool
+named in a box**, which is what session 22's box-level pass had not done. Four gaps found, each
+closed with a home; the canonical diagram (§13.0) corrected first and the copies re-synced.
+
+* **Long-read assembly had no milestone.** The diagram names `OATK` · `raven` (and `Flye`) in
+  box 1 and reads as "Illumina · **ONT/HiFi**", but Phase 7's milestones covered only the
+  short-read path (M7.1) plus Bandage/remote/RAM. → new **M7.6 Long-read path** (BLOCKED: no
+  ONT/HiFi reads; both tools declared and run in the survey, §7.1) with rows in ROADMAP's and
+  TASKS.md's waiting tables.
+* **`Flye` left the canonical diagram** — §7.1 measured it dying on RAM here and replaced it with
+  `raven-assembler`/`OATK`; it was also the one tool in the diagram declared nowhere in the repo.
+* **`Sibelia` left the canonical diagram** — run for real in the 26/9 survey, never adopted: the
+  project's synteny route is `nucmer` (D4-02, M4.2) and no milestone needs LCB blocks.
+* **`BWA`/`minimap2`** (the map-back in the read-QC line) → named in **M7.1**'s title.
+* **The `.sbt`** → a TASKS.md "Waiting on data / people" row: it is the team's artifact (M3.4 and
+  `docs/tools/table2asn.md` both name it as outstanding) and had no row anywhere.
+* Rule 5 now reads at **tool level** (a tool with no owner is a gap, or is marked *surveyed — not
+  adopted* with the measurement that dropped it); the coverage table rewritten tool by tool;
+  PROJECT.md §13.0 gained a dated correction note (canonical record) and the three copies were
+  re-diffed byte-identical.
+* New guard **`tests/unit/test_pipeline_diagram.py`**: the three diagram copies must be
+  byte-identical (the copy rule was prose only before), and every milestone id cited in a ROADMAP
+  table must exist as a milestone.
+
+**Validation.** `make check` green — lint · **670** fast tests (2 skipped: no mafft) · golden 43
+passed / 21 skipped with named reasons. Both new guards negative-checked in memory: a planted
+`M1.99` in a table and a one-character drift in a copy are each flagged. D5-09's own pipeline table
+(a hand translation, not a copy) synced for the two rows it repeats.
+
+**Residual risks.** (1) D5-09 Appendix B still lists `Sibelia` among the kind-5 (no-reference)
+tools — that appendix is a reference-mechanism list, not the pipeline, so it was left alone.
+(2) Six declared tools still carry "# §7.8 records no version" (`minimap2` · `samtools` · `wgsim` ·
+`mreps` · `trf` · `novoplasty`) — against CLAUDE.md's pinned-tool invariant; none is on a path that
+has produced a number yet, and no task owns it — named here rather than silently fixed.
+
+**Blocked.** Nothing. M7.6 waits on ONT/HiFi reads, now recorded in both waiting tables.
+
+**Next.** Unchanged: open the **Phase 3B** board from M3B.0–M3B.5 with the `make-tasks` skill.
+
+### 2026-10-07 · Claude · dev WSL · session 22 (doc alignment with D5-09 — and the cache defect the review exposed)
+
+**Did.** Read `PROJECT.md` and `CLAUDE.md` in full against the new D5-09 design record (the
+reference-driven naming step) and fixed every contradiction the review found.
+
+* **CLAUDE.md** — the pipeline sentence read `assembly → annotate → gene-name unification →
+  analyses`; D5-09 reverses it (names are unified **on the reference DB, before annotation**; the
+  step after annotation only **verifies**). Rewritten, plus a D5-09 paragraph in the briefing (the
+  naming reference is a sixth kind, chosen by the end user from the audit report; D3-02 is
+  reversed; `gene_normalize` is a new module) and a "who decides" row for the ★ choice. Also fixed
+  **"Current state: Phase 5 in progress"** — stale since 05/10; the file now says phases 1–5 + 4a
+  complete, next board 3B, with its slot (and D5-09's) open.
+* **PROJECT.md §3** — D3-02 marked `[ĐÃ THAY 07/10/2026]`; the D4a-05 alias row points at the
+  reversal; the **D5-09 decision row** added (it did not exist). §13.3's naming bullet marked as
+  moved. §13.0's `[5] RNA editing` said **PREPACT** while the table beneath it said "chưa chọn" and
+  §7.4/§7.5 measured PREPACT unreachable (`http=000`) — the diagram now says "chưa chọn"; the D5-09
+  copy synced and re-diffed **byte-identical**.
+* **D5-09** — §5's status column used "the reference" for two different things; `measured` /
+  `not measured` now say **in A**, `outside vocabulary` says **in B**. §9 gained the three gaps the
+  review found: the **exit code** for a conflict stop (2 is already the IR gate's — and D5-08's
+  audit's), the **organelle group** `gene_normalize` must declare in §13's table, and the fact that
+  **§7.2's cache promise cannot hold today**.
+* **ROADMAP** — a second open-decision row: the naming step's slot, which interacts with 3B's.
+* **The cache defect, measured and named H-15.** `Cache.key` sorts input hashes and `_input_hash`
+  hashes the sequence only, so the corpus's own "one sequence, two annotations" pair shares a key in
+  either order — while six modules take `genomes[0]` as their reference. Measured on
+  `tests/data/NC_050833.1.gb` (86 CDS) vs the corpus PGA copy (85 CDS): equal `_input_hash`, equal
+  key with the inputs swapped. The run directory's fingerprint **is** order-sensitive (`cli.py` —
+  "ordered: order is meaning"); only the cache is not. → TASKS.md **H-15**.
+* **Docs corrected as D5-09 §8 asked**: `gene_name_variants.md` §6 (direction note; the two CGAS
+  citations fixed to the measured lines — `return candidates[0]` at **211 and 214**, not 208; the
+  prefix match at **149**, not 150–153) · `D5-08` line 54 (pointer: the reference set must be
+  name-normalized before the annotator uses it) · `gene_aliases.yaml` header (D3-02's direction
+  marked as reversing when the naming step lands — values unchanged until then, so code and tests
+  stay consistent).
+
+* **Two more false statements the stale sweep found, corrected in place**: `README.md` still said
+  "Phase 5 in progress" and "Nineteen analysis modules" (it is 20 — `stats` arrived in Phase 5);
+  `core/gene_names.py`'s docstring still stated D3-02's direction as current.
+* **Three more places still stated the old pipeline order** (CLAUDE.md had been fixed first):
+  ROADMAP's Phase-3B goal, D5-08's pipeline diagram and its "next steps" bullet, and the D5-08
+  decision row in PROJECT.md §3.
+* **The four dead items removed**, one commit: `docs/PHASE3_BLOCKERS.md` (its "still blocked — a
+  decision on the mito annotator" item was false since 03/10; its one live ask — who `Vu,H.-T.` is
+  / whether `PX923121.1` is the manuscript's specimen — moved to `TASKS.md` → "Waiting on data /
+  people", and `environment.yml`'s pointer to the file was re-pointed) · `TASKS.md` **H-05** (PMGA
+  web re-test — nothing waits on it; the mito path is settled by D3A-02 and frozen by D5-07) ·
+  PROJECT.md **§13.10's** 26/9 snapshot table (heading kept — a log entry cites it; every row of it
+  now lives in §8 or §7.1) · PROJECT.md **§12's** unpinned install block (the §9.B-14 hazard;
+  `environment.yml` is the pinned source, and §7.8's pointer was re-pointed). `docs/tools/pmga.md`
+  **stays** — it is the marked record of a measured dead end and keeps a later agent from
+  re-investigating PMGA.
+* **ROADMAP now covers the whole pipeline — the map, the rule, and the two owners that were
+  missing.** Added **"The pipeline"**: a copy of the §13.0 diagram (three copies exist now —
+  PROJECT.md is canonical; all three verified byte-identical) plus a **box → milestone** table, and
+  "How to use" rule **5**: every box names its owner, and a box with no owner is a gap named in Open
+  decisions. The check found **two** ownerless boxes (07/10): the naming step → **M3B.0**, and
+  **repeats** (`repeat (vmatch)` — in scope since §1/§7.1, tools declared in `environment.yml`, the
+  diagram named it, nobody owned it) → **M2.12** + TASKS **H-16**, with the survey's "9 matches
+  ≥30 bp" flagged as measured on other data (the §9.H trap). The same pass **settled the slots**:
+  Phase 3B opens next, naming inside it as M3B.0 — recorded in ROADMAP (heading + Open decisions),
+  `docs/D5-08` (D-c) and `docs/D5-09` (§9.5). Smaller: M3B.1 now records that the audit's report is
+  what the ★ choice reads; Phase 7 notes `fastp`/`BWA` are not declared yet; PROJECT.md §13.2 gained
+  the repeats bullet; TASKS gained the PI sign-off row (D5-09 §9.4).
+
+**Validation.** `make check` green (lint · 668 fast tests · golden with named skips). The three
+copies of the diagram (§13.0 · D5-09 §1 · ROADMAP) are byte-identical, checked by script. One commit
+per step, pushed.
+
+**Residual risks.** (1) The D3-02 reversal is **documented, not built** — the alias table and the
+three modules that read the canonical key still run the old direction until `gene_normalize` lands.
+(2) `gene_normalize`'s exit code and its organelle group are named open in D5-09 §9, not decided.
+(3) H-15 is measured but not fixed.
+
+**Blocked.** Nothing.
+
+**Next.** Open the Phase 3B board (`make-tasks`) from ROADMAP's M3B.0–M3B.5 — the slot is decided,
+M3B.0 (naming) first.
 
 ### 2026-10-05 · Claude · dev WSL · session 21 (Phase 5 — figures, statistics, publication exports; and the queryable-number check)
 

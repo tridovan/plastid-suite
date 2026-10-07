@@ -40,14 +40,29 @@ new module work serves the plastome; the existing mito path stays as it is, and 
 is kept precisely so mito analyses can be added later without rework — the deferred items carry
 names in `TASKS.md`.
 
-**The annotate step is ours (D5-08).** The pipeline is assembly → annotate → gene-name unification
-→ analyses. Annotation will be built in-house on CGAS's model with our own search-and-decide core;
+**The annotate step is ours (D5-08).** Annotation will be built in-house on CGAS's model with our
+own search-and-decide core;
 **Chloe is dropped from the plan**, PGA stays only as the measured counter-example, and a
 reference-set audit gates every annotation run. Until that engine passes its Done-when,
 `modules/annotation.py` still ships `--set annotator=chloe|pga` — that is the code today, not the
 plan. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
 
-**Current state: Phase 5 in progress.** Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
+**Gene names are unified before annotation, on the reference DB (D5-09).** The pipeline is
+*(reference supply → audit → the user picks one naming record ★ → `gene_normalize` normalizes the
+reference DB)* → assembly → annotate → *`gene_normalize`, verify mode* → analyses: the samples
+**inherit** the vocabulary through annotation instead of being renamed afterwards, and a change at
+the verify step is a **finding**, not routine. The naming reference is a **kind of its own** — one
+record, fixed for the project, chosen by the end user from the audit report, never re-picked per
+run by taxonomy; canonical names follow it, which **reverses D3-02** (the group's dialect — five of
+the nine measured loci change spelling, and Ts/Tv 2.6917 must be **re-measured**, never assumed).
+`gene_normalize` is a new module — `gene_names` is not grown to cover it — and **no table may mix
+the two vocabularies** (A everywhere; B only in the pairing table). Design:
+`docs/D5-09_reference_naming.md`; decision: PROJECT.md §3.
+
+**Current state: Phases 1–5 and 4a complete; no phase is open.** The next board is **Phase 3B**
+(the self-built plastid annotator, D5-08) — its slot is **decided** (07/10/2026: this phase, after
+Phase 5), with the **D5-09 naming step as its M3B.0** in front of the annotator; the board itself is
+not yet built (ROADMAP.md → Phase 3B). Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
 checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
 
 ## Supreme objective — the deliverables decide, not the tools
@@ -281,6 +296,7 @@ only when it changes the science or is expensive to reverse.
 |---|---|---|
 | Architecture · formats · libraries · tool choice · local vs remote · test strategy | Dev (+ Claude) | PROJECT.md §3 or `docs/` |
 | What to analyse · scope of a scientific claim · what goes in a manuscript · taxonomy choices for a paper | PI (cô Trang) | PROJECT.md §3 |
+| Which record becomes the project's naming reference (★, D5-09) — the vocabulary every result table prints | the end user, from the audit report; the PI signs off on the names a manuscript prints | PROJECT.md §3 (D5-09) |
 | Data and tool environments on the bioinformatician's machine | anh Điềm | TASKS.md → "Waiting on data" |
 | Big or irreversible work | dev approves the plan first | plan → TASKS.md |
 

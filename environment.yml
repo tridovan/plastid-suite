@@ -59,7 +59,8 @@ dependencies:
 
   # --- NOT here, on purpose ---------------------------------------------------------------
   # pga        not on any conda channel — Perl, cloned from github.com/quxiaojian/PGA (GPL-3.0).
-  #            Vendoring it the way MISA is vendored is an open decision (docs/PHASE3_BLOCKERS.md).
+  #            Vendoring it the way MISA is vendored is undecided; its pinned source (commit,
+  #            sha256) is in PROJECT.md §7.8, and its licence goes through the Phase 9 review.
   # table2asn  not on conda — NCBI ships it directly:
   #            ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/
   # mito       MITOS2 is a METAZOAN annotator and cannot do a plant mitochondrion (§7.8b). PMGA

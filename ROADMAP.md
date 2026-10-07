@@ -14,6 +14,11 @@
 2. When a phase starts: derive specs/tasks from its milestones → put them in `TASKS.md`.
 3. Tick a milestone here when its tasks are DONE (add the date); refresh `HANDOFF.md`.
 4. New measured facts → PROJECT.md §8 (runs) / §9 (errors), per `CLAUDE.md`.
+5. **Coverage**: every box of the pipeline diagram (canonical copy: PROJECT.md §13.0 — repeated in
+   "The pipeline" below) — **and every tool named inside a box** — names the milestone that owns
+   it, or is marked *surveyed — not adopted* with the measurement that dropped it. A box or tool
+   with no owner is a **gap**: name it in "Open decisions", never leave it silent. The check runs
+   at tool level because the box-level pass of 07/10/2026 missed three tools and one team artifact.
 
 ## Cross-phase rules (apply to every phase)
 
@@ -38,6 +43,110 @@
 - Runs on: **ordinary machines** = phases 1–5, 8 · **remote server** = phase 6 (divergence time)
   and phase 7 (assembly).
 - Standard test case: **Eleutherine bulbosa dataset + the golden numbers** (PROJECT.md §6).
+
+## The pipeline — every step, and who owns it
+
+*The diagram below is a **copy** of the canonical one in `PROJECT.md` §13.0 — edit it there
+first, then copy it back (the rule `docs/D5-09_reference_naming.md` §1 also follows). Tools are
+named per step; a step whose tool is not declared in the repo yet says so in its milestone.*
+
+```
+   NGUỒN THAM CHIẾU
+   NCBI RefSeq  ·  bản ghi nhóm tự nộp
+                │
+                │  plastid panel pin        ← accession · ngày · sha256
+                ▼
+   ┌──────────────────────────────────────┐
+   │  DB THAM CHIẾU      (nhiều file .gb) │
+   └──────────────────┬───────────────────┘
+                      ▼
+   ┌──────────────────────────────────────┐
+   │  ĐÁNH GIÁ CHẤT LƯỢNG                 │
+   │   · file nào KHÁC so với phần còn lại│
+   │   · file nào không dùng được (BLOCK) │
+   └──────────────────┬───────────────────┘
+                      │  báo cáo
+                      ▼
+   ┌──────────────────────────────────────┐
+   │  NGƯỜI DÙNG ĐỌC VÀ CHỌN              │
+   │  1 file .gb tốt nhất                 │
+   └──────────────────┬───────────────────┘
+                      ▼
+                ★ CHUẨN TÊN    →    từ vựng A
+                      │
+                      ▼
+   ┌──────────────────────────────────────┐
+   │  ĐỒNG NHẤT TÊN CHO CẢ DB THAM CHIẾU  │   gene_normalize · D5-09
+   └──────────────────┬───────────────────┘
+                      ▼
+        DB THAM CHIẾU ĐÃ CHUẨN HOÁ   (A)
+                      │
+                      │              reads (Illumina · ONT/HiFi)
+                      │                │   fastp · BWA/minimap2 · Bandage
+                      │                ▼
+                      │       ┌─────────────────────────┐
+                      │       │ 1  LẮP RÁP              │  GetOrganelle + SPAdes (short read)
+                      │       │                         │  OATK · raven (long read)
+                      │       └────────────┬────────────┘
+                      │                    │  FASTA
+                      │                    ▼
+                      └───────────►┌─────────────────────────┐
+                                   │ 2  CHÚ GIẢI             │  công cụ tự viết (D5-08)
+                                   │                         │  blastx · blastn  [BLAST+]
+                                   └────────────┬────────────┘
+                                                │  GenBank — tên theo A
+                                                ▼
+                                   ┌─────────────────────────┐
+                                   │ 3  KIỂM TRA TÊN         │  gene_normalize (chế độ kiểm)
+                                   └────────────┬────────────┘
+                                                ▼
+                        ╔═══════════════════════════════════════╗
+                        ║   BỘ INPUT CHUẨN HOÁ   (từ vựng A)    ║
+                        ╚═══════════════════┬═══════════════════╝
+                                            │
+                             ┌──────────────┴───────────────┐
+                             ▼                              ▼
+                    [4]  PHÂN TÍCH                [5]  RNA EDITING (C.3)
+                    cấu trúc · gen · codon         ◄── reference RIÊNG (B)
+                    SSR (MISA) · repeat (vmatch)        ghép cặp có bằng chứng
+                    synteny (MUMmer4)                   → alignment → chưa chọn
+                    Ka/Ks (PAML) · Ts/Tv (MAFFT)
+                    barcode · popgen · pycirclize
+                             │
+                             ▼
+                    [6]  XUẤT BẢN
+                    table2asn (.sbt) · Excel · Supplementary
+```
+
+**Coverage** — every box, and every tool inside a box, names its owner (the rule this section
+exists for; check it whenever the diagram changes):
+
+| Box in the diagram | Owner | State |
+|---|---|---|
+| Reference supply · `plastid panel pin` | M1.10 | done 03/10 |
+| Quality assessment (the audit) | M3B.1 | planned — Phase 3B |
+| The end user picks the naming reference ★ | **M3B.0** | planned — Phase 3B |
+| Unify the reference DB (`gene_normalize`) | **M3B.0** | planned — Phase 3B |
+| reads · `fastp` · `BWA`/`minimap2` (trim · map back) | M7.1 | **blocked — no real reads yet**; neither tool declared yet |
+| reads · `Bandage` (assembly graph) | M7.2 | **blocked — no real reads yet** |
+| 1 Assembly — short read (`GetOrganelle` + `SPAdes`) | M7.1 | **blocked — no real Illumina reads yet** |
+| 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **blocked — no ONT/HiFi reads**; declared · run in the survey (§7.1) |
+| 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | planned — Phase 3B |
+| 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | planned — Phase 3B |
+| [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | done, except **M2.12** (open) and M2.9 · M2.10 `[~]` |
+| [5] RNA editing (a reference of its own) | M4.5 | **blocked — needs RNA-seq** |
+| [6] Submission (`table2asn` · Excel · Supplementary) | M3.4 · M5.3 | done — except the team's `.sbt`, a TASKS.md waiting row |
+
+*Checked 07/10/2026: two boxes had no owner — the naming step (now **M3B.0**) and **repeats**
+(now **M2.12**). Making that check a rule ("How to use" 5) is what keeps this table true.*
+
+*Checked again 07/10/2026, now **at tool level**: three tools had no owner — the long-read
+assemblers (`OATK` · `raven` → **M7.6**), the read map-back (`BWA`/`minimap2` → named in **M7.1**),
+and `Sibelia` (surveyed and run in the 26/9 survey, never adopted: the project's synteny route is
+`nucmer`, D4-02/M4.2 — so it left the diagram); plus one team artifact with no row at all (the
+submitter template `.sbt` → `TASKS.md` → "Waiting on data / people"). `Flye` also left the diagram
+— measured to die on RAM here and replaced by the two long-read assemblers (§7.1). PROJECT.md
+§13.0's dated note is the canonical record.*
 
 ## Already banked (evidence in PROJECT.md §8–§9)
 
@@ -143,6 +252,12 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
 - [x] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
   (moved here from M1.11, whose loader shipped in Phase 1: `core/samples.py`)
 
+- [ ] **M2.12 Repeats (dispersed + palindromic)** — `repeat-match` + Vmatch on the golden fixture;
+      the module reports every match ≥30 bp with its coordinates and region, the IR pair included;
+      the count is **measured, not inherited** — the 26/9 survey's "9 matches" was measured on other
+      data (§9.H's trap). *In scope since §1 and §7.1 and named in the canonical diagram (§13.0,
+      `repeat (vmatch)`); it had no milestone until 07/10/2026.*
+
 ## Phase 3 — Annotation  *(§13.3)*
 
 **Goal:** annotate genomes we already have; prepare NCBI submissions.
@@ -194,10 +309,11 @@ with the eight it could not call reported and measured (§8.24).
 - [x] **M3A.6 Golden check** (2026-10-03) — 31 · 17 · 3 against the published record, differences itemized
 - [x] **M3A.7 AP045469.1** (2026-10-03) — the unannotated sample: run it, report it, pin it
 
-## Phase 3B — Plastid annotator, self-built  *(planned — not opened; slot pending D-c)*
+## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; board not yet open)*
 
-**Goal:** the annotate step of the pipeline (assembly → annotate → gene-name unification →
-analyses) as this project's own tool — **CGAS's flow with our search-and-decide core**: a pinned
+**Goal:** the annotate step of the pipeline (assembly → annotate → analyses, with gene names
+unified **on the reference set before** annotation and verified after it — D5-09) as this
+project's own tool — **CGAS's flow with our search-and-decide core**: a pinned
 reference set, per-sample annotation, an audit gate in front of every run. **Chloe is dropped**
 (D5-08). The mito counterpart is Phase 3A; this is its plastid sibling. Design and the other open
 decisions (D-a tRNA caller · D-b reference set · D-e shared core): `docs/D5-08_plastid_annotator.md`.
@@ -208,10 +324,18 @@ leave-one-out, each result diffed against the published record and every differe
 a failed reference audit stops the run with `file — reason`, nothing annotated · no silent
 failures: a search that finds nothing is a failed run, every below-floor hit reported.
 
+- [ ] **M3B.0 Naming (D5-09)** — the step that stands in front of the annotator: the audit's
+      report is what the end user reads to pick the naming reference ★ (D5-09 §7.1); the three
+      numbers of D5-09 §9.3 measured **before** coding (the margin · whether neighbours separate
+      `rpl2`/`rpl23` and the two `trnL` · the `identity_floor`); `gene_normalize` — normalize the
+      reference DB, verify the annotated samples — with every table in vocabulary **A**; the
+      `gene_aliases.yaml` direction flips with its guard test; **Ts/Tv re-measured** (§6's 2.6917
+      is a prediction until this lands)
 - [ ] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
       majority-deviation report), `--audit-only`, errors printed as `file — reason`, confirmed
       exceptions pinned by sha256; MAFFT `--adjustdirection` per region + a dotplot for the
-      user's confirmation
+      user's confirmation; **its report is the evidence the end user picks the naming reference ★
+      from** (D5-09 §7.1)
 - [ ] **M3B.2 Calling engine** — orthogonal searches (`blastx` on published `/translation` ·
       `blastn` for rRNA · IR self-blast behind the structural gate), candidates carrying their
       evidence, the six measured rules of §8.22
@@ -341,12 +465,20 @@ NUPT/MTPT has **no published benchmark** — its only check is the Oldenlandia/C
 **In-phase checks:** GetOrganelle + SPAdes → 127,679 bp from 20,000 simulated read pairs ·
 OATK → 126,660 bp @ identity 100.00 % · Bandage → PNG. With real reads: add a **peak-RAM** measurement.
 
-- [ ] **M7.1 Batch assembly + QC** (fastp → GetOrganelle) — **BLOCKED: no real Illumina reads yet**
+*The canonical diagram (PROJECT.md §13.0) names `fastp` · `BWA/minimap2` · `Bandage` for read QC;
+neither `fastp` nor `BWA` is declared in the repo yet — declare each in the session it is first
+used (the §7.8b lesson); the map-back step itself is M7.1's. The long-read assemblers (`OATK` ·
+`raven-assembler`, both declared) belong to **M7.6**; `Flye` left the diagram — measured to die on
+RAM here and replaced (§7.1, PROJECT.md §13.0's dated note).*
+
+- [ ] **M7.1 Batch assembly + QC** (fastp → GetOrganelle · BWA/minimap2 map-back) — **BLOCKED: no real Illumina reads yet**
 - [ ] **M7.2 Assembly-graph checks** (Bandage)
 - [ ] **M7.3 Feed mito-structure work** (M6.2)
 - [ ] **M7.4 Remote path** (usegalaxy.eu `get_organelle_from_reads`) — subsample reads before upload ·
   pin tool version · record history ID
 - [ ] **M7.5 Peak-RAM with real reads** — **BLOCKED: no real reads yet**
+- [ ] **M7.6 Long-read path** (OATK · raven-assembler — ONT/HiFi) — **BLOCKED: no ONT/HiFi reads**;
+  both tools are declared (`environment.yml`) and were run in the survey (§7.1); feeds M7.3
 
 ## Phase 8 — Cross-testing, performance, automation  *(§13.8 — not first-time testing)*
 
@@ -381,13 +513,18 @@ across 3 environments (WSL · CI · Docker).
 | Decision | Blocks | Where |
 |---|---|---|
 | Reference Panel item (c) — source text truncated | documentation only — does not block M1.10 | PROJECT.md §10.9 |
-| **The slot for the self-built plastid annotator (D5-08)** — a new phase **3B** (proposed: after Phase 5, mirroring 3A) or inside Phase 6; the annotate step becomes this project's own tool (CGAS's model, our core) and **Chloe is dropped** | opening the 3B board — nothing already scheduled waits on it | PROJECT.md §3 (D5-08) · `docs/D5-08_plastid_annotator.md` (D-c · D-a · D-b · D-e open) |
+
+*Decided 07/10/2026 (dev): the self-built annotator's slot is **Phase 3B, opened next** (after
+Phase 5, mirroring 3A), and the naming step (D5-09) sits **inside it as M3B.0** — the reference set
+must be name-normalized before the annotator uses it (D5-08 §7.3). `docs/D5-08`'s D-c and
+`docs/D5-09`'s §9.5 are answered there; D-a · D-b · D-e stay open.*
 
 ## Waiting on data / people
 
 | What | Who | Blocks |
 |---|---|---|
 | Real Illumina reads (1 sample) | Diem / Trang | M7.1 · M7.5 · M4.5 |
+| ONT/HiFi reads (1 sample) | Diem / Trang | M7.6 (long-read path) |
 | Plant mito data — a real mitogenome dataset | anh Điềm / cô Trang | M6.2 · M6.3 · H-06 · H-10 · H-12 (on hold by D5-07) |
 | Nuclear genome of the sample | Trang | M6.1 (NUPT/MTPT) |
 | A macOS machine | Team | M9.4 platform claims |

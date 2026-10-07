@@ -7,7 +7,9 @@ thing, so they are handled and reported separately:
   case and whitespace. This needs no external knowledge.
 * **semantics** — a different name for the same locus: ``pafI`` *is* ``ycf3``. That mapping is
   external knowledge and lives in ``data/gene_aliases.yaml`` with the evidence it rests on; the
-  canonical direction is D3-02 (PROJECT.md §8.10).
+  canonical direction was D3-02 (PROJECT.md §8.10) and is **superseded 07/10/2026 by D5-09** — it
+  will follow the project's naming reference once the naming step is built, and the alias table
+  keeps D3-02's direction until then.
 * **sequence** — a bare tRNA name (``trnK``, no anticodon). Measured 2026-10-03: reading the
   anticodon at a fixed offset matches only 106 of 293 named tRNAs in this dataset, so a bare name
   is resolved by 100 % sequence identity against named copies, and is *reported unresolved* when
