@@ -41,11 +41,10 @@ is kept precisely so mito analyses can be added later without rework — the def
 names in `TASKS.md`.
 
 **The annotate step is ours (D5-08).** Annotation will be built in-house on CGAS's model with our
-own search-and-decide core;
-**Chloe is dropped from the plan**, PGA stays only as the measured counter-example, and a
-reference-set audit gates every annotation run. Until that engine passes its Done-when,
-`modules/annotation.py` still ships `--set annotator=chloe|pga` — that is the code today, not the
-plan. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
+own search-and-decide core; **Chloe is dropped from the plan**, PGA stays only as the measured
+counter-example, and a reference-set audit gates every annotation run. Until that engine passes its
+Done-when, `modules/annotation.py` still ships `--set annotator=chloe|pga` — that is the code today,
+not the plan. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
 
 **Gene names are unified before annotation, on the reference DB (D5-09).** The pipeline is
 *(reference supply → audit → the user picks one naming record ★ → `gene_normalize` normalizes the
@@ -221,9 +220,6 @@ abstraction only when the second real use appears.
 
 **Mechanics**
 
-- Python 3.10+; `from __future__ import annotations` everywhere. Types on public functions;
-  dataclasses for data; `pathlib` over string paths; context managers for resources; no mutable
-  default arguments.
 - Names: `snake_case` functions/variables, `PascalCase` classes, short concrete modules. Domain
   abbreviations already in use (LSC, IR, SSC, SSR, CDS) are fine; invent no new ones.
 - Docstrings: one line on what it does, plus *why* where non-obvious. Always document units and
@@ -232,7 +228,6 @@ abstraction only when the second real use appears.
 - Errors: raise specific exceptions with actionable messages — `ValueError` for bad input, a domain
   exception (`IRGateError`) for a domain failure. Never a bare `except:`.
 - Comments explain why, not what; delete commented-out code instead of keeping it.
-- Formatting is not a debate: `ruff format` decides (line length 100, imports absolute and sorted).
 - Tests are named after the behaviour ("gate flags diverged copies"), one behaviour per test, and
   always cover the negative case — this project's bugs are silent ones.
 
@@ -256,15 +251,6 @@ test-first work. Rules:
    code (or the measurement) is wrong until proven otherwise — stop, and record the discrepancy in
    PROJECT.md §9.
 
-## Commands
-
-```
-make env      # create venv (uv) + install
-make test     # fast tests — tier A, no external tools
-make golden   # full golden set; prints a skip reason for every missing tool
-make check    # lint + test + golden
-```
-
 ## Workflow for a task
 
 0. Planning or refreshing a phase's tasks? Follow the **`make-tasks`** skill
@@ -277,7 +263,8 @@ make check    # lint + test + golden
    set the task `DONE`.
 5. Tick the checkboxes in `TASKS.md`; append a `HANDOFF.md` entry.
 6. **Commit and push each task as it completes** — not at the end of the session. The Done-when
-   passes, `make check` is green, that task's files are committed and pushed, then the next task
+   passes, `make check` is green, that task's files are committed and pushed **on the phase branch**
+   (see Commits: the branch holds the detail, `main` holds the phases), then the next task
    starts. Session documents that describe several tasks (`TASKS.md` · `PROJECT.md` · `HANDOFF.md`)
    go in one `docs:` commit at the end. Splitting a pile of finished work into per-task commits
    afterwards means reconstructing intermediate states of shared files by hand — and it is the
@@ -321,18 +308,32 @@ Conventional-commit style, English, no diacritics: `feat:` `fix:` `docs:` `test:
 Do **not** add any assistant attribution — no `Co-Authored-By: Claude …`, no "generated with" trailer.
 Commits are authored by the team only.
 
-**One commit per task, pushed when the task is done** (workflow step 6). A commit should stand on
-its own: check it out, run `make check`, and it passes — which is also what makes `git bisect`
-usable. When one file genuinely carries changes for two tasks, say so in the message rather than
-leaving the split ambiguous.
+**One commit per task — on the phase branch — pushed when the task is done** (workflow step 6). A
+commit should stand on its own: check it out, run `make check`, and it passes — which is what makes
+`git bisect` usable. When one file genuinely carries changes for two tasks, say so in the message
+rather than leaving the split ambiguous.
 
-**A phase is worked on its own branch** — `feat/phase-N`, opened when the phase's board goes up and
-merged to `main` when the phase closes (fast-forward; the pattern every phase so far followed:
-`feat/phase-2` · `-3` · `-3a` · `-4` · `-5`). Two reasons, both from this project's own history: a
-phase is the unit `git bisect` and a reviewer can hold in their head, and `main` stays a state
-somebody can check out and trust. A sub-phase opened mid-flight (4a) belongs on a branch too — the
-"it is only a few commits on top" reasoning is exactly how a phase's work ends up interleaved with
-the next one's in `main`'s history.
+**The branch holds the detail; `main` holds the phases** (rewritten 07/10/2026, the dev's call).
+Work happens on `feat/phase-N` — opened when the phase's board goes up — one commit per task.
+Closing the phase:
+
+```
+git tag phase-N feat/phase-N        # the detail outlives the close
+git switch main
+git merge --squash feat/phase-N
+git commit                          # one commit for the phase, its tasks listed
+```
+
+So `main` stays a state somebody can check out and trust — one commit per phase, a history a
+reviewer reads in one screen — and the branches are **never deleted**, keeping every task commit.
+Between phases `main` takes at most a `docs:` commit (a session's corrections); everything else
+rides a branch. A sub-phase (4a) follows the same rule with its own branch. `git bisect` at task
+granularity runs on the branch: `git bisect start feat/phase-N <its first commit>`.
+
+The earlier linear history — phases 1–5 · 4a, 131 commits — is archived under the `archive/*` tags
+(`archive/phase-1` … `archive/phase-5`, `archive/phase-4a`, `archive/main-pre-squash`) and was
+rewritten into the per-phase `main` on 07/10/2026 as a **pure move**: every archived tree is
+byte-identical to the commit it was taken from.
 
 ## Don't
 
@@ -368,10 +369,3 @@ the next one's in `main`'s history.
 - **Move text, don't retype it.** The 04/10/2026 split was verified byte-for-byte — the five files
   concatenated are identical to the §8 that was in git. Reorganising this archive is a diff nobody
   reads; making it provably lossless is the only way it can be trusted.
-
-## Subagents
-
-- Use read-only Explore agents for broad reading ("where is X", many files).
-- Use a Plan agent to design before large changes; verify its claims before adopting.
-- Subagents are for reading and verification — their reports never become evidence without a
-  firsthand check.

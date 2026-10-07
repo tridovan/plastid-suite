@@ -3,6 +3,9 @@
 > Purpose: a fresh agent (or a human) picks up here when a session ends or runs out of context.
 > **Newest first. Terse. English.** One entry per session: Did · Validation · Residual risks ·
 > Blocked · Next. The **Resume point** is the single answer to "where do I start?" — keep it current.
+> **An open phase lives on its branch.** `main` is the closed-phase state, one commit per phase;
+> the live session docs — this file, `TASKS.md`, `PROJECT.md` — are on `feat/phase-N`
+> (`git branch --list 'feat/phase-*'`). See `CLAUDE.md` → Commits.
 
 ## Resume point
 
