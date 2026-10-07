@@ -18,7 +18,8 @@ D-a · D-b · D-e and D5-09 §9's items 1–4 · 6–9; on hold by D5-07: H-06 �
 "The pipeline" maps every step of the canonical diagram to its owner milestone — and, since session
 23, **every tool named inside a box** (the tool-level pass added **M7.6**, the long-read path, and
 named the read map-back in **M7.1**). Nothing else is scheduled: Phase 6 waits on mito/nuclear
-data, Phase 7 on real reads (Illumina **and** ONT/HiFi).
+data, Phase 7 on real reads (Illumina **and** ONT/HiFi). `TASKS.md` → "Proposed next" carries a
+promotion proposal — H-15 · M2.12 · H-07 — awaiting the dev's pick.
 
 **What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
 `[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
@@ -88,7 +89,9 @@ has produced a number yet, and no task owns it — named here rather than silent
 
 **Blocked.** Nothing. M7.6 waits on ONT/HiFi reads, now recorded in both waiting tables.
 
-**Next.** Unchanged: open the **Phase 3B** board from M3B.0–M3B.5 with the `make-tasks` skill.
+**Next.** `TASKS.md` → "Proposed next" holds the promotion proposal (the 3B board with **H-15**
+riding in; then **M2.12** · **H-07**, each on its own branch) — awaiting the dev's pick. Otherwise
+unchanged: open the **Phase 3B** board from M3B.0–M3B.5 with the `make-tasks` skill.
 
 ### 2026-10-07 · Claude · dev WSL · session 22 (doc alignment with D5-09 — and the cache defect the review exposed)
 

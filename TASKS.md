@@ -10,6 +10,17 @@
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**
 > How this file is produced: the `make-tasks` skill (`.claude/skills/make-tasks/SKILL.md`).
 
+## Proposed next — what to promote *(proposed 07/10/2026, awaiting the dev's pick; this section goes when a board goes up)*
+
+| # | Promote | Why now | First move |
+|---|---|---|---|
+| 1 | **The Phase 3B board** (M3B.0–M3B.5), with **H-15 riding in as its own task** (same cache family, fold or split as the dev prefers: H-08 · H-14) | the board is the decided next step; H-15 is bound to it by D5-09 §7.2 + §9.9 — the ★ record's digest must reach the cache key, **or §7.2 is recorded unmet**; §9.6 says the fix belongs to `run/cache.py` + `runner.py`, not `gene_normalize`, so it is its own task | `make-tasks` from ROADMAP's Phase 3B · branch `feat/phase-3b` |
+| 2 | **M2.12 (repeats)** — own branch, e.g. `feat/m2.12`, **never** mixed into 3B's (Phase 2 is closed + merged) | the only open milestone of a closed phase; §13.2 lists repeats among the two manuscripts' content; unblocked — golden fixture vendored, tools declared | 5-minute pre-check: run `repeat-match` from the pinned bioconda `mummer4`; if absent, MUMmer3 must be declared (§7.8 says MUMmer3 today; MUMmer4's own source ships `src/tigr/repeat-match.cc` — checked 07/10/2026) |
+| 3 | **H-07 (π per intron/IGS)** — own branch, or together with 2 | the last piece of M2.9; unblocked | extract the intron-span derivation from `modules/introns.py` into the shared layer (DRY's second copy), feed `diversity`'s region machinery |
+| — | **Not promoted:** H-09's registry half (folds into M3B.0 on its own — D5-09 §9.8) · H-11 · H-13 (hardening nothing waits on) · D-03 · H-04 · D5-05 · the `.sbt` (waiting on people, unchanged) | — | — |
+
+*Order: 3B first (team decision 07/10/2026 — it is the annotate step the samples need), then 2 · 3, which are independent of it and of each other. The order is reversible. This section is a proposal, not a board — nothing is built until the dev picks.*
+
 ## Phase 5 — Figures & reports  *(CLOSED 05/10/2026 · ROADMAP.md → Phase 5 · PROJECT.md §13.5)*
 
 Five tasks, each closed with its Done-when measured. The evidence is in `docs/log/phase-5.md`:
