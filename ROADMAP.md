@@ -309,7 +309,7 @@ with the eight it could not call reported and measured (§8.24).
 - [x] **M3A.6 Golden check** (2026-10-03) — 31 · 17 · 3 against the published record, differences itemized
 - [x] **M3A.7 AP045469.1** (2026-10-03) — the unannotated sample: run it, report it, pin it
 
-## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; board not yet open)*
+## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; **board open 07/10/2026** — `TASKS.md` P3B-01…P3B-10, branch `feat/phase-3b`)*
 
 **Goal:** the annotate step of the pipeline (assembly → annotate → analyses, with gene names
 unified **on the reference set before** annotation and verified after it — D5-09) as this

@@ -3,22 +3,25 @@
 > Purpose: a fresh agent (or a human) picks up here when a session ends or runs out of context.
 > **Newest first. Terse. English.** One entry per session: Did · Validation · Residual risks ·
 > Blocked · Next. The **Resume point** is the single answer to "where do I start?" — keep it current.
+> **An open phase lives on its branch.** `main` is the closed-phase state, one commit per phase;
+> the live session docs — this file, `TASKS.md`, `PROJECT.md` — are on `feat/phase-N`
+> (`git branch --list 'feat/phase-*'`). See `CLAUDE.md` → Commits.
 
 ## Resume point
 
-**Phases 1 – 5 and 4a — COMPLETE and merged to `main`.** **Phase 5 (figures & reports) closed
-05/10/2026**: five tasks, each Done-when measured, recorded in `docs/log/phase-5.md` (§8.35–§8.39)
-and ticked in `ROADMAP.md`. `TASKS.md` holds no open phase — only the Housekeeping table.
+**Phases 1 – 5 and 4a — COMPLETE and merged to `main`.** **Phase 3B is OPEN** on `feat/phase-3b` —
+the self-built plastid annotator, with the naming step (D5-09) in front of it; the board is
+`TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
+skill.
 
-**Immediate next action:** open the **Phase 3B** board — the slot was **decided 07/10/2026**: this
-phase (after Phase 5, mirroring 3A), with the naming step (**D5-09**) as its **M3B.0** in front of
-the annotator, because the reference set must be name-normalized before the annotator uses it.
-Build the board from ROADMAP's **M3B.0–M3B.5** with the `make-tasks` skill. Still open: D5-08's
-D-a · D-b · D-e and D5-09 §9's items 1–4 · 6–9; on hold by D5-07: H-06 · H-10 · H-12. ROADMAP's
-"The pipeline" maps every step of the canonical diagram to its owner milestone — and, since session
-23, **every tool named inside a box** (the tool-level pass added **M7.6**, the long-read path, and
-named the read map-back in **M7.1**). Nothing else is scheduled: Phase 6 waits on mito/nuclear
-data, Phase 7 on real reads (Illumina **and** ONT/HiFi).
+**Immediate next action:** **P3B-01** — the reference set, built and pinned — then the three naming
+numbers (P3B-02), which must be measured **before** any `gene_normalize` code (D5-09 §9.3). The
+board's order note says why the tasks do not follow the milestone numbers. The phase's open calls —
+D-a · D-b · D-e, the conflict exit code, the parameter name, the organelle group, the schema bump —
+sit in `TASKS.md` → "Decisions to make", each with its recommended default. On hold by D5-07:
+H-06 · H-10 · H-12. ROADMAP's "The pipeline" maps every step of the canonical diagram — and every
+tool named inside a box — to its owner milestone. Nothing else is scheduled: Phase 6 waits on
+mito/nuclear data, Phase 7 on real reads (Illumina **and** ONT/HiFi).
 
 **What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
 `[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
@@ -49,7 +52,7 @@ claim — the mechanism is built and follows the conservative default).
 
 ## Log
 
-### 2026-10-07 · Claude · dev WSL · session 23 (the coverage check re-run at tool level — three ownerless tools, one ownerless artifact)
+### 2026-10-07 · Claude · dev WSL · session 23 (the coverage check re-run at tool level — and Phase 3B opens)
 
 **Did.** Re-ran ROADMAP's coverage check ("How to use" 5) over "The pipeline" — this time **per tool
 named in a box**, which is what session 22's box-level pass had not done. Four gaps found, each
@@ -74,6 +77,12 @@ closed with a home; the canonical diagram (§13.0) corrected first and the copie
 * New guard **`tests/unit/test_pipeline_diagram.py`**: the three diagram copies must be
   byte-identical (the copy rule was prose only before), and every milestone id cited in a ROADMAP
   table must exist as a milestone.
+* **Phase 3B opened** (the dev's call): the board is `TASKS.md` **P3B-01 … P3B-10**, ordered by
+  execution — the reference set → the three measured numbers → the audit → `gene_normalize` → the
+  cache → Ts/Tv → the engine → arbitration → CLI → validation — with a "Decisions to make" table
+  (D-a · D-b · D-e, the conflict exit code, the parameter name, the organelle group, the schema
+  bump, how Chloe retires), a pitfalls list from §8.15 · §8.21 · §8.22 · §8.31 · §8.34, and
+  **H-15 · H-08 · H-14 folded into P3B-05**. Branch `feat/phase-3b`.
 
 **Validation.** `make check` green — lint · **670** fast tests (2 skipped: no mafft) · golden 43
 passed / 21 skipped with named reasons. Both new guards negative-checked in memory: a planted
@@ -88,7 +97,8 @@ has produced a number yet, and no task owns it — named here rather than silent
 
 **Blocked.** Nothing. M7.6 waits on ONT/HiFi reads, now recorded in both waiting tables.
 
-**Next.** Unchanged: open the **Phase 3B** board from M3B.0–M3B.5 with the `make-tasks` skill.
+**Next.** Phase 3B is open on `feat/phase-3b` — start at **P3B-01** (the reference set, built and
+pinned), then P3B-02 (the three naming numbers, before any `gene_normalize` code).
 
 ### 2026-10-07 · Claude · dev WSL · session 22 (doc alignment with D5-09 — and the cache defect the review exposed)
 
