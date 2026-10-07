@@ -196,8 +196,9 @@ with the eight it could not call reported and measured (§8.24).
 
 ## Phase 3B — Plastid annotator, self-built  *(planned — not opened; slot pending D-c)*
 
-**Goal:** the annotate step of the pipeline (assembly → annotate → gene-name unification →
-analyses) as this project's own tool — **CGAS's flow with our search-and-decide core**: a pinned
+**Goal:** the annotate step of the pipeline (assembly → annotate → analyses, with gene names
+unified **on the reference set before** annotation and verified after it — D5-09) as this
+project's own tool — **CGAS's flow with our search-and-decide core**: a pinned
 reference set, per-sample annotation, an audit gate in front of every run. **Chloe is dropped**
 (D5-08). The mito counterpart is Phase 3A; this is its plastid sibling. Design and the other open
 decisions (D-a tRNA caller · D-b reference set · D-e shared core): `docs/D5-08_plastid_annotator.md`.

@@ -11,17 +11,18 @@ from what existed and now carries an update pointing here; this builds ours.
 The **annotate** step of the pipeline the team described:
 
 ```
-assembly (Phase 7: GetOrganelle · OATK)  →  ANNOTATE (this tool)  →  gene-name unification
-(modules/gene_names.py + the alias tables)  →  the analyses (Phases 2/4 modules)
+gene_normalize on the reference set (D5-09)  →  assembly (Phase 7: GetOrganelle · OATK)  →
+ANNOTATE (this tool)  →  gene_normalize, verify mode (D5-09)  →  the analyses (Phases 2/4 modules)
 ```
 
 - **In:** assembled plastomes as single-record FASTA files (no features — the assembler's output),
   **one or many per run** (batch is part of the CGAS model the team wants), plus a **reference
   set** of annotated GenBank records pinned by the project's taxonomy rule (same family first —
-  the Reference Panel / `mito-reference` pattern).
+  the Reference Panel / `mito-reference` pattern), and **name-normalized before it is used**
+  (D5-09 — the reference set is itself normalized to the naming reference first).
 - **Out:** a GenBank artifact per sample that **re-reads with our own reader** (P3A-01's rule: a
-  file that does not re-read is not a result), tables, and one report. The next steps — name
-  unification and every analysis module — consume it unchanged; no second code path.
+  file that does not re-read is not a result), tables, and one report. The next steps — the name
+  **verify** pass (D5-09) and every analysis module — consume it unchanged; no second code path.
 - **Plastid first** (D5-07). The mitochondrial counterpart already exists
   (`core/mito_caller.py` + `modules/mito_annotate.py`); this is its plastid sibling.
 - **Chloe is dropped from the plan** (D5-08, 2026-10-05). When this engine passes the Done-when it
