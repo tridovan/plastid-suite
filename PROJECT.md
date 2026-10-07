@@ -144,7 +144,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 |---|---|---|
 | SSR | MISA standalone 2.1 (`misa.pl`) + cpstools 3.0 `SSRs` | đã chạy thật — 37 SSR (cả hai công cụ) |
 | Repeat phân tán + palindromic | repeat-match (MUMmer3) + Vmatch 2.3.1 | đã chạy thật — 9 match ≥30 bp, có cặp đảo IR 26.214 bp |
-| So sánh nhiều genome (khối LCB, synteny) | Sibelia 3.0.7 | đã chạy thật — 3 plastome |
+| So sánh nhiều genome (khối LCB, synteny) | Sibelia 3.0.7 | đã chạy thật — 3 plastome · **[không đưa vào bộ công cụ — 07/10/2026: tuyến synteny của dự án là `nucmer`, D4-02/M4.2; ghi chú có ngày ở §13.0]** |
 | Biểu đồ % tương đồng theo toạ độ | nucmer (MUMmer4) `--maxmatch` → `delta-filter` → `show-coords` + matplotlib | đã chạy thật — 21 khối, %IDY 83,7–98,2 (mean 91,5) *(con số này đo 26/9 trên **dữ liệu khác**; cặp Iris = **7 khối · 97,37** — §8.26, §9.H)* |
 | Chú giải plastome | **công cụ tự viết** (D5-08) — hiện tạm: Chloe 0.1.18; PGA đã đo và bị loại (§8.15) | Chloe đã chạy thật: **132 = 86 + 38 + 8**, 0 CDS lỗi ORF (§8.17) |
 | Vẽ bản đồ vòng genome | pycirclize 1.10.1 | đã chạy thật — PNG 494.859 B @300 dpi |
@@ -785,8 +785,8 @@ nguồn và cách cài từng công cụ: §7.8.*
                       │                │   fastp · BWA/minimap2 · Bandage
                       │                ▼
                       │       ┌─────────────────────────┐
-                      │       │ 1  LẮP RÁP              │  GetOrganelle + SPAdes
-                      │       │                         │  Flye · OATK · raven
+                      │       │ 1  LẮP RÁP              │  GetOrganelle + SPAdes (short read)
+                      │       │                         │  OATK · raven (long read)
                       │       └────────────┬────────────┘
                       │                    │  FASTA
                       │                    ▼
@@ -809,7 +809,7 @@ nguồn và cách cài từng công cụ: §7.8.*
                     [4]  PHÂN TÍCH                [5]  RNA EDITING (C.3)
                     cấu trúc · gen · codon         ◄── reference RIÊNG (B)
                     SSR (MISA) · repeat (vmatch)        ghép cặp có bằng chứng
-                    synteny (MUMmer4 · Sibelia)         → alignment → chưa chọn
+                    synteny (MUMmer4)                   → alignment → chưa chọn
                     Ka/Ks (PAML) · Ts/Tv (MAFFT)
                     barcode · popgen · pycirclize
                              │
@@ -827,12 +827,14 @@ Ba điều sơ đồ cốt để không quên: **(1)** đồng nhất tên chạ
 | 0 | Nguồn tham chiếu | `plastid panel refresh` · `propose` · `pin` | NCBI / file nhóm → DB đã ghim (`PINNED.json`, sha256) | — |
 | 0b | Đánh giá chất lượng | audit (`docs/D5-08_plastid_annotator.md`) | DB → báo cáo BLOCK · REPORT | — |
 | — | **Chuẩn hoá DB tham chiếu** | **`gene_normalize`** (D5-09) | DB + ★ file đã chọn → DB theo từ vựng A | **★ file chuẩn tên** |
-| 1 | Lắp ráp | GetOrganelle + SPAdes (short read) · Flye · OATK · raven-assembler (long read); fastp · BWA/minimap2 · Bandage (QC) | reads → FASTA | seed DB `embplant_pt` · HMM DB `embryophyta_pltd.fam` |
+| 1 | Lắp ráp | GetOrganelle + SPAdes (short read) · OATK · raven-assembler (long read); fastp · BWA/minimap2 · Bandage (QC) | reads → FASTA | seed DB `embplant_pt` · HMM DB `embryophyta_pltd.fam` |
 | 2 | Chú giải | **công cụ tự viết** (D5-08) · BLAST+ 2.17.0 | FASTA → GenBank | **bộ tham chiếu, 1..N bản ghi** |
 | 3 | Kiểm tra tên | **`gene_normalize`, chế độ kiểm** | GenBank → GenBank đã kiểm | **★ file chuẩn tên** |
-| 4 | Phân tích | MAFFT · MISA · MUMmer4 · Sibelia · PAML · vmatch · pycirclize | A → bảng · hình | loại 1, chọn theo taxonomy (D5-09 phụ lục B) |
+| 4 | Phân tích | MAFFT · MISA · MUMmer4 · PAML · vmatch · pycirclize | A → bảng · hình | loại 1, chọn theo taxonomy (D5-09 phụ lục B) |
 | 5 | RNA editing | *chưa chọn* (C.3) | A → vị trí editing | **một reference riêng B** |
 | 6 | Xuất bản | table2asn | bảng → `.sqn` | template `.sbt` |
+
+**Sửa 07/10/2026 — kiểm lại sơ đồ ở mức *công cụ*, không phải mức ô** (luật phủ: `ROADMAP.md` → "The pipeline"): bỏ **`Flye`** — đo được là chết vì RAM trên máy 8 GB và đã thay bằng `raven-assembler`/`OATK` (§7.1), hai công cụ này nay thuộc **M7.6** (đường long-read, đang chờ read ONT/HiFi); bỏ **`Sibelia`** — khảo sát 26/9 có chạy thật trên 3 plastome nhưng tuyến synteny của dự án là `nucmer` (D4-02, M4.2) và không mục nào cần khối LCB. `BWA/minimap2` (bước map-back ở ô QC) thuộc **M7.1**; template `.sbt` của nhóm là một dòng "đang chờ" ở `TASKS.md`. Đợt kiểm 07/10 trước đó chỉ đọc ở mức ô nên bỏ sót cả ba.
 
 ---
 

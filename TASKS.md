@@ -39,6 +39,8 @@ Five tasks, each closed with its Done-when measured. The evidence is in `docs/lo
 | A haplotype table (`popgen` counts haplotypes today, it does not list them) | **us** — a task, once a figure needs it | the **haplotype network** figure |
 | A phylogeny | us (M6.4) or an external tree | the **annotated tree** figure |
 | Real Illumina reads (1 sample) | anh Điềm / cô Trang | M7.1 · M7.5 |
+| ONT/HiFi reads (1 sample) | anh Điềm / cô Trang | M7.6 (the long-read assembly path) |
+| The team's own `.sbt` submitter template (NCBI's form — the team's author/affiliation details) | cô Trang | only the `.sqn` half of M3.4; the web route (`.fsa` + `.tbl`) submits without it |
 | A ruling on what a generated sentence may claim (D5-05) | **cô Trang** | the wording of the `stats` interpretation sentences only — the mechanism is built and follows the conservative default |
 | PI sign-off on the names a manuscript prints (D5-09 §9.4) | **cô Trang** | the printed-name change only — the naming step itself does not wait on it |
 

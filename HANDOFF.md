@@ -15,8 +15,10 @@ phase (after Phase 5, mirroring 3A), with the naming step (**D5-09**) as its **M
 the annotator, because the reference set must be name-normalized before the annotator uses it.
 Build the board from ROADMAP's **M3B.0–M3B.5** with the `make-tasks` skill. Still open: D5-08's
 D-a · D-b · D-e and D5-09 §9's items 1–4 · 6–9; on hold by D5-07: H-06 · H-10 · H-12. ROADMAP's
-"The pipeline" maps every step of the canonical diagram to its owner milestone (the coverage rule).
-Nothing else is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
+"The pipeline" maps every step of the canonical diagram to its owner milestone — and, since session
+23, **every tool named inside a box** (the tool-level pass added **M7.6**, the long-read path, and
+named the read map-back in **M7.1**). Nothing else is scheduled: Phase 6 waits on mito/nuclear
+data, Phase 7 on real reads (Illumina **and** ONT/HiFi).
 
 **What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
 `[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
@@ -46,6 +48,47 @@ H-11 · H-13 · H-14. **Waiting on the PI:** H-04 (`trnG`) and D5-05 (what a gen
 claim — the mechanism is built and follows the conservative default).
 
 ## Log
+
+### 2026-10-07 · Claude · dev WSL · session 23 (the coverage check re-run at tool level — three ownerless tools, one ownerless artifact)
+
+**Did.** Re-ran ROADMAP's coverage check ("How to use" 5) over "The pipeline" — this time **per tool
+named in a box**, which is what session 22's box-level pass had not done. Four gaps found, each
+closed with a home; the canonical diagram (§13.0) corrected first and the copies re-synced.
+
+* **Long-read assembly had no milestone.** The diagram names `OATK` · `raven` (and `Flye`) in
+  box 1 and reads as "Illumina · **ONT/HiFi**", but Phase 7's milestones covered only the
+  short-read path (M7.1) plus Bandage/remote/RAM. → new **M7.6 Long-read path** (BLOCKED: no
+  ONT/HiFi reads; both tools declared and run in the survey, §7.1) with rows in ROADMAP's and
+  TASKS.md's waiting tables.
+* **`Flye` left the canonical diagram** — §7.1 measured it dying on RAM here and replaced it with
+  `raven-assembler`/`OATK`; it was also the one tool in the diagram declared nowhere in the repo.
+* **`Sibelia` left the canonical diagram** — run for real in the 26/9 survey, never adopted: the
+  project's synteny route is `nucmer` (D4-02, M4.2) and no milestone needs LCB blocks.
+* **`BWA`/`minimap2`** (the map-back in the read-QC line) → named in **M7.1**'s title.
+* **The `.sbt`** → a TASKS.md "Waiting on data / people" row: it is the team's artifact (M3.4 and
+  `docs/tools/table2asn.md` both name it as outstanding) and had no row anywhere.
+* Rule 5 now reads at **tool level** (a tool with no owner is a gap, or is marked *surveyed — not
+  adopted* with the measurement that dropped it); the coverage table rewritten tool by tool;
+  PROJECT.md §13.0 gained a dated correction note (canonical record) and the three copies were
+  re-diffed byte-identical.
+* New guard **`tests/unit/test_pipeline_diagram.py`**: the three diagram copies must be
+  byte-identical (the copy rule was prose only before), and every milestone id cited in a ROADMAP
+  table must exist as a milestone.
+
+**Validation.** `make check` green — lint · **670** fast tests (2 skipped: no mafft) · golden 43
+passed / 21 skipped with named reasons. Both new guards negative-checked in memory: a planted
+`M1.99` in a table and a one-character drift in a copy are each flagged. D5-09's own pipeline table
+(a hand translation, not a copy) synced for the two rows it repeats.
+
+**Residual risks.** (1) D5-09 Appendix B still lists `Sibelia` among the kind-5 (no-reference)
+tools — that appendix is a reference-mechanism list, not the pipeline, so it was left alone.
+(2) Six declared tools still carry "# §7.8 records no version" (`minimap2` · `samtools` · `wgsim` ·
+`mreps` · `trf` · `novoplasty`) — against CLAUDE.md's pinned-tool invariant; none is on a path that
+has produced a number yet, and no task owns it — named here rather than silently fixed.
+
+**Blocked.** Nothing. M7.6 waits on ONT/HiFi reads, now recorded in both waiting tables.
+
+**Next.** Unchanged: open the **Phase 3B** board from M3B.0–M3B.5 with the `make-tasks` skill.
 
 ### 2026-10-07 · Claude · dev WSL · session 22 (doc alignment with D5-09 — and the cache defect the review exposed)
 

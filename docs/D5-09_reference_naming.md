@@ -43,8 +43,8 @@ standalone — change `PROJECT.md` first, then copy it back.*
                       │                │   fastp · BWA/minimap2 · Bandage
                       │                ▼
                       │       ┌─────────────────────────┐
-                      │       │ 1  LẮP RÁP              │  GetOrganelle + SPAdes
-                      │       │                         │  Flye · OATK · raven
+                      │       │ 1  LẮP RÁP              │  GetOrganelle + SPAdes (short read)
+                      │       │                         │  OATK · raven (long read)
                       │       └────────────┬────────────┘
                       │                    │  FASTA
                       │                    ▼
@@ -67,7 +67,7 @@ standalone — change `PROJECT.md` first, then copy it back.*
                     [4]  PHÂN TÍCH                [5]  RNA EDITING (C.3)
                     cấu trúc · gen · codon         ◄── reference RIÊNG (B)
                     SSR (MISA) · repeat (vmatch)        ghép cặp có bằng chứng
-                    synteny (MUMmer4 · Sibelia)         → alignment → chưa chọn
+                    synteny (MUMmer4)                   → alignment → chưa chọn
                     Ka/Ks (PAML) · Ts/Tv (MAFFT)
                     barcode · popgen · pycirclize
                              │
@@ -97,10 +97,10 @@ Three things the picture is meant to make hard to forget:
 | 0 | Reference supply | `plastid panel refresh` · `propose` · `pin` | NCBI / a team file → a pinned DB (`PINNED.json`, sha256) | — |
 | 0b | Quality assessment | the audit (`docs/D5-08_plastid_annotator.md`) | DB → report: BLOCK · REPORT | — |
 | — | **Unify the reference DB** | **`gene_normalize`** (this file) | DB + ★ the chosen file → DB in vocabulary A | **★ the naming reference** |
-| 1 | Assembly | GetOrganelle + SPAdes (short read) · Flye · OATK · raven-assembler (long read); fastp · BWA/minimap2 · Bandage for QC | reads → FASTA | seed DB `embplant_pt` · HMM DB `embryophyta_pltd.fam` |
+| 1 | Assembly | GetOrganelle + SPAdes (short read) · OATK · raven-assembler (long read); fastp · BWA/minimap2 · Bandage for QC | reads → FASTA | seed DB `embplant_pt` · HMM DB `embryophyta_pltd.fam` |
 | 2 | Annotation | **self-built** (D5-08) · BLAST+ 2.17.0 | FASTA → GenBank | **the reference set, 1..N records** |
 | 3 | Verify names | **`gene_normalize`, verify mode** | GenBank → checked GenBank | **★ the naming reference** |
-| 4 | Analyses | MAFFT · MISA · MUMmer4 · Sibelia · PAML · vmatch · pycirclize | A → tables · figures | kind 1, chosen by taxonomy (Appendix B) |
+| 4 | Analyses | MAFFT · MISA · MUMmer4 · PAML · vmatch · pycirclize | A → tables · figures | kind 1, chosen by taxonomy (Appendix B) |
 | 5 | RNA editing | *not yet chosen* (C.3) | A → editing sites | **a separate reference B** (Appendix B) |
 | 6 | Submission | table2asn | tables → `.sqn` | submitter template `.sbt` |
 

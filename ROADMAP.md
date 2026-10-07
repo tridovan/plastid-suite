@@ -15,8 +15,10 @@
 3. Tick a milestone here when its tasks are DONE (add the date); refresh `HANDOFF.md`.
 4. New measured facts → PROJECT.md §8 (runs) / §9 (errors), per `CLAUDE.md`.
 5. **Coverage**: every box of the pipeline diagram (canonical copy: PROJECT.md §13.0 — repeated in
-   "The pipeline" below) names the milestone that owns it. A box with no owner is a **gap**: name
-   it in "Open decisions", never leave it silent.
+   "The pipeline" below) — **and every tool named inside a box** — names the milestone that owns
+   it, or is marked *surveyed — not adopted* with the measurement that dropped it. A box or tool
+   with no owner is a **gap**: name it in "Open decisions", never leave it silent. The check runs
+   at tool level because the box-level pass of 07/10/2026 missed three tools and one team artifact.
 
 ## Cross-phase rules (apply to every phase)
 
@@ -83,8 +85,8 @@ named per step; a step whose tool is not declared in the repo yet says so in its
                       │                │   fastp · BWA/minimap2 · Bandage
                       │                ▼
                       │       ┌─────────────────────────┐
-                      │       │ 1  LẮP RÁP              │  GetOrganelle + SPAdes
-                      │       │                         │  Flye · OATK · raven
+                      │       │ 1  LẮP RÁP              │  GetOrganelle + SPAdes (short read)
+                      │       │                         │  OATK · raven (long read)
                       │       └────────────┬────────────┘
                       │                    │  FASTA
                       │                    ▼
@@ -107,7 +109,7 @@ named per step; a step whose tool is not declared in the repo yet says so in its
                     [4]  PHÂN TÍCH                [5]  RNA EDITING (C.3)
                     cấu trúc · gen · codon         ◄── reference RIÊNG (B)
                     SSR (MISA) · repeat (vmatch)        ghép cặp có bằng chứng
-                    synteny (MUMmer4 · Sibelia)         → alignment → chưa chọn
+                    synteny (MUMmer4)                   → alignment → chưa chọn
                     Ka/Ks (PAML) · Ts/Tv (MAFFT)
                     barcode · popgen · pycirclize
                              │
@@ -116,8 +118,8 @@ named per step; a step whose tool is not declared in the repo yet says so in its
                     table2asn (.sbt) · Excel · Supplementary
 ```
 
-**Coverage** — every box names its owner (the rule this section exists for; check it whenever
-the diagram changes):
+**Coverage** — every box, and every tool inside a box, names its owner (the rule this section
+exists for; check it whenever the diagram changes):
 
 | Box in the diagram | Owner | State |
 |---|---|---|
@@ -125,16 +127,26 @@ the diagram changes):
 | Quality assessment (the audit) | M3B.1 | planned — Phase 3B |
 | The end user picks the naming reference ★ | **M3B.0** | planned — Phase 3B |
 | Unify the reference DB (`gene_normalize`) | **M3B.0** | planned — Phase 3B |
-| reads · `fastp` · `BWA`/`minimap2` · Bandage | M7.1 · M7.2 | **blocked — no real reads yet** |
-| 1 Assembly (GetOrganelle + SPAdes · Flye · OATK · raven) | M7.1–M7.5 | open |
+| reads · `fastp` · `BWA`/`minimap2` (trim · map back) | M7.1 | **blocked — no real reads yet**; neither tool declared yet |
+| reads · `Bandage` (assembly graph) | M7.2 | **blocked — no real reads yet** |
+| 1 Assembly — short read (`GetOrganelle` + `SPAdes`) | M7.1 | **blocked — no real Illumina reads yet** |
+| 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **blocked — no ONT/HiFi reads**; declared · run in the survey (§7.1) |
 | 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | planned — Phase 3B |
 | 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | planned — Phase 3B |
-| [4] Analyses — structure · gene content · codon · SSR · **repeats** · synteny · Ka/Ks · Ts/Tv · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | done, except **M2.12** (open) and M2.9 · M2.10 `[~]` |
+| [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | done, except **M2.12** (open) and M2.9 · M2.10 `[~]` |
 | [5] RNA editing (a reference of its own) | M4.5 | **blocked — needs RNA-seq** |
-| [6] Submission (table2asn · Excel · Supplementary) | M3.4 · M5.3 | done |
+| [6] Submission (`table2asn` · Excel · Supplementary) | M3.4 · M5.3 | done — except the team's `.sbt`, a TASKS.md waiting row |
 
 *Checked 07/10/2026: two boxes had no owner — the naming step (now **M3B.0**) and **repeats**
 (now **M2.12**). Making that check a rule ("How to use" 5) is what keeps this table true.*
+
+*Checked again 07/10/2026, now **at tool level**: three tools had no owner — the long-read
+assemblers (`OATK` · `raven` → **M7.6**), the read map-back (`BWA`/`minimap2` → named in **M7.1**),
+and `Sibelia` (surveyed and run in the 26/9 survey, never adopted: the project's synteny route is
+`nucmer`, D4-02/M4.2 — so it left the diagram); plus one team artifact with no row at all (the
+submitter template `.sbt` → `TASKS.md` → "Waiting on data / people"). `Flye` also left the diagram
+— measured to die on RAM here and replaced by the two long-read assemblers (§7.1). PROJECT.md
+§13.0's dated note is the canonical record.*
 
 ## Already banked (evidence in PROJECT.md §8–§9)
 
@@ -455,14 +467,18 @@ OATK → 126,660 bp @ identity 100.00 % · Bandage → PNG. With real reads: add
 
 *The canonical diagram (PROJECT.md §13.0) names `fastp` · `BWA/minimap2` · `Bandage` for read QC;
 neither `fastp` nor `BWA` is declared in the repo yet — declare each in the session it is first
-used (the §7.8b lesson).*
+used (the §7.8b lesson); the map-back step itself is M7.1's. The long-read assemblers (`OATK` ·
+`raven-assembler`, both declared) belong to **M7.6**; `Flye` left the diagram — measured to die on
+RAM here and replaced (§7.1, PROJECT.md §13.0's dated note).*
 
-- [ ] **M7.1 Batch assembly + QC** (fastp → GetOrganelle) — **BLOCKED: no real Illumina reads yet**
+- [ ] **M7.1 Batch assembly + QC** (fastp → GetOrganelle · BWA/minimap2 map-back) — **BLOCKED: no real Illumina reads yet**
 - [ ] **M7.2 Assembly-graph checks** (Bandage)
 - [ ] **M7.3 Feed mito-structure work** (M6.2)
 - [ ] **M7.4 Remote path** (usegalaxy.eu `get_organelle_from_reads`) — subsample reads before upload ·
   pin tool version · record history ID
 - [ ] **M7.5 Peak-RAM with real reads** — **BLOCKED: no real reads yet**
+- [ ] **M7.6 Long-read path** (OATK · raven-assembler — ONT/HiFi) — **BLOCKED: no ONT/HiFi reads**;
+  both tools are declared (`environment.yml`) and were run in the survey (§7.1); feeds M7.3
 
 ## Phase 8 — Cross-testing, performance, automation  *(§13.8 — not first-time testing)*
 
@@ -508,6 +524,7 @@ must be name-normalized before the annotator uses it (D5-08 §7.3). `docs/D5-08`
 | What | Who | Blocks |
 |---|---|---|
 | Real Illumina reads (1 sample) | Diem / Trang | M7.1 · M7.5 · M4.5 |
+| ONT/HiFi reads (1 sample) | Diem / Trang | M7.6 (long-read path) |
 | Plant mito data — a real mitogenome dataset | anh Điềm / cô Trang | M6.2 · M6.3 · H-06 · H-10 · H-12 (on hold by D5-07) |
 | Nuclear genome of the sample | Trang | M6.1 (NUPT/MTPT) |
 | A macOS machine | Team | M9.4 platform claims |
