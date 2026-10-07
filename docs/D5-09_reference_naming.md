@@ -341,8 +341,8 @@ Carry these:
    - the **`identity_floor`** below which a "match" is noise.
    All three are measurable on data already in the repo plus the corpus — no new data needed.
 4. **PI sign-off** on the printed-name change, since it reaches manuscript tables.
-5. **Phase slot** — which phase this work belongs to, alongside the already-open decision about
-   Phase 3B's slot.
+5. **Phase slot** — **decided 07/10/2026: inside Phase 3B, as M3B.0**, in front of the annotator
+   (`ROADMAP.md`); D5-08's D-c is answered there too.
 6. **The cache defect of Appendix C is not part of this design and should not wait for it.** It
    returns silently wrong tables today. Whether it is fixed inside this work or as its own task is
    the dev's call, but the fix belongs to `run/cache.py` and `runner.py`, not to `gene_normalize`.

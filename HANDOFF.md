@@ -10,12 +10,13 @@
 05/10/2026**: five tasks, each Done-when measured, recorded in `docs/log/phase-5.md` (§8.35–§8.39)
 and ticked in `ROADMAP.md`. `TASKS.md` holds no open phase — only the Housekeeping table.
 
-**Immediate next action:** the next board is **Phase 3B — the self-built plastid annotator**
-(D5-08), whose slot is an open decision — and with it the slot for the **D5-09 naming step**
-(reference-DB audit + `gene_normalize`, which stands in front of 3B: the annotator's reference set
-must be name-normalized first). Designs and open questions: `docs/D5-08_plastid_annotator.md` ·
-`docs/D5-09_reference_naming.md`; ROADMAP.md → Open decisions. Nothing in Phase 5 waits on either,
-and nothing else is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
+**Immediate next action:** open the **Phase 3B** board — the slot was **decided 07/10/2026**: this
+phase (after Phase 5, mirroring 3A), with the naming step (**D5-09**) as its **M3B.0** in front of
+the annotator, because the reference set must be name-normalized before the annotator uses it.
+Build the board from ROADMAP's **M3B.0–M3B.5** with the `make-tasks` skill. Still open: D5-08's
+D-a · D-b · D-e and D5-09 §9's items 1–4 · 6–9; on hold by D5-07: H-06 · H-10 · H-12. ROADMAP's
+"The pipeline" maps every step of the canonical diagram to its owner milestone (the coverage rule).
+Nothing else is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
 
 **What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
 `[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
@@ -98,10 +99,22 @@ reference-driven naming step) and fixed every contradiction the review found.
   `environment.yml` is the pinned source, and §7.8's pointer was re-pointed). `docs/tools/pmga.md`
   **stays** — it is the marked record of a measured dead end and keeps a later agent from
   re-investigating PMGA.
+* **ROADMAP now covers the whole pipeline — the map, the rule, and the two owners that were
+  missing.** Added **"The pipeline"**: a copy of the §13.0 diagram (three copies exist now —
+  PROJECT.md is canonical; all three verified byte-identical) plus a **box → milestone** table, and
+  "How to use" rule **5**: every box names its owner, and a box with no owner is a gap named in Open
+  decisions. The check found **two** ownerless boxes (07/10): the naming step → **M3B.0**, and
+  **repeats** (`repeat (vmatch)` — in scope since §1/§7.1, tools declared in `environment.yml`, the
+  diagram named it, nobody owned it) → **M2.12** + TASKS **H-16**, with the survey's "9 matches
+  ≥30 bp" flagged as measured on other data (the §9.H trap). The same pass **settled the slots**:
+  Phase 3B opens next, naming inside it as M3B.0 — recorded in ROADMAP (heading + Open decisions),
+  `docs/D5-08` (D-c) and `docs/D5-09` (§9.5). Smaller: M3B.1 now records that the audit's report is
+  what the ★ choice reads; Phase 7 notes `fastp`/`BWA` are not declared yet; PROJECT.md §13.2 gained
+  the repeats bullet; TASKS gained the PI sign-off row (D5-09 §9.4).
 
-**Validation.** `make check` green (lint · 668 fast tests · golden with named skips). The
-§13.0 ↔ D5-09 §1 diagram diff is empty. Committed as two commits: the design record as received,
-then the alignment.
+**Validation.** `make check` green (lint · 668 fast tests · golden with named skips). The three
+copies of the diagram (§13.0 · D5-09 §1 · ROADMAP) are byte-identical, checked by script. One commit
+per step, pushed.
 
 **Residual risks.** (1) The D3-02 reversal is **documented, not built** — the alias table and the
 three modules that read the canonical key still run the old direction until `gene_normalize` lands.
@@ -110,7 +123,8 @@ three modules that read the canonical key still run the old direction until `gen
 
 **Blocked.** Nothing.
 
-**Next.** The two slots (3B · D5-09) are the one open decision; then the Phase 3B board.
+**Next.** Open the Phase 3B board (`make-tasks`) from ROADMAP's M3B.0–M3B.5 — the slot is decided,
+M3B.0 (naming) first.
 
 ### 2026-10-05 · Claude · dev WSL · session 21 (Phase 5 — figures, statistics, publication exports; and the queryable-number check)
 

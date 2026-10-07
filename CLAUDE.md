@@ -60,9 +60,10 @@ the two vocabularies** (A everywhere; B only in the pairing table). Design:
 `docs/D5-09_reference_naming.md`; decision: PROJECT.md §3.
 
 **Current state: Phases 1–5 and 4a complete; no phase is open.** The next board is **Phase 3B**
-(the self-built plastid annotator, D5-08); its slot — together with the slot for the D5-09 naming
-step — is an open decision (ROADMAP.md → Open decisions). Progress: `ROADMAP.md` (milestones) ·
-`TASKS.md` (active checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
+(the self-built plastid annotator, D5-08) — its slot is **decided** (07/10/2026: this phase, after
+Phase 5), with the **D5-09 naming step as its M3B.0** in front of the annotator; the board itself is
+not yet built (ROADMAP.md → Phase 3B). Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
+checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
 
 ## Supreme objective — the deliverables decide, not the tools
 

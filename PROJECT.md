@@ -924,6 +924,7 @@ Dữ liệu vào: file GenBank (kể cả tải từ NCBI). Chưa cần dữ li�
 - SNP / thay thế theo từng vị trí
 - Intron: số lượng, độ dài, vị trí
 - SSR (vi vệ tinh): phân loại theo vùng và motif
+- Lặp lại phân tán + palindromic (repeat-match · Vmatch) — **[bổ sung 07/10/2026: có ở §1 và §7.1 nhưng thiếu ở đây; milestone M2.12]**
 - Đa dạng nucleotide (π) theo gen/intron/vùng liên gen, sliding-window
 
 **Áp dụng cho:** cả **lục lạp** và **ty thể** — nhưng hôm nay phần lớn phân tích dưới đây nằm trong **danh sách chuyển tiếp** (bảng nhóm ở đầu §13): chạy trên mitogenome thì dừng ở cổng IR, việc mở cho ty thể là H-10 (tạm hoãn, D5-07).

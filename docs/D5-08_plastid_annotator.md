@@ -154,8 +154,11 @@ and classified — with fewer conclusion-level differences than PGA's reading of
 |---|---|---|
 | D-a | tRNA/rRNA calling | `blastn` transfer from the reference set's tRNA/rRNA sequences (the CGAS/PGA way; what "blastn for non-coding" implies) vs **ARAGORN de novo** for tRNA (already declared, `aragorn=1.2.41`; matches the mito path; no reference needed) + `blastn` for rRNA |
 | D-b | The plastid reference set | built and pinned by the taxonomy rule (same family first, like `mito-reference`); for validation, leave-one-out on the corpus. Which records — a dev call with the rule applied |
-| D-c | Phase slot | **a separate phase (3B, mirroring 3A) after Phase 5** vs inside Phase 6 |
 | D-e | Shared core | **extract the calling core from `core/mito_caller.py`** (the second real copy is arriving — DRY's own rule) with the mito tests as the regression guard |
+
+D-c (phase slot) was settled on 2026-10-07: **a separate phase 3B after Phase 5, opening next**,
+with the naming step (**D5-09**) as its **M3B.0** in front of the annotator — the reference set
+must be name-normalized before this engine uses it (`ROADMAP.md`).
 
 D-d (replacement policy) was settled on 2026-10-05: **Chloe is dropped**; this engine becomes the
 annotate step when it passes the Done-when, and `D3-01` gains an update line then.
