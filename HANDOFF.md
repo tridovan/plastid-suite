@@ -82,6 +82,15 @@ reference-driven naming step) and fixed every contradiction the review found.
   marked as reversing when the naming step lands — values unchanged until then, so code and tests
   stay consistent).
 
+* **Two more false statements the stale sweep found, corrected in place**: `README.md` still said
+  "Phase 5 in progress" and "Nineteen analysis modules" (it is 20 — `stats` arrived in Phase 5);
+  `core/gene_names.py`'s docstring still stated D3-02's direction as current. **Left as proposals**
+  (see the session's chat report): deleting §13.10's 26/9 snapshot table (keep the heading — a log
+  entry cites §13.10), replacing §12's *unpinned* install block with a pointer to `environment.yml`
+  (an unpinned `mafft` is the §9.B-14 hazard), and deleting `docs/PHASE3_BLOCKERS.md` after its one
+  live ask (who `Vu,H.-T.` is / whether `PX923121.1` is the manuscript's specimen) moves into
+  `TASKS.md` → "Waiting on data / people" — that ask lives nowhere else today.
+
 **Validation.** `make check` green (lint · 668 fast tests · golden with named skips). The
 §13.0 ↔ D5-09 §1 diagram diff is empty. Committed as two commits: the design record as received,
 then the alignment.
