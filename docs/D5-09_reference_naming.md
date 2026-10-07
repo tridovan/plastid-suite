@@ -67,7 +67,7 @@ standalone — change `PROJECT.md` first, then copy it back.*
                     [4]  PHÂN TÍCH                [5]  RNA EDITING (C.3)
                     cấu trúc · gen · codon         ◄── reference RIÊNG (B)
                     SSR (MISA) · repeat (vmatch)        ghép cặp có bằng chứng
-                    synteny (MUMmer4 · Sibelia)         → alignment → PREPACT
+                    synteny (MUMmer4 · Sibelia)         → alignment → chưa chọn
                     Ka/Ks (PAML) · Ts/Tv (MAFFT)
                     barcode · popgen · pycirclize
                              │
@@ -217,9 +217,9 @@ not the mechanism.
 
 | Status | Meaning |
 |---|---|
-| `measured` | a counterpart was found; there may or may not be a result |
-| `not measured` | **no counterpart was found in the reference** ← must never be read as "none found" |
-| `outside vocabulary` | present in the reference, absent from A |
+| `measured` | a counterpart was found in A; there may or may not be a result |
+| `not measured` | **no counterpart was found in A** ← must never be read as "none found" |
+| `outside vocabulary` | present in B, absent from A |
 
 Without this column `0` and `not measured` look identical, and every per-gene aggregate is wrong.
 
@@ -320,11 +320,13 @@ Carry these:
 - **A bad reference becomes a bad standard.** Were the chosen reference NC_024936.1, then
   `atpL`·`psaL`·`bspB` — three names this project measured as wrong — would become canonical for
   every query. This is why §7.1's audit is load-bearing rather than decorative.
-- **Documents to correct in place** with the project's `[ĐÃ THAY — …]` convention: `PROJECT.md` §3
-  (D3-02), `docs/gene_name_variants.md` §6 — whose CGAS citations are also off by lines: the shipped
-  copy puts `return candidates[0]` at **214**, not 208, and the two-way prefix at **147–150**, not
-  150–153 — and `docs/D5-08_plastid_annotator.md:54`, which states that unification does not write to
-  the file.
+- **Documents corrected in place** 07/10/2026 with the project's `[ĐÃ THAY — …]` convention:
+  `PROJECT.md` §3 (D3-02, plus the D4a-05 alias row and a D5-09 decision row),
+  `docs/gene_name_variants.md` §6 (the direction note, and two CGAS citations that were off:
+  `return candidates[0]` sits at **211 and 214**, not 208, and the two-way prefix at **149**, not
+  150–153), and `docs/D5-08_plastid_annotator.md` line 54 (a pointer that the reference set must be
+  name-normalized before the annotator uses it, and that the unification step now writes the
+  normalized GenBank).
 
 ## 9. Open, and what must be measured
 
@@ -344,6 +346,17 @@ Carry these:
 6. **The cache defect of Appendix C is not part of this design and should not wait for it.** It
    returns silently wrong tables today. Whether it is fixed inside this work or as its own task is
    the dev's call, but the fix belongs to `run/cache.py` and `runner.py`, not to `gene_normalize`.
+7. **The exit code a conflict stop uses.** The project's ladder today is 1 error · 2 usage (the IR
+   gate — and D5-08's audit already claims 2) · 3 missing tool (`src/plastid/cli.py`). A conflict
+   stop needs a number that stays distinguishable from the IR gate's; pick it here, not in the code.
+8. **The organelle group `gene_normalize` declares.** The group table in `PROJECT.md` §13 is the
+   single source and a new module must be declared there — "shared" looks right (like `gene_names`),
+   but the declaration is what counts.
+9. **§7.2's cache promise needs Appendix C's fix to be true.** Measured 07/10/2026: `Cache.key`
+   sorts the input hashes and `_input_hash` hashes the sequence only, so the ★ record's *annotation*
+   cannot reach the key — on the corpus pair (one sequence, two annotations: 86 vs 85 CDS) the
+   `_input_hash` values are equal and the key is identical with the two inputs swapped. Either the
+   content hash lands with this work, or §7.2 is recorded as unmet until item 6's fix does.
 
 ---
 

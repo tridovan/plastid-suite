@@ -382,6 +382,7 @@ across 3 environments (WSL · CI · Docker).
 |---|---|---|
 | Reference Panel item (c) — source text truncated | documentation only — does not block M1.10 | PROJECT.md §10.9 |
 | **The slot for the self-built plastid annotator (D5-08)** — a new phase **3B** (proposed: after Phase 5, mirroring 3A) or inside Phase 6; the annotate step becomes this project's own tool (CGAS's model, our core) and **Chloe is dropped** | opening the 3B board — nothing already scheduled waits on it | PROJECT.md §3 (D5-08) · `docs/D5-08_plastid_annotator.md` (D-c · D-a · D-b · D-e open) |
+| **The slot for the naming step (D5-09)** — the reference-DB audit + `gene_normalize` (normalize the reference DB before annotation, verify the samples after it); D5-08's annotator needs the reference set name-normalized first, so the two slots interact | opening the D5-09 board | PROJECT.md §3 (D5-09) · `docs/D5-09_reference_naming.md` (§9.5 open) |
 
 ## Waiting on data / people
 

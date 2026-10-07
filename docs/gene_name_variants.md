@@ -106,12 +106,13 @@ Repo `github.com/abdullah30/Chloroplast-Genome-Analysis-Suite-CGAS`, commit `52b
   (`infA→infA`, `matK→matK`, `accD→accD`, `psbA→psbA`, `rbcL→rbcL`, `atpA→atpA`, `atpB→atpB`);
   12 mục thật: `pafI/paf1→ycf3` · `pafII/paf2→ycf4` · `ycf10→cemA` · `lhbA→psbZ` ·
   `pbf1/psb1→psbN` · `clpP1/clp1→clpP` · `maturaseK→matK` · `accD1→accD`.
-  **Hướng: về tên cổ điển — ngược với D3-02 của mình.**
+  **Hướng: về tên cổ điển — ngược với D3-02 của mình; từ 07/10/2026 (D5-09) chiều chuẩn hoá của
+  mình theo bản ghi chuẩn tên ★, nên khác biệt này chỉ còn là chuyện lịch sử — xem PROJECT.md §3.**
 - **Ba engine đổi tên không thống nhất**: module 3 (khớp theo reference + *ghi vào file*;
-  tRNA thiếu anticodon → **"return first as best guess"**, `cgas_module3.py:208`), module 5
+  tRNA thiếu anticodon → **"return first as best guess"**, `cgas_module3.py:211 · :214`), module 5
   (synonym cứng + *chỉ báo cáo*; tRNA thiếu anticodon → **giữ nguyên + cảnh báo**),
   module 13 (dict chuẩn hoá hoa/thường **thứ ba**, viết lại từ đầu).
-- **Module 3 khớp tiền tố hai chiều** (`:150-153`): tên lạ có tiền tố tên chuẩn bị gán bừa
+- **Module 3 khớp tiền tố hai chiều** (`:147-150`, dòng khớp ở `:149`): tên lạ có tiền tố tên chuẩn bị gán bừa
   (`ycf1-like` → `ycf1` theo code) — không report.
 - **Docstring mâu thuẫn code**: docstring module 5 dạy `trnfM-CAU → trnM-CAU` ("remove 'f'"),
   code thì cấm đúng ca đó (`:121-124`).

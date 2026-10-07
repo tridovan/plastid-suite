@@ -11,9 +11,11 @@
 and ticked in `ROADMAP.md`. `TASKS.md` holds no open phase — only the Housekeeping table.
 
 **Immediate next action:** the next board is **Phase 3B — the self-built plastid annotator**
-(D5-08), whose slot is the one open decision (ROADMAP.md → Open decisions; design and the four open
-questions in `docs/D5-08_plastid_annotator.md`). Nothing in Phase 5 waits on it, and nothing else
-is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
+(D5-08), whose slot is an open decision — and with it the slot for the **D5-09 naming step**
+(reference-DB audit + `gene_normalize`, which stands in front of 3B: the annotator's reference set
+must be name-normalized first). Designs and open questions: `docs/D5-08_plastid_annotator.md` ·
+`docs/D5-09_reference_naming.md`; ROADMAP.md → Open decisions. Nothing in Phase 5 waits on either,
+and nothing else is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
 
 **What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
 `[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
@@ -43,6 +45,55 @@ H-11 · H-13 · H-14. **Waiting on the PI:** H-04 (`trnG`) and D5-05 (what a gen
 claim — the mechanism is built and follows the conservative default).
 
 ## Log
+
+### 2026-10-07 · Claude · dev WSL · session 22 (doc alignment with D5-09 — and the cache defect the review exposed)
+
+**Did.** Read `PROJECT.md` and `CLAUDE.md` in full against the new D5-09 design record (the
+reference-driven naming step) and fixed every contradiction the review found.
+
+* **CLAUDE.md** — the pipeline sentence read `assembly → annotate → gene-name unification →
+  analyses`; D5-09 reverses it (names are unified **on the reference DB, before annotation**; the
+  step after annotation only **verifies**). Rewritten, plus a D5-09 paragraph in the briefing (the
+  naming reference is a sixth kind, chosen by the end user from the audit report; D3-02 is
+  reversed; `gene_normalize` is a new module) and a "who decides" row for the ★ choice. Also fixed
+  **"Current state: Phase 5 in progress"** — stale since 05/10; the file now says phases 1–5 + 4a
+  complete, next board 3B, with its slot (and D5-09's) open.
+* **PROJECT.md §3** — D3-02 marked `[ĐÃ THAY 07/10/2026]`; the D4a-05 alias row points at the
+  reversal; the **D5-09 decision row** added (it did not exist). §13.3's naming bullet marked as
+  moved. §13.0's `[5] RNA editing` said **PREPACT** while the table beneath it said "chưa chọn" and
+  §7.4/§7.5 measured PREPACT unreachable (`http=000`) — the diagram now says "chưa chọn"; the D5-09
+  copy synced and re-diffed **byte-identical**.
+* **D5-09** — §5's status column used "the reference" for two different things; `measured` /
+  `not measured` now say **in A**, `outside vocabulary` says **in B**. §9 gained the three gaps the
+  review found: the **exit code** for a conflict stop (2 is already the IR gate's — and D5-08's
+  audit's), the **organelle group** `gene_normalize` must declare in §13's table, and the fact that
+  **§7.2's cache promise cannot hold today**.
+* **ROADMAP** — a second open-decision row: the naming step's slot, which interacts with 3B's.
+* **The cache defect, measured and named H-15.** `Cache.key` sorts input hashes and `_input_hash`
+  hashes the sequence only, so the corpus's own "one sequence, two annotations" pair shares a key in
+  either order — while six modules take `genomes[0]` as their reference. Measured on
+  `tests/data/NC_050833.1.gb` (86 CDS) vs the corpus PGA copy (85 CDS): equal `_input_hash`, equal
+  key with the inputs swapped. The run directory's fingerprint **is** order-sensitive (`cli.py` —
+  "ordered: order is meaning"); only the cache is not. → TASKS.md **H-15**.
+* **Docs corrected as D5-09 §8 asked**: `gene_name_variants.md` §6 (direction note; the two CGAS
+  citations fixed to the measured lines — `return candidates[0]` at **211 and 214**, not 208; the
+  prefix match at **149**, not 150–153) · `D5-08` line 54 (pointer: the reference set must be
+  name-normalized before the annotator uses it) · `gene_aliases.yaml` header (D3-02's direction
+  marked as reversing when the naming step lands — values unchanged until then, so code and tests
+  stay consistent).
+
+**Validation.** `make check` green (lint · 668 fast tests · golden with named skips). The
+§13.0 ↔ D5-09 §1 diagram diff is empty. Committed as two commits: the design record as received,
+then the alignment.
+
+**Residual risks.** (1) The D3-02 reversal is **documented, not built** — the alias table and the
+three modules that read the canonical key still run the old direction until `gene_normalize` lands.
+(2) `gene_normalize`'s exit code and its organelle group are named open in D5-09 §9, not decided.
+(3) H-15 is measured but not fixed.
+
+**Blocked.** Nothing.
+
+**Next.** The two slots (3B · D5-09) are the one open decision; then the Phase 3B board.
 
 ### 2026-10-05 · Claude · dev WSL · session 21 (Phase 5 — figures, statistics, publication exports; and the queryable-number check)
 
