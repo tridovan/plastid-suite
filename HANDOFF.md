@@ -83,11 +83,20 @@ closed with a home; the canonical diagram (§13.0) corrected first and the copie
   (D-a · D-b · D-e, the conflict exit code, the parameter name, the organelle group, the schema
   bump, how Chloe retires), a pitfalls list from §8.15 · §8.21 · §8.22 · §8.31 · §8.34, and
   **H-15 · H-08 · H-14 folded into P3B-05**. Branch `feat/phase-3b`.
+* **History rewritten on the dev's call — `main` is now one commit per phase** (9 commits: phases
+  1–5 · 4a · the session 22–23 docs · this rule change). The 131-commit linear history is archived
+  under the `archive/*` tags, and every archived tree was proven **byte-identical** to the commit
+  it was taken from (`git diff` old-main vs new-main: empty) before the force-push; the board branch
+  was re-cut on the new main. `CLAUDE.md` → Commits carries the rule now (the branch holds the
+  detail and is never deleted; `main` holds the phases and takes `git merge --squash` at close;
+  task-level `git bisect` runs on the branch), and this file's header says where the live state is.
 
 **Validation.** `make check` green — lint · **670** fast tests (2 skipped: no mafft) · golden 43
 passed / 21 skipped with named reasons. Both new guards negative-checked in memory: a planted
 `M1.99` in a table and a one-character drift in a copy are each flagged. D5-09's own pipeline table
-(a hand translation, not a copy) synced for the two rows it repeats.
+(a hand translation, not a copy) synced for the two rows it repeats. The history rewrite verified
+lossless: 8/8 archived trees equal to their source commits and `git diff` old-main vs new-main empty
+before the force-push.
 
 **Residual risks.** (1) D5-09 Appendix B still lists `Sibelia` among the kind-5 (no-reference)
 tools — that appendix is a reference-mechanism list, not the pipeline, so it was left alone.
