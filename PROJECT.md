@@ -762,6 +762,96 @@ là `environment.yml`** — khối này giữ làm bản gọn để đối chi�
 
 ## 13. ROADMAP — thứ tự phát triển
 
+### 13.0. Sơ đồ pipeline & công cụ
+
+*Nguồn: bản này là nguồn chuẩn. `docs/D5-09_reference_naming.md` §1 giữ một bản sao để đọc độc lập — sửa sơ đồ thì sửa ở đây trước.*
+
+```
+   NGUỒN THAM CHIẾU
+   NCBI RefSeq  ·  bản ghi nhóm tự nộp
+                │
+                │  plastid panel pin        ← accession · ngày · sha256
+                ▼
+   ┌──────────────────────────────────────┐
+   │  DB THAM CHIẾU      (nhiều file .gb) │
+   └──────────────────┬───────────────────┘
+                      ▼
+   ┌──────────────────────────────────────┐
+   │  ĐÁNH GIÁ CHẤT LƯỢNG                 │
+   │   · file nào KHÁC so với phần còn lại│
+   │   · file nào không dùng được (BLOCK) │
+   └──────────────────┬───────────────────┘
+                      │  báo cáo
+                      ▼
+   ┌──────────────────────────────────────┐
+   │  NGƯỜI DÙNG ĐỌC VÀ CHỌN              │
+   │  1 file .gb tốt nhất                 │
+   └──────────────────┬───────────────────┘
+                      ▼
+                ★ CHUẨN TÊN    →    từ vựng A
+                      │
+                      ▼
+   ┌──────────────────────────────────────┐
+   │  ĐỒNG NHẤT TÊN CHO CẢ DB THAM CHIẾU  │   gene_normalize · D5-09
+   └──────────────────┬───────────────────┘
+                      ▼
+        DB THAM CHIẾU ĐÃ CHUẨN HOÁ   (A)
+                      │
+                      │              reads (Illumina · ONT/HiFi)
+                      │                │   fastp · BWA/minimap2 · Bandage
+                      │                ▼
+                      │       ┌─────────────────────────┐
+                      │       │ 1  LẮP RÁP              │  GetOrganelle + SPAdes
+                      │       │                         │  Flye · OATK · raven
+                      │       └────────────┬────────────┘
+                      │                    │  FASTA
+                      │                    ▼
+                      └───────────►┌─────────────────────────┐
+                                   │ 2  CHÚ GIẢI             │  công cụ tự viết (D5-08)
+                                   │                         │  blastx · blastn  [BLAST+]
+                                   └────────────┬────────────┘
+                                                │  GenBank — tên theo A
+                                                ▼
+                                   ┌─────────────────────────┐
+                                   │ 3  KIỂM TRA TÊN         │  gene_normalize (chế độ kiểm)
+                                   └────────────┬────────────┘
+                                                ▼
+                        ╔═══════════════════════════════════════╗
+                        ║   BỘ INPUT CHUẨN HOÁ   (từ vựng A)    ║
+                        ╚═══════════════════┬═══════════════════╝
+                                            │
+                             ┌──────────────┴───────────────┐
+                             ▼                              ▼
+                    [4]  PHÂN TÍCH                [5]  RNA EDITING (C.3)
+                    cấu trúc · gen · codon         ◄── reference RIÊNG (B)
+                    SSR (MISA) · repeat (vmatch)        ghép cặp có bằng chứng
+                    synteny (MUMmer4 · Sibelia)         → alignment → PREPACT
+                    Ka/Ks (PAML) · Ts/Tv (MAFFT)
+                    barcode · popgen · pycirclize
+                             │
+                             ▼
+                    [6]  XUẤT BẢN
+                    table2asn (.sbt) · Excel · Supplementary
+```
+
+**Đọc sơ đồ:** cột trái là **đường cấp tham chiếu** — không phải bước tuần tự của mẫu, mà là nguồn chảy vào bước 2. Mũi tên dài bên trái chính là *"DB tham chiếu đã chuẩn hoá là thứ chú giải cho các mẫu"*.
+
+Ba điều sơ đồ cốt để không quên: **(1)** đồng nhất tên chạy **trước** chú giải và chạy **trên DB tham chiếu** — mẫu thừa hưởng từ vựng A qua bước chú giải, không bị đổi tên sau đó; **(2)** bước 3 là **cùng module chạy lại ở chế độ kiểm** — nếu annotator lấy tên từ bộ đã chuẩn hoá thì đầu ra phải đã đúng A, nên **mọi thay đổi ở bước 3 là một phát hiện**; **(3)** RNA editing là nhánh **duy nhất có reference riêng**, nằm *sau* bộ input chuẩn hoá, nên reference B phải ghép cặp về A.
+
+| # | Bước | Công cụ | Vào → Ra | Reference cần |
+|---|---|---|---|---|
+| 0 | Nguồn tham chiếu | `plastid panel refresh` · `propose` · `pin` | NCBI / file nhóm → DB đã ghim (`PINNED.json`, sha256) | — |
+| 0b | Đánh giá chất lượng | audit (`docs/D5-08_plastid_annotator.md`) | DB → báo cáo BLOCK · REPORT | — |
+| — | **Chuẩn hoá DB tham chiếu** | **`gene_normalize`** (D5-09) | DB + ★ file đã chọn → DB theo từ vựng A | **★ file chuẩn tên** |
+| 1 | Lắp ráp | GetOrganelle + SPAdes (short read) · Flye · OATK · raven-assembler (long read); fastp · BWA/minimap2 · Bandage (QC) | reads → FASTA | seed DB `embplant_pt` · HMM DB `embryophyta_pltd.fam` |
+| 2 | Chú giải | **công cụ tự viết** (D5-08) · BLAST+ 2.17.0 | FASTA → GenBank | **bộ tham chiếu, 1..N bản ghi** |
+| 3 | Kiểm tra tên | **`gene_normalize`, chế độ kiểm** | GenBank → GenBank đã kiểm | **★ file chuẩn tên** |
+| 4 | Phân tích | MAFFT · MISA · MUMmer4 · Sibelia · PAML · vmatch · pycirclize | A → bảng · hình | loại 1, chọn theo taxonomy (D5-09 phụ lục B) |
+| 5 | RNA editing | *chưa chọn* (C.3) | A → vị trí editing | **một reference riêng B** |
+| 6 | Xuất bản | table2asn | bảng → `.sqn` | template `.sbt` |
+
+---
+
 **Thứ tự đã đổi theo quyết định 01/10: phân tích trước, lắp ráp sau.** Làm từ trên xuống; mỗi giai đoạn ra một thứ dùng được ngay.
 
 **Điều kiện chung cho mọi giai đoạn** (đọc trước khi làm bất kỳ giai đoạn nào):
