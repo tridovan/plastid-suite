@@ -14,21 +14,20 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-04** — `gene_normalize` (the naming module, arity 2,
-`requires_ir=False`, modes `normalize` / `verify`, the four arbitration tests in order, the `rule`
-and `status` columns, conflict tiers + the chosen exit code, `gene_aliases.yaml`'s direction
-flipped with its guard test). Its thresholds are **measured numbers, not open questions**: margin
-**≥ 10 bits**, floor **identity ≥ 50 % + coverage ≥ 0.7** (§8.41). It still needs the **★ pick**
-from the audit report — a recorded override is allowed meanwhile. Done and pushed on
-`feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-05** (§8.42, so H-15 · H-08 ·
-H-14 are closed) · **P3B-03** (§8.43). **The audit report now exists** — `plastid reference audit
---panel .panel/plastid-reference --out .runs` writes `report.md` and the `name_sets` table the ★
-pick is read from (D5-09 §7.1); on the pinned set it blocks exactly one record
-(`NC_024936.1`, partial `rps19`) and reports the two inverted SSCs §8.34 measured. The phase's open
-calls — D-a · D-b · D-e, the conflict exit code, the parameter name, the organelle group, the
-schema bump — sit in `TASKS.md` → "Decisions to make", each with its recommended default. On hold
-by D5-07: H-06 · H-10 · H-12. Nothing else is scheduled: Phase 6 waits on mito/nuclear data,
-Phase 7 on real reads.
+**Immediate next action:** **P3B-06** — Ts/Tv re-measured under the new naming direction: the
+alias flip is in (P3B-04, §8.44), the canonical keys five loci changed, and **2.6917 is still a
+prediction** until `substitutions` is re-run over the scope *CDS only · 79 shared genes · MAFFT ·
+IR excluded* (PROJECT.md §6 says the difference must be explained, not patched). Then **P3B-07**
+(the calling engine — extract the core from `core/mito_caller.py`; `blastp` over published
+`/translation` is already wired for the naming step and can be reused). Done and pushed on
+`feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-03** (§8.43) · **P3B-04**
+(§8.44) · **P3B-05** (§8.42, so H-15 · H-08 · H-14 are closed). The phase's open calls — D-a ·
+D-b · D-e — sit in `TASKS.md` → "Decisions to make"; the conflict exit code, the parameter name,
+the manifest schema and the organelle group are **decided and shipped** (P3B-04). **The ★ pick**
+is still the end user's: `data/naming_reference.json` holds a **recorded override**
+(`provisional: true`, the golden) and the audit report the pick is read from exists
+(`plastid reference audit --panel .panel/plastid-reference`). On hold by D5-07: H-06 · H-10 ·
+H-12. Nothing else is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
 
 **What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
 `[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
@@ -57,6 +56,50 @@ under one name, §8.41) and D5-05 (what a generated sentence may claim — the m
 follows the conservative default).
 
 ## Log
+
+### 2026-10-08 · Claude · dev WSL · session 26 (P3B-04: one vocabulary, and the alias direction flipped)
+
+**Did.** `gene_normalize` — the naming step D5-09 puts in front of the annotator.
+
+* **The module (§8.44).** Arity 2, `requires_ir=False`, modes `normalize` / `verify`. `genomes[0]`
+  is the naming reference (A), `genomes[1:]` the records (B); B's spellings appear in exactly one
+  table, in their own column. Four tests in `core/gene_names.py` with §8.41's measured thresholds
+  (identity ≥ 50 % · coverage ≥ 0.7 · margin ≥ 10 bits), three statuses (`measured` ·
+  `not measured` · `outside vocabulary`) and an `outcome` saying what the step did
+  (`confirmed` · `renamed` · `conflict` · `reported`).
+* **The reference is a declared parameter.** `ModuleSpec.reference_param`; the CLI resolves
+  `naming_reference` (or `data/naming_reference.json`, the recorded **provisional override** —
+  the golden), **audits it before use**, makes it `genomes[0]` and records
+  `{path, accession, sha256}` in `modules[].reference`. `MANIFEST_SCHEMA_VERSION` → **2**; a
+  conflict stops with exit **4**.
+* **The alias direction flipped** (D5-09 §8): 5/9 loci now print the reference's spelling, and
+  `oriented_aliases` ties the direction to the record a run hands it. Eleven guard tests updated
+  to the new direction (same claims, other names).
+* **Measured on *I. gatesii* against the golden**: 132 genes · 6 renames · 121 confirmations (82
+  margin · 38 neighbours · 1 sequence) · 0 conflicts · 5 `outside vocabulary` · 2 `not measured`.
+  The five are tRNA names the reference does not use — one of them `trnL-CAU`, **100 % identical**
+  to the reference's `trnI-CAU` — and §8.41's rule says a ranking may not settle a tRNA, so they
+  are reported and not renamed.
+
+**Validation.** `make check` green: **755 fast tests · 68 golden passed / 4 skipped** (PGA ·
+chloe+julia · table2asn; MAFFT and BLAST+ on PATH). New: 29 tests in
+`tests/unit/test_gene_normalize.py` (thresholds · orientation · four tests with one negative case
+each · the three statuses · IR copies are not duplicates · hits collapsed by locus · verify writes
+nothing · the corpus pair end to end · conflict → exit 4 with coordinates · `on_conflict=continue`
+· the CLI's resolve → audit → `genomes[0]` → manifest path · one tier-B test running real blastp).
+
+**Residual risks.** (1) **Ts/Tv is still a prediction** — the flip changed five canonical keys and
+P3B-06 has to re-measure it; the goldens pass, which is a test result and not a measurement.
+(2) The recorded standard is an override, so the printed vocabulary is the dev's provisional
+choice until the end user picks from the audit report. (3) Test 4 (neighbours) is only as good as
+the IR frame: without one, a tRNA whose ranking disagrees is reported rather than settled.
+(4) `duplicate_names` is structural (IRa/IRb); a record whose IR is undetectable falls back to
+exact sequence equality, which is stricter than it should be.
+
+**Blocked.** Nothing new. The ★ pick still waits on the end user.
+
+**Next.** **P3B-06** — re-measure Ts/Tv under the new direction — then **P3B-07**, the calling
+engine.
 
 ### 2026-10-08 · Claude · dev WSL · session 25 (P3B-03: the reference-set audit, and the two readings that have to agree)
 
