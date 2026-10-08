@@ -88,7 +88,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 05/10 | **Hình nằm ở tầng `result/`, render ở MỨC RUN từ `result.json` — không phải `core/figure.py` như board viết (dev quyết, có đo)**: (a) `tests/unit/test_architecture.py` chỉ cho `core/` import `plastid.core`, mà một hình là **hàm của `Result`** — `Result` ở tầng `result`; (b) **hai hình đọc bảng của hai module khác nhau** (`circular_map`, `ir_junction`: `genome_stats` ở khung GenBank + `structure` ở khung chuẩn hoá), việc mà một callback theo từng module không làm được. Hệ quả: hình render **sau** vòng lặp module, đọc `result.json` đã ghi — nên **một run được phục vụ hoàn toàn từ cache vẫn có hình**, và `plastid run --figures` với `plastid figures <run-dir>` là **cùng một hàm**. Đo: chạy hai lần trên cặp Iris đã pin ⇒ svg · pdf · eps **byte y hệt**; lần thứ hai là cache hit | Dev | §8.36 |
 | 05/10 | **Luật "đúng một ô" cho report đã sinh: ô CHỮ có chữ cái là văn xuôi, không phải lượng (dev quyết, có đo)**: luật nghiêm (mọi số phải nằm trong giá trị đã render của một ô) hỏng trên chính bộ giao phẩm Pha 4 với **10 phát hiện, 6 lớp** — và **cả 10** là một lượng va vào một số in bên trong một ô *chữ* được report trích nguyên văn (id khối `…_072561.1#10`, chuỗi luật `mean + 1 sd …`, cỡ nhóm `Coleus: 6, Oldenlandia: 5`, một câu ghi chú). Luật nay: giá trị của cột `str` mà chứa chữ cái bị **bỏ khỏi thân report đang quét** và **không tính là ô mang số**; ô `str` render đúng một số trần thì vẫn là ô mang số. Ca *hai dòng render cùng một giá trị* **không** bị coi là mơ hồ — hai ô không thể mâu thuẫn (genome vàng: hai bản IR đều 26.214 bp) | Dev | §8.35 |
 | 05/10 | **Ưu tiên hiện tại: LỤC LẠP trước — ty thể giữ nguyên và chừa hướng tích hợp sau (D5-07, cả nhóm chốt)**: dữ liệu **ty thể thực vật còn rất ít**, nên mọi phát triển mô-đun mới tập trung vào **lục lạp**; đường ty thể đã có (`mito_annotate` · `mito_genes` · bộ tham chiếu mito) **giữ nguyên, không mở rộng**. "Chừa hướng" là các điểm mở của D5-06, giữ nguyên hiệu lực: từ vựng tên theo bào quan · nhóm mô-đun khai báo · bộ dữ liệu một bào quan · bản ghi tự khai `/organelle` — nhờ đó sau này thêm phân tích ty thể **không phải đập lại cấu trúc**. Hệ quả xếp việc: **H-10** (mở 7 phân tích chuyển tiếp cho ty thể) và **H-06** (mở rộng từ vựng mito lên 10 locus chuẩn) **tạm hoãn** tới khi có dữ liệu ty thể; M6.2/M6.3 vẫn chờ dữ liệu như cũ | Cả nhóm (cô Trang) | §13 "Hai bào quan" (H-06 · H-10) |
-| 07/10 | **Đồng nhất tên gen là một bước riêng, chạy TRƯỚC chú giải và TRÊN bộ tham chiếu (D5-09, dev quyết — đảo chiều D3-02)**: pipeline nay là *(nguồn tham chiếu → audit → người dùng chọn một bản ghi ★ → `gene_normalize` chuẩn hoá DB)* → lắp ráp → chú giải → *`gene_normalize` chế độ kiểm* → phân tích; mẫu **thừa hưởng** từ vựng A qua bước chú giải, và chạy lại ở chế độ kiểm mà có gì đổi ⇒ **đó là phát hiện**, không phải việc thường. **Từ vựng A = tên của bản ghi ★** — **loại tham chiếu thứ 6** (không chọn lại theo taxonomy mỗi lần chạy, không phải của công cụ), do **người dùng cuối chọn từ báo cáo audit**; tên in trong bản thảo đổi theo ⇒ PI ký nhận. **Chiều chuẩn hoá đảo** — 5/9 locus đã đo đổi cách viết (`ycf3`·`ycf4`·`psbN`·`clpP`·`ndhL` thay `pafI`·`pafII`·`pbf1`·`clpP1`·`ndhI`); ba module đọc khoá chuẩn (`kaks`·`substitutions`·`popgen`) ⇒ **Ts/Tv 2,6917 dự đoán giữ nguyên nhưng phải đo lại**, không giả định. Mô-đun mới `gene_normalize` (**không nới `gene_names`**); slot của bước mới còn mở — ROADMAP → Open decisions | Dev · người dùng cuối (chọn ★) | `docs/D5-09_reference_naming.md` |
+| 07/10 | **Đồng nhất tên gen là một bước riêng, chạy TRƯỚC chú giải và TRÊN bộ tham chiếu (D5-09, dev quyết — đảo chiều D3-02)**: pipeline nay là *(nguồn tham chiếu → audit → người dùng chọn một bản ghi ★ → `gene_normalize` chuẩn hoá DB)* → lắp ráp → chú giải → *`gene_normalize` chế độ kiểm* → phân tích; mẫu **thừa hưởng** từ vựng A qua bước chú giải, và chạy lại ở chế độ kiểm mà có gì đổi ⇒ **đó là phát hiện**, không phải việc thường. **Từ vựng A = tên của bản ghi ★** — **loại tham chiếu thứ 6** (không chọn lại theo taxonomy mỗi lần chạy, không phải của công cụ), do **người dùng cuối chọn từ báo cáo audit**; tên in trong bản thảo đổi theo ⇒ PI ký nhận. **Chiều chuẩn hoá đảo** — 5/9 locus đã đo đổi cách viết (`ycf3`·`ycf4`·`psbN`·`clpP`·`ndhL` thay `pafI`·`pafII`·`pbf1`·`clpP1`·`ndhI`); ba module đọc khoá chuẩn (`kaks`·`substitutions`·`popgen`) ⇒ **Ts/Tv 2,6917 là dự đoán cho tới khi đo lại — [ĐÃ ĐO 08/10/2026: giữ nguyên 2,6917 (323 Ts / 120 Tv), và phép đo cho thấy nó *bất biến theo chiều* vì việc lật chiều là đổi nhãn chứ không chọn lại tập gen dùng chung — §8.45]**, không giả định. Mô-đun mới `gene_normalize` (**không nới `gene_names`**); slot của bước mới còn mở — ROADMAP → Open decisions | Dev · người dùng cuối (chọn ★) | `docs/D5-09_reference_naming.md` |
 | 08/10 | **Nơi chạy phần lắp ráp: tuỳ máy người dùng (xác nhận 08/10/2026)** — máy **đủ RAM** thì chạy **tại chỗ**; **không đủ** thì đề xuất **đường từ xa Galaxy** (usegalaxy.eu, §13.7 / M7.4). Luật 03/10 ("giai đoạn 6–7 chạy máy chủ từ xa") nay chỉ còn nguyên với **giai đoạn 6 — thời gian phân kỳ**. Chính sách đưa dữ liệu chưa công bố lên máy chủ công khai: **chưa quyết định** (§10.12) | anh Điềm | §13 (điều kiện chung) · ROADMAP → "Cross-phase rules" |
 | 08/10 | **Người dùng cuối, và cách dùng (định nghĩa, xác nhận 08/10/2026)**: người dùng cuối là **nhà nghiên cứu công nghệ sinh học / tin sinh học**; giao diện là **dòng lệnh trên Ubuntu** (Windows qua Docker — như quyết định 01/10). Định nghĩa này là thứ D5-09 §7.1 dùng cho việc chọn ★, và là người phải đọc được báo cáo audit | anh Điềm | CLAUDE.md · `docs/D5-09_reference_naming.md` §7.1 |
 
@@ -126,7 +126,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | Vùng lặp đảo IR | **26.214 bp**, hai bản giống **100,00 %** | tự tính; chú giải GenBank (`repeat_region` 83.128–109.341 và 127.511–153.724) khớp |
 | LSC / SSC | **83.127 / 18.169 bp** (tổng 4 vùng = 153.724) | tự tính |
 | SSR | **37** = mono 31 · di 4 · tri 2 | MISA standalone 2.1 **và** cpstools 3.0 (2 công cụ độc lập, cùng ra 37) |
-| Ts/Tv (so với Iris gatesii NC_024936.1) | **2,6917** = 323 Ts / 120 Tv; **chỉ vùng CDS** (79 gen dùng chung, không tính vùng lặp IR); MAFFT; 68.448 cột căn — phạm vi chốt 02/10, **bộ gen đo lại 04/10** | tự đo — xem ghi chú dưới bảng |
+| Ts/Tv (so với Iris gatesii NC_024936.1) | **2,6917** = 323 Ts / 120 Tv; **chỉ vùng CDS** (79 gen dùng chung, không tính vùng lặp IR); MAFFT; 68.448 cột căn — phạm vi chốt 02/10, **bộ gen đo lại 04/10**, **chiều tên đo lại 08/10 (không đổi)** | tự đo — xem hai ghi chú dưới bảng |
 | Số công bố của loài này | *Iris domestica* 153.729 bp, 132 gen; *Belamcanda chinensis* 153.735 bp, 132 gen | 2 bài công bố |
 
 > **Ghi chú 04/10/2026 — dòng Ts/Tv đo lại.** Phạm vi không đổi (chỉ CDS · gen dùng chung ·
@@ -135,6 +135,16 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 > Đo lại bằng ba tín hiệu (trình tự, vị trí, `/product`) ⇒ cùng locus ⇒ bộ dùng chung là **79
 > gen**, và số là **2,6917** (323 Ts / 120 Tv, 68.448 cột). Số cũ **2,686** (317/118, 76 gen,
 > 66.066 cột) vẫn nằm nguyên trong nhật ký §8.25 như số đo của bộ hẹp hơn. Chi tiết: §8.27.
+
+> **Ghi chú 08/10/2026 — dòng Ts/Tv đo lại lần hai, dưới chiều tên mới.** D5-09 đảo chiều chuẩn
+> hoá tên (từ vựng in ra nay theo bản ghi ★) và **ba mô-đun đọc khoá chuẩn** (`kaks` ·
+> `substitutions` · `popgen`) ⇒ dòng này là **dự đoán** cho tới khi đo lại. Đo lại **08/10/2026**
+> theo đúng thứ tự pipeline (`gene_normalize` ghi mẫu về từ vựng A → `substitutions --set
+> scope=cds`): **2,6917 = 323 Ts / 120 Tv · 79 gen · 68.448 cột** — không một đơn vị nào lệch.
+> Phép đo còn cho thấy **vì sao nó bất biến theo chiều**: bảng alias ánh xạ mọi thành viên của
+> một locus về locus đó, nên lật chiều là *đổi nhãn* tập gen dùng chung chứ không *chọn lại* nó
+> (đo: cả hai bản ghi Iris đều 86 CDS → 79 tên chuẩn, 0 locus có hai cách viết). Nhãn in ra thì
+> đổi — `substitutions_by_gene` nay in `ycf3`·`ycf4`·`psbN`·`clpP`·`ndhL`. Chi tiết: §8.45.
 
 ---
 
@@ -409,6 +419,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.42 | Khoá cache mang thêm bốn thứ — chú giải, thứ tự, mã nguồn, thứ được yêu cầu (P3B-05, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.43 | Cổng kiểm bộ tham chiếu — lớp chặn, lớp báo, lần đọc thứ hai bằng MAFFT, ngoại lệ buộc vào sha256 (P3B-03, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.44 | `gene_normalize` — bốn phép thử, ba trạng thái, tham chiếu chuẩn có ghi lại; và chiều alias đảo theo bản ghi ★ (P3B-04, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.45 | Ts/Tv đo lại dưới chiều tên mới — 2,6917 giữ nguyên, và phép đo cho thấy nó *bất biến theo chiều* (P3B-06, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---
@@ -714,6 +725,27 @@ cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào
     file **vẫn được ghi ra** kèm ghi chú "not ready to submit". Tức `submission` **báo, không
     chặn** — chữ "refuses" trong H-11 đã sửa lại cho đúng hành vi. Hai chốt (D3A-05 "chú giải +
     nộp" và "không tự bịa `/product`") va nhau ở đây; theo D5-07 ghi vào H-11 rồi hoãn.
+
+### K. Bước đặt tên (`gene_normalize`) — lỗi đo được (08/10/2026)
+
+1. **Artifact của `gene_normalize` trộn hai từ vựng trong một file.** `GENE_KINDS` là
+   `("CDS", "tRNA", "rRNA")` (`core/model.py`) nên quyết định đổi tên chỉ sinh cho ba loại đó;
+   feature `gene` — theo mô hình là một *span*, không phải một gen — được ghi lại **nguyên tên
+   gốc**. Đo trên artifact của chính run §8.45 (`NC_024936.1.normalized.gb`): **6 feature `gene`
+   còn nguyên từ vựng B**, đúng bằng 6 ca đổi tên của §8.44 — `atpL` · `psaL` · `bspB` ·
+   `trnk-UUU` · `trnl-GUA` ×2 — nằm **cùng span** với CDS/tRNA đã đổi thành `atpI` · `psaI` ·
+   `psbB` · `trnK-UUU` · `trnI-GAU`. Artifact của bản ghi vàng: **0** (nó là tham chiếu, không
+   đổi tên gì).
+   **Vì sao là lỗi chứ không phải lựa chọn:** cả hai bản ghi công bố đều khớp **132/132** feature
+   với feature `gene` cùng span cùng tên (đo cùng ngày: 0 lệch, 0 thiếu) — artifact của toolkit
+   là bên lệch chuẩn; CGAS, mô hình mà D5-08 bám theo, **có** đổi feature `gene` (D5-09
+   Appendix A: "8 features changed per target — 4 tRNA + 4 `gene`"); và D5-09 §3 cấm hai từ vựng
+   trong **một bảng** — ở đây chúng nằm trong **một file**, thứ người dùng mở ra xem.
+   **Chưa sửa, và cách sửa phải đo trước:** khớp theo *span* hay theo *locus* là câu hỏi thật —
+   feature `gene` có thể ôm trọn intron, và bản ghi vàng có **hai gen khác nhau dưới một tên**
+   (`trnG-UCC`, §8.41/H-04) nên khớp theo *tên* sẽ đổi nhầm cả hai. Ghi tên **H-17** (TASKS.md).
+   Hệ quả hôm nay là *hiển thị*, không phải *số*: `GENE_KINDS` loại feature `gene` khỏi mọi phép
+   đếm và mọi mô-đun so sánh.
 
 ## 10. Câu hỏi còn treo
 

@@ -74,11 +74,20 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   **Done when:** the three regression tests (the corpus pair with inputs swapped · a changed module
   source · a second run asking `--docx`) fail on today's code and pass after.
 
-- [ ] **P3B-06 · Ts/Tv re-measured under the new direction** *(M3B.0)*
+- [x] **P3B-06 · Ts/Tv re-measured under the new direction** *(M3B.0)* — DONE 08/10 (§8.45)
   **Done when:** `substitutions` re-run over the CDS scope (**CDS only · 79 shared genes · MAFFT ·
   IR excluded**) reproduces **2.6917 = 323 Ts / 120 Tv** — or the difference is explained and §6
   updated with fresh measured evidence (it is a prediction until then); the `kaks` ·
   `substitutions` · `popgen` goldens still pass.
+  ✅ both. Measured in the **pipeline order** (not by re-running the old test): `gene_normalize`
+  writes the sample in vocabulary A → `substitutions --set scope=cds` on that artifact →
+  **79 genes · 68,448 columns · 443 substitutions · 323 Ts / 120 Tv = 2.6917**, identical to §6/§8.27
+  to the unit. The measurement also shows **why it cannot move**: the flip relabels the shared set
+  (both records 86 CDS → 79 canonical names, no locus reached by two spellings), so it is
+  direction-invariant. New guard:
+  `tests/golden/test_tier_b.py::test_the_naming_step_does_not_move_the_golden_ts_tv` — it asserts
+  the artifact is really in A, so a no-op naming step cannot pass. **New finding, named:** the
+  artifact keeps **6 `gene` features in vocabulary B** — **H-17**, §9.K-1.
 
 - [ ] **P3B-07 · The calling engine** *(M3B.2 · D-e)*
   - Extract the calling core from `core/mito_caller.py` (DRY's second copy) — the mito tests are the guard.
@@ -192,3 +201,4 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | H-12 | `gene_names` is declared **shared** but loads only the plastid alias table (0 renamed on a mito record, measured 05/10) | ON HOLD — reopen with plant mito data | the module picks the vocabulary per record — or the §13 row says the *layer* is organelle-aware |
 | H-13 | **An unannotated record's IR is only half-checked** — identity, never length (`PZ428230.1`: 15,756 bp vs ~25.7 kb, §9.A-8) | OPEN, named 05/10 | IR length checked against ≥ 3 same-genus records; a length outlier stops the run by name; the corpus record is the negative test |
 | H-16 | **Repeats (`repeat-match` + Vmatch) has no module** — milestone **M2.12** | OPEN — own branch when picked up (Phase 2 is closed + merged) | a `repeats` module reports every match ≥30 bp with coordinates and region (the IR pair included), its count a new §8 entry |
+| H-17 | **`gene_normalize`'s artifact mixes the two vocabularies in one file** — CDS/tRNA/rRNA come out in A, the `gene` feature over the same span stays in B (measured 08/10: 6 stale `gene` features on the gatesii artifact, §9.K-1) | OPEN, named 08/10 (P3B-06) | the `gene` feature is renamed with the feature it spans, matched by **span** (not by name — the golden has two different genes under `trnG-UCC`, H-04); both published Iris records are the standard it is measured against (132/132 agreeing, 0 stale); a record whose `gene` feature carries no counterpart is reported, not guessed |

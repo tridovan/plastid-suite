@@ -145,6 +145,80 @@ def test_the_cds_scope_reproduces_the_golden_ts_tv(
     assert row["Ts/Tv"] == "2.6917"
 
 
+def test_the_naming_step_does_not_move_the_golden_ts_tv(
+    tools: dict[str, str | None],
+    blast_tools: dict[str, str | None],
+    data_dir: Path,
+    tmp_path: Path,
+) -> None:
+    """P3B-06: §6's number re-measured **under the new naming direction** — and unchanged.
+
+    P3B-04 flipped the alias direction (five of nine loci now print the naming reference's
+    spelling) and the three comparison modules read those canonical names, so 2.6917 was a
+    *prediction* until it was re-run (PROJECT.md §6). This is the re-run, in the order the
+    pipeline actually uses: `gene_normalize` writes the sample in vocabulary A, and the CDS scope
+    compares what comes out — not the published spelling as it arrived.
+
+    What makes the match a result rather than a coincidence is *why* it cannot move: the alias
+    table maps every member of a locus to that locus whichever member is canonical, so the flip
+    **relabels** the shared set instead of re-selecting it. It could only re-select if a record
+    carried two *different* genes whose names fall in one locus — measured 08/10/2026 on both
+    Iris records: 86 CDS → 79 canonical names each, and no locus reached by two spellings
+    (PROJECT.md §8.45). The artifact is checked to be in vocabulary A below, so a run where the
+    naming step quietly did nothing cannot pass this test.
+    """
+    require_tools(tools, "mafft")
+    require_tools(blast_tools, "blastp", "makeblastdb")
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "gene_normalize",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-i",
+                str(data_dir / "NC_024936.1.gb"),
+                "-o",
+                str(tmp_path / "normalized"),
+                "--set",
+                "mode=normalize",
+            ]
+        )
+        == 0
+    )
+    artifacts = sorted((tmp_path / "normalized").rglob("NC_024936.1.normalized.gb"))
+    assert len(artifacts) == 1, "the naming step wrote no artifact for the comparison record"
+
+    # the input really changed: the three CDS the two records spell differently are in A now
+    spellings = {gene.name for gene in read_genbank(artifacts[0]).genes if gene.kind == "CDS"}
+    assert {"atpI", "psaI", "psbB"} <= spellings, "the artifact is not in vocabulary A"
+
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "substitutions",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-i",
+                str(artifacts[0]),
+                "-o",
+                str(tmp_path / "runs"),
+                "--set",
+                "scope=cds",
+            ]
+        )
+        == 0
+    )
+    row = next(_table(tmp_path / "runs", "substitutions_summary"))
+    assert row["Shared genes"] == "79"
+    assert row["Alignment columns (bp)"] == "68448"
+    assert (row["Transitions"], row["Transversions"]) == ("323", "120")
+    assert row["Ts/Tv"] == "2.6917"
+
+
 def test_the_whole_alignment_scope_is_a_different_number_and_says_so(
     tools: dict[str, str | None], data_dir: Path, tmp_path: Path
 ) -> None:

@@ -55,7 +55,9 @@ reference DB)* → assembly → annotate → *`gene_normalize`, verify mode* →
 the verify step is a **finding**, not routine. The naming reference is a **kind of its own** — one
 record, fixed for the project, chosen by the end user from the audit report, never re-picked per
 run by taxonomy; canonical names follow it, which **reverses D3-02** (the group's dialect — five of
-the nine measured loci change spelling, and Ts/Tv 2.6917 must be **re-measured**, never assumed).
+the nine measured loci change spelling). Re-measured 08/10/2026 under the new direction: Ts/Tv
+**2.6917 is unchanged** (323 Ts / 120 Tv), and the measurement says why it *cannot* move — the flip
+relabels the shared gene set, it does not re-select it (§8.45).
 `gene_normalize` is a new module — `gene_names` is not grown to cover it — and **no table may mix
 the two vocabularies** (A everywhere; B only in the pairing table). Design:
 `docs/D5-09_reference_naming.md`; decision: PROJECT.md §3.
@@ -361,10 +363,10 @@ byte-identical to the commit it was taken from.
   re-counting is a measurement, not a constant). Renaming or renumbering an entry breaks citations
   nobody can re-derive. New entry: the next number, in the file of the phase you are in.
 - **§9's items are numbered per subsection, and a citation carries the subsection.** A/B/C run
-  continuously (1–37) and J continues them (38–41); **D–I each restart at 1** — measured
+  continuously (1–37) and J continues them (38–41); **D–I and K each restart at 1** — measured
   05/10/2026: the numbers 1–8 appear in seven subsections, so a bare `§9.20` is ambiguous and the
   address is `§9.C-34`. `tests/unit/test_project_docs.py` guards what is true of the file: A/B/C
-  run 1..n with no repeat, D–I restart at 1..n, and every cited number resolves.
+  run 1..n with no repeat, D–I and K restart at 1..n, and every cited number resolves.
 - **`PROJECT.md` §8 is the index** — one line per entry, and the only place a citation has to
   resolve from. `tests/unit/test_project_docs.py` fails the build if a cited `§8.N` has no heading,
   if an entry is missing from the index, or if one number appears in two files.

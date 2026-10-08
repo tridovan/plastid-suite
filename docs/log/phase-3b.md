@@ -338,3 +338,56 @@ tham chiếu → audit → `genomes[0]` → `modules[].reference` (schema 2) · 
 một test tier B chạy blastp thật. 11 test canh chiều cũ trong `test_gene_names.py` ·
 `test_annotation.py` · `test_tier_a.py` · `test_corpus.py` được **cập nhật theo chiều mới** (không
 nới: cùng khẳng định, tên khác).
+
+### 8.45. Ts/Tv đo lại dưới chiều tên mới — con số không đổi, và vì sao nó *không thể* đổi (P3B-06, 08/10/2026)
+
+**Việc.** P3B-04 lật chiều `gene_aliases.yaml` (5/9 locus) và **ba mô-đun đọc khoá chuẩn**
+(`kaks` · `substitutions` · `popgen`) — nên §6 ghi 2,6917 là **dự đoán** cho tới khi đo lại, và
+§8.44 ghi lại đúng chữ "chưa đo". Đây là lần đo đó.
+
+**Đo theo đúng thứ tự pipeline, không phải bằng cách chạy lại test cũ.** Một mình
+`substitutions` trên hai bản ghi công bố là phép đo của §8.27, không phải phép đo của chiều mới:
+trong pipeline thật, mẫu **thừa hưởng** từ vựng A *qua* bước đặt tên. Nên lần đo này chạy
+`gene_normalize` (`mode=normalize`, tham chiếu = genome vàng) trước — artifact
+`NC_024936.1.normalized.gb`, đúng 6 ca đổi tên của §8.44 — rồi mới đưa **artifact đó** vào
+`substitutions --set scope=cds`, tham chiếu là chính `NC_050833.1.gb` công bố (bản ghi vàng không
+đổi tên gì, nên nó là A ở cả hai dạng).
+
+**Số đo — trùng khít, không một đơn vị nào lệch.**
+
+| | §6 / §8.27 (04/10) | đo lại 08/10, chiều mới |
+|---|---|---|
+| gen dùng chung | 79 | **79** |
+| cột căn | 68.448 | **68.448** |
+| cột so sánh được | 68.382 | **68.382** |
+| thay thế | 443 | **443** |
+| Ts / Tv | 323 / 120 | **323 / 120** |
+| Ts/Tv | 2,6917 | **2,6917** |
+
+**Vì sao nó không thể đổi — đo, không suy luận.** Bảng alias ánh xạ **mọi** thành viên của một
+locus về locus đó, bất kể thành viên nào đang là canonical ⇒ lật chiều là phép **đổi nhãn** của
+tập gen dùng chung, không phải phép **chọn lại** nó. Nó chỉ có thể chọn lại trong đúng một tình
+huống: một bản ghi mang **hai gen khác nhau** mà tên rơi vào cùng một locus — khi đó `setdefault`
+giữ một feature và chiều quyết định giữ cái nào. Đo trên cả hai bản ghi Iris: **86 CDS → 79 tên
+chuẩn** ở mỗi bên, và **0 locus** có hai cách viết (86 − 79 = 7 gen nằm trong IR, mỗi gen hai
+bản). Không có ca nào như vậy ⇒ tập gen, cột căn và mọi con số là **bất biến theo chiều**.
+
+**Nhãn đổi, số không đổi.** `substitutions_by_gene` nay in `ycf3` · `ycf4` · `psbN` · `clpP` ·
+`ndhL` · `atpI` · `psaI` · `psbB`; bảng tương ứng của §8.27 in tên cũ cho cùng những locus đó.
+Đây là *từ vựng*, không phải *kết luận* — cùng locus, cùng số (cách phân biệt mà §8.31 đặt ra ở
+quy mô 34 bản ghi).
+
+**Test canh.** `tests/golden/test_tier_b.py::test_the_naming_step_does_not_move_the_golden_ts_tv`
+— chạy đúng thứ tự trên và khẳng định **artifact thật sự ở từ vựng A** (`atpI` · `psaI` · `psbB`
+có mặt trong nó), nên một run mà bước đặt tên im lặng không làm gì **không** qua được test này.
+Test cũ `test_the_cds_scope_reproduces_the_golden_ts_tv` giữ nguyên (đường công bố, không qua
+bước đặt tên) — hai test, hai đường, cùng một con số.
+
+**Phát hiện kèm, không thuộc phép đo này: artifact trộn hai từ vựng trong một file.** Đọc lại
+artifact của chính run trên: **6 feature `gene` còn nguyên từ vựng B** (`atpL` · `psaL` · `bspB` ·
+`trnk-UUU` · `trnl-GUA` ×2), nằm **cùng span** với CDS/tRNA đã đổi thành `atpI` · `psaI` · `psbB` ·
+`trnK-UUU` · `trnI-GAU` — `GENE_KINDS` loại feature `gene` khỏi mọi quyết định đổi tên. Hai bản
+ghi công bố thì khớp **132/132** feature với feature `gene` cùng span cùng tên (0 lệch, 0 thiếu),
+và CGAS — mô hình D5-08 bám theo — **có** đổi feature `gene` (D5-09 Appendix A: "8 features per
+target, 4 tRNA + 4 `gene`"). Ghi tên **H-17**, chi tiết ở §9.K-1; hôm nay nó là lỗi *hiển thị*,
+không phải lỗi số.
