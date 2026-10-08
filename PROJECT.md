@@ -408,6 +408,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.41 | Ba con số của D5-09 §9.3 — biên, phép thử hàng xóm, `identity_floor` (P3B-02, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.42 | Khoá cache mang thêm bốn thứ — chú giải, thứ tự, mã nguồn, thứ được yêu cầu (P3B-05, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.43 | Cổng kiểm bộ tham chiếu — lớp chặn, lớp báo, lần đọc thứ hai bằng MAFFT, ngoại lệ buộc vào sha256 (P3B-03, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.44 | `gene_normalize` — bốn phép thử, ba trạng thái, tham chiếu chuẩn có ghi lại; và chiều alias đảo theo bản ghi ★ (P3B-04, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---
@@ -880,7 +881,7 @@ Ba điều sơ đồ cốt để không quên: **(1)** đồng nhất tên chạ
 | Nhóm | Mô-đun | Vì sao ở nhóm đó (đo được) |
 |---|---|---|
 | **Dùng chung** | `orf` · `gene_names` · `kaks` · `popgen` · `submission` | theo gen/chuỗi, không theo vị trí. `kaks` + `popgen` **đã chạy trên mito thật** (`standin-mito`, §8.30); `orf` chấm chính bản chú giải mito (§8.22); `gene_names` là **tầng tên** dùng chung (hàm `aliases_for` chọn từ vựng theo `/organelle`), nhưng **hôm nay module `gene_names` chỉ nạp bảng plastid** — đo 05/10: 0 renamed / 0 aliased trên bản ghi mito trong khi `mito_genes` gọi tên được 31/51 locus (§9.J) ⇒ **H-12**, tạm hoãn theo D5-07 |
-| **Chỉ lục lạp** | `structure` · `genome_stats` · `annotation` · `gene_table` · `barcodes` | định nghĩa bằng IR/vùng LSC/IRa/SSC/IRb (`structure`, `genome_stats`), bằng công cụ chú giải lục lạp (`annotation` — hiện là Chloe, D5-08 sẽ thay bằng công cụ tự viết; ty thể có `mito_annotate`), hoặc bằng **dữ liệu plastome**: `gene_groups.yaml` → `gene_table` · `barcode_loci.yaml` → `barcodes` |
+| **Chỉ lục lạp** | `structure` · `genome_stats` · `annotation` · `gene_table` · `barcodes` · `gene_normalize` | định nghĩa bằng IR/vùng LSC/IRa/SSC/IRb (`structure`, `genome_stats`), bằng công cụ chú giải lục lạp (`annotation` — hiện là Chloe, D5-08 sẽ thay bằng công cụ tự viết; ty thể có `mito_annotate`), hoặc bằng **dữ liệu plastome**: `gene_groups.yaml` → `gene_table` · `barcode_loci.yaml` → `barcodes`. `gene_normalize` ở đây **tạm thời** và có lý do đo được: bản ghi ★ hiện là một plastome, nên chuẩn hoá một bản ghi mito theo nó sẽ in cách viết plastid cho gen ty thể — đúng bài học của H-12 (§8.44, D5-09 §9.8) |
 | **Chỉ ty thể** | `mito_annotate` · `mito_genes` | chú giải mitogenome từ bộ tham chiếu + bộ gen ty thể; không cổng IR (§8.21–8.24) |
 | **Chuyển tiếp — dùng chung về bản chất, chưa mở cho ty thể** | `ssr` · `introns` · `codon_usage` · `amino_acid` · `substitutions` · `diversity` · `synteny` | SSR · codon usage · amino acid · intron · Ts/Tv · π · mVISTA đều là phân tích chuẩn của bài mitogenome, nhưng mỗi mô-đun báo theo **vùng plastome** hoặc gọi `ctx.require_ir()` ⇒ chạy trên mitogenome thì run **dừng ở cổng, trước khi mô-đun chạy** (đo 03/10: cả hai mitogenome stand-in ném `IRDetectionError`, §8.6). Mở cho ty thể = một chế độ "không vùng" — H-10 |
 

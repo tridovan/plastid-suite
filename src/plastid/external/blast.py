@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import re
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,13 +46,19 @@ __all__ = [
     "DEFAULT_EVALUE",
     "MAX_HSPS",
     "MAX_TARGET_SEQS",
+    "NAMING_EVALUE",
     "SEGMENT_OFF",
     "BlastResult",
+    "ProteinHits",
+    "ProteinHit",
     "blast_version",
+    "blastp_argv",
     "makeblastdb_argv",
     "parse_hits",
+    "parse_protein_hits",
     "resolve_binary",
     "run_blastn",
+    "run_blastp",
     "run_blastx",
     "search_argv",
     "subject_key",
@@ -199,6 +206,186 @@ def search_argv(
     else:
         argv += ["-task", "blastn"]
     return argv
+
+
+# --- the naming search (P3B-04) ---------------------------------------------------------------
+#
+# `blastp`, protein against protein, is the one search D5-08 keeps for the naming step: both
+# sides already carry a curated protein (/translation), so blastx's six-frame translation would
+# add cost and no sensitivity, and it would let a frame error hide inside a good score.
+#
+# The E-value and the flags are the ones §8.41's thresholds were measured with, and that is the
+# only reason they are not the module's defaults: identity ≥ 50 %, coverage ≥ 0.7 and a margin
+# ≥ 10 bits are numbers *of this command line*, and a different one would make them folklore.
+
+NAMING_EVALUE = 10.0
+_PROTEIN_COLUMNS: tuple[str, ...] = ("qseqid", "sseqid", "pident", "length", "bitscore", "qlen")
+
+
+@dataclass(frozen=True, slots=True)
+class ProteinHit:
+    """One blastp hit for one query gene: what it matched, and how well."""
+
+    query_id: str
+    subject: str  # the subject key's gene field — the naming reference's own spelling
+    accession: str  # the subject key's accession field
+    identity: float  # % identity over the aligned length
+    length: int  # aligned length, in amino acids
+    bits: float
+    query_length: int  # the query protein's length
+
+    @property
+    def coverage(self) -> float:
+        return self.length / self.query_length if self.query_length else 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class ProteinHits:
+    """One search's hits, grouped by query and ranked best first — plus what produced them."""
+
+    by_query: dict[str, tuple[ProteinHit, ...]]
+    raw: str
+    search: str
+    version: str
+
+    def for_query(self, query_id: str) -> tuple[ProteinHit, ...]:
+        return self.by_query.get(query_id, ())
+
+
+def parse_protein_hits(
+    text: str, *, subject_vocabulary: str = "A"
+) -> dict[str, tuple[ProteinHit, ...]]:
+    """Read ``blastp -outfmt 6 qseqid sseqid pident length bitscore qlen``, ranked per query.
+
+    The subject key is the same three-field contract the mito reference writes
+    (:func:`subject_key`) — ``accession|gene|vocabulary`` — so a naming run's own FASTA says which
+    vocabulary every subject belongs to (``A`` here) and a hit cannot be mistaken for one from
+    another table. A line with the wrong field count or a foreign vocabulary raises: this is a
+    parser, and a silent skip is how a missing gene becomes an absence.
+    """
+    grouped: dict[str, list[ProteinHit]] = {}
+    for number, line in enumerate(text.splitlines(), start=1):
+        if not line.strip():
+            continue
+        fields = line.split("\t")
+        if len(fields) != len(_PROTEIN_COLUMNS):
+            raise ValueError(
+                f"line {number}: expected {len(_PROTEIN_COLUMNS)} tab-separated fields, found "
+                f"{len(fields)}: {line[:120]!r}"
+            )
+        query_id, subject_id, pident, length, bits, qlen = fields
+        key = subject_key(subject_id)
+        accession, gene, vocabulary = key.split("|", 2)
+        if vocabulary != subject_vocabulary:
+            raise ValueError(
+                f"line {number}: subject {key!r} is vocabulary {vocabulary!r}, not "
+                f"{subject_vocabulary!r} — the reference FASTA is not the naming reference"
+            )
+        grouped.setdefault(query_id, []).append(
+            ProteinHit(
+                query_id=query_id,
+                subject=gene,
+                accession=accession,
+                identity=float(pident),
+                length=int(length),
+                bits=float(bits),
+                query_length=int(qlen),
+            )
+        )
+    return {
+        query_id: tuple(sorted(hits, key=lambda hit: (-hit.bits, hit.subject)))
+        for query_id, hits in grouped.items()
+    }
+
+
+def blastp_argv(
+    *, binary: str, query: str | Path, database: str | Path, evalue: float, max_hsps: int
+) -> list[str]:
+    """The naming search's command line — held still by a test, so the thresholds stay attached."""
+    return [
+        binary,
+        "-query",
+        str(query),
+        "-db",
+        str(database),
+        "-outfmt",
+        "6 " + " ".join(_PROTEIN_COLUMNS),
+        "-evalue",
+        f"{evalue:g}",
+        "-max_hsps",
+        str(max_hsps),
+        "-max_target_seqs",
+        str(MAX_TARGET_SEQS),
+        SEGMENT_OFF,
+        "no",
+    ]
+
+
+def run_blastp(
+    queries: Sequence[tuple[str, str]],
+    reference: str | Path,
+    ctx: RunContext,
+    *,
+    search: str | Path | None = None,
+    makeblastdb: str | Path | None = None,
+    directory: str | Path | None = None,
+    evalue: float = NAMING_EVALUE,
+    max_hsps: int = MAX_HSPS,
+) -> ProteinHits:
+    """Search ``(query_id, protein)`` rows against a protein reference FASTA on disk.
+
+    Both FASTAs are built by the caller — the reference is the naming record's own curated
+    proteins, written with :func:`plastid.core.gene_names.protein_fasta_rows`, and the queries are
+    the record's genes. The reference is a path rather than data because it is shared by every
+    query and rebuilding it per query would be a second, silently different database.
+    """
+    if not queries:
+        raise ValueError("a naming search needs at least one query protein")
+    binary = resolve_binary("blastp", explicit=search, directory=directory)
+    db_binary = resolve_binary(DB_TOOL, explicit=makeblastdb, directory=directory)
+    version = blast_version(binary)
+    source = Path(reference)
+    if not source.is_file():
+        raise ToolError(f"the naming reference is not a file: {source}")
+
+    with tempfile.TemporaryDirectory(prefix="blastp_") as work:
+        workdir = Path(work)
+        query = workdir / "queries.faa"
+        query.write_text(
+            "".join(f">{name}\n{protein}\n" for name, protein in queries), encoding="utf-8"
+        )
+        database = workdir / "reference"
+        ctx.tool(
+            DB_TOOL,
+            makeblastdb_argv(
+                binary=db_binary, reference=source, database=database, molecule="prot"
+            ),
+            kind="binary",
+            tool_path=db_binary,
+            cwd=workdir,
+            timeout=600,
+        )
+        record = ctx.tool(
+            "blastp",
+            blastp_argv(
+                binary=binary,
+                query=query,
+                database=database,
+                evalue=evalue,
+                max_hsps=max_hsps,
+            ),
+            kind="binary",
+            tool_path=binary,
+            cwd=workdir,
+            timeout=3600,
+        )
+        raw = Path(record.stdout_file).read_text(encoding="utf-8")
+    return ProteinHits(
+        by_query=parse_protein_hits(raw),
+        raw=raw,
+        search=binary,
+        version=version,
+    )
 
 
 def makeblastdb_argv(

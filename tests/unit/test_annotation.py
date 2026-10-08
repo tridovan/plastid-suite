@@ -128,7 +128,7 @@ def test_the_module_analyses_whatever_the_annotator_wrote(
 
     # the gene set is grouped and printed with both names, like every other table in a run
     genes = {row["gene"] for row in result.tables["gene_set"].rows}
-    assert "pafI (ycf3)" in genes
+    assert "ycf3 (pafI)" in genes
     assert len(result.tables["gene_set"].rows) == 132
 
 
@@ -197,7 +197,7 @@ def test_two_calls_of_one_locus_are_reported_not_merged(tmp_path: Path, monkeypa
 
     assert len(result.tables["gene_set"].rows) == 2  # both calls kept
     duplicates = result.tables["duplicate_loci"].rows
-    assert [row["canonical"] for row in duplicates] == ["clpP1"]
+    assert [row["canonical"] for row in duplicates] == ["clpP"]
     assert duplicates[0]["names"] == "clpP, clpP1"
     assert any("annotated more than once" in note for note in result.notes)
 

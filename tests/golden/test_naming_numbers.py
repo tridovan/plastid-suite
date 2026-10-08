@@ -242,10 +242,15 @@ def test_the_margin_and_the_floor_are_where_the_naming_step_will_read_them(
     assert statistics.median(margins) == pytest.approx(298.0, abs=5.0)
     assert min(ortholog) == pytest.approx(67.75, abs=0.05)
     assert max(wrong) == pytest.approx(100.0, abs=0.05)
-    # the three that sit above: the same locus under a name the record spells differently
-    assert sorted(value for value in wrong if value >= min(ortholog)) == pytest.approx(
-        [97.674, 100.0, 100.0], abs=0.01
+    # What sits above the floor is the same locus under another name, and nothing else: the
+    # distinct values are asserted rather than their count, because how many *features* spell a
+    # locus that way depends on the corpus's own annotation (measured after the D5-09 §8 flip:
+    # 97.674 % is `pafII` matched against the golden's `ycf4`, 100 % is `lhbA` against `psbZ` and
+    # a short `ycf4`-named feature against `psbN`).
+    assert sorted({value for value in wrong if value >= min(ortholog)}) == pytest.approx(
+        [97.674, 100.0], abs=0.01
     )
+    # ... and the separation the floors rest on: nothing a *different* locus reaches lies between
     assert max(value for value in wrong if value < min(ortholog)) == pytest.approx(44.93, abs=0.05)
     # the floor the mito path already uses (identity 50 %, coverage 0.5) fits the gap only once
     # the coverage floor is raised: 44.93 < 50 < 67.75

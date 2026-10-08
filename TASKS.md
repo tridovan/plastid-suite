@@ -47,18 +47,24 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   **2/34 inverted and REPORTED, not blocked**. ✅ both, plus: the real pinned set blocks on exactly
   one record (`NC_024936.1`, partial `rps19` — §8.34's prediction) and MAFFT names the same 2/34.
 
-- [ ] **P3B-04 · `gene_normalize` — the module** *(M3B.0)*
-  - New module, arity 2, `requires_ir=False`, modes `normalize` / `verify`; renaming logic stays in
-    `core/gene_names.py`; `gene_names` untouched.
-  - The four tests in order + the `rule` column; the **status** column (`measured` · `not measured` ·
-    `outside vocabulary`); B appears only in the `pairing` table, in its own column.
-  - Conflict tiers + the chosen exit code; `--set on_conflict=continue` writes the `conflicts` table;
-    the normalized `.gb` is a `Result.artifacts` entry; verify mode reports and writes nothing.
-  - Flip `gene_aliases.yaml`'s direction (canonical = the naming reference's spelling) with its guard test.
+- [x] **P3B-04 · `gene_normalize` — the module** *(M3B.0)* — DONE 08/10 (§8.44)
+  - New module, arity 2, `requires_ir=False`, modes `normalize` / `verify`; renaming logic in
+    `core/gene_names.py` (the four tests, the three statuses, `oriented_aliases`); `gene_names`
+    untouched. `genomes[0]` = the naming reference — resolved by the CLI from `naming_reference`
+    (or the recorded standard), **audited before use**, recorded as `modules[].reference`
+    (manifest schema **2**).
+  - The four tests + `rule` · `status` (`measured` · `not measured` · `outside vocabulary`) ·
+    `outcome`; B only in the `pairing` table, in its own column.
+  - Conflict tiers + exit code **4**; `on_conflict=continue` writes the `conflicts` table and the
+    artifacts; `verify` reports and writes nothing; the `.gb` is a `Result.artifacts` entry.
+  - `gene_aliases.yaml` flipped (5/9 loci) with its guard tests updated; `oriented_aliases` keeps
+    the direction tied to whatever record the run hands it.
   **Done when:** over the corpus pair (one sequence, two annotations) the normalize run writes the
-  `.gb` in A plus a pairing table; verify on an unchanged file reports **zero** changes; a planted
-  conflict stops with the chosen code, naming coordinates; each of the four tests has a negative case.
-  **Needs:** the ★ pick (Waiting table) for the real-DB run — a recorded override is allowed meanwhile.
+  `.gb` in A plus a pairing table; verify on an unchanged file reports zero changes; a planted
+  conflict stops with exit 4, naming coordinates; each of the four tests has a negative case.
+  ✅ all four, plus 132 genes of *I. gatesii* against the golden: 6 renames, 121 confirmations, 0
+  conflicts (the table is in §8.44). **Needs:** the ★ pick — the recorded override
+  (`data/naming_reference.json`, `provisional: true`) stands until the end user chooses.
 
 - [x] **P3B-05 · The cache stops silently changing the answer** — DONE 08/10 (§8.42):
   H-15 · H-08 · H-14 fixed, plus §7.2's promise (a file-valued parameter is content-addressed) *(H-15 + H-08 · H-14 · D5-09 §7.2, §9.9)*
@@ -118,10 +124,10 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | D-b | Which records form the reference set | the **taxonomy rule** (same family first) over pinned records; the corpus is validation, never production | the pin · §8 |
 | — | Naming thresholds | **margin ≥ 10 bits · identity ≥ 50 % + coverage ≥ 0.7** — measured §8.41 (smallest true margin 19.2 bits; the gap is 44.93–67.75 %). The mito path's coverage 0.5 is **not** enough for plastid: `psbJ` is 36 aa | `core/` · §8.41 |
 | D-e | Shared calling core | **extract from `core/mito_caller.py`** — second real copy arriving (DRY), its tests the guard | code · PROJECT.md §3 |
-| — | `gene_normalize`'s organelle group | **plastid** for now — the ★ is one plastid record, and normalizing a mito record against it would print plastid spellings for mito genes (H-12's lesson) | §13 group table |
-| — | Conflict-stop exit code | **4** — the ladder is 1 error · 2 usage/IR gate (and the audit) · 3 missing tool | `cli.py` · API doc |
-| — | Parameter name | **`naming_reference`** — `reference` already carries two meanings (§7.2) | `defaults.yaml` · API doc |
-| — | Manifest schema | **bump `MANIFEST_SCHEMA_VERSION`** — a new per-module reference entry | `run/manifest.py` |
+| — | `gene_normalize`'s organelle group | **plastid** for now — the ★ is one plastid record, and normalizing a mito record against it would print plastid spellings for mito genes (H-12's lesson) — **declared in §13** 08/10/2026 (P3B-04) | §13 group table |
+| — | Conflict-stop exit code | **4** — the ladder is 1 error · 2 usage/IR gate (and the audit) · 3 missing tool · **4 naming conflict** — **decided and shipped 08/10/2026** (P3B-04) | `cli.py` · API doc |
+| — | Parameter name | **`naming_reference`** — `reference` already carries two meanings (§7.2) — **decided and shipped 08/10/2026** as `ModuleSpec.reference_param` (P3B-04) | `defaults.yaml` · API doc |
+| — | Manifest schema | **bumped to 2** 08/10/2026 — a new per-module `reference` entry `{path, accession, sha256}` (P3B-04) | `run/manifest.py` |
 | — | Replacing Chloe | a **new module mirroring `mito_annotate`**; chloe · pga retires when P3B-10 passes; D3-01 gains its update line | PROJECT.md §3 |
 
 ## Pitfalls — the project's own measured traps
@@ -142,6 +148,11 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 - **The cache was blind to the annotation and the input order (H-15)** → a `cached` run could be
   the wrong answer. **Fixed in P3B-05 (§8.42)**: the key carries the annotation, the order, the
   module source and the output options.
+- **A gene the reference carries twice (the IR) makes the sequence margin read 0** (§8.44) → hits
+  are collapsed **by locus** before the runner-up is read; "á quân" is the best *different* locus.
+- **Two IR copies of one gene can differ by a base or two** (the gate asks ≥ 99.9 %, not 100 %) →
+  "two genes under one name" is decided by **structure** (one copy in IRa, one in IRb), never by a
+  similarity threshold. The measured counter-case is the golden's two `trnG-UCC` in the LSC.
 - **The mito artifact writes no `/organelle` (H-11)** → the plastid annotator's `source` carries it,
   and P3B-08 checks the artifact, not the intention.
 - **A confirmed exception applied before the finding it is about comes back `unused` and stops
@@ -155,7 +166,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 
 | What | Who | Blocks |
 |---|---|---|
-| The **★** pick — one record, the project's naming reference | **the end user** — a researcher in biotechnology / bioinformatics (defined 08/10/2026) — from the audit report (D5-09 §7.1); the PI signs off on printed names | the real-DB normalize run (P3B-04) and every annotation run after it — a recorded override is allowed until then. **The report exists now** (P3B-03, §8.43): `plastid reference audit --panel .panel/plastid-reference` writes `report.md` + the `name_sets` table, which is what the pick is made from |
+| The **★** pick — one record, the project's naming reference | **the end user** — a researcher in biotechnology / bioinformatics (defined 08/10/2026) — from the audit report (D5-09 §7.1); the PI signs off on printed names | the real-DB normalize run (P3B-04) and every annotation run after it — a recorded override is allowed until then. **The report exists now** (P3B-03, §8.43): `plastid reference audit --panel .panel/plastid-reference` writes `report.md` + the `name_sets` table, which is what the pick is made from. Until then `data/naming_reference.json` holds a **recorded override** (`provisional: true`, the golden) and P3B-04's step runs against it (P3B-04, §8.44) |
 | PI sign-off on the names a manuscript prints (D5-09 §9.4) | **cô Trang** | only the printed-name change; the naming step itself does not wait |
 | Plant mito data — a real mitogenome dataset | anh Điềm / cô Trang | **H-06 · H-10 · H-12** (on hold by D5-07) and Phase 6's mito content (M6.2 · M6.3) |
 | One RNA-seq sample (any tissue) | team | M4.5 RNA editing |

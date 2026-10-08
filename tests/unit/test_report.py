@@ -1479,7 +1479,55 @@ def _reference_audit_result() -> Result:
     return audit_module.audit_result(report)
 
 
+def _gene_normalize_result() -> Result:
+    """The summary a naming run writes — the cells its template reads.
+
+    Hand-built like the fixtures around it: what the guard checks is that the template's
+    references resolve against the schema the module documents, and a fixture that called the
+    module's own table builders would only be checking that the module agrees with itself.
+    """
+    summary = Table(
+        id="normalize_summary",
+        title="Reference-driven naming",
+        columns=(
+            Column("mode", "Mode"),
+            Column("reference", "Naming reference (A)"),
+            Column("records", "Records normalized", dtype="int"),
+            Column("genes", "Genes read", dtype="int"),
+            Column("renamed", "Renamed", dtype="int"),
+            Column("confirmed", "Confirmed", dtype="int"),
+            Column("conflicts", "Conflicts", dtype="int"),
+            Column("measured", "Status: measured", dtype="int"),
+            Column("not_measured", "Status: not measured", dtype="int"),
+            Column("outside", "Status: outside vocabulary", dtype="int"),
+            Column("artifacts", "Normalized records written", dtype="int"),
+        ),
+        rows=(
+            {
+                "mode": "normalize",
+                "reference": "NC_050833.1",
+                "records": 1,
+                "genes": 132,
+                "renamed": 5,
+                "confirmed": 120,
+                "conflicts": 0,
+                "measured": 120,
+                "not_measured": 11,
+                "outside": 1,
+                "artifacts": 1,
+            },
+        ),
+        scope=Scope(
+            label="one record against the project's naming reference (D5-09, vocabulary A)"
+        ),
+    )
+    return Result(
+        module="gene_normalize", module_version="0.1.0", tables={"normalize_summary": summary}
+    )
+
+
 TEMPLATE_FIXTURES = {
+    "gene_normalize": _gene_normalize_result,
     "reference_audit": _reference_audit_result,
     "mito_annotate": _mito_annotate_result,
     "mito_genes": _mito_genes_result,

@@ -42,6 +42,11 @@ class ModuleSpec:
     requires_ir: bool = False
     arity: int = 1
     citations: tuple[str, ...] = ()
+    # The parameter naming a *file* this module works against — a privileged record rather than
+    # one of the run's equal inputs (D5-09 §7: the naming reference). Declared here so the CLI can
+    # resolve it, audit it and record its digest without knowing which module is asking: the
+    # module says what it needs, the command line says how it is supplied.
+    reference_param: str | None = None
 
 
 _REGISTRY: dict[str, ModuleSpec] = {}
@@ -55,6 +60,7 @@ def module(
     requires_ir: bool = False,
     arity: int = 1,
     citations: tuple[str, ...] = (),
+    reference_param: str | None = None,
 ) -> Callable[[ModuleFn], ModuleFn]:
     """Register a module's ``run`` function.
 
@@ -76,6 +82,7 @@ def module(
             requires_ir=requires_ir,
             arity=arity,
             citations=citations,
+            reference_param=reference_param,
         )
         return run_fn
 

@@ -121,3 +121,28 @@ does not still claim to be reading the first module.
 inside the function that needs it. The minimum install stays pure Python: `biopython` + `PyYAML`.
 A missing extra is `ExportDependencyError` and exit 3 — a named failure, never an `ImportError`
 traceback. `lxml` arrives with `python-docx` and is used for the package pruning.
+
+### A module may declare a privileged reference (P3B-04, 08/10/2026)
+
+`gene_normalize` works against a record that is not one of the run's equal inputs: the **naming
+reference** — one record, chosen by the end user, whose spelling every table this project prints
+(D5-09). A module says so in its registration:
+
+```python
+@module("gene_normalize", version="0.1.0", arity=2, reference_param="naming_reference")
+def run(genomes, params, ctx): ...  # genomes[0] is the reference, genomes[1:] the records
+```
+
+The command line then does four things the module must not (a module never touches the
+filesystem): resolves the parameter — or the project's recorded standard,
+`data/naming_reference.json`, when the run does not override it —, **audits** the record before
+using it (D5-08's gate, at the one place where a bad reference would make every name wrong in the
+same way), makes it `genomes[0]`, and writes its `{path, accession, sha256}` into the module's
+manifest entry (`manifest.json` → `modules[].reference`; schema version **2**).
+
+Two consequences worth knowing before writing a module that wants one:
+
+* **arity counts the reference.** `arity=2` means one reference *plus* at least one `--input`
+  record; the CLI adds the reference itself, so a user passes only their samples.
+* **the parameter name is per-module and must not be `reference`** — that key already carries two
+  incompatible meanings in this toolkit, and a third would be read as one of them.

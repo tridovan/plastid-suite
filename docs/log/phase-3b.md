@@ -250,3 +250,91 @@ số N ≥ 3 và ca N = 2, ngoại lệ sống/void/stale/unused, dotplot, cửa
 manifest, cửa `--confirm-exception`) · `tests/golden/test_reference_audit_corpus.py` (4 test, cần
 `.panel/`; test MAFFT là tier B): tái lập **32/34 · 2/34** và tên đúng hai bản ghi, MAFFT đánh dấu
 đúng hai bản ghi ấy, 0 phát hiện `confirmation`.
+
+---
+
+### 8.44. `gene_normalize` — bốn phép thử, ba trạng thái, ngưỡng đã đo; và chiều alias đảo (P3B-04, 08/10/2026)
+
+**Việc.** Mô-đun mới `gene_normalize` (arity 2, `requires_ir=False`, hai chế độ `normalize` /
+`verify`) — bước đứng trước annotator: mọi GenBank đi vào pipeline được **ghi lại theo cách viết
+của bản ghi ★** (từ vựng A), kèm bảng nói cái gì đổi và vì sao. `genomes[0]` là **tham chiếu
+chuẩn tên** (A), `genomes[1:]` là các bản ghi cần chuẩn hoá (B). **B chỉ xuất hiện ở đúng một
+bảng** — `pairing`, ở cột riêng của nó (D5-09 §3).
+
+**Tham chiếu chuẩn là một tham số có ghi lại, không phải một input ngang hàng.** Registry nay có
+`ModuleSpec.reference_param`; `gene_normalize` khai `naming_reference`, và `cli.py` làm bốn việc
+mà mô-đun không được làm (mô-đun không chạm filesystem): đọc file (từ tham số, hay từ
+`data/naming_reference.json` khi run không override) → **chạy audit trước khi dùng** (D5-08: một
+tham chiếu hỏng làm mọi cái tên sai theo cùng một kiểu) → đặt nó thành `genomes[0]` → ghi
+`{path, accession, sha256}` vào `modules[].reference` của manifest. `MANIFEST_SCHEMA_VERSION` lên
+**2**; mã thoát **4** là của riêng ca xung đột (1 lỗi · 2 dùng sai/cổng · 3 thiếu công cụ ·
+**4 xung đột tên**).
+
+**Bản ghi chuẩn hiện tại là một override có ghi, không phải quyết định của ★.** Người dùng cuối
+chưa chọn (D5-09 §7.1), nên `data/naming_reference.json` ghi `provisional: true`, trỏ vào
+`tests/data/NC_050833.1.gb`, kèm sha256 **đo từ chính file đó** — đổi byte là run dừng có tên.
+Cùng lúc, **chiều của `data/gene_aliases.yaml` được đảo** (D5-09 §8): 5/9 locus đổi
+(`ycf3`·`ycf4`·`psbN`·`clpP`·`ndhL` thay `pafI`·`pafII`·`pbf1`·`clpP1`·`ndhI`; bốn locus kia giữ
+nguyên vì bản ghi ★ đồng ý với chúng). Chiều thật sự được **định hướng theo bản ghi mà run nhận**
+(`oriented_aliases`), nên một ★ khác đảo lại mà **không phải sửa file** — file chỉ ghi chiều của
+bản ghi đã ghi, và một test canh hai thứ đó khớp nhau.
+
+**Số đo trên dữ liệu thật.** *Iris gatesii* `NC_024936.1` (86 CDS, có `/translation`) chuẩn hoá
+theo genome vàng: **132 gen · 6 đổi tên · 121 xác nhận · 0 xung đột · 5 `outside vocabulary` ·
+2 `not measured`**. Sáu ca đổi tên, và đúng phép thử nào quyết:
+
+| B ghi | A ghi | phép thử | bằng chứng |
+|---|---|---|---|
+| `atpL` | `atpI` | margin | 100 % · phủ 1,00 (bảng alias biết locus, chuỗi xác nhận) |
+| `psaL` | `psaI` | margin | 100 % · phủ 1,00 |
+| `bspB` | `psbB` | margin | **99,80 %** · phủ 1,00 |
+| `trnk-UUU` | `trnK-UUU` | neighbours | lỗi chữ nhỏ, hàng xóm xác nhận |
+| `trnl-GUA` (×2) | `trnI-GAU` | neighbours | bảng alias + hàng xóm |
+
+121 ca xác nhận chia theo phép thử quyết định: **82 margin · 38 neighbours · 1 sequence**. Năm ca
+`outside vocabulary` đều là tRNA mà bản ghi ★ không dùng tên đó — và **một trong chúng đáng ghi
+lại**: `trnL-CAU` của bản ghi trùng khít 100 % với `trnI-CAU` của bản ghi vàng (anticodon CAU
+không phải của Leu), `trmA-UGC` trùng 100 % với `trnA-UGC`, `trnL` trần gần nhất là `trnL-UAG`.
+Theo §8.41, với tRNA **không ngưỡng identity nào tách được locus đúng khỏi locus sai**, nên cả
+năm ca được **báo**, không được đổi tên — kể cả ca 100 % ấy.
+
+**Hai lỗi thật do test tìm ra, cả hai đều là loại im lặng.**
+1. **Margin đọc bằng 0 trên gen IR.** Bản ghi ★ mang **hai bản sao IR** của một gen dưới một tên;
+   BLAST trả cả hai với điểm gần bằng nhau, nên "á quân" chính là locus của quán quân ⇒ `ycf2`
+   (và `rpl2`, `rpl23`, `rps19`) bị gọi là **xung đột** trong khi tên và chuỗi *đồng ý*. Luật nay:
+   hit được **gom theo locus, giữ cái tốt nhất**, trước khi tính margin — "á quân" nghĩa là locus
+   *khác* tốt nhất.
+2. **`rrn23` của một bản công bố bị coi là hai gen.** Hai bản sao IR của nó khác nhau một hai base
+   (cổng IR đòi ≥ 99,9 %, không đòi 100 %), nên phép so *chuỗi* gọi một gen thành hai và **chặn**
+   một run không có gì sai. Luật nay dựa vào **cấu trúc**: hai feature cùng tên là một gen khi cả
+   hai nằm trong cặp IR (một bên IRa, một bên IRb) — không dùng ngưỡng tương đồng nào. Đo lại:
+   `trnG-UCC` (hai gen thật, cùng ở LSC, 73,24 % giống nhau, §8.41) vẫn bị bắt trên cả ba bản ghi
+   đã đo; `rrn23` thì không.
+
+**Ba giá trị `status` phải khác nhau, và khác thật.** `measured` = tìm được đối tác trong A **và
+đã kiểm**; `not measured` = **không kiểm được** (thiếu `/translation`, ranking quá sát, hàng xóm
+không đo được vì thiếu khung IR) — không bao giờ có nghĩa "không có"; `outside vocabulary` = đã
+kiểm và A **không có gì** tương ứng. Kèm `outcome` nói bước này làm gì: `confirmed` (không đổi) ·
+`renamed` (đầu ra viết theo A) · `conflict` (dừng) · `reported` (không đổi, và người đọc cần biết).
+Hai nửa corpus PGA (84 và 85 CDS, `/translation` chỉ có ở **1** feature) chạy được trên mọi máy
+mà không cần aligner: mọi CDS báo `not measured` với lý do, không đoán.
+
+**Điều đo được đã đổi sau khi đảo chiều.** `tests/golden/test_naming_numbers.py` (P3B-02) pin ba
+giá trị nằm trên sàn ortholog; sau khi đảo chiều, số *dòng* trên sàn đổi 3 → 5 (cùng hai giá trị
+97,674 % và 100 %) vì cách gom tên theo locus đổi — nghĩa là **cách đếm cũ phụ thuộc vào chiều
+chuẩn hoá**. Test nay pin **tập giá trị** (97,674 % và 100 %) chứ không pin số dòng: điều §8.41
+khẳng định là *khoảng trống* giữa 44,93 % và 67,75 %, và điều đó không đổi.
+
+**Chưa đo.** Ts/Tv dưới chiều mới (**P3B-06** — 2,6917 vẫn là dự đoán, không phải kết quả);
+`kaks` · `substitutions` · `popgen` chạy lại trên bộ thật (bộ test xanh, nhưng đó là test, không
+phải phép đo); và bản ghi **★ thật** — người dùng cuối chọn từ báo cáo audit (§8.43), lúc đó
+`test_the_recorded_reference_is_what_the_audit_and_the_flip_agree_about` là chỗ hai thứ gặp nhau.
+
+**Kiểm chứng.** `tests/unit/test_gene_normalize.py` — 29 test: ngưỡng đo được · định hướng alias
+theo bản ghi · bốn phép thử, mỗi phép một ca âm · ba trạng thái · IR copy không phải trùng tên ·
+locus gom trước khi tính margin · chế độ verify không ghi file · chạy cặp corpus ra `.gb` + bảng
+`pairing` · xung đột dừng với toạ độ · `on_conflict=continue` ghi bảng `conflicts` · cửa CLI: giải
+tham chiếu → audit → `genomes[0]` → `modules[].reference` (schema 2) · thoát **4** khi xung đột ·
+một test tier B chạy blastp thật. 11 test canh chiều cũ trong `test_gene_names.py` ·
+`test_annotation.py` · `test_tier_a.py` · `test_corpus.py` được **cập nhật theo chiều mới** (không
+nới: cùng khẳng định, tên khác).

@@ -191,12 +191,14 @@ def test_the_ndh_locus_resolves_to_one_key_under_both_spellings(data_dir: Path) 
 
     assert "ndhL" in {gene.name for gene in published.genes}
     assert "ndhI" in {gene.name for gene in pga.genes}
+    # and the canonical key is the naming reference's spelling since D5-09 §8 — the published
+    # record is the recorded standard, so its own spelling leads
 
     for genome in (published, pga):
         locus = aliases_for(genome).locus("ndhL")
         assert locus is not None
-        assert "ndhI" in locus.members
-        assert cds_by_canonical_name(genome, None).get("ndhI") is not None
+        assert "ndhI" in locus.members and "ndhL" in locus.members
+        assert cds_by_canonical_name(genome, None).get("ndhL") is not None
 
 
 def test_the_corpus_files_are_pinned_in_sha256sums(data_dir: Path) -> None:

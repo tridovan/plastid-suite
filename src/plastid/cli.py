@@ -6,8 +6,9 @@ exit code to the console-script wrapper). Library code raises exceptions instead
 Exit codes:
     0 — success
     1 — general error (bad input, unknown module, internal failure)
-    2 — usage error, or a failed gate (e.g. the IR gate)
+    2 — usage error, or a failed gate (e.g. the IR gate, the reference audit)
     3 — missing or failed external tool, or a missing optional dependency
+    4 — a naming conflict stopped the step (gene_normalize, D5-09 §5)
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from plastid import __version__
 from plastid.core import plastid_reference, reference_audit
 from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
+from plastid.core.gene_names import NamingConflictError, load_recorded_reference, repo_root
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
 from plastid.core.model import Genome
 from plastid.core.normalize import normalize
@@ -67,6 +69,9 @@ EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_USAGE = 2
 EXIT_TOOL = 3
+# 4 — a naming conflict stopped the step (D5-09 §5). Its own number, because it is not a usage
+# error and not a missing tool: the run was well-formed and the data disagrees with the reference.
+EXIT_CONFLICT = 4
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -439,18 +444,6 @@ def _cmd_run(args: argparse.Namespace) -> int:
     except (OSError, ValueError) as error:
         print(f"cannot read the input: {error}", file=sys.stderr)
         return EXIT_ERROR
-    for spec in specs:
-        # API v0.2: arity ≥ 2 means *at least* that many genomes — an estimate over N accessions
-        # wants all of them. arity 1 still takes exactly one. The runner enforces "at least"
-        # too; this check is what turns a wrong count into a usage error before anything runs.
-        if len(genomes) < spec.arity or (spec.arity == 1 and len(genomes) != 1):
-            wanted = "exactly one genome" if spec.arity == 1 else f"at least {spec.arity} genomes"
-            print(
-                f"module {spec.id!r} takes {wanted}, got {len(genomes)} — "
-                f"pass --input once per genome",
-                file=sys.stderr,
-            )
-            return EXIT_USAGE
     try:
         params = _parse_sets(args.set or [])
     except ValueError as error:
@@ -485,6 +478,32 @@ def _cmd_run(args: argparse.Namespace) -> int:
             return EXIT_ERROR
         params["groups"] = labels
 
+    try:
+        reference, genomes, inputs = _resolve_reference(specs, params, genomes, list(args.input))
+    except (OSError, ValueError, KeyError) as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_ERROR
+    for spec in specs:
+        # API v0.2: arity ≥ 2 means *at least* that many genomes — an estimate over N accessions
+        # wants all of them. arity 1 still takes exactly one. The runner enforces "at least"
+        # too; this check is what turns a wrong count into a usage error before anything runs.
+        # The check runs *after* the reference is resolved, because a module that declares one
+        # counts it among its genomes: the naming reference is genomes[0], not a parameter the
+        # module never sees.
+        if len(genomes) < spec.arity or (spec.arity == 1 and len(genomes) != 1):
+            wanted = "exactly one genome" if spec.arity == 1 else f"at least {spec.arity} genomes"
+            extra = (
+                " (plus the naming reference, which the run adds itself)"
+                if spec.reference_param
+                else ""
+            )
+            print(
+                f"module {spec.id!r} takes {wanted}, got {len(genomes)} — "
+                f"pass --input once per genome{extra}",
+                file=sys.stderr,
+            )
+            return EXIT_USAGE
+
     return _execute_run(
         genomes=genomes,
         specs=specs,
@@ -502,8 +521,75 @@ def _cmd_run(args: argparse.Namespace) -> int:
             *(["--label", args.label] if args.label else []),
             *(["--figures"] if args.figures else []),
         ],
-        inputs=list(args.input),
+        inputs=inputs,
+        references=reference,
     )
+
+
+def _resolve_reference(
+    specs: Sequence[registry.ModuleSpec],
+    params: dict,
+    genomes: tuple[Genome, ...],
+    inputs: list[str],
+) -> tuple[dict | None, tuple[Genome, ...], list[str]]:
+    """Put a module's declared reference in front of the run's inputs — read, audited, recorded.
+
+    A module that names a ``reference_param`` is working against a *privileged record*, not
+    against one of the run's equal inputs (D5-09 §7: the naming reference, chosen by the end user
+    and fixed for the project). Three things follow, and all three happen here rather than inside
+    the module — modules never touch the filesystem:
+
+    * the path comes from the parameter, or from the project's own recorded standard
+      (``data/naming_reference.json``) when the run does not override it;
+    * the record is **audited before it is used**: a reference that cannot be transferred from
+      would make every name in the run wrong in the same way, which is D5-08's gate applied at
+      the one place it is load-bearing rather than decorative;
+    * it becomes ``genomes[0]`` — the convention six modules already follow — and its digest goes
+      into the parameter, so the cache key carries the bytes (P3B-05) and a run that used a
+      different standard says so.
+    """
+    declaring = [spec for spec in specs if spec.reference_param]
+    if not declaring:
+        return None, genomes, inputs
+    if len(declaring) > 1:
+        raise ValueError(
+            f"one run cannot serve two privileged references: "
+            f"{', '.join(sorted(spec.id for spec in declaring))} each declare one"
+        )
+    spec = declaring[0]
+    key = spec.reference_param or ""
+    override = params.get(key)
+    if override:
+        path = Path(str(override))
+        recorded = None
+        if not path.is_file():
+            raise ValueError(f"{key}={override} is not a file — the naming reference has to be one")
+    else:
+        recorded = load_recorded_reference()
+        path = recorded.resolve(root=repo_root())
+
+    digest = _sha256_file(path)
+    audit = reference_audit.audit_files([path], confirm=None)
+    if not audit.ok:
+        raise ValueError(
+            f"{path} cannot be the naming reference — every name in the run would inherit the "
+            f"fault:\n" + "\n".join(finding.line for finding in audit.blocked)
+        )
+    if recorded is not None and digest != recorded.sha256:
+        raise ValueError(
+            f"{path} is not the bytes the recorded naming reference was recorded at "
+            f"({digest[:12]}… against {recorded.sha256[:12]}…) — re-record it, or pass "
+            f"--set {key}=<the file you mean>"
+        )
+    reference = {
+        "path": str(path),
+        "accession": path.stem if recorded is None else recorded.accession,
+        "sha256": digest,
+        "provisional": bool(recorded.provisional) if recorded is not None else True,
+    }
+    params[key] = str(path)
+    params[f"{key}_sha256"] = digest
+    return reference, (_read_input(str(path)), *genomes), [str(path), *inputs]
 
 
 def _read_input(path: str) -> Genome:
@@ -536,6 +622,7 @@ def _execute_run(
     command: Sequence[str],
     inputs: Sequence[str],
     figures: bool = False,
+    references: dict | None = None,
 ) -> int:
     """One run's shared body: both ``plastid run`` and ``plastid mito annotate`` end up here.
 
@@ -654,6 +741,10 @@ def _execute_run(
             )
         except IRGateError as error:
             return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_USAGE)
+        except NamingConflictError as error:
+            # 4, not 2: the run was well-formed and the data disagrees with the reference — a
+            # number of its own keeps it apart from the IR gate and the audit (D5-09 §5, §9.7).
+            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_CONFLICT)
         except ExportDependencyError as error:
             return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
         except ToolError as error:
@@ -675,16 +766,19 @@ def _execute_run(
             files.append(entry)
             if path.suffix == ".docx":
                 documents.append(path)
-        manifest["modules"].append(
-            {
-                "id": spec.id,
-                "version": spec.version,
-                "status": outcome.status,
-                "key": outcome.key,
-                "tools": [asdict(record) for record in ctx.tools],
-                "files": [entry["path"] for entry in module_files],
-            }
-        )
+        module_entry = {
+            "id": spec.id,
+            "version": spec.version,
+            "status": outcome.status,
+            "key": outcome.key,
+            "tools": [asdict(record) for record in ctx.tools],
+            "files": [entry["path"] for entry in module_files],
+        }
+        if spec.reference_param and references is not None:
+            # The identity of the privileged record this step worked against — path *and*
+            # digest, because a path alone cannot say whether the reference changed (D5-09 §7.2).
+            module_entry["reference"] = references
+        manifest["modules"].append(module_entry)
 
     manifest["files"] = files
     if len(documents) > 1:

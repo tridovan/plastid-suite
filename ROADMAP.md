@@ -328,13 +328,17 @@ leave-one-out, each result diffed against the published record and every differe
 a failed reference audit stops the run with `file — reason`, nothing annotated · no silent
 failures: a search that finds nothing is a failed run, every below-floor hit reported.
 
-- [ ] **M3B.0 Naming (D5-09)** — the step that stands in front of the annotator: the audit's
+- [~] **M3B.0 Naming (D5-09)** — the step that stands in front of the annotator: the audit's
       report is what the end user reads to pick the naming reference ★ (D5-09 §7.1); the three
       numbers of D5-09 §9.3 measured **before** coding (the margin · whether neighbours separate
       `rpl2`/`rpl23` and the two `trnL` · the `identity_floor`); `gene_normalize` — normalize the
       reference DB, verify the annotated samples — with every table in vocabulary **A**; the
       `gene_aliases.yaml` direction flips with its guard test; **Ts/Tv re-measured** (§6's 2.6917
       is a prediction until this lands)
+      *P3B-02 (the three numbers, §8.41) and P3B-04 (`gene_normalize`, §8.44) are done 08/10/2026,
+      and the alias direction is flipped. Left: **P3B-06** — Ts/Tv re-measured under the new
+      direction — and the **★ pick**, which is the end user's (a recorded override stands until
+      then).*
 - [~] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
       majority-deviation report), `--audit-only`, errors printed as `file — reason`, confirmed
       exceptions pinned by sha256; MAFFT `--adjustdirection` per region + a dotplot for the
