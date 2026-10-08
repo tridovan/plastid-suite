@@ -24,14 +24,11 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from io import StringIO
 from pathlib import Path
 
 from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 
-from plastid.core.caller import ReferenceEntry
+from plastid.core.caller import ReferenceEntry, read_reference, render_fasta
 from plastid.core.genbank import read_genbank
 from plastid.core.model import coding_sequence
 
@@ -161,63 +158,6 @@ def build_rrna(paths: Iterable[str | Path]) -> ReferenceBuild:
                     )
                 )
     return ReferenceBuild(entries=tuple(entries), excluded=tuple(excluded))
-
-
-def render_fasta(entries: Iterable[ReferenceEntry]) -> str:
-    """The committed artifact, written through BioPython so it is a FASTA every reader knows.
-
-    The header carries all four fields because a hit has to be traceable back to the record it
-    came from. ``-`` in the vocabulary field means this toolkit cannot name that gene yet — a fact
-    worth being able to grep for.
-    """
-    handle = StringIO()
-    SeqIO.write(
-        [
-            SeqRecord(
-                Seq(entry.sequence),
-                id=_header(entry),
-                description="",
-            )
-            for entry in entries
-        ],
-        handle,
-        "fasta",
-    )
-    return handle.getvalue()
-
-
-def read_reference(path: str | Path) -> tuple[ReferenceEntry, ...]:
-    """Read a committed reference FASTA back — BioPython does the parsing, as everywhere else."""
-    entries: list[ReferenceEntry] = []
-    for record in SeqIO.parse(str(path), "fasta"):
-        fields = record.description.split("|")
-        if len(fields) != 4:
-            raise ValueError(
-                f"{path}: reference header {record.description!r} is not "
-                f"'accession|gene|vocabulary|organism'"
-            )
-        accession, source_gene, vocabulary, organism = fields
-        entries.append(
-            ReferenceEntry(
-                accession=accession,
-                organism=organism,
-                source_gene=source_gene,
-                vocabulary=None if vocabulary == "-" else vocabulary,
-                sequence=str(record.seq).upper(),
-            )
-        )
-    return tuple(entries)
-
-
-def _header(entry: ReferenceEntry) -> str:
-    """The FASTA header: the key a hit comes back as, plus the organism for a human reader.
-
-    The first three fields are ``entry.key`` itself rather than a second rendering of the same
-    three values — a header that disagreed with the key would send every hit to ``entry_for`` and
-    find nothing (measured 08/10/2026: a plastid rRNA named ``23S ribosomal RNA`` needs the space
-    removed in both places or in neither).
-    """
-    return f"{entry.key}|{' '.join(entry.organism.split())}"
 
 
 def _curated_translations(path: str | Path) -> list[str]:

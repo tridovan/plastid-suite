@@ -421,6 +421,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.44 | `gene_normalize` — bốn phép thử, ba trạng thái, tham chiếu chuẩn có ghi lại; và chiều alias đảo theo bản ghi ★ (P3B-04, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.45 | Ts/Tv đo lại dưới chiều tên mới — 2,6917 giữ nguyên, và phép đo cho thấy nó *bất biến theo chiều* (P3B-06, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.46 | Lõi gọi gen dùng chung — tách khỏi đường mito, ngưỡng plastid đo trên bản ghi vàng, và ba lỗi im lặng (P3B-07, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.47 | Annotator plastid chạy thật trên genome vàng — 86 CDS (nhân bản IR), ba cặp chồng lấn §8.34, và hai khác biệt mức kết luận (P3B-08, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---

@@ -108,13 +108,23 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   and fixed** (§9.L): the truncating `-max_target_seqs` constant · a whitespace gene name cutting the
   FASTA header · rRNA product-sentences unnormalized. **Named, unfixed:** `lhbA` = `psbZ` — **H-18**.
 
-- [ ] **P3B-08 · Arbitration & export** *(M3B.3)*
+- [x] **P3B-08 · Arbitration & export** *(M3B.3)* — DONE 08/10 (§8.47)
   - Structure first, score only **within one program**; **overlap kept and reported**; one call per
     locus with the losing candidates listed; ties → one call when identical, both with a note otherwise.
   - GenBank that re-reads, `/organelle` on the source, a reason per rejected hit.
   **Done when:** the golden output carries the four measured overlapping pairs (psbC×psbD 53 bp ·
   ndhC×ndhK 10 · atpB×atpE 4 · rps12×rps12 114); two references disagreeing at one locus give one
   call + a listed loser; the artifact re-reads and carries `/organelle`.
+  ✅ all three, with one honest correction: **the fourth pair cannot appear** — `rps12`×`rps12`
+  114 bp is the published record listing a trans-spliced gene as *two* features sharing exon 1,
+  and a caller that makes one call per locus has one `rps12`. The rule the pair protects is
+  asserted instead (overlap kept and reported, never resolved by dropping one), and the other
+  three are exact. Overlap is measured **by exon, not by envelope** — `rps12`'s envelope spans
+  68,976–98,016 and made it "overlap" 27 genes, burying the real pairs. The artifact carries
+  **86 CDS + 8 rRNA** because the **IR copies are the export's job** (79 loci + 7 in the repeat).
+  New: `tests/golden/test_plastid_annotate.py` (one run, three checks). **Two differences named
+  for P3B-10:** `ycf1` (→ **H-19**: arbitration is still identity-first, D5-08 says structure
+  first) and tRNA 30 vs 38 (the export does not yet mirror tRNA).
 
 - [ ] **P3B-09 · CLI & batch** *(M3B.4 · H-09)*
   - 1..N samples × 1..N reference records; one artifact per sample, one report per run; a failed
@@ -210,5 +220,6 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | H-12 | `gene_names` is declared **shared** but loads only the plastid alias table (0 renamed on a mito record, measured 05/10) | ON HOLD — reopen with plant mito data | the module picks the vocabulary per record — or the §13 row says the *layer* is organelle-aware |
 | H-13 | **An unannotated record's IR is only half-checked** — identity, never length (`PZ428230.1`: 15,756 bp vs ~25.7 kb, §9.A-8) | OPEN, named 05/10 | IR length checked against ≥ 3 same-genus records; a length outlier stops the run by name; the corpus record is the negative test |
 | H-16 | **Repeats (`repeat-match` + Vmatch) has no module** — milestone **M2.12** | OPEN — own branch when picked up (Phase 2 is closed + merged) | a `repeats` module reports every match ≥30 bp with coordinates and region (the IR pair included), its count a new §8 entry |
+| H-19 | **Arbitration is identity-first, and D5-08 §3 says structure first** — measured 08/10 on the golden: `ycf1` was called **900 bp** at 108,448–109,347 from `NC_088562.1` (98.83 %, coverage 1.000 — a *truncated* ycf1 in that reference) where the published gene is **5,421 bp** at 122,984–128,404 (§8.47) | OPEN, named 08/10 (P3B-08) — **blocks P3B-10's bar**: it is a conclusion-level difference, and P3B-10 must have fewer of those than PGA | `_choose` compares structure before score: a candidate whose reference is a different length class, or whose alignment does not reach the reference's ends while a longer candidate does, loses to the structurally complete one; the golden's ycf1 is the negative test, and the corpus measures the rule |
 | H-18 | **`lhbA` and `psbZ` are one locus under two names** — `NC_042827.1` spells the 62 aa locus `lhbA`, the other 33 reference records (and the golden) spell it `psbZ` (measured 08/10, §8.46), so the reference vocabulary carries **80** CDS names for **79** loci and the caller calls both | OPEN, named 08/10 (P3B-07); the naming layer's (D5-09), and P3B-08 needs it resolved — one call per locus is that task's Done-when | `data/gene_aliases.yaml` carries the entry with §8.9's three signals (syntenic neighbours · length · `/product`), the direction taken from the ★ record; a test proves the vocabulary count drops to 79 on the pinned set |
 | H-17 | **`gene_normalize`'s artifact mixes the two vocabularies in one file** — CDS/tRNA/rRNA come out in A, the `gene` feature over the same span stays in B (measured 08/10: 6 stale `gene` features on the gatesii artifact, §9.K-1) | OPEN, named 08/10 (P3B-06) | the `gene` feature is renamed with the feature it spans, matched by **span** (not by name — the golden has two different genes under `trnG-UCC`, H-04); both published Iris records are the standard it is measured against (132/132 agreeing, 0 stale); a record whose `gene` feature carries no counterpart is reported, not guessed |

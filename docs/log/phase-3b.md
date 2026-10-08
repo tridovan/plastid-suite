@@ -440,3 +440,53 @@ trong khi số locus thật là **79**: `NC_042827.1` gọi locus 62 aa ấy là
 gọi `psbZ` (bản ghi vàng: `psbZ`, 62 aa, 35.895–36.083). Hôm nay caller gọi **cả hai** — đúng theo
 luật "một call cho mỗi locus *của từ vựng*", và sai theo luật "một call cho mỗi locus *thật*".
 Gốc là bảng alias (D5-09) thiếu một mục; đặt tên **H-18**, kèm bằng chứng đo được.
+
+### 8.47. Annotator plastid chạy thật trên genome vàng — 86 CDS, và hai khác biệt phải phân loại (P3B-08, 08/10/2026)
+
+**Việc.** `modules/plastid_annotate.py` — lớp wiring + xuất: đọc bộ tham chiếu đã pin (34 bản ghi
+Iridaceae, **leave-one-out** lấy từ `plastid_reference.json` nên bản ghi vàng không tự chú giải
+chính nó), chạy `blastx` (protein) · `blastn` (rRNA) · `blastn` tự thân (IR) · ARAGORN (tRNA), gọi
+gen qua `core/plastid_caller.py`, rồi trọng tài và xuất.
+
+**Số đo trên bản ghi vàng** (BLAST+ 2.17.0, ARAGORN 1.2.41, ngưỡng 50 %/0,7, bảng mã 11):
+
+| | Gọi được | Bản công bố |
+|---|---|---|
+| CDS | **86** | 86 |
+| rRNA | **8** | 8 |
+| tRNA | **30** | 38 |
+
+**86 CDS là kết quả của một luật, không phải của may mắn.** Bộ gọi cố ý ra **một call cho mỗi
+locus** (79 locus CDS); 86 = 79 + 7 vì **bảy locus nằm trong IR** và bản công bố ghi mỗi locus hai
+lần. Việc nhân bản là của **lớp xuất**, không phải phép đo thứ hai: `_ir_copies` ánh xạ một gen nằm
+trọn trong một bên IR sang bên kia bằng chính phép đảo (đối xứng qua tâm vùng, đổi mạch), và **báo
+tên** một call vắt qua ranh giới IR thay vì đoán. Cùng luật ấy cho rRNA: 4 locus → **8** feature.
+
+**Ba điều Done-when, đo được:**
+
+- **Chồng lấn được giữ và báo, không bị giải quyết bằng cách bỏ.** Đo theo **exon**, không theo
+  envelope — bài học đo được ngay trong task này: `rps12` là gen trans-spliced, envelope của nó
+  trải 68.976–98.016, nên một phép thử theo envelope làm nó "chồng lấn" **27 gen** và chôn mất bốn
+  cặp thật. Theo exon: `psbC`×`psbD` **53 bp** · `ndhC`×`ndhK` **10** · `atpB`×`atpE` **4** — ba
+  cặp của §8.34, đúng từng base.
+- **Một call cho mỗi locus, và mọi kẻ thua được liệt kê.** `competing_references`: mỗi locus đúng
+  **một** dòng `chosen=yes`, kèm mọi bộ tham chiếu khác đã được xét với số của nó.
+- **Artifact đọc lại được và khai báo organelle.** `/organelle="plastid"` trên `source`, hai
+  `repeat_region` = hai bên IR, và vòng đọc-lại (`read_genbank`) chạy **trước khi** kết quả được
+  trả về — file không đọc lại được thì không phải kết quả (H-11).
+
+**Hai khác biệt với bản công bố, đo được, phải phân loại — chưa sửa:**
+
+1. **`ycf1` được gọi thành 900 bp ở 108.448–109.347, trong khi bản công bố là 5.421 bp ở
+   122.984–128.404.** Ứng viên thắng là `NC_088562.1` ở **98,83 %** với coverage 1,000 — nghĩa là
+   bộ tham chiếu ấy mang một `ycf1` **cụt**, và luật "identity cao nhất thắng" đã chọn nó. Đây
+   đúng là ca mà D5-08 §3 gọi tên: **cấu trúc phải quyết trước, điểm chỉ tie-break trong cùng một
+   chương trình** — và luật ấy **chưa được thi hành** trong `core/caller.py` (`_choose` vẫn
+   identity-first). Hệ quả kèm theo: cặp chồng lấn `ycf1`×`ndhF` 21 bp trong bảng là *của artifact
+   này*, không phải của bản công bố. Ghi tên **H-19**.
+2. **tRNA 30 so với 38.** ARAGORN tìm 30 feature; bản công bố ghi 38 (29 tên khác nhau, 9 tên có
+   hai bản trong IR). Lớp xuất **chỉ nhân bản CDS/rRNA**, chưa nhân bản tRNA — nên phần thiếu
+   trước hết là của phép nhân bản, phần còn lại (nếu có) là của ARAGORN. P3B-10 phân loại.
+
+Cả hai đều là **khác biệt mức kết luận**, không phải mức từ vựng — đúng loại mà P3B-10 phải đếm
+và so với PGA.

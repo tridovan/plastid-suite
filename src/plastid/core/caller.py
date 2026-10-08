@@ -48,8 +48,14 @@ absent from the reference set is reported as not called, never guessed.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
+from io import StringIO
+from pathlib import Path
+
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 from plastid.core.model import Gene, Genome, Interval
 from plastid.core.orf import START_CODONS, STOP_CODONS
@@ -66,6 +72,8 @@ __all__ = [
     "ReferenceIndex",
     "call_cds",
     "call_rrna",
+    "read_reference",
+    "render_fasta",
 ]
 
 
@@ -536,6 +544,73 @@ def _below_the_floors(symbol: str, mine: Sequence[_Candidate], min_coverage: flo
         best_coverage=best.coverage,
         best_bitscore=best.bitscore,
     )
+
+
+# --------------------------------------------------------------------------- reference indexing
+
+
+def render_fasta(entries: Iterable[ReferenceEntry]) -> str:
+    """The committed artifact, written through BioPython so it is a FASTA every reader knows.
+
+    The header carries all four fields because a hit has to be traceable back to the record it
+    came from. ``-`` in the vocabulary field means this toolkit cannot name that gene yet — a fact
+    worth being able to grep for.
+    """
+    handle = StringIO()
+    SeqIO.write(
+        [
+            SeqRecord(
+                Seq(entry.sequence),
+                id=_header(entry),
+                description="",
+            )
+            for entry in entries
+        ],
+        handle,
+        "fasta",
+    )
+    return handle.getvalue()
+
+
+def read_reference(path: str | Path) -> tuple[ReferenceEntry, ...]:
+    """Read a committed reference FASTA back — BioPython does the parsing, as everywhere else.
+
+    The inverse of :func:`render_fasta`, and exact only for a name that had no whitespace to
+    begin with: a field is written with its spaces replaced, so ``23S ribosomal RNA`` comes back
+    as ``23S_ribosomal_RNA``. No measured reference carries such a name — the plastid path builds
+    its entries from GenBank records each run and never reads a rendered FASTA back — so the
+    round trip is left honest rather than lossy in a way nobody has needed.
+    """
+    entries: list[ReferenceEntry] = []
+    for record in SeqIO.parse(str(path), "fasta"):
+        fields = record.description.split("|")
+        if len(fields) != 4:
+            raise ValueError(
+                f"{path}: reference header {record.description!r} is not "
+                f"'accession|gene|vocabulary|organism'"
+            )
+        accession, source_gene, vocabulary, organism = fields
+        entries.append(
+            ReferenceEntry(
+                accession=accession,
+                organism=organism,
+                source_gene=source_gene,
+                vocabulary=None if vocabulary == "-" else vocabulary,
+                sequence=str(record.seq).upper(),
+            )
+        )
+    return tuple(entries)
+
+
+def _header(entry: ReferenceEntry) -> str:
+    """The FASTA header: the key a hit comes back as, plus the organism for a human reader.
+
+    The first three fields are ``entry.key`` itself rather than a second rendering of the same
+    three values — a header that disagreed with the key would send every hit to ``entry_for`` and
+    find nothing (measured 08/10/2026: a plastid rRNA named ``23S ribosomal RNA`` needs the space
+    removed in both places or in neither).
+    """
+    return f"{entry.key}|{' '.join(entry.organism.split())}"
 
 
 # --------------------------------------------------------------------------- reference indexing
