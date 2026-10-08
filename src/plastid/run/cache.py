@@ -1,8 +1,9 @@
 """Content-hash cache: re-running the same module on the same inputs re-exports, never recomputes.
 
-The key covers module id + version + params + input hashes + IR fingerprint — change any of
-them and the step runs again. Text is stored as text and bytes as base64, so a cache hit
-restores byte-identical outputs of either kind.
+The key covers module id + version + **source** + params + input hashes **in order** + what the
+step was asked to produce + the IR fingerprint — change any of them and the step runs again.
+Text is stored as text and bytes as base64, so a cache hit restores byte-identical outputs of
+either kind.
 """
 
 from __future__ import annotations
@@ -29,14 +30,30 @@ class Cache:
         module_version: str,
         params_hash: str,
         input_sha256s: tuple[str, ...],
+        module_source: str = "",
+        payload_kinds: str = "",
         ir_fingerprint: str = "",
     ) -> str:
+        """The identity of one step: which module, which code, which inputs in which order.
+
+        Two things here are deliberate and were both measured as bugs first:
+
+        * ``inputs`` keeps its **order**. It used to be sorted, which made the corpus's own
+          "one sequence, two annotations" pair share a key in either direction — while six
+          modules take ``genomes[0]`` as their reference, so the second run was served the
+          first's tables (H-15, measured 05/10/2026).
+        * ``source`` and ``payload`` are in the key. The first catches a behaviour change that
+          never got a version bump (H-08); the second catches a run asking for an output the
+          cached payload does not have (H-14, the `--docx` case).
+        """
         payload = json.dumps(
             {
                 "module": module_id,
                 "version": module_version,
+                "source": module_source,
                 "params": params_hash,
-                "inputs": sorted(input_sha256s),
+                "inputs": list(input_sha256s),
+                "payload": payload_kinds,
                 "ir": ir_fingerprint,
             },
             sort_keys=True,

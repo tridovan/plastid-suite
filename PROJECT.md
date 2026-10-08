@@ -404,6 +404,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.39 | Xuất bản phẩm — Excel tất định, gói Supplementary, và 34 trang PDF (P5-04, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 | 8.40 | Bộ tham chiếu lục lạp — 34 bản ghi Iridaceae pin lại, và luật leave-one-out thành dữ liệu (P3B-01, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.41 | Ba con số của D5-09 §9.3 — biên, phép thử hàng xóm, `identity_floor` (P3B-02, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.42 | Khoá cache mang thêm bốn thứ — chú giải, thứ tự, mã nguồn, thứ được yêu cầu (P3B-05, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---

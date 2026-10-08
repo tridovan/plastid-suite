@@ -146,3 +146,36 @@ tới 73,97 %). Quyết định cho tRNA phải đến từ **tên/anticodon/hà
 tier-B: cần `blastp` + bộ test đã pin): biên nhỏ nhất 19,2 bit · trung vị 298,0 · locus đúng thấp
 nhất 67,75 % · locus khác cao nhất 44,93 % (coverage ≥ 0,7) · 3 ca lỗi tên 97,674/100/100 ·
 26 lượt tRNA xếp sai, tất cả họ `trnS` · locus đúng thấp nhất 53,76 % · cặp trnG 73,24 %.
+
+---
+
+### 8.42. Khoá cache mang thêm bốn thứ — và bốn hành vi cũ được chứng minh là sai (P3B-05, 08/10/2026)
+
+**Việc.** Khoá cache của run layer (`run/cache.py` + `run/runner.py`) thiếu đúng những thứ quyết
+định kết quả. Sửa bốn chỗ, mỗi chỗ là một việc mở đã đo trước đó: **H-15** (chú giải + thứ tự
+input) · **H-08** (mã nguồn module) · **H-14** (`--docx`) · **D5-09 §7.2** (sha256 của bản ghi ★).
+
+**Bốn hành vi cũ, chứng minh bằng cách nạp lại chính `cache.py` của HEAD và chạy cạnh bản mới:**
+
+| Việc | Khoá cũ | Khoá mới |
+|---|---|---|
+| hai bản chú giải của **một chuỗi** (`Iris_domestica` công bố vs PGA, 86 vs 85 CDS) | `_input_hash` **giống nhau** (chỉ băm chuỗi) | khác nhau (băm cả gen, cả `source`) |
+| thứ tự input (`ab` vs `ba`) | khoá **giống nhau** (`sorted`) | khác nhau |
+| một run xin `--docx` | khoá **không có** khái niệm này | `payload_kinds` vào khoá |
+| module đổi hành vi mà không bump version | khoá **không có** mã nguồn | `module_source` = sha256 file nguồn |
+| `--set naming_reference=<file>`, rồi sửa file đó | chuỗi đường dẫn là hằng số ⇒ khoá **không đổi** | tham số trỏ tới file được **băm theo nội dung** |
+
+Hai dòng đầu là **H-15**: sáu module lấy `genomes[0]` làm tham chiếu, nên một run `kaks` với hai
+input đảo thứ tự bị phục vụ bảng của run kia. Dòng thứ tư là **H-08**. Dòng thứ ba là **H-14** —
+đo 05/10: run thứ hai trả `cached` với **0 file `.docx`**, manifest cũng không ghi cờ đó. Dòng
+cuối là **D5-09 §7.2** — điều kiện để bản ghi ★ vào được khoá cache, và giờ nó vào bằng một luật
+chung: **tham số nào trỏ tới một file đang tồn tại thì được băm theo nội dung file**, nên sửa file
+là đổi khoá; tham số không phải đường dẫn thì băm như chính nó.
+
+**Hệ quả phải nói rõ.** Khoá đổi ⇒ **mọi cache cũ không còn dùng được** (`.runs/.cache`), lần chạy
+kế tiếp sẽ tính lại chứ không phục vụ payload cũ — đúng hướng an toàn, nhưng là một lần chậm hơn.
+
+**Kiểm chứng.** Bốn test hồi quy mới trong `tests/unit/test_run.py`, mỗi test đỏ trên hành vi cũ
+(chứng minh ở bảng trên bằng cách chạy code HEAD cạnh code mới): hai bản chú giải của một chuỗi cho
+hai khoá · khoá giữ thứ tự input · tham số trỏ file được băm theo nội dung · đổi mã nguồn module
+thì đổi khoá · run xin `--docx` không được phục vụ payload không có tài liệu.

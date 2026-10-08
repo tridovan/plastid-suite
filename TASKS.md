@@ -56,7 +56,8 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   conflict stops with the chosen code, naming coordinates; each of the four tests has a negative case.
   **Needs:** the ★ pick (Waiting table) for the real-DB run — a recorded override is allowed meanwhile.
 
-- [ ] **P3B-05 · The cache stops silently changing the answer** *(H-15 + H-08 · H-14 · D5-09 §7.2, §9.9)*
+- [x] **P3B-05 · The cache stops silently changing the answer** — DONE 08/10 (§8.42):
+  H-15 · H-08 · H-14 fixed, plus §7.2's promise (a file-valued parameter is content-addressed) *(H-15 + H-08 · H-14 · D5-09 §7.2, §9.9)*
   - The cache key carries what changes the output: the **annotation** (names, not only the sequence),
     the input **order**, the **module source**, and the output options (`--docx`).
   - The ★ record's sha256 reaches the key — §7.2's promise, impossible today.

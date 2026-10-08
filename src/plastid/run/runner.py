@@ -6,6 +6,7 @@ The runner is the only place that turns a :class:`Result` into files; modules st
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
@@ -44,12 +45,75 @@ class StepOutcome:
 
 
 def _params_hash(params: dict) -> str:
-    payload = json.dumps(params, sort_keys=True, default=str)
+    """Parameters, with any parameter that names a file replaced by that file's content digest.
+
+    A path is not an identity (D5-09 §7.2): a run told ``--set naming_reference=ref.gb`` must not
+    be served a result computed against a *different* ``ref.gb``. Any string parameter that
+    resolves to a file on disk therefore contributes its sha256, so editing the file changes the
+    key; a parameter that is not a path is hashed as itself.
+    """
+    expanded = {key: _content_addressed(value) for key, value in params.items()}
+    payload = json.dumps(expanded, sort_keys=True, default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _content_addressed(value: object) -> object:
+    if isinstance(value, str):
+        path = Path(value)
+        if path.is_file():
+            return {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+    return value
+
+
 def _input_hash(genome: Genome) -> str:
-    return hashlib.sha256(genome.sequence.encode("ascii", "replace")).hexdigest()
+    """Everything a module can read: the sequence **and** the annotation and the source qualifiers.
+
+    Hashing the sequence alone made two *annotations* of one sequence share a cache key — measured
+    05/10/2026 on the corpus's own pair (§8.31): the published and PGA records of *Iris domestica*
+    carry the same 153,724 bp and different gene sets (86 vs 85 CDS), so the second run was served
+    the first's tables (H-15). A module that reads genes has to be keyed on the genes; one that
+    reads ``source`` (submission, for one) has to be keyed on that too.
+    """
+    payload = json.dumps(
+        {
+            "accession": genome.accession,
+            "name": genome.name,
+            "topology": genome.topology,
+            "source": genome.source,
+            "sequence": genome.sequence,
+            "genes": [
+                (
+                    gene.name,
+                    gene.kind,
+                    gene.product,
+                    gene.pseudo,
+                    tuple(
+                        (part.start, part.end, part.strand, part.partial_start, part.partial_end)
+                        for part in gene.parts
+                    ),
+                )
+                for gene in genome.genes
+            ],
+            "repeat_regions": [
+                (region.start, region.end, region.strand) for region in genome.repeat_regions
+            ],
+        },
+        sort_keys=True,
+        default=str,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _module_source_hash(run_fn: RunFn) -> str:
+    """The module's own source file, hashed — H-08, and the reason it exists.
+
+    The key used to carry ``module_version`` and nothing else about the code, so a behaviour
+    change without a version bump served a **stale payload** (measured 2026-10-04: the CDS-scope
+    fix came back ``cached``, four modules had to be bumped by hand). Version bumps stay the
+    convention; this is the guard.
+    """
+    source = inspect.getsourcefile(run_fn) or inspect.getfile(run_fn)
+    return hashlib.sha256(Path(source).read_bytes()).hexdigest()
 
 
 def _ir_fingerprint(ir: IRResult | None) -> str:
@@ -136,9 +200,18 @@ def execute_step(
     key = Cache.key(
         module_id=module_id,
         module_version=module_version,
+        module_source=_module_source_hash(run_fn),
         params_hash=_params_hash(params),
         input_sha256s=tuple(_input_hash(genome) for genome in genomes),
         ir_fingerprint=_ir_fingerprint(ctx.ir),
+        # What the step is asked to *produce* is part of what it is: a run asking for a Word
+        # document must not be served a payload that has none (H-14, measured 05/10/2026 — a
+        # `--docx` run came back `cached` with 0 .docx files, and the manifest's `command`
+        # did not carry the flag either).
+        payload_kinds=(
+            ("report" if render_report is not None else "")
+            + ("+document" if render_document is not None else "")
+        ),
     )
     if not force:
         cached = cache.get(key)
