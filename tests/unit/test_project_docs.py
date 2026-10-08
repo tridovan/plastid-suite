@@ -90,7 +90,7 @@ def test_the_log_entries_did_not_move_house_twice() -> None:
     duplicated entry cannot pass unnoticed.
     """
     entries = _log_entries()
-    assert len(entries) == 40, f"expected 40 logged entries, found {len(entries)}"
+    assert len(entries) == 41, f"expected 41 logged entries, found {len(entries)}"
     assert set(entries) >= {"8.1", "8.31", "8.39"}, "the first, the corpus and the newest entry"
 
 

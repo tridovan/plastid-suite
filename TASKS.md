@@ -26,7 +26,10 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   **Done when:** the pin exists, a test re-verifies every sha256, and a LOO manifest shows the
   target is excluded for all 34 corpus records.
 
-- [ ] **P3B-02 · The three numbers, before coding** *(M3B.0 · D5-09 §9.3)*
+- [x] **P3B-02 · The three numbers, before coding** *(M3B.0 · D5-09 §9.3)* — DONE 08/10 (§8.41);
+  margin **≥ 10 bits** · floor **50 % identity + 0.7 coverage** (not the mito path's 0.5) ·
+  test 4's measured cases are the **serine tRNAs**, **two genes under one name**, and names the
+  vocabulary cannot resolve — *not* `rpl2`/`rpl23` or the two `trnL`
   - The **margin** of test 3, including the genus-distance case (Appendix A: one base in 72).
   - Whether **test 4 (neighbours)** separates `rpl2`/`rpl23` and the two `trnL`; the **`identity_floor`**.
   **Done when:** all three are measured on data already in the repo + the corpus and recorded as a

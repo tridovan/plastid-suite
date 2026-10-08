@@ -46,3 +46,103 @@ này được vào bảng bản thảo của mẫu thật.**
 manifest). Một chi tiết của đường dẫn: `pin_files` ghi lại **đúng đường dẫn nó được đưa**, nên một
 pin tạo bằng `--out` tương đối mang đường dẫn tương đối — `verify` tìm theo đường dẫn ghi trong pin
 trước, rồi tới chính thư mục pin, nên nó chạy đúng từ bất kỳ thư mục nào (có test riêng).
+
+---
+
+### 8.41. Ba con số của D5-09 §9.3 — đo trước khi viết `gene_normalize` (P3B-02, 08/10/2026)
+
+**Việc.** D5-09 §9.3 để mở ba con số mà bước chuẩn tên phải có trước khi thành code: **biên** của
+phép thử 3, **phép thử 4 (hàng xóm)** có tách được `rpl2`/`rpl23` và hai `trnL` không, và
+**`identity_floor`**. Cả ba đo trên dữ liệu đã có trong repo + bộ test 34 bản ghi.
+
+**Cách đo (ghi lại vì con số chỉ có nghĩa kèm cách đo).** Tham chiếu = genome vàng
+`NC_050833.1` (**79 locus CDS** sau khi gộp tên canonical); truy vấn = 33 bản ghi còn lại của bộ
+test, **bản chú giải công bố của chính bản ghi** (`/translation`, không tự dịch — §8.21).
+Công cụ **BLAST+ 2.17.0**, `blastp`, `-seg no`, E-value 10, `-max_target_seqs 100` — đúng chương
+trình và cờ mà động cơ D5-08 dùng. `pident` là độ tương đồng, `coverage` = chiều dài alignment /
+chiều dài truy vấn. Riêng tRNA (quá ngắn để BLAST tìm thấy seed — đo được: `blastn` **0 hit** giữa
+hai `trnL`) thì so bằng alignment global, match +1 · mismatch 0 · mở gap −2 · nối gap −0,5, và
+identity = matches / max(chiều dài hai chuỗi). **Tham số alignment là một phần của con số**: cùng
+cặp trnG, bộ tham số rẻ gap (−0,5/−0,1) cho **78,87 %**, bộ trên cho **73,24 %**.
+
+#### 1. Biên của phép thử 3 — đo bằng **bit**, không bằng điểm identity
+
+2.838 lượt truy vấn CDS liên bản ghi. Mọi truy vấn đều có hit. Biên = điểm của hit tốt nhất trừ
+điểm của hit tốt nhất **thuộc locus khác**:
+
+| | giá trị |
+|---|---|
+| nhỏ nhất | **19,2 bit** (`rps19`, `NC_081931`) |
+| percentile 5 | 53,6 bit |
+| trung vị | **298,0 bit** |
+| dưới 5 bit | **0** |
+| dưới 20 bit | 2 |
+
+**Biên tính bằng điểm identity là vô nghĩa** — đo được trên chính bộ này: truy vấn `psaB` cho
+hit `psaA` với pident **cao hơn** (alignment cụt, bitscore thấp hơn), nên "biên" ra **−418 điểm**.
+Điểm xếp hạng phải là **điểm có trọng số chiều dài** (bit), và ngưỡng biên phải đi kèm ngưỡng
+coverage. Đề nghị cho P3B-04: **biên ≥ 10 bit** — một nửa giá trị nhỏ nhất đo được, đủ để từ chối
+một thế hoà và không từ chối gì khác.
+
+**Ba ca xếp hạng sai, cả ba đều là lỗi TÊN chứ không phải lỗi chuỗi:** `NC_042827` gọi `lhbA` một
+gen mà chuỗi của nó **trùng khít `psbZ`** của tham chiếu; `NC_072574`/`NC_072575` gọi `ycf4` một
+CDS **132 bp** có `/product` = "photosystem biogenesis factor 1" — tức `psbN` (43 aa). Chuỗi luôn
+đúng; tên bản ghi mới là thứ sai. Đây đúng là loại ca mà bước chuẩn tên sinh ra để **in ra**.
+
+**tRNA thì ngược lại — xếp hạng theo chuỗi KHÔNG đủ.** 1.182 lượt so tRNA liên bản ghi:
+**26 lượt (2,2 %) xếp một locus khác lên đầu**, tất cả đều là truy vấn họ **`trnS`** (hit tốt
+nhất là một tRNA serine khác), lệch tới **15,05 điểm**. Và hai dải **chồng nhau**: locus đúng có
+thể chỉ **53,76 %** trong khi locus khác đạt **73,97 %**.
+
+#### 2. Phép thử 4 (hàng xóm) — lý do D5-09 viết ra KHÔNG tái lập được; lý do thật thì có
+
+| Cặp D5-09 §4 nêu | Đo được | Kết luận |
+|---|---|---|
+| `rpl2` vs `rpl23` | protein **22,03–44,44 %** (273 aa × 93 aa), 34/34 bản ghi | **không** gần giống nhau; xếp hạng tách được, 0 ca xếp sai |
+| hai `trnL` (`trnL-UAA` vs `trnL-CAA`) | **61,18 %** (vs `trnL-UAG` 64,71 %) | **không** gần giống nhau |
+
+Ba loại ca **thật sự** cần phép thử 4, đo được:
+
+1. **họ serine** — 26/1.182 lượt như trên;
+2. **hai gen mang MỘT tên** — chính genome vàng: nó chú giải **hai** feature tRNA là `trnG-UCC`
+   (8889-8911/9586-9633 và 36413-36483), hai chuỗi ghép **73,24 %** giống nhau. Một tên, hai gen:
+   bước chuẩn tên không được gộp, và ★ thừa hưởng vấn đề này;
+3. **tên không phân giải được** — 33 bản ghi chứa **72 lượt tên tRNA** và **1 tên CDS** (`lhbA`)
+   mà từ vựng của tham chiếu không có. **44 trong 72** lượt tRNA có chuỗi **trùng khít** một chuỗi
+   tham chiếu dưới tên khác (`trnL-CAU`=`trnI-CAU` 12 · `trnL-GUA`=`trnI-GAU` 10 ·
+   `trmA-UGC`=`trnA-UGC` 10 · `trnG-GCC`=`trnG-UCC` 6 · `trnL` trần =`trnL-UAG` 5 ·
+   `trnA`=`trnA-UGC` 1); 28 lượt còn lại là chuỗi tham chiếu **không mang**.
+
+**H-04 được đo lần đầu, và nó không phải câu hỏi chính tả.** Hai tên `trnG-GCC`/`trnG-UCC` là
+**hai gen**, không phải hai cách viết của một gen — và các bản ghi công bố **dùng hai tên đó ngược
+nhau**: chuỗi thứ nhất của genome vàng được *Gladiolus* (`NC_062351`) gọi `trnG-GCC` còn 8 bản ghi
+gọi `trnG-UCC`; chuỗi thứ hai được **25 bản ghi** gọi `trnG-GCC` nhưng **genome so sánh
+`NC_024936.1`** và 7 bản ghi khác gọi `trnG-UCC`. Chuỗi **không** phân xử được cách viết — đây là
+việc phải hỏi người (cô Trang), và là ca `stop` của D5-09 §5, không phải ca tự sửa.
+
+#### 3. `identity_floor` — và vì sao ngưỡng coverage của đường mito không đủ
+
+| Ngưỡng coverage | locus đúng thấp nhất | locus KHÁC cao nhất (bỏ 3 ca lỗi tên) |
+|---|---|---|
+| ≥ 0,5 | 67,75 % | **52,38 %** (`psbJ` vs `matK`, 21 aa) |
+| **≥ 0,7** | **67,75 %** | **44,93 %** (`psaB` vs `psaA`, 750 aa) |
+| ≥ 0,8 | 67,75 % | 44,93 % |
+| ≥ 0,9 | 69,23 % | 44,93 % |
+
+Đường mito đã đo `identity ≥ 50 %` + `coverage ≥ 0,5`; **với plastid thì ngưỡng coverage 0,5 thủng
+một lỗ**: `psbJ` chỉ dài **36 aa**, nên một alignment 21 aa (coverage 0,53) đạt **52,38 %** với
+`matK` — 13 trong 16 hit sai trên 50 % là đúng cặp `psbJ`/`matK` này. Gen CDS của plastome ngắn
+(`psbJ` 36 · `psbL` 38 · `psbM` 34 aa…), nên **coverage phải cao hơn**:
+
+> **Đề nghị cho P3B-04/P3B-07: `identity ≥ 50 %` VÀ `coverage ≥ 0,7`.** Khoảng trống đo được khi đó
+> là **(44,93 % · 67,75 %)** — ngưỡng 50 % nằm trong đó, và ba hit vượt ngưỡng (97,67–100 %) là
+> **cùng một locus dưới tên bản ghi viết khác** (`lhbA`=`psbZ`, `ycf4`=`psbN`), tức ca "đề nghị đổi
+> tên", không phải ca "dưới ngưỡng".
+
+**tRNA thì KHÔNG có ngưỡng identity nào tách được** — hai dải chồng nhau (đúng: 53,76–100 % · khác:
+tới 73,97 %). Quyết định cho tRNA phải đến từ **tên/anticodon/hàng xóm**, không từ một ngưỡng số.
+
+**Kiểm chứng.** Ba phép đo trên được ghim thành test (`tests/golden/test_naming_numbers.py`,
+tier-B: cần `blastp` + bộ test đã pin): biên nhỏ nhất 19,2 bit · trung vị 298,0 · locus đúng thấp
+nhất 67,75 % · locus khác cao nhất 44,93 % (coverage ≥ 0,7) · 3 ca lỗi tên 97,674/100/100 ·
+26 lượt tRNA xếp sai, tất cả họ `trnS` · locus đúng thấp nhất 53,76 % · cặp trnG 73,24 %.
