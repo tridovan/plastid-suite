@@ -335,11 +335,15 @@ failures: a search that finds nothing is a failed run, every below-floor hit rep
       reference DB, verify the annotated samples — with every table in vocabulary **A**; the
       `gene_aliases.yaml` direction flips with its guard test; **Ts/Tv re-measured** (§6's 2.6917
       is a prediction until this lands)
-- [ ] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
+- [~] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
       majority-deviation report), `--audit-only`, errors printed as `file — reason`, confirmed
       exceptions pinned by sha256; MAFFT `--adjustdirection` per region + a dotplot for the
       user's confirmation; **its report is the evidence the end user picks the naming reference ★
       from** (D5-09 §7.1)
+      *P3B-01 (the set, §8.40) and P3B-03 (the gate, §8.43) are done 08/10/2026. What is left is
+      the flag itself: `--audit-only` belongs to `plastid annotate`, the command it is a flag of,
+      which arrives in **P3B-09** — the audit it will call (`core/reference_audit.audit_files`) is
+      what P3B-03 built.*
 - [ ] **M3B.2 Calling engine** — orthogonal searches (`blastx` on published `/translation` ·
       `blastn` for rRNA · IR self-blast behind the structural gate), candidates carrying their
       evidence, the six measured rules of §8.22

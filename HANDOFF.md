@@ -14,21 +14,27 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-03** — the reference-set audit (BLOCK / REPORT classes,
-`--audit-only`, `file — reason` messages, MAFFT `--adjustdirection` + dotplot, the name-set report
-at N ≥ 3) — then **P3B-04** (`gene_normalize`), whose thresholds are now **measured numbers**, not
-open questions: margin **≥ 10 bits**, floor **identity ≥ 50 % + coverage ≥ 0.7** (§8.41). Done and
-pushed on `feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-05** (§8.42) — so
-H-15 · H-08 · H-14 are closed. The phase's open calls — D-a · D-b · D-e, the conflict exit code,
-the parameter name, the organelle group, the schema bump — sit in `TASKS.md` → "Decisions to make",
-each with its recommended default. **The ★ pick still waits on the audit report**, which is P3B-03's
-output (D5-09 §7.1): a recorded override is allowed until then. On hold by D5-07: H-06 · H-10 ·
-H-12. Nothing else is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
+**Immediate next action:** **P3B-04** — `gene_normalize` (the naming module, arity 2,
+`requires_ir=False`, modes `normalize` / `verify`, the four arbitration tests in order, the `rule`
+and `status` columns, conflict tiers + the chosen exit code, `gene_aliases.yaml`'s direction
+flipped with its guard test). Its thresholds are **measured numbers, not open questions**: margin
+**≥ 10 bits**, floor **identity ≥ 50 % + coverage ≥ 0.7** (§8.41). It still needs the **★ pick**
+from the audit report — a recorded override is allowed meanwhile. Done and pushed on
+`feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-05** (§8.42, so H-15 · H-08 ·
+H-14 are closed) · **P3B-03** (§8.43). **The audit report now exists** — `plastid reference audit
+--panel .panel/plastid-reference --out .runs` writes `report.md` and the `name_sets` table the ★
+pick is read from (D5-09 §7.1); on the pinned set it blocks exactly one record
+(`NC_024936.1`, partial `rps19`) and reports the two inverted SSCs §8.34 measured. The phase's open
+calls — D-a · D-b · D-e, the conflict exit code, the parameter name, the organelle group, the
+schema bump — sit in `TASKS.md` → "Decisions to make", each with its recommended default. On hold
+by D5-07: H-06 · H-10 · H-12. Nothing else is scheduled: Phase 6 waits on mito/nuclear data,
+Phase 7 on real reads.
 
 **What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
 `[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
-function, each missing one a named `ExportDependencyError` + exit 3 · **eight figure types** in
-`result/figures/`, rendered at run level from the run's own `result.json` · `plastid run --figures`,
+function, each missing one a named `ExportDependencyError` + exit 3 · **nine figure types** in
+`result/figures/` (the ninth, `dotplot`, arrived with P3B-03), rendered at run level from the
+run's own `result.json` · `plastid run --figures`,
 `plastid figures`, `plastid package`, `plastid qc` · `core/stats.py` + the `stats` module ·
 `report/audit.py` (the queryable-number check) · `read_result`, which makes a run directory
 readable without re-running anything.
@@ -44,15 +50,69 @@ deliverable run (12 reports, 44 numbers).
 lesson, paid three times : overlapping region bands (§8.36) · a barcode band shading the whole axis
 plus a GC-skew ring with 50 % gaps (§8.37) · summary lines drawn inside the GC-skew panel (§8.39).
 
-**New housekeeping item, measured 05/10:** **H-14** — `--docx` is silently lost on a cache hit
-(two runs of `gene_table`, the second `cached` with 0 `.docx` files), and the manifest's `command`
-does not carry `--docx` either. Same family as H-08.
-
-**On hold by D5-07 (plastid first):** H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-08 · H-09 ·
-H-11 · H-13 · H-14. **Waiting on the PI:** H-04 (`trnG`) and D5-05 (what a generated sentence may
-claim — the mechanism is built and follows the conservative default).
+**H-15 · H-08 · H-14 are closed** (P3B-05, §8.42). **On hold by D5-07 (plastid first):**
+H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-09 · H-11 · H-13 · H-16. **Waiting on the PI:**
+H-04 (`trnG` — now measured, and a `stop` tier case: the golden annotates two *different* genes
+under one name, §8.41) and D5-05 (what a generated sentence may claim — the mechanism is built and
+follows the conservative default).
 
 ## Log
+
+### 2026-10-08 · Claude · dev WSL · session 25 (P3B-03: the reference-set audit, and the two readings that have to agree)
+
+**Did.** The gate that stands in front of every annotation run, as a run of its own.
+
+* **The audit (§8.43).** `plastid reference audit --panel DIR` — six BLOCK classes (unreadable ·
+  no gene features · a CDS without `/translation` · a partial coordinate · the IR gate · a CDS that
+  does not translate) and two REPORT classes (an inverted SSC · a gene set that differs from the
+  majority). Every finding prints as `file — reason` and nothing else; a block exits 2 and nothing
+  is annotated; the reason lands in `manifest.json`. The report measures both reports over **every
+  record that could be read** — §8.34's 32/34 is about the corpus, not about the survivors.
+* **The second reading.** MAFFT `--adjustdirection` over the SSC: 34 sequences · 614,658 bp ·
+  17.6 s, and it flags **exactly** the two records the gene-strand rule calls inverted. It is
+  *injected* into the core (core may not import `external/`): the CLI passes
+  `external.mafft.adjust_direction`, or passes nothing and the report says **not measured**.
+  A disagreement would be its own finding; there was none.
+* **The picture.** `dotplot` (figure #10) draws every 15-mer run of a deviating record against a
+  record the set agrees on, both orientations. Measured: 349 anti-diagonal runs for
+  `NC_042827.1` against 20 forward, 332 against 13 for `NC_062351.1`. It reads the
+  `region_matches` table, so `plastid figures <run-dir>` re-renders it without re-running the audit
+  — and it is drawn **without** MAFFT too: a machine with no aligner must not lose the one view
+  that lets a person confirm a flip-flop.
+* **Exceptions.** The pin is written by the tool from the file's **current** digest
+  (`--confirm-exception FILE:CHECK --confirmed-by … --reason …`), never typed; it can waive a
+  REPORT and never a BLOCK (`Finding` refuses to build one; `read_exceptions` refuses to read one).
+  Exercised end to end on the real set: pin applied → 21 findings instead of 22 and the row marked
+  confirmed; a changed byte → **void**, and the finding returns.
+* **A data-model change the gate needed.** `Gene` now carries the record's own `/translation`
+  (read, never written — D5-08 §8.21), and it is in the cache's input hash: one sequence with two
+  annotations *and* two proteins is two inputs.
+
+**Validation.** `make check` green: **727 fast tests · 68 golden passed / 4 skipped** (PGA ·
+chloe+julia · table2asn — MAFFT and BLAST+ were on PATH for this run). New: 31 unit tests
+(`tests/unit/test_reference_audit.py` — every block class, the N ≥ 3 and N = 2 majority rules, pin
+alive/void/stale/unused, the dot plot's runs, the CLI's exit 2 with the reason in the manifest, the
+`--confirm-exception` door) and 4 corpus tests (`tests/golden/test_reference_audit_corpus.py`,
+`.panel/`-gated; the MAFFT one is tier B). Measured on the pinned set: **1 record blocks**
+(`NC_024936.1` — partial `rps19`, two features = the record §8.34 predicted), **32/34 same SSC
+orientation · 2/34 inverted and reported**, 20/34 name sets differ from the majority. The real
+negative case is vendored and runs everywhere: `tests/data/corpus/Iris_hermona…pga.gb` — **84 CDS,
+83 without `/translation`**, IR gate failed (26.36 %), while the published record of the same
+sequence passes every check.
+
+**Residual risks.** (1) The SSC rule cannot see a record inverted *as a whole* — LSC and SSC still
+agree inside it; it does not matter for `blastx` (both strands are searched) and the cross-record
+dot plot is where it would show, but no test measures that case. (2) The audit re-reads all 34
+records on every run (~12 s, IR detection dominating) — no cache behind the gate yet. (3) A pin
+naming a check the audit did not raise reads `unused` and does nothing; the status is reported, but
+nobody is forced to look at it. (4) The panel currently pins **no** exception: the two flip-flops
+are reported on every run until a person confirms them.
+
+**Blocked.** Nothing new. The ★ pick still waits on the end user — the report it is read from now
+exists.
+
+**Next.** **P3B-04** — `gene_normalize`, with the measured thresholds of §8.41 (margin ≥ 10 bits ·
+identity ≥ 50 % + coverage ≥ 0.7) and a recorded override standing in for the ★ pick.
 
 ### 2026-10-08 · Claude · dev WSL · session 24 (Phase 3B opens with its preface: the reference set, the three numbers, and the cache that was lying)
 

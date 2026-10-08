@@ -35,13 +35,17 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   **Done when:** all three are measured on data already in the repo + the corpus and recorded as a
   new §8 entry — **before** any `gene_normalize` code lands.
 
-- [ ] **P3B-03 · The reference-set audit** *(M3B.1)*
-  - The BLOCK / REPORT classes exactly as D5-08's table; `--audit-only`; every message
-    `file — reason`, nothing else; confirmed exceptions pinned by sha256 (change the file, void).
-  - MAFFT `--adjustdirection` per region + a dotplot for the user's confirmation; name-set report (N ≥ 3).
+- [x] **P3B-03 · The reference-set audit** *(M3B.1)* — DONE 08/10 (§8.43)
+  - The BLOCK / REPORT classes exactly as D5-08's table; every message `file — reason`, nothing
+    else; confirmed exceptions pinned by sha256 (change the file, void) — measured end to end.
+    **`--audit-only` lands in P3B-09**: it is a flag of `plastid annotate`, the command that does
+    not exist yet; the audit it will call is built here.
+  - MAFFT `--adjustdirection` over the region + the `dotplot` figure (catalogue #10) for the user's
+    confirmation; name-set report (N ≥ 3) — its report is the evidence the ★ pick reads (D5-09 §7.1).
   **Done when:** negative tests — a CDS missing `/translation` blocks (exit 2, nothing annotated,
   the reason in the manifest); on the corpus the audit reproduces §8.34 — 32/34 one SSC orientation,
-  **2/34 inverted and REPORTED, not blocked**.
+  **2/34 inverted and REPORTED, not blocked**. ✅ both, plus: the real pinned set blocks on exactly
+  one record (`NC_024936.1`, partial `rps19` — §8.34's prediction) and MAFFT names the same 2/34.
 
 - [ ] **P3B-04 · `gene_normalize` — the module** *(M3B.0)*
   - New module, arity 2, `requires_ir=False`, modes `normalize` / `verify`; renaming logic stays in
@@ -140,12 +144,18 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
   module source and the output options.
 - **The mito artifact writes no `/organelle` (H-11)** → the plastid annotator's `source` carries it,
   and P3B-08 checks the artifact, not the intention.
+- **A confirmed exception applied before the finding it is about comes back `unused` and stops
+  working in silence (§8.43, measured on the first end-to-end run)** → the order is *set-level
+  findings → apply the pins → the second reading*; a pin's status is always reported, never implied.
+- **The audit's SSC rule cannot see a wholly inverted record** (LSC and SSC still agree inside it)
+  → it is reported as unknown to that rule, harmless for `blastx` (which searches both strands), and
+  the picture that would show it is the cross-record dot plot, not this rule.
 
 ## Waiting on data / people
 
 | What | Who | Blocks |
 |---|---|---|
-| The **★** pick — one record, the project's naming reference | **the end user** — a researcher in biotechnology / bioinformatics (defined 08/10/2026) — from the audit report (D5-09 §7.1); the PI signs off on printed names | the real-DB normalize run (P3B-04) and every annotation run after it — a recorded override is allowed until then |
+| The **★** pick — one record, the project's naming reference | **the end user** — a researcher in biotechnology / bioinformatics (defined 08/10/2026) — from the audit report (D5-09 §7.1); the PI signs off on printed names | the real-DB normalize run (P3B-04) and every annotation run after it — a recorded override is allowed until then. **The report exists now** (P3B-03, §8.43): `plastid reference audit --panel .panel/plastid-reference` writes `report.md` + the `name_sets` table, which is what the pick is made from |
 | PI sign-off on the names a manuscript prints (D5-09 §9.4) | **cô Trang** | only the printed-name change; the naming step itself does not wait |
 | Plant mito data — a real mitogenome dataset | anh Điềm / cô Trang | **H-06 · H-10 · H-12** (on hold by D5-07) and Phase 6's mito content (M6.2 · M6.3) |
 | One RNA-seq sample (any tissue) | team | M4.5 RNA editing |
