@@ -135,8 +135,9 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 - **2/34 corpus records carry an inverted SSC with clean ORFs (§8.34)** → report, never block.
 - **34/34 corpus records spell at least one locus differently (§8.31)** → A and B never mix in one
   table; `outside vocabulary` is a column, not a colour.
-- **The cache is blind to the annotation and the input order (H-15)** → a `cached` run can be the
-  wrong answer; P3B-05 lands before any normalize run is trusted.
+- **The cache was blind to the annotation and the input order (H-15)** → a `cached` run could be
+  the wrong answer. **Fixed in P3B-05 (§8.42)**: the key carries the annotation, the order, the
+  module source and the output options.
 - **The mito artifact writes no `/organelle` (H-11)** → the plastid annotator's `source` carries it,
   and P3B-08 checks the artifact, not the intention.
 
@@ -144,7 +145,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 
 | What | Who | Blocks |
 |---|---|---|
-| The **★** pick — one record, the project's naming reference | **the end user**, from the audit report (D5-09 §7.1); the PI signs off on printed names | the real-DB normalize run (P3B-04) and every annotation run after it — a recorded override is allowed until then |
+| The **★** pick — one record, the project's naming reference | **the end user** — a researcher in biotechnology / bioinformatics (defined 08/10/2026) — from the audit report (D5-09 §7.1); the PI signs off on printed names | the real-DB normalize run (P3B-04) and every annotation run after it — a recorded override is allowed until then |
 | PI sign-off on the names a manuscript prints (D5-09 §9.4) | **cô Trang** | only the printed-name change; the naming step itself does not wait |
 | Plant mito data — a real mitogenome dataset | anh Điềm / cô Trang | **H-06 · H-10 · H-12** (on hold by D5-07) and Phase 6's mito content (M6.2 · M6.3) |
 | One RNA-seq sample (any tissue) | team | M4.5 RNA editing |

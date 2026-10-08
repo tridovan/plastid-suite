@@ -40,8 +40,10 @@
   never overwritten in place.
 - Genome normalization (origin/strand → LSC start, 4 regions split) happens once in Phase 1 and is
   reused everywhere after.
-- Runs on: **ordinary machines** = phases 1–5, 8 · **remote server** = phase 6 (divergence time)
-  and phase 7 (assembly).
+- Runs on: **ordinary machines** = phases 1–5, 8 · **remote server** = phase 6 (divergence time).
+  Assembly (phase 7) runs **locally when the user's machine has the RAM**, otherwise the Galaxy
+  remote path — confirmed 08/10/2026; data-sharing policy for unpublished reads: **open**
+  (PROJECT.md §10.12).
 - Standard test case: **Eleutherine bulbosa dataset + the golden numbers** (PROJECT.md §6).
 
 ## The pipeline — every step, and who owns it
@@ -213,7 +215,9 @@ tells you which file belongs to which job.
   duplicate-accession guard, tests); the "used by a comparison table" half moved to **M2.11**
 - [x] **M1.12 Execution backend decision** (2026-10-03, dev decision) — local for phases 1–5 and 8;
   remote for phase 6 (divergence time) and phase 7 (assembly), where PROJECT.md §9.28 measured that
-  an 8 GB machine leaves only 1.5–2.5 GB free per job. Recorded in PROJECT.md §3
+  an 8 GB machine leaves only 1.5–2.5 GB free per job. Recorded in PROJECT.md §3.
+  *(Updated 08/10/2026: assembly runs locally when the user's machine has the RAM — the Galaxy
+  remote path is for machines that do not. Divergence time stays remote.)*
 - [x] **M1.13 Hardening + API freeze v0.1** (2026-10-02) — README quickstart · `environment.yml` ·
   `docker/Dockerfile` skeleton · `docs/API_v0.1.md` (module contract, Result schema, coordinates,
   manifest keys, exit codes). *The environment checks in this milestone's Done-when — `make check` on
@@ -475,7 +479,8 @@ RAM here and replaced (§7.1, PROJECT.md §13.0's dated note).*
 - [ ] **M7.2 Assembly-graph checks** (Bandage)
 - [ ] **M7.3 Feed mito-structure work** (M6.2)
 - [ ] **M7.4 Remote path** (usegalaxy.eu `get_organelle_from_reads`) — subsample reads before upload ·
-  pin tool version · record history ID
+  pin tool version · record history ID · data-sharing policy for unpublished reads: **open**
+  (PROJECT.md §10.12)
 - [ ] **M7.5 Peak-RAM with real reads** — **BLOCKED: no real reads yet**
 - [ ] **M7.6 Long-read path** (OATK · raven-assembler — ONT/HiFi) — **BLOCKED: no ONT/HiFi reads**;
   both tools are declared (`environment.yml`) and were run in the survey (§7.1); feeds M7.3

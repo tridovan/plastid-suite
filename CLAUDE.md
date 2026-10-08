@@ -9,8 +9,10 @@ task needs it (see Reading guide).
 
 **PlastidToolSuite** — a Python toolkit to analyse **plastid (chloroplast) and mitochondrial genomes**
 for a plant research group (PI: cô Trang; bioinformatician: anh Điềm, who runs the real tool chain on
-his own machine; dev; Hermes). Academic, non-commercial. End users are biologists who are **not**
-command-line experts, working on ordinary computers. ~20 analysis modules: genome structure, gene
+his own machine; dev; Hermes). Academic, non-commercial. End users (defined 08/10/2026) are
+**researchers in biotechnology / bioinformatics** — **not** command-line experts — who run the
+toolkit as a **command line on Ubuntu** (Windows through Docker), on ordinary computers.
+~20 analysis modules: genome structure, gene
 content, codon usage/RSCU, SSR, repeats, annotation, assembly, multi-genome comparison, RNA editing,
 divergence time, NUPT/MTPT…
 
@@ -58,11 +60,11 @@ the nine measured loci change spelling, and Ts/Tv 2.6917 must be **re-measured**
 the two vocabularies** (A everywhere; B only in the pairing table). Design:
 `docs/D5-09_reference_naming.md`; decision: PROJECT.md §3.
 
-**Current state: Phases 1–5 and 4a complete; no phase is open.** The next board is **Phase 3B**
-(the self-built plastid annotator, D5-08) — its slot is **decided** (07/10/2026: this phase, after
-Phase 5), with the **D5-09 naming step as its M3B.0** in front of the annotator; the board itself is
-not yet built (ROADMAP.md → Phase 3B). Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
-checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
+**Current state: Phases 1–5 and 4a complete; Phase 3B is OPEN** on `feat/phase-3b` — the self-built
+plastid annotator (D5-08), with the **D5-09 naming step as its M3B.0** in front of the annotator.
+The board is `TASKS.md` (**P3B-01 … P3B-10**, built 07/10/2026); which tasks are done is read there
+and in `HANDOFF.md`. Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active checklists with
+Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
 
 ## Supreme objective — the deliverables decide, not the tools
 
@@ -109,9 +111,11 @@ Changing any of these requires fresh measured evidence. Full provenance: PROJECT
 
 ## Data — real samples vs development stand-ins
 
-Real datasets arrive from anh Điềm / cô Trang. Until one exists, **development and testing may use
-public stand-in data** (GenBank records of the same genus, or the nearest available relative):
-choosing a *suitable* stand-in is a dev call, not a PI call.
+Real datasets arrive from anh Điềm / cô Trang. **Status 08/10/2026: no real project dataset exists
+yet** — every file in the tree (the pinned panels, `.data/thanhdiem_data/`) is stand-in or
+tool-test material, given to exercise tools, never project samples. Until a real dataset exists,
+**development and testing may use public stand-in data** (GenBank records of the same genus, or the
+nearest available relative): choosing a *suitable* stand-in is a dev call, not a PI call.
 
 A stand-in never stops being a stand-in:
 
@@ -283,8 +287,8 @@ only when it changes the science or is expensive to reverse.
 |---|---|---|
 | Architecture · formats · libraries · tool choice · local vs remote · test strategy | Dev (+ Claude) | PROJECT.md §3 or `docs/` |
 | What to analyse · scope of a scientific claim · what goes in a manuscript · taxonomy choices for a paper | PI (cô Trang) | PROJECT.md §3 |
-| Which record becomes the project's naming reference (★, D5-09) — the vocabulary every result table prints | the end user, from the audit report; the PI signs off on the names a manuscript prints | PROJECT.md §3 (D5-09) |
-| Data and tool environments on the bioinformatician's machine | anh Điềm | TASKS.md → "Waiting on data" |
+| Which record becomes the project's naming reference (★, D5-09) — the vocabulary every result table prints | the end user — a researcher in biotechnology / bioinformatics (defined 08/10/2026) — from the audit report; the PI signs off on the names a manuscript prints | PROJECT.md §3 (D5-09) |
+| The tool environment installed on the bioinformatician's own machine (his box, his envs) — the toolkit's own tool choice and pinned versions stay the dev's, row above | anh Điềm | TASKS.md → "Waiting on data" |
 | Big or irreversible work | dev approves the plan first | plan → TASKS.md |
 
 A blocked task must name the **specific** decision or dataset it waits for — "needs the team's call"

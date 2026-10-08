@@ -261,8 +261,9 @@ is still one command and one run directory.
 
 ### 7.1 The user chooses it, from the audit report
 
-**Which file becomes the standard is not a team decision.** It is the **end user's**, made after
-reading the report produced by the reference-set quality assessment — the audit in
+**Which file becomes the standard is not a team decision.** It is the **end user's** — a researcher
+in biotechnology / bioinformatics, the people this toolkit is built for (defined 08/10/2026) — made
+after reading the report produced by the reference-set quality assessment — the audit in
 `docs/D5-08_plastid_annotator.md` §"The reference-set audit", whose REPORT class already compares
 gene sets as **name sets** and names the records that deviate from the majority. That is exactly the
 evidence a choice needs.
