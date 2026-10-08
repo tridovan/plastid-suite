@@ -42,10 +42,22 @@ def _run(
     )
 
 
+def _run_dirs(tmp_path: Path, dataset: str = "iris_domestica") -> set[Path]:
+    """Every run directory the dataset currently holds.
+
+    A run id starts with a **wall-clock** stamp, so sorting the directories by name is not
+    sorting them by time: measured 08/10/2026, this machine's clock stepped ~1 s backwards
+    between two runs of this very test, and `sorted(...)[2]` then pointed at the second run —
+    whose output the test had just deleted (PROJECT.md §9.C-37). Identify a run's directory by
+    the difference before/after it, never by its name.
+    """
+    return set((tmp_path / dataset).iterdir())
+
+
 def _only_run_dir(tmp_path: Path, dataset: str = "iris_domestica") -> Path:
-    runs = sorted((tmp_path / dataset).iterdir())
+    runs = _run_dirs(tmp_path, dataset)
     assert len(runs) == 1
-    return runs[0]
+    return runs.pop()
 
 
 def test_run_produces_a_complete_traceable_directory(tmp_path: Path, data_dir: Path) -> None:
@@ -88,10 +100,11 @@ def test_second_identical_run_is_cached_and_identical(tmp_path: Path, data_dir: 
     first_dir = _only_run_dir(tmp_path)
     first_csv = (first_dir / "01_genome_stats" / "tables" / "genome_stats.csv").read_bytes()
 
+    before = _run_dirs(tmp_path)
     assert _run(tmp_path, source) == 0
-    runs = sorted((tmp_path / "iris_domestica").iterdir())
+    runs = _run_dirs(tmp_path)
     assert len(runs) == 2, "each run gets its own directory"
-    second_dir = runs[1]
+    second_dir = (runs - before).pop()
     manifest = json.loads((second_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["modules"][0]["status"] == "cached"
 
@@ -99,8 +112,9 @@ def test_second_identical_run_is_cached_and_identical(tmp_path: Path, data_dir: 
     assert second_csv_path.read_bytes() == first_csv  # same input, same numbers
 
     second_csv_path.unlink()
+    before = _run_dirs(tmp_path)
     assert _run(tmp_path, source) == 0
-    third_dir = sorted((tmp_path / "iris_domestica").iterdir())[2]
+    third_dir = (_run_dirs(tmp_path) - before).pop()
     restored = (third_dir / "01_genome_stats" / "tables" / "genome_stats.csv").read_bytes()
     assert restored == first_csv  # restored byte-identically from the cache
 
@@ -214,8 +228,9 @@ def test_word_export_is_reproducible_and_carries_the_golden_numbers(
     assert entry["sha256"] == first and entry["bytes"] > 0
 
     # a second run is served from the cache and must restore the very same bytes
+    before = _run_dirs(tmp_path)
     assert _run(tmp_path, data_dir / "NC_050833.1.gb", module="gene_table", extra=["--docx"]) == 0
-    again = sorted((tmp_path / "iris_domestica").iterdir())[-1]
+    again = (_run_dirs(tmp_path) - before).pop()
     assert (again / "manifest.json").read_text() != ""
     cached = again / "01_gene_table" / "report.docx"
     assert hashlib.sha256(cached.read_bytes()).hexdigest() == first
@@ -287,6 +302,7 @@ def test_one_run_carries_several_modules_and_combines_their_documents(
 
     # a fully cached second run reproduces the combined document byte for byte
     first = combined.read_bytes()
+    before = _run_dirs(tmp_path)
     assert (
         _run(
             tmp_path,
@@ -296,7 +312,7 @@ def test_one_run_carries_several_modules_and_combines_their_documents(
         )
         == 0
     )
-    again = sorted((tmp_path / "iris_domestica").iterdir())[-1]
+    again = (_run_dirs(tmp_path) - before).pop()
     assert (again / "report" / "report.docx").read_bytes() == first
 
 
@@ -346,8 +362,9 @@ def test_a_run_writes_its_figure_and_a_second_run_writes_the_same_bytes(
 
     # The second run is served from the cache — and must still get its figure, from the result
     # the first run stored rather than from the module.
+    before = _run_dirs(tmp_path, "golden_figures")
     assert run() == 0
-    second_dir = sorted((tmp_path / "golden_figures").iterdir())[-1]
+    second_dir = (_run_dirs(tmp_path, "golden_figures") - before).pop()
     assert hashlib.sha256((second_dir / "figures" / "pi_window.svg").read_bytes()).hexdigest() == (
         digest
     )

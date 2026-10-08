@@ -277,7 +277,7 @@ untouched), but a stale sentence in a spec is a wrong instruction to the next ag
 tool env on PATH: **57 passed, 4 skipped** (chloe · julia · table2asn absent on this machine).
 
 **Residual risks.** (1) The §9 renumbering touched citations in code, tests and `docs/` — all
-updated, and the new guard fails on a duplicate or a gap. (2) §9.J.38 *states* the initiator
+updated, and the new guard fails on a duplicate or a gap. (2) §9.J.39 *states* the initiator
 convention (V/T/I where a published protein begins with M) rather than changing it; changing it
 moves 5 residues of the golden composition — a decision, not a fix. (3) The HANDOFF archive is a
 move; a citation by **content** rather than session number should name the archive file.

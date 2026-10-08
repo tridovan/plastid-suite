@@ -44,6 +44,24 @@ def test_layout_builds_run_scoped_paths(tmp_path: Path) -> None:
     assert layout.module_dir(1, "genome_stats").name == "01_genome_stats"
 
 
+def test_two_runs_never_share_a_directory_however_the_clock_behaves(tmp_path: Path) -> None:
+    """One run = one directory, even in the same second — and even when the clock steps back.
+
+    Measured 08/10/2026 (PROJECT.md §9.C-37): this machine's clock moved ~1 s *backwards* between
+    two runs, so a later run was stamped earlier than the one before it and the run directories
+    no longer sorted into the order they were made. The guarantee that survives a clock that is
+    not monotonic is not "the names sort" but "no run overwrites another".
+    """
+    first = RunLayout.create(tmp_path, "iris", fingerprint="abcdef1234567890", now=WHEN)
+    first.make_dirs()
+    same_second = RunLayout.create(tmp_path, "iris", fingerprint="abcdef1234567890", now=WHEN)
+    stepped_back = RunLayout.create(
+        tmp_path, "iris", fingerprint="abcdef1234567890", now=datetime(2026, 10, 2, 15, 29, 59)
+    )
+    assert len({first.run_id, same_second.run_id, stepped_back.run_id}) == 3
+    assert stepped_back.run_dir.parent == first.run_dir.parent  # same dataset, different run
+
+
 def test_manifest_validates_and_round_trips(tmp_path: Path) -> None:
     manifest = build_manifest(
         run_id="r1",

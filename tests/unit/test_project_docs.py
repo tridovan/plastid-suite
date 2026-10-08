@@ -16,8 +16,8 @@ Two numbering schemes, deliberately checked differently:
 * **`§8.N`** is a section number. Each one must be a heading in exactly one file under `docs/log/`,
   and appear in `PROJECT.md` §8's index.
 * **`§9.X`** — `X` a letter — is a subsection. It must be a `### X.` heading in `PROJECT.md`.
-* **`§9.N`** — `N` a number — is an *item* inside §9. A/B/C run continuously (1–36) and J continues
-  them (37–40); **D–I each restart at 1**, which is why a citation carries its subsection
+* **`§9.N`** — `N` a number — is an *item* inside §9. A/B/C run continuously (1–37) and J continues
+  them (38–41); **D–I each restart at 1**, which is why a citation carries its subsection
   (`§9.C-34`). `§9.N` is matched against the numbered items themselves — weaker by construction
   (inserting an item renumbers the ones after it), and this test says so rather than pretending
   otherwise.

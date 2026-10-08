@@ -545,6 +545,19 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
     lên **74 log MAFFT · 24 log yn00**. Ghi chú kèm: một module **cache hit** không chạy công cụ
     nào nên run đó **không có log** — trạng thái `cached` trong manifest là dấu hiệu để đọc.
 
+37. **Mới 08/10/2026 — id của run mang mốc đồng hồ, nên TÊN thư mục run không phải thứ tự thời
+    gian.** Đo được khi chạy `make check`: máy này (WSL2) **nhảy lùi ~1 giây** giữa hai lần chạy
+    liên tiếp — manifest của run thứ hai ghi `started_at 09:54:26` và `finished_at 09:54:25`, còn
+    run thứ ba nhận lại đúng mốc giây của run đầu nên được đặt hậu tố `-2`. Hệ quả: `sorted()`
+    trên tên thư mục xếp `…-095425`, `…-095425-…-2`, `…-095426` — tức run **thứ ba** đứng trước
+    run **thứ hai** — và test `test_second_identical_run_is_cached_and_identical` đọc nhầm thư mục
+    của run thứ hai, đúng chỗ nó vừa xoá file để thử khôi phục từ cache ⇒ đỏ. **Bản thân sản phẩm
+    không sai**: `RunLayout.create` vẫn bảo đảm "một run một thư mục, không ghi đè" nhờ hậu tố
+    `-2` (đã có test riêng cho cả ca đồng hồ đứng yên lẫn ca đồng hồ lùi). Sai ở **giả định của
+    test** — lấy thứ tự tên làm thứ tự thời gian; sửa bằng cách nhận diện thư mục của một run qua
+    **hiệu tập hợp trước/sau**, không qua `sorted()`. Luật kèm theo: một thư mục run chỉ được
+    nhận diện bằng chính nó, không bằng vị trí của nó trong danh sách.
+
 ### D. Chuyển chú giải mito bằng BLAST (P3A-03)
 
 1. **`sseqid` bị cắt tại khoảng trắng** ⇒ một khoá chủ thể dựng từ bốn field sẽ **không bao giờ**
@@ -666,7 +679,7 @@ vì mình chọn những bản ghi chạy được.
 trong bốn số thuộc **đường ty thể** ⇒ chúng được **ghi tên**: H-09 và H-11 **mở**, H-12 **hoãn**
 cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào bảng của bản thảo lục lạp.
 
-37. **`gene_names` không chọn từ vựng theo bào quan.** Bảng nhóm ở §13 xếp module này vào "Dùng
+38. **`gene_names` không chọn từ vựng theo bào quan.** Bảng nhóm ở §13 xếp module này vào "Dùng
     chung" vì "chọn từ vựng theo `/organelle` của bản ghi" — nhưng `modules/gene_names.py` nạp
     `load_gene_aliases()` (bảng plastid) cho **mọi** bản ghi; hàm chọn từ vựng thật
     (`core/gene_names.aliases_for`) chỉ được `cds_by_canonical_name` dùng (substitutions · kaks ·
@@ -674,7 +687,7 @@ cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào
     **0** "two nomenclatures"; cùng lúc `mito_genes` trên đúng `OX459128.1` → **31/51** gen được
     gọi bằng ký hiệu chuẩn. Một module khai "dùng chung" mà trả lời bằng từ vựng plastid là kiểu
     "im lặng" quen thuộc ⇒ **H-12**.
-38. **Bảng mã dịch: hai câu trả lời cho "lục lạp dùng bảng nào".** `core/codon.py` viết "Plastids
+39. **Bảng mã dịch: hai câu trả lời cho "lục lạp dùng bảng nào".** `core/codon.py` viết "Plastids
     use the standard code" và `codon_usage`/`amino_acid` in "NCBI table 1", trong khi
     `modules/annotation.py` khẳng định "plastids translate with NCBI table 11" — và D3-03 đã đo
     cả 1.099 CDS đều khai 11. Đo trên genome vàng: **5/86 CDS** mở đầu bằng mã không-ATG
@@ -684,11 +697,11 @@ cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào
     vào §3. **Cùng gốc, đo cùng ngày:** `orf` chọn bảng mặc định **1** khi bản ghi không khai
     `/transl_table`, còn đường chú giải lục lạp đóng dấu **11** cho đúng sự im lặng đó — hai đường
     trả lời một câu hỏi theo hai cách (`src/plastid/data/defaults.yaml`; H-09).
-39. **Artifact mito không khai `/organelle` (xác nhận lại H-11).** Đo trên
+40. **Artifact mito không khai `/organelle` (xác nhận lại H-11).** Đo trên
     `.panel/mito-prototype/AP045469.1.gb`: **0** feature `source`, **0** qualifier `/organelle`,
     `Genome.source == {}` — `read_fasta` không có gì để khai và `mito_annotate` chép nguyên
     `source` của input. Hệ quả: `aliases_for` trên chính artifact đó rơi về từ vựng plastid.
-40. **Artifact mito không qua nổi chính bộ kiểm của `submission`.** `plastid run -m submission`
+41. **Artifact mito không qua nổi chính bộ kiểm của `submission`.** `plastid run -m submission`
     trên artifact đó → **24 first-pass problems**, **23** là "CDS carries no /product" (module
     `mito_annotate` cố ý không viết `/product` — lý do có ghi trong docstring của nó), và các
     file **vẫn được ghi ra** kèm ghi chú "not ready to submit". Tức `submission` **báo, không
