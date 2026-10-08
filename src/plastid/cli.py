@@ -23,7 +23,7 @@ from functools import partial
 from pathlib import Path
 
 from plastid import __version__
-from plastid.core import plastid_reference
+from plastid.core import plastid_reference, reference_audit
 from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
@@ -54,7 +54,13 @@ from plastid.run.layout import RunLayout
 from plastid.run.manifest import build_manifest, write_manifest
 from plastid.run.ncbi import NcbiClient, NcbiError
 from plastid.run.runinfo import render_run_info
-from plastid.run.runner import DATA_LABEL_PARAM, DocumentRenderer, execute_step
+from plastid.run.runner import (
+    DATA_LABEL_PARAM,
+    DocumentRenderer,
+    execute_step,
+    export_files,
+    write_payload,
+)
 from plastid.run.tools import ToolError
 
 EXIT_OK = 0
@@ -243,6 +249,38 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ref_loo.add_argument(
         "--rule", default="same family first (D-b)", help="the sentence the set was chosen by"
+    )
+    ref_audit = reference_actions.add_parser(
+        "audit",
+        help="audit the reference set: block what cannot be used, report what a person must know",
+    )
+    ref_audit.add_argument("--panel", default=".panel/plastid-reference")
+    ref_audit.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
+    ref_audit.add_argument(
+        "--exceptions",
+        default=None,
+        help=(
+            "the pinned exceptions (default: <panel>/AUDIT_EXCEPTIONS.json); an exception is "
+            "bound to the file's digest, so editing the file voids it"
+        ),
+    )
+    ref_audit.add_argument(
+        "--no-confirm",
+        action="store_true",
+        help="skip the second reading (the aligner call); the report then says not measured",
+    )
+    ref_audit.add_argument(
+        "--confirm-exception",
+        default=None,
+        metavar="FILE:CHECK",
+        help=(
+            "pin a confirmed exception for one reported check and exit — the digest is written "
+            "from the file as it is now, never typed"
+        ),
+    )
+    ref_audit.add_argument("--confirmed-by", default=None, help="with --confirm-exception: who")
+    ref_audit.add_argument(
+        "--reason", default=None, help="with --confirm-exception: why the finding is accepted"
     )
     ref_loo.add_argument(
         "--out",
@@ -876,6 +914,8 @@ def _cmd_mito_annotate(args: argparse.Namespace) -> int:
 
 def _cmd_reference(args: argparse.Namespace) -> int:
     action = getattr(args, "reference_action", None)
+    if action == "audit":
+        return _reference_audit(args)
     if action == "verify":
         return _reference_verify(args)
     if action == "loo":
@@ -898,6 +938,218 @@ def _reference_verify(args: argparse.Namespace) -> int:
         return EXIT_ERROR
     print(f"reference verify: {args.panel} — every record matches its pin")
     return EXIT_OK
+
+
+def _reference_audit(args: argparse.Namespace) -> int:
+    """Audit a reference set before anything is annotated from it (P3B-03, D5-08).
+
+    A run of its own — the same run directory, manifest and tool record as every other output,
+    because the audit *is* something that ran, on inputs that can be named by digest, and because
+    the confirmation layer calls an external aligner whose argv and version have to land somewhere.
+    Blocking findings stop here with exit 2 and nothing is annotated; reporting findings are named
+    and the run proceeds, because the classes they cover are real published data (§8.34).
+    """
+    from plastid.modules import reference_audit as audit_module
+
+    panel = Path(args.panel)
+    paths = sorted(panel.glob("*.gb"))
+    if not paths:
+        print(f"{panel}: no *.gb record to audit", file=sys.stderr)
+        return EXIT_ERROR
+    exceptions_path = (
+        Path(args.exceptions) if args.exceptions else panel / reference_audit.EXCEPTIONS_FILENAME
+    )
+
+    if args.confirm_exception:
+        return _reference_confirm_exception(args, panel, exceptions_path)
+
+    try:
+        pins = reference_audit.read_exceptions(exceptions_path)
+    except (OSError, ValueError, KeyError) as error:
+        print(f"{exceptions_path}: {error}", file=sys.stderr)
+        return EXIT_ERROR
+
+    digests = "".join(f"{_sha256_file(path)}\x00" for path in paths)
+    layout = RunLayout.create(
+        args.out, panel.name, fingerprint=hashlib.sha256(digests.encode()).hexdigest()
+    )
+    layout.make_dirs()
+    ctx = RunContext(layout=layout, params={}, module_id=audit_module.MODULE_ID, module_order=1)
+    manifest = build_manifest(
+        run_id=layout.run_id,
+        command=[
+            "plastid",
+            "reference",
+            "audit",
+            "--panel",
+            str(panel),
+            *(["--no-confirm"] if args.no_confirm else []),
+        ],
+        package_version=__version__,
+        started_at=datetime.now().isoformat(timespec="seconds"),
+        params={},
+        inputs=[
+            {"path": str(path), "sha256": _sha256_file(path), "bytes": path.stat().st_size}
+            for path in paths
+        ],
+        coordinate_system={
+            "name": "genbank",
+            "rotation_offset": 0,
+            "note": "region tables use the normalized frame (LSC → IRa → SSC → IRb)",
+        },
+    )
+
+    confirmer, note = _audit_aligner(args)
+    try:
+        report = reference_audit.audit_files(
+            paths, ctx=ctx, exceptions=pins, confirm=confirmer, confirm_note=note
+        )
+    except (OSError, ValueError) as error:
+        return _fail(manifest, layout, ctx, audit_module.MODULE_VERSION, str(error), EXIT_ERROR)
+
+    for finding in report.findings:
+        print(finding.line, file=sys.stderr if finding.blocks else sys.stdout)
+    if report.ok:
+        print(
+            f"reference audit: {len(report.records)} record(s) · 0 blocked · "
+            f"{len(report.reported)} reported — {layout.run_dir}"
+        )
+    else:
+        print(
+            f"reference audit: {len(report.records)} record(s) · {len(report.blocked)} blocked — "
+            f"nothing may be annotated from those files",
+            file=sys.stderr,
+        )
+
+    files, figures = _write_audit_outputs(report, ctx, layout, panel)
+    manifest["files"] = [
+        {
+            "path": str(path.relative_to(layout.run_dir)),
+            "module": audit_module.MODULE_ID,
+            "sha256": _sha256_file(path),
+            "bytes": path.stat().st_size,
+        }
+        for path in files
+    ]
+    manifest["figures"] = figures
+    manifest["modules"].append(
+        {
+            "id": audit_module.MODULE_ID,
+            "version": audit_module.MODULE_VERSION,
+            "status": "failed" if not report.ok else "ok",
+            "error": "\n".join(finding.line for finding in report.blocked) or None,
+            "findings": {
+                "blocked": len(report.blocked),
+                "reported": len(report.reported),
+                "confirmed": len(report.confirmed),
+            },
+            "tools": [asdict(record) for record in ctx.tools],
+            "files": [str(path.relative_to(layout.run_dir)) for path in files],
+        }
+    )
+    manifest["status"] = "ok" if report.ok else "failed"
+    manifest["finished_at"] = datetime.now().isoformat(timespec="seconds")
+    write_manifest(layout.run_dir / "manifest.json", manifest)
+    (layout.run_info_dir / "run_info.md").write_text(
+        render_run_info(manifest, ctx.tools), encoding="utf-8"
+    )
+    return EXIT_OK if report.ok else EXIT_USAGE
+
+
+def _audit_aligner(args: argparse.Namespace):
+    """The second reading, if this machine has an aligner — and the sentence to say if it has not.
+
+    A missing MAFFT is not a failure: the minimum install has no external tools at all, and the
+    audit's own rule already reached a verdict. What is forbidden is reporting that verdict as
+    *confirmed* when nothing confirmed it.
+    """
+    if args.no_confirm:
+        return None, "not measured (confirmation not requested)"
+    from plastid.external.mafft import MAFFT_VERSION, adjust_direction
+    from plastid.run.tools import which
+
+    if which("mafft") is None:
+        return None, f"not measured (mafft {MAFFT_VERSION} not found)"
+    return adjust_direction, None
+
+
+def _reference_confirm_exception(
+    args: argparse.Namespace, panel: Path, exceptions_path: Path
+) -> int:
+    """Pin one reported finding to a file's current digest — the person confirms it once."""
+    target, separator, check = args.confirm_exception.partition(":")
+    if not separator or not check:
+        print("--confirm-exception expects FILE:CHECK", file=sys.stderr)
+        return EXIT_USAGE
+    if not args.confirmed_by or not args.reason:
+        print("--confirm-exception needs --confirmed-by and --reason", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        pin = reference_audit.write_exception(
+            exceptions_path,
+            file=panel / target,
+            check=check,
+            reason=args.reason,
+            confirmed_by=args.confirmed_by,
+            confirmed_on=datetime.now().date().isoformat(),
+        )
+    except (OSError, ValueError, KeyError) as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_ERROR
+    print(
+        f"reference audit: {target} — {check} confirmed by {pin.confirmed_by} "
+        f"({pin.confirmed_on}); the pin is void if the file changes"
+    )
+    return EXIT_OK
+
+
+def _write_audit_outputs(
+    report: reference_audit.AuditReport,
+    ctx: RunContext,
+    layout: RunLayout,
+    panel: Path,
+) -> tuple[tuple[Path, ...], dict]:
+    """The audit as a result: the tables, the report a person reads, and the dot plot's picture.
+
+    The picture is drawn whenever the rule found an inverted record — **not** whenever an aligner
+    was available. It is a picture of the sequences, which the audit read itself, and a machine
+    without MAFFT must not lose the one view that lets a person confirm a flip-flop. A machine
+    without matplotlib loses only the picture: the matches stay in ``region_matches``, the audit's
+    verdict is unchanged, and the manifest says the figure was skipped and why.
+    """
+    from plastid.modules import reference_audit as audit_module
+
+    dotplot = None
+    if audit_module.deviating_files(report):
+        names = {path.name: path for path in sorted(panel.glob("*.gb"))}
+        dotplot = audit_module.dotplot_for(
+            report, reference_audit.region_sequences(names, "SSC"), "SSC"
+        )
+    result = audit_module.audit_result(report, dotplot=dotplot)
+    template = load_template(f"{audit_module.MODULE_ID}.en.md")
+    files = _write_result(result, template, ctx)
+    figures: dict = {"rendered": [], "skipped": []}
+    if dotplot is not None:
+        try:
+            outcome = render_run_figures(layout.run_dir, figures=["dotplot"])
+        except ExportDependencyError as error:
+            figures["skipped"] = [{"figure": "dotplot", "reason": str(error)}]
+        else:
+            files = files + tuple(outcome.files)
+            figures["rendered"] = [path.name for path in outcome.files]
+    return files, figures
+
+
+def _write_result(result: Result, template: str, ctx: RunContext) -> tuple[Path, ...]:
+    """Write a result's payload for a command that is not the module runner.
+
+    ``plastid reference audit`` builds its own ``Result`` — the audit's input is a set of files,
+    not a genome, so it never goes through :func:`execute_step` — and this is the one place that
+    turns it into files: the runner's own export and write path, so a table written here and a
+    table written by a module are the same file.
+    """
+    payload = export_files(result, lambda item: render(template, item))
+    return write_payload(ctx, payload)
 
 
 def _reference_loo(args: argparse.Namespace) -> int:

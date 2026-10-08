@@ -57,6 +57,47 @@ def _assert_same_feature(before: Gene, after: Gene) -> None:
     assert after.parts == before.parts
 
 
+def test_the_records_own_translation_is_read_and_never_written(golden_genome: Genome) -> None:
+    """``/translation`` is the thing an annotation is transferred from (D5-08 §8.21) — so it is
+    read; and it is NCBI's to assign on a new record, so it is never written back out.
+
+    Measured 08/10/2026 on the golden: 86/86 CDS carry one, and a CDS's translation is its
+    sequence's length in codons minus the stop — asserted here rather than assumed, because a
+    reader that silently un-wrapped a qualifier wrongly would still look like it worked.
+    """
+    cds = [gene for gene in golden_genome.genes if gene.kind == "CDS"]
+    assert all(gene.translation for gene in cds)
+    rbcL = next(gene for gene in cds if gene.name == "rbcL")
+    assert rbcL.translation is not None
+    assert len(rbcL.translation) == rbcL.length // 3 - 1  # the stop codon is not in the protein
+    assert rbcL.translation.startswith("M")
+
+    # nothing else changes shape: a record written back carries no /translation at all
+    assert "/translation" not in to_genbank(golden_genome)
+
+
+def test_a_translation_with_whitespace_is_read_as_one_sequence(tmp_path: Path) -> None:
+    """Some records carry spaces inside the protein; the sequence is what the record means."""
+    from Bio import SeqIO
+    from Bio.Seq import Seq
+    from Bio.SeqFeature import SeqFeature, SimpleLocation
+    from Bio.SeqRecord import SeqRecord
+
+    sequence = "ATGGCTAAACTGGCTTAA"
+    seq_record = SeqRecord(Seq(sequence), id="X1", name="X1", annotations={"molecule_type": "DNA"})
+    seq_record.features.append(
+        SeqFeature(
+            SimpleLocation(0, len(sequence)),
+            type="CDS",
+            qualifiers={"gene": ["rbcL"], "translation": ["MAK LAA"]},
+        )
+    )
+    record = tmp_path / "spaced.gb"
+    SeqIO.write(seq_record, record, "genbank")
+
+    assert read_genbank(record).genes[0].translation == "MAKLAA"
+
+
 def test_the_golden_record_round_trips(golden_genome: Genome, tmp_path: Path) -> None:
     """265 features come back with the same kind, name, span, product, table and partial flags."""
     written = tmp_path / "round_trip.gb"

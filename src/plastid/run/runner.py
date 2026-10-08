@@ -19,7 +19,14 @@ from plastid.result.result import Result
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
 
-__all__ = ["DATA_LABEL_PARAM", "StepOutcome", "execute_step", "label_result"]
+__all__ = [
+    "DATA_LABEL_PARAM",
+    "StepOutcome",
+    "execute_step",
+    "export_files",
+    "label_result",
+    "write_payload",
+]
 
 # The parameter that puts a run's data provenance on every table it exports. A stand-in dataset
 # never travels unlabelled (CLAUDE.md: "label every output made from it"), and the label is
@@ -87,6 +94,10 @@ def _input_hash(genome: Genome) -> str:
                     gene.kind,
                     gene.product,
                     gene.pseudo,
+                    # The annotator searches the record's own /translation (D5-08): two records
+                    # with one sequence and one gene list but different proteins are two
+                    # different inputs, and the cache may not conflate them.
+                    gene.translation,
                     tuple(
                         (part.start, part.end, part.strand, part.partial_start, part.partial_end)
                         for part in gene.parts
@@ -158,7 +169,13 @@ def export_files(
     return files
 
 
-def _write(ctx: RunContext, files: Payload) -> tuple[str, ...]:
+def write_payload(ctx: RunContext, files: Payload) -> tuple[Path, ...]:
+    """Write a payload into the step's own directory — the one place a Result becomes files.
+
+    Public because a command whose input is not a genome still produces a ``Result`` and still
+    writes it the same way (``plastid reference audit``): seam 2 is about *who writes*, not about
+    which command is running, and a second writer would be a second set of file semantics.
+    """
     written: list[Path] = []
     for logical_with_ext, payload in files.items():
         logical, _, ext = logical_with_ext.rpartition(".")
@@ -168,7 +185,11 @@ def _write(ctx: RunContext, files: Payload) -> tuple[str, ...]:
         else:
             path.write_text(payload, encoding="utf-8")
         written.append(path)
-    return tuple(str(path) for path in written)
+    return tuple(written)
+
+
+def _write(ctx: RunContext, files: Payload) -> tuple[str, ...]:
+    return tuple(str(path) for path in write_payload(ctx, files))
 
 
 def execute_step(

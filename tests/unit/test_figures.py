@@ -333,12 +333,18 @@ def test_a_figure_that_cannot_find_its_module_says_which_one() -> None:
         ir_junction.series({"structure": _results()["structure"]})
 
 
-def test_the_catalogue_holds_the_seven_scheduled_figures_and_no_untyped_source() -> None:
-    """M5.1 lists eleven figure types; seven have a source table and the page is P5-04's eighth."""
+def test_the_catalogue_holds_every_figure_and_no_untyped_source() -> None:
+    """M5.1 lists eleven figure types; eight have a source table and the page is P5-04's ninth.
+
+    A tenth joins in Phase 3B — ``dotplot``, the picture a person reads before confirming an
+    inverted SSC (D5-08's confirmation layer, P3B-03). An entry appears in this list only when
+    its ``requires`` names real tables, which the loop below checks.
+    """
     specs = {spec.id: spec for spec in all_figures()}
     assert sorted(specs) == [
         "barcode_assessment",
         "circular_map",
+        "dotplot",
         "genome_page",
         "identity_synteny",
         "ir_junction",

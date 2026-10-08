@@ -1440,7 +1440,47 @@ def _stats_result() -> Result:
     )
 
 
+def _reference_audit_result() -> Result:
+    """Built by the module's own table builder, so the template's contract is with the real one."""
+    from plastid.core.reference_audit import AuditReport, Confirmation, Finding, RecordFacts
+    from plastid.modules import reference_audit as audit_module
+
+    record = RecordFacts(
+        file="/references/NC_050833.1.gb",
+        sha256="a" * 64,
+        accession="NC_050833.1",
+        length_bp=153_724,
+        cds=86,
+        trna=38,
+        rrna=8,
+        gene_names=("rbcL", "trnG-UCC"),
+        ssc_orientation="opposite",
+        blocked=False,
+    )
+    report = AuditReport(
+        findings=(
+            Finding(
+                file=record.file,
+                check="orientation",
+                verdict="REPORT",
+                reason="SSC orientation differs from the majority (2 of 3 read the other way)",
+            ),
+        ),
+        records=(record,),
+        confirmations=(
+            Confirmation(
+                region="SSC",
+                technique="mafft --adjustdirection",
+                measured=False,
+                note="not measured (mafft 7.526 not found)",
+            ),
+        ),
+    )
+    return audit_module.audit_result(report)
+
+
 TEMPLATE_FIXTURES = {
+    "reference_audit": _reference_audit_result,
     "mito_annotate": _mito_annotate_result,
     "mito_genes": _mito_genes_result,
     "annotation": _annotation_result,

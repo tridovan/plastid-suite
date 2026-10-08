@@ -122,7 +122,21 @@ def _to_gene(feature: SeqFeature) -> Gene:
         transl_table=_int_qualifier(feature, "transl_table"),
         codon_start=_int_qualifier(feature, "codon_start") or 1,
         exception=_first_qualifier(feature, "exception"),
+        translation=_translation(feature),
     )
+
+
+def _translation(feature: SeqFeature) -> str | None:
+    """The record's own ``/translation``, whitespace and all removed.
+
+    GenBank wraps a long translation across lines and our reader gets the joined value from
+    BioPython; the internal spaces some records carry are removed here so the sequence is what
+    the record means. Never reconstructed by translating the CDS (D5-08 §8.21).
+    """
+    raw = _first_qualifier(feature, "translation")
+    if raw is None:
+        return None
+    return "".join(raw.split()).upper()
 
 
 def _int_qualifier(feature: SeqFeature, key: str) -> int | None:

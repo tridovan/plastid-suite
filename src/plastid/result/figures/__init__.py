@@ -10,6 +10,7 @@ from plastid.result.figure import FigureSpec
 from plastid.result.figures import (
     barcode_assessment,
     circular_map,
+    dotplot,
     genome_page,
     identity_synteny,
     ir_junction,
@@ -29,6 +30,7 @@ _SPECS: tuple[FigureSpec, ...] = (
     identity_synteny.SPEC,
     barcode_assessment.SPEC,
     genome_page.SPEC,
+    dotplot.SPEC,
 )
 
 

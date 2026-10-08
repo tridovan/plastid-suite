@@ -179,3 +179,74 @@ kế tiếp sẽ tính lại chứ không phục vụ payload cũ — đúng hư
 (chứng minh ở bảng trên bằng cách chạy code HEAD cạnh code mới): hai bản chú giải của một chuỗi cho
 hai khoá · khoá giữ thứ tự input · tham số trỏ file được băm theo nội dung · đổi mã nguồn module
 thì đổi khoá · run xin `--docx` không được phục vụ payload không có tài liệu.
+
+---
+
+### 8.43. Cổng kiểm bộ tham chiếu: cái gì chặn, cái gì chỉ báo, và lần đọc thứ hai bằng MAFFT (P3B-03, 08/10/2026)
+
+**Việc.** Dựng cổng audit của D5-08 (`core/reference_audit.py`) và cửa dòng lệnh
+`plastid reference audit --panel <bộ> --out <runs>`: một **run** thật (thư mục run · manifest ·
+run_info · log công cụ), trong đó mỗi phát hiện in ra đúng dạng `file — reason`, không kèm lời
+khuyên nào. Bộ bị chặn ⇒ **exit 2, không chú giải gì**, lý do nằm trong `manifest.json`
+(`modules[0].error`). Bộ chỉ bị báo ⇒ exit 0, run đi tiếp.
+
+**Luật, và số đo đã chọn luật ấy.** Sáu lớp **CHẶN**: không đọc được · không có feature gen ·
+CDS thiếu `/translation` · toạ độ partial · cổng IR · CDS không dịch được. Hai lớp **BÁO**: chiều
+SSC lệch đa số · bộ tên gen lệch đa số. Đo trên chính bộ đã pin (§8.40), 34 bản ghi, 08/10/2026:
+
+| Lớp | Số đo trên 34 bản ghi |
+|---|---|
+| thiếu `/translation` · ORF · cổng IR | **0 · 0 · 0** |
+| toạ độ partial | **1 bản ghi**, 2 feature: `NC_024936.1` — `CDS rps19` (`<153124`, `>83020`) |
+| chiều SSC | **32 "same" · 2 "opposite"** — `NC_042827.1` (*I. missouriensis*) · `NC_062351.1` (*Gladiolus*), y hệt §8.34 |
+| bộ tên gen | **20/34 lệch** bộ tên phổ biến nhất (bộ ấy do 14 bản ghi dùng) |
+
+Ca `NC_024936.1` là đúng ca §8.34 đã dự báo: **một bản công bố thật** (và là genome so sánh
+*Iris gatesii*) bị chặn, vì một CDS mang toạ độ partial sẽ đóng dấu partial lên bất cứ thứ gì nó
+chú giải — §8.15 bẫy 1 đo PGA trả **0 gen** từ chính bản ghi này. Bộ tham chiếu vì thế phải **bỏ
+hoặc thay** bản ấy; một lệnh ngoại lệ không cứu được (xem dưới).
+
+**Lần đọc thứ hai, và nó độc lập thật.** Luật chiều SSC so SSC với LSC **bên trong một bản ghi**,
+nên nó không tự kiểm được mình. MAFFT `--adjustdirection` chạy trên **vùng SSC của cả bộ** (34
+chuỗi · 614.658 bp · **17,6 s** trên 7.526) và đánh dấu `_R_` cho chuỗi nào nó phải đảo chiều —
+đo 08/10/2026: **đúng hai bản ghi ấy**, không hơn không kém, và cả ba dòng của bảng
+`region_orientation` đều `Agree = yes`. Hai phương pháp, một câu trả lời; khi chúng lệch nhau,
+audit **báo là lệch** chứ không chọn bên thắng. Không có MAFFT thì dòng ấy ghi **"not measured
+(mafft 7.526 not found)"** — không bao giờ tự nhận là đã xác nhận.
+
+**Bức hình.** Dotplot (`result/figures/dotplot.py`, mục thứ mười của danh mục hình) vẽ mọi run
+khớp 15-mer của bản ghi lệch chiều với một bản ghi đa số, **cả hai chiều**. Đo trên bộ thật: bản
+`NC_042827.1` cho **349 run trên đường chéo nghịch** (đối chiếu: 20 run xuôi), `NC_062351.1` cho
+**332** (13 xuôi) — tức hình đọc ra đúng điều luật nói, và đây là thứ người dùng nhìn trước khi
+xác nhận một flip-flop. Hình vẽ **từ bảng** `region_matches` (716 dòng), không tính lại gì, nên
+`plastid figures <run-dir>` dựng lại được nó từ `result.json` mà không chạy lại audit.
+
+**Ngoại lệ đã xác nhận thì buộc vào byte.** `AUDIT_EXCEPTIONS.json` nằm cạnh bộ tham chiếu; mỗi
+mục ghi `file · sha256 · check · reason · confirmed_by · confirmed_on`, và **sha256 do công cụ
+viết** (`--confirm-exception FILE:CHECK --confirmed-by … --reason …`), không phải người gõ tay.
+Đo end-to-end trên bộ thật: pin cho `NC_042827.1:orientation` ⇒ run sau báo **21** thay vì 22 phát
+hiện, dòng ấy thành `confirmed` và **vẫn hiện** trong bảng; sửa một byte của file ⇒ pin **void**,
+phát hiện quay lại. Một pin **không bao giờ** miễn được lớp CHẶN — `Finding` từ chối dựng, và
+`read_exceptions` từ chối đọc (`translation` không nằm trong `REPORT_CHECKS`). Bài học suýt nữa thì
+trả giá: lần chạy đầu, pin được áp **trước khi** phát hiện cấp-bộ ra đời, nên nó thành `unused` và
+im lặng hết tác dụng — thứ tự nay là **phát hiện cấp bộ → áp pin → lần đọc thứ hai**.
+
+**Bản ghi PGA của *Iris hermona* là ca âm thật, có sẵn trong repo.** `tests/data/corpus/…pga.gb`:
+**84 CDS, 83 thiếu `/translation`**, và cổng IR hỏng (26,36 %, §8.31) ⇒ bị chặn; bản công bố cùng
+chuỗi ấy qua sạch. Đây là test âm chạy được trên mọi máy, không cần `.panel/`.
+
+**Một thay đổi ở tầng dữ liệu, vì cổng cần nó.** `Gene` nay mang thêm `/translation` của chính
+bản ghi (`core/model.py`), đọc ở `core/genbank.py` (bỏ khoảng trắng, viết hoa), **không bao giờ
+ghi ra** — D5-08 §8.21 nói engine tìm trên protein công bố, không tự dịch; và `_input_hash` của
+cache nay băm cả trường ấy, vì hai bản ghi cùng chuỗi mà khác protein là hai input khác nhau.
+
+**Chưa đo, và phải nói ra.** Audit **không** phát hiện một bản ghi bị đảo chiều *toàn phần* so với
+bộ: bên trong bản ghi ấy LSC và SSC vẫn cùng chiều, nên luật không có gì để so — và với blastx
+(tìm cả hai mạch) điều đó không ảnh hưởng kết quả chuyển chú giải. Nó cũng **không** kiểm độ dài
+vùng IR của bản ghi chưa chú giải (H-13 vẫn mở). Cả hai là giới hạn đã biết, không phải số ước lượng.
+
+**Kiểm chứng.** `tests/unit/test_reference_audit.py` (31 test, chạy mọi máy: 6 lớp chặn, luật đa
+số N ≥ 3 và ca N = 2, ngoại lệ sống/void/stale/unused, dotplot, cửa CLI exit 2 + lý do trong
+manifest, cửa `--confirm-exception`) · `tests/golden/test_reference_audit_corpus.py` (4 test, cần
+`.panel/`; test MAFFT là tier B): tái lập **32/34 · 2/34** và tên đúng hai bản ghi, MAFFT đánh dấu
+đúng hai bản ghi ấy, 0 phát hiện `confirmation`.

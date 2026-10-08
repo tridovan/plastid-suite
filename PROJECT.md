@@ -407,6 +407,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.40 | Bộ tham chiếu lục lạp — 34 bản ghi Iridaceae pin lại, và luật leave-one-out thành dữ liệu (P3B-01, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.41 | Ba con số của D5-09 §9.3 — biên, phép thử hàng xóm, `identity_floor` (P3B-02, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.42 | Khoá cache mang thêm bốn thứ — chú giải, thứ tự, mã nguồn, thứ được yêu cầu (P3B-05, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.43 | Cổng kiểm bộ tham chiếu — lớp chặn, lớp báo, lần đọc thứ hai bằng MAFFT, ngoại lệ buộc vào sha256 (P3B-03, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---
