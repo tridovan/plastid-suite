@@ -14,16 +14,22 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-07** — the calling engine (M3B.2, D-e): extract the calling core
-from `core/mito_caller.py` (DRY's second copy; the mito tests are the guard), then `blastx` against
-the reference's own published `/translation` (never self-translate), `blastn` for rRNA, and the six
-measured rules of §8.22 as code. `blastp` over published `/translation` is already wired for the
-naming step (`external/blast.py`, P3B-04) and can be reused. Then **P3B-08** (arbitration &
-export), **P3B-09** (CLI & batch), **P3B-10** (golden + corpus validation — the phase's Done-when).
+**Immediate next action:** **P3B-09** — CLI & batch (M3B.4, H-09): the `plastid annotate`
+command over 1..N samples × 1..N reference records, one artifact per sample and one report per run,
+a failed sample named **without killing the run**, the organelle declared at input (a mito input
+refused by name), the docx report, and the engine registered as the annotate step with
+`annotation`'s chloe · pga set retired. **P3B-10** (golden + corpus validation — the phase's
+Done-when) follows, and it inherits two named differences: **H-19** (arbitration is identity-first,
+D5-08 says structure first — the golden's `ycf1` was called 900 bp where the published gene is
+5,421) and the tRNA count (30 called vs 38 published — the export mirrors CDS and rRNA, not tRNA).
+Both are conclusion-level, and P3B-10's bar is fewer of those than PGA.
 Done and pushed on `feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-03** (§8.43) ·
 **P3B-04** (§8.44) · **P3B-05** (§8.42, so H-15 · H-08 · H-14 are closed) · **P3B-06** (§8.45 —
 Ts/Tv re-measured under the new direction: **unchanged at 2.6917**, and measured to be
-*direction-invariant*). The phase's open calls — D-a · D-b · D-e — sit in `TASKS.md` → "Decisions
+*direction-invariant*) · **P3B-07** (§8.46 — the shared calling core, three silent failures fixed:
+the truncating `-max_target_seqs`, a whitespace FASTA header, rRNA product-sentences) ·
+**P3B-08** (§8.47 — the annotator end to end: **86 CDS + 8 rRNA + 30 tRNA** on the golden, three of
+§8.34's four overlapping pairs exact, one call per locus with every loser listed). The phase's open calls — D-a · D-b · D-e — sit in `TASKS.md` → "Decisions
 to make"; the conflict exit code, the parameter name, the manifest schema and the organelle group
 are **decided and shipped** (P3B-04). **The ★ pick** is still the end user's:
 `data/naming_reference.json` holds a **recorded override** (`provisional: true`, the golden) and
@@ -54,12 +60,56 @@ plus a GC-skew ring with 50 % gaps (§8.37) · summary lines drawn inside the GC
 **H-15 · H-08 · H-14 are closed** (P3B-05, §8.42). **On hold by D5-07 (plastid first):**
 H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-09 · H-11 · H-13 · H-16 · **H-17** (named 08/10,
 §9.K-1: the artifact `gene_normalize` writes keeps its `gene` features in vocabulary B while the
-CDS/tRNA/rRNA over the same span come out in A — 6 stale on the gatesii artifact). **Waiting on the PI:**
+CDS/tRNA/rRNA over the same span come out in A — 6 stale on the gatesii artifact) · **H-18**
+(`lhbA` = `psbZ`: one 62 aa locus under two names, so the caller calls both) · **H-19** (arbitration
+is identity-first; D5-08 says structure first). **Waiting on the PI:**
 H-04 (`trnG` — now measured, and a `stop` tier case: the golden annotates two *different* genes
 under one name, §8.41) and D5-05 (what a generated sentence may claim — the mechanism is built and
 follows the conservative default).
 
 ## Log
+
+### 2026-10-08 · Claude · dev WSL · session 28 (P3B-07 and P3B-08: the calling core, and the annotator runs)
+
+**Did.** Two tasks, in order.
+
+* **P3B-07 — the shared calling core (§8.46).** The second real copy arrived, so the machinery was
+  **extracted, not copied** (the project's own DRY rule): `core/caller.py` holds the rules,
+  `core/mito_caller.py` shrinks to what is measured about the mitochondrion (floors 50 %/0.5, table
+  1), `core/plastid_caller.py` is the plastid half (reference index from GenBank records, floors
+  50 %/**0.7**, table **11**, the self-blast IR reading). Floors and table are **required**
+  arguments in the shared core — a path that inherited another path's measured floor would quote a
+  number it never measured. **43 mito tests pass with not one line changed.**
+* **P3B-08 — arbitration and export (§8.47).** `modules/plastid_annotate.py`: the pinned set with
+  its leave-one-out rule, `blastx` over the references' own `/translation`, `blastn` for rRNA, a
+  self-search for the IR behind the gate, ARAGORN for tRNA. Measured on the golden: **86 CDS +
+  8 rRNA + 30 tRNA** — and 86 is a **rule**: one call per locus (79) plus the seven loci inside the
+  IR, which the **export** mirrors (`_ir_copies`), the same way the published record writes them.
+* **Three silent failures fixed, all found by measurement rather than by a test** (§9.L): a
+  `-max_target_seqs 500` constant that truncated the plastid search from 4,382 HSPs / 2,603
+  subjects to 929 / 467 **without saying so**; a gene name with a space (`23S ribosomal RNA`)
+  cutting the FASTA header below the three-field contract; rRNA product-sentences reaching the
+  vocabulary as gene names. And one lesson paid inside P3B-08: **overlap must be measured by exon,
+  not by envelope** — `rps12`'s envelope spans 68,976–98,016 and made it "overlap" 27 genes,
+  burying the real pairs.
+
+**Validation.** `make check` green twice: **771 fast tests · 72 golden passed / 4 skipped**. New:
+`tests/unit/test_plastid_caller.py` (12), `tests/golden/test_plastid_annotate.py` (3, one real run),
+`test_blast.py`'s cap test, `test_gene_names.py`'s rRNA-sentence test. Measured on the golden:
+`psbC`×`psbD` **53 bp** · `ndhC`×`ndhK` **10** · `atpB`×`atpE` **4** — three of §8.34's four exact;
+`competing_references` marks exactly one chosen per locus; the artifact re-reads and carries
+`/organelle="plastid"`.
+
+**Residual risks.** (1) **H-19** — arbitration is still identity-first (D5-08 §3 says structure
+first): the golden's `ycf1` came out **900 bp** from a reference whose own ycf1 is truncated, where
+the published gene is 5,421 bp. This is conclusion-level and P3B-10's bar counts those. (2) The
+export mirrors CDS and rRNA but **not tRNA**, so the count is 30 against the published 38. (3) The
+coverage floor 0.7 is §8.41's **corpus** number, named: the golden cannot choose it (0.5–0.8 give
+the identical called set) — P3B-10 re-checks.
+
+**Blocked.** Nothing new. The ★ pick still waits on the end user.
+
+**Next.** **P3B-09** — CLI & batch, then **P3B-10** — golden + corpus validation.
 
 ### 2026-10-08 · Claude · dev WSL · session 27 (P3B-06: Ts/Tv re-measured — the number holds, and now we know why)
 
