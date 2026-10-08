@@ -19,7 +19,7 @@ audit stops the run with `file — reason`, nothing annotated · no silent failu
 *Order: the three naming numbers are measured **before** any `gene_normalize` code (D5-09 §9.3), and
 the ★ pick needs the audit's report — so tasks run in the sequence below, not by milestone number.*
 
-- [ ] **P3B-01 · The reference set, built and pinned** *(M3B.1 · D-b)*
+- [x] **P3B-01 · The reference set, built and pinned** *(M3B.1 · D-b)* — DONE 08/10 (§8.40)
   - Choose by the taxonomy rule (same family first — the `mito-reference` pattern); the pinned
     Iridaceae corpus (`.panel/iridaceae-34/`, 0 gate failures) is the worked example.
   - Pin accession · sha256 · date in a `PINNED.json`; write the **leave-one-out** design down.

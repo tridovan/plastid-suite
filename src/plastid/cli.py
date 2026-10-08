@@ -23,6 +23,7 @@ from functools import partial
 from pathlib import Path
 
 from plastid import __version__
+from plastid.core import plastid_reference
 from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
@@ -217,6 +218,38 @@ def build_parser() -> argparse.ArgumentParser:
         help="with --file: which service produced it and when, e.g. 'PMGA web, 2026-10-03'",
     )
     pin_parser.add_argument("--out", default=".panel/genomes")
+
+    reference = subparsers.add_parser(
+        "reference",
+        help="the plastid reference set: re-verify its pin, write its leave-one-out design",
+    )
+    reference_actions = reference.add_subparsers(dest="reference_action", metavar="ACTION")
+    ref_verify = reference_actions.add_parser(
+        "verify", help="re-hash every pinned record and name every file that changed"
+    )
+    ref_verify.add_argument(
+        "--panel",
+        default=".panel/plastid-reference",
+        help="the pinned reference set (default: .panel/plastid-reference)",
+    )
+    ref_loo = reference_actions.add_parser(
+        "loo", help="write the leave-one-out manifest: which records may annotate which target"
+    )
+    ref_loo.add_argument("--panel", default=".panel/plastid-reference")
+    ref_loo.add_argument(
+        "--family",
+        required=True,
+        help='the family the taxonomy rule was applied at, e.g. "Iridaceae"',
+    )
+    ref_loo.add_argument(
+        "--rule", default="same family first (D-b)", help="the sentence the set was chosen by"
+    )
+    ref_loo.add_argument(
+        "--out",
+        default=None,
+        help="where to write it (default: <panel>/REFERENCE_SET.json; point it at "
+        "src/plastid/data/ to commit the offline copy)",
+    )
     return parser
 
 
@@ -841,6 +874,51 @@ def _cmd_mito_annotate(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_reference(args: argparse.Namespace) -> int:
+    action = getattr(args, "reference_action", None)
+    if action == "verify":
+        return _reference_verify(args)
+    if action == "loo":
+        return _reference_loo(args)
+    print("reference: choose an action — verify | loo", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _reference_verify(args: argparse.Namespace) -> int:
+    """Re-hash the pin. Every problem is ``file — reason``; a set that changed is not the set."""
+    try:
+        problems = plastid_reference.verify_pin(args.panel)
+    except (OSError, ValueError, KeyError) as error:
+        print(f"{args.panel}: {error} — is this a pinned reference set?", file=sys.stderr)
+        return EXIT_ERROR
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    if problems:
+        print(f"reference verify: {len(problems)} problem(s) in {args.panel}", file=sys.stderr)
+        return EXIT_ERROR
+    print(f"reference verify: {args.panel} — every record matches its pin")
+    return EXIT_OK
+
+
+def _reference_loo(args: argparse.Namespace) -> int:
+    """Write the leave-one-out manifest — the design, as data a run can read."""
+    try:
+        reference_set = plastid_reference.build_manifest(
+            args.panel, family=args.family, rule=args.rule
+        )
+    except (OSError, ValueError, KeyError) as error:
+        print(f"reference loo: {error}", file=sys.stderr)
+        return EXIT_ERROR
+    out = Path(args.out) if args.out else Path(args.panel) / plastid_reference.MANIFEST_FILENAME
+    if out.is_dir():
+        out = out / plastid_reference.MANIFEST_FILENAME
+    plastid_reference.write_manifest(reference_set, out)
+    n = len(reference_set.records)
+    print(f"reference loo: {n} record(s) · family {reference_set.family} → {out}")
+    print(f"  every target is annotated by the same {n - 1} record(s), minus itself")
+    return EXIT_OK
+
+
 def _cmd_panel(args: argparse.Namespace) -> int:
     action = getattr(args, "panel_action", None)
     if action == "refresh":
@@ -1065,6 +1143,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "panel":
         return _cmd_panel(args)
+
+    if args.command == "reference":
+        return _cmd_reference(args)
 
     # Unreachable: argparse rejects unknown subcommands before this point.
     return EXIT_USAGE

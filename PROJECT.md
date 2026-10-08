@@ -402,6 +402,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.37 | Bảy hình đầu tiên, và quy tắc mở rộng theo N đo bằng ba lần vẽ (P5-02, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 | 8.38 | Thống kê — vector tính tay, và một so sánh thật cho ra 0 khác biệt có ý nghĩa (P5-03, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 | 8.39 | Xuất bản phẩm — Excel tất định, gói Supplementary, và 34 trang PDF (P5-04, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
+| 8.40 | Bộ tham chiếu lục lạp — 34 bản ghi Iridaceae pin lại, và luật leave-one-out thành dữ liệu (P3B-01, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---
