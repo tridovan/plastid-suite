@@ -391,3 +391,52 @@ ghi công bố thì khớp **132/132** feature với feature `gene` cùng span c
 và CGAS — mô hình D5-08 bám theo — **có** đổi feature `gene` (D5-09 Appendix A: "8 features per
 target, 4 tRNA + 4 `gene`"). Ghi tên **H-17**, chi tiết ở §9.K-1; hôm nay nó là lỗi *hiển thị*,
 không phải lỗi số.
+
+### 8.46. Lõi gọi gen dùng chung, và ba lỗi im lặng nó lôi ra ánh sáng (P3B-07, 08/10/2026)
+
+**Việc.** Bộ gọi gen plastid (D-e), theo đúng luật DRY của dự án: bản sao thật thứ hai đã tới, nên
+máy móc được **tách ra dùng chung** thay vì chép. `core/caller.py` (mới) giữ toàn bộ luật biến HSP
+thành `Gene` — chuỗi HSP, exon, tinh chỉnh codon, các finding; `core/mito_caller.py` co lại thành
+lớp mỏng chỉ còn **thứ đo được riêng cho ty thể** (ngưỡng 50 %/0,5 và bảng mã 1);
+`core/plastid_caller.py` (mới) là nửa plastid: chỉ mục tham chiếu dựng từ bản ghi GenBank, ngưỡng
+50 %/**0,7**, bảng mã **11**, và cách đọc inverted repeat từ self-blast.
+
+**Bằng chứng việc tách không đổi hành vi: 43 test mito xanh nguyên vẹn, không sửa một dòng.** Đó
+là điều kiện "Done when" của task, và là lý do tách theo cách này chứ không chép.
+
+**Ngưỡng đo trên bản ghi vàng (đáp án).** Chạy thật blastx/blastn: genome vàng × 33 bản ghi còn
+lại của bộ tham chiếu đã pin (leave-one-out), BLAST+ 2.17.0, `-seg no`, evalue 1e-5.
+
+| Đo | Kết quả |
+|---|---|
+| HSP tìm được | **4.382** (CDS) · 528 (rRNA) |
+| Call ở ngưỡng 50 % / 0,7 | **80 CDS** (79 locus công bố + `lhbA`) · **4 rRNA** = `rrn16`·`rrn23`·`rrn4.5`·`rrn5` |
+| Call đáp xuống một locus công bố | **80/80** — không call nào rơi vào vùng không được chú giải |
+| Ngưỡng phủ 0,5 → 0,8 | **cùng một tập call** — bản ghi vàng *không phân biệt được* ngưỡng phủ |
+
+Dòng cuối là điều đáng ghi nhất: bản ghi vàng là họ hàng gần, nên nó **không chọn được** ngưỡng.
+Ngưỡng **0,7** là số của §8.41 — đo trên **corpus 34 bản ghi**, nơi khoảng trống thật nằm giữa
+44,93 % (locus khác) và 67,75 % (ortholog thật), và nơi 0,5 thủng vì `psbJ` chỉ 36 aa. Nói cách
+khác: ngưỡng *không* được chọn hôm nay, nó được **kế thừa kèm tên phép đo**, và P3B-10 sẽ kiểm lại
+trên corpus.
+
+**Ba lỗi im lặng, cả ba do chính phép đo này lôi ra — không phải do test:**
+
+1. **`-max_target_seqs 500` cắt cụt bộ tham chiếu trong im lặng.** Hằng số 500 đúng cho 287 chuỗi
+   của đường mito; bộ plastid có **2.838** chuỗi. Đo: cùng một lệnh, cap 500 → **929 HSP / 467
+   chuỗi**, cap = cỡ bộ → **4.382 HSP / 2.603 chuỗi**. BLAST không nói gì. Sửa: ngưỡng nay **đếm
+   từ chính file** bộ tham chiếu (`subject_count`), và không còn là hằng số nào cả.
+2. **Một tên có khoảng trắng làm header FASTA bị BLAST cắt.** `NC_042827.1` đặt tên rRNA là
+   `23S ribosomal RNA` (không có `/gene`, reader rơi về `/product`) ⇒ header thô về tới nơi là
+   `NC_042827.1|23S`, và parser **từ chối có tên** thay vì khớp một khoá không bao giờ khớp. Sửa:
+   `ReferenceEntry.key` bỏ khoảng trắng trong từng field, và header FASTA dùng chính `key` ấy.
+3. **Tên rRNA dạng câu sản phẩm chưa được chuẩn hoá.** Bốn locus ấy vào bộ từ vựng như *tên gen*
+   (`16S ribosomal RNA`…), nên không run nào gọi tên được chúng. Sửa: `core/gene_names` mở rộng
+   luật đã có (`rrn16S` → `rrn16`) cho dạng câu — cùng một tri thức, không phải tri thức mới; bộ
+   từ vựng rRNA nay đúng **4** ký hiệu.
+
+**Một phát hiện của tầng đặt tên, chưa sửa: `lhbA` là `psbZ`.** Bộ tham chiếu có **80** tên CDS
+trong khi số locus thật là **79**: `NC_042827.1` gọi locus 62 aa ấy là `lhbA`, 33 bản ghi còn lại
+gọi `psbZ` (bản ghi vàng: `psbZ`, 62 aa, 35.895–36.083). Hôm nay caller gọi **cả hai** — đúng theo
+luật "một call cho mỗi locus *của từ vựng*", và sai theo luật "một call cho mỗi locus *thật*".
+Gốc là bảng alias (D5-09) thiếu một mục; đặt tên **H-18**, kèm bằng chứng đo được.

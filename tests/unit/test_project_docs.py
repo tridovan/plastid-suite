@@ -17,7 +17,7 @@ Two numbering schemes, deliberately checked differently:
   and appear in `PROJECT.md` §8's index.
 * **`§9.X`** — `X` a letter — is a subsection. It must be a `### X.` heading in `PROJECT.md`.
 * **`§9.N`** — `N` a number — is an *item* inside §9. A/B/C run continuously (1–37) and J continues
-  them (38–41); **D–I and K each restart at 1**, which is why a citation carries its subsection
+  them (38–41); **D–I, K and L each restart at 1**, which is why a citation carries its subsection
   (`§9.C-34`). `§9.N` is matched against the numbered items themselves — weaker by construction
   (inserting an item renumbers the ones after it), and this test says so rather than pretending
   otherwise.
@@ -90,8 +90,8 @@ def test_the_log_entries_did_not_move_house_twice() -> None:
     duplicated entry cannot pass unnoticed.
     """
     entries = _log_entries()
-    assert len(entries) == 45, f"expected 45 logged entries, found {len(entries)}"
-    assert set(entries) >= {"8.1", "8.31", "8.45"}, "the first, the corpus and the newest entry"
+    assert len(entries) == 46, f"expected 46 logged entries, found {len(entries)}"
+    assert set(entries) >= {"8.1", "8.31", "8.46"}, "the first, the corpus and the newest entry"
 
 
 def test_every_cited_log_entry_exists() -> None:
@@ -168,9 +168,9 @@ def test_error_item_numbers_are_unique_and_continuous() -> None:
     )
 
 
-@pytest.mark.parametrize("letter", ["D", "E", "F", "G", "H", "I", "K"])
+@pytest.mark.parametrize("letter", ["D", "E", "F", "G", "H", "I", "K", "L"])
 def test_subsection_items_restart_at_one(letter: str) -> None:
-    """D–I and K number within their own subsection — the reason a citation carries the subsection.
+    """D–I, K and L number within their own subsection — why a citation carries the subsection.
 
     Measured 05/10/2026: the numbers 1–8 appear in seven subsections, so uniqueness holds for the
     pair (subsection, number), not for the number alone — which is what CLAUDE.md's run-log rule

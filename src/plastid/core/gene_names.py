@@ -100,6 +100,14 @@ _BRACKET_TRNA = re.compile(r"^(trn\w+)\(([A-Za-z]{3})\)$")
 # rrn16S → rrn16. The mitochondrial rrnS/rrnL dialect is deliberately NOT touched: there the
 # trailing letter is the name, not a size class.
 _RRNA_SIZE_SUFFIX = re.compile(r"^(rrn\d+(?:\.\d+)?)S$")
+# "16S ribosomal RNA" → rrn16 — the same rule as the line above, for the record that carries no
+# /gene at all and reaches us through the reader's /product fallback. Measured 08/10/2026 on the
+# pinned plastid reference set while P3B-07 built its vocabulary: NC_042827.1 names all four rRNA
+# this way ("16S ribosomal RNA", {"locus_tag": …, "product": …}, no /gene), and the sentence was
+# reaching the caller as a gene name — four loci no run could ever name. The size class is in the
+# string, so this needs no external knowledge; the mito dialect is again untouched, because a
+# mitogenome's rRNA are rrnS/rrnL and no measured record writes them this way.
+_RRNA_PRODUCT = re.compile(r"^(\d+(?:\.\d+)?)S\s+(?:ribosomal\s+)?r?RNA$", re.IGNORECASE)
 # A tRNA name with no anticodon at all (measured: trnK in PX923121.1, trnI in NC_069583.1).
 _BARE_TRNA = re.compile(r"^trn[A-Za-z]+$")
 # A tRNA name that does carry one — the shape a bare name can be resolved to.
@@ -308,6 +316,10 @@ def _normalize_syntax(name: str) -> tuple[str, bool]:
     sized = _RRNA_SIZE_SUFFIX.match(canonical)
     if sized is not None:
         canonical = sized.group(1)
+
+    spelled = _RRNA_PRODUCT.match(canonical)
+    if spelled is not None:
+        canonical = f"rrn{spelled.group(1)}"
 
     # The trn/rrn prefix is lowercase in every measured record; only that prefix is touched, so
     # trnfM-CAU keeps its lowercase f (which is part of the name, not a case slip).

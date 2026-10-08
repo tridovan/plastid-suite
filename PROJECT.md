@@ -420,6 +420,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.43 | Cổng kiểm bộ tham chiếu — lớp chặn, lớp báo, lần đọc thứ hai bằng MAFFT, ngoại lệ buộc vào sha256 (P3B-03, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.44 | `gene_normalize` — bốn phép thử, ba trạng thái, tham chiếu chuẩn có ghi lại; và chiều alias đảo theo bản ghi ★ (P3B-04, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.45 | Ts/Tv đo lại dưới chiều tên mới — 2,6917 giữ nguyên, và phép đo cho thấy nó *bất biến theo chiều* (P3B-06, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.46 | Lõi gọi gen dùng chung — tách khỏi đường mito, ngưỡng plastid đo trên bản ghi vàng, và ba lỗi im lặng (P3B-07, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---
@@ -746,6 +747,39 @@ cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào
    (`trnG-UCC`, §8.41/H-04) nên khớp theo *tên* sẽ đổi nhầm cả hai. Ghi tên **H-17** (TASKS.md).
    Hệ quả hôm nay là *hiển thị*, không phải *số*: `GENE_KINDS` loại feature `gene` khỏi mọi phép
    đếm và mọi mô-đun so sánh.
+
+### L. Bộ gọi gen dùng chung (P3B-07) — ba lỗi im lặng (08/10/2026)
+
+Ba lỗi dưới đây không do test nào bắt: chúng chỉ hiện ra khi **chạy thật** bộ gọi plastid trên bộ
+tham chiếu 34 bản ghi. Cả ba đều thuộc đúng loại "sai mà không báo" mà dự án này tồn tại để chặn.
+
+1. **`-max_target_seqs 500` cắt cụt bộ tham chiếu trong im lặng.** Hằng số 500 được chọn cho 287
+   chuỗi của bộ tham chiếu mito ("nothing may be truncated away" — chú thích cũ nói đúng ý định,
+   nhưng con số thì không theo kịp dữ liệu). Bộ plastid có **2.838** chuỗi. Đo 08/10/2026 trên
+   genome vàng × 33 bản ghi leave-one-out: cap 500 → **929 HSP / 467 chuỗi**; cap = cỡ bộ →
+   **4.382 HSP / 2.603 chuỗi** — cùng một lệnh, cùng một dữ liệu, BLAST **không nói gì**. Hệ quả
+   nếu không đo: 63 locus công bố "không tìm thấy alignment nào", tức một bản chú giải thiếu
+   gần nửa số gen mà trông vẫn hợp lệ. Sửa: `subject_count()` đếm chuỗi từ chính file bộ tham
+   chiếu, `search_argv`/`blastp_argv` **bắt buộc** nhận ngưỡng ấy, và hằng số bị xoá — một ngưỡng
+   không thể cắt cụt là ngưỡng duy nhất đáng giữ. Test:
+   `test_the_target_cap_is_the_size_of_the_reference_set`.
+2. **Một tên gen có khoảng trắng làm header FASTA bị BLAST cắt.** `NC_042827.1` không đặt `/gene`
+   cho rRNA; reader rơi về `/product` (đúng như thiết kế), nên tên gen là `23S ribosomal RNA`, và
+   header `…|23S ribosomal RNA|rrn23` về tới nơi là `…|23S` — **dưới ngưỡng ba field**. Parser từ
+   chối và gọi tên file, thay vì khớp một khoá không bao giờ khớp entry nào. Sửa:
+   `ReferenceEntry.key` bỏ khoảng trắng trong từng field và `_header` dùng lại chính `key` đó —
+   hai chỗ viết cùng một khoá là hai chỗ có thể lệch nhau. Test:
+   `test_a_name_with_a_space_gets_a_header_a_blast_hit_can_come_back_as`.
+3. **Tên rRNA dạng câu sản phẩm chưa được chuẩn hoá.** `16S ribosomal RNA` là *cùng locus* với
+   `rrn16`, nhưng vào bộ từ vựng như một tên riêng — bốn locus không run nào gọi tên được, và
+   bảng `not_called` sẽ báo chúng "no alignment" trong khi alignment vẫn ở đó. Sửa: `gene_names`
+   mở rộng luật đã có cho dạng `rrn16S` (cùng một tri thức: lớp kích thước nằm trong chuỗi) cho
+   dạng câu; `rrnS`/`rrnL` của ty thể vẫn **không** bị chạm.
+
+**Chưa sửa, đã đặt tên — H-18:** `lhbA` (`NC_042827.1`) và `psbZ` (33 bản ghi còn lại, kể cả bản
+ghi vàng) là **một locus**, cùng 62 aa; bộ từ vựng vì thế có 80 tên CDS cho 79 locus, và bộ gọi
+gọi cả hai. Gốc là `data/gene_aliases.yaml` thiếu một mục — việc của tầng đặt tên (D5-09), không
+phải của bộ gọi; bộ gọi báo đúng như nó thấy.
 
 ## 10. Câu hỏi còn treo
 

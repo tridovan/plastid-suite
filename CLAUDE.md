@@ -363,10 +363,10 @@ byte-identical to the commit it was taken from.
   re-counting is a measurement, not a constant). Renaming or renumbering an entry breaks citations
   nobody can re-derive. New entry: the next number, in the file of the phase you are in.
 - **§9's items are numbered per subsection, and a citation carries the subsection.** A/B/C run
-  continuously (1–37) and J continues them (38–41); **D–I and K each restart at 1** — measured
+  continuously (1–37) and J continues them (38–41); **D–I, K and L each restart at 1** — measured
   05/10/2026: the numbers 1–8 appear in seven subsections, so a bare `§9.20` is ambiguous and the
   address is `§9.C-34`. `tests/unit/test_project_docs.py` guards what is true of the file: A/B/C
-  run 1..n with no repeat, D–I and K restart at 1..n, and every cited number resolves.
+  run 1..n with no repeat, D–I, K and L restart at 1..n, and every cited number resolves.
 - **`PROJECT.md` §8 is the index** — one line per entry, and the only place a citation has to
   resolve from. `tests/unit/test_project_docs.py` fails the build if a cited `§8.N` has no heading,
   if an entry is missing from the index, or if one number appears in two files.

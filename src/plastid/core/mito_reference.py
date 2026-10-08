@@ -31,6 +31,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from plastid.core.caller import ReferenceEntry
 from plastid.core.genbank import read_genbank
 from plastid.core.model import coding_sequence
 
@@ -74,36 +75,6 @@ RRNA_LENGTH_BANDS: dict[str, tuple[int, int]] = {
 }
 
 _ANONYMOUS_ORF = re.compile(r"^orf\d", re.IGNORECASE)
-
-
-@dataclass(frozen=True, slots=True)
-class ReferenceEntry:
-    """One reference gene: where it came from, which locus it is, and its curated sequence.
-
-    ``vocabulary`` is the symbol ``data/mito_gene_names.yaml`` knows, or ``None`` when the
-    reference carries a gene this toolkit has no name for. Those are **kept** rather than dropped,
-    so an annotator run can say it found ``rps12`` instead of being silent about a gene it cannot
-    name — measured 2026-10-03, the standard plant-mito set is wider than the 31 loci the current
-    vocabulary holds.
-    """
-
-    accession: str
-    organism: str
-    source_gene: str  # the symbol the reference record itself used
-    vocabulary: str | None  # our canonical symbol, when we have one
-    sequence: str
-
-    @property
-    def key(self) -> str:
-        """What a BLAST hit calls this sequence: the first three fields of its header.
-
-        Measured 2026-10-03: BLAST+ truncates ``sseqid`` at the first whitespace, and the fourth
-        header field is the organism name — ``Nicotiana tabacum`` arrives as ``Nicotiana``. Three
-        fields are also all a hit needs; the fourth is only there to be read by a person, which is
-        why :func:`read_reference` still requires it. ``-`` means this toolkit has no symbol for
-        the gene, exactly as :func:`render_fasta` writes it.
-        """
-        return f"{self.accession}|{self.source_gene}|{self.vocabulary or '-'}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -239,7 +210,14 @@ def read_reference(path: str | Path) -> tuple[ReferenceEntry, ...]:
 
 
 def _header(entry: ReferenceEntry) -> str:
-    return "|".join((entry.accession, entry.source_gene, entry.vocabulary or "-", entry.organism))
+    """The FASTA header: the key a hit comes back as, plus the organism for a human reader.
+
+    The first three fields are ``entry.key`` itself rather than a second rendering of the same
+    three values — a header that disagreed with the key would send every hit to ``entry_for`` and
+    find nothing (measured 08/10/2026: a plastid rRNA named ``23S ribosomal RNA`` needs the space
+    removed in both places or in neither).
+    """
+    return f"{entry.key}|{' '.join(entry.organism.split())}"
 
 
 def _curated_translations(path: str | Path) -> list[str]:

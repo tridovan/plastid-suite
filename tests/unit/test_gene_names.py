@@ -70,6 +70,26 @@ def test_the_rrna_size_suffix_is_dropped_but_the_mito_dialect_is_not() -> None:
     assert normalize_name("rrnL", ALIASES).canonical == "rrnL"
 
 
+def test_an_rrna_named_by_its_product_sentence_is_the_same_locus() -> None:
+    """Measured 08/10/2026 on the pinned plastid reference set (P3B-07).
+
+    ``NC_042827.1`` carries no ``/gene`` on its rRNA at all — the reader falls back to
+    ``/product``, so "16S ribosomal RNA" arrived as a *gene name* and four loci no run could ever
+    name. The size class is in the string, so this is the same rule as ``rrn16S``, not new
+    knowledge.
+    """
+    assert normalize_name("16S ribosomal RNA", ALIASES).canonical == "rrn16"
+    assert normalize_name("23S ribosomal RNA", ALIASES).canonical == "rrn23"
+    assert normalize_name("4.5S ribosomal RNA", ALIASES).canonical == "rrn4.5"
+    assert normalize_name("5S ribosomal RNA", ALIASES).canonical == "rrn5"
+    assert normalize_name("16S rRNA", ALIASES).canonical == "rrn16"
+    # a product sentence that is not a size class is left exactly as it arrived
+    assert normalize_name("ribosomal protein S3", ALIASES).canonical == "ribosomal protein S3"
+    assert normalize_name("cytochrome b6-f complex subunit V", ALIASES).canonical == (
+        "cytochrome b6-f complex subunit V"
+    )
+
+
 def test_whitespace_is_collapsed_and_an_already_canonical_name_says_so() -> None:
     assert normalize_name("  rbcL  ", ALIASES).canonical == "rbcL"
     assert normalize_name("rbcL", ALIASES).rule == IDENTICAL_RULE

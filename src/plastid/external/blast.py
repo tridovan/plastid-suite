@@ -45,7 +45,6 @@ __all__ = [
     "BLAST_VERSION",
     "DEFAULT_EVALUE",
     "MAX_HSPS",
-    "MAX_TARGET_SEQS",
     "NAMING_EVALUE",
     "SEGMENT_OFF",
     "BlastResult",
@@ -61,6 +60,7 @@ __all__ = [
     "run_blastp",
     "run_blastx",
     "search_argv",
+    "subject_count",
     "subject_key",
 ]
 
@@ -73,7 +73,6 @@ DB_TOOL = "makeblastdb"
 
 DEFAULT_EVALUE = 1e-5
 MAX_HSPS = 10  # per query-subject pair; a pair that returns exactly this is reported as capped
-MAX_TARGET_SEQS = 500  # the reference set is 287 sequences — nothing may be truncated away
 SEGMENT_OFF = "-seg"  # see the module docstring; the value is "no"
 
 # The tabular columns, in the order the parser reads them. This tuple and the `-outfmt` string
@@ -107,6 +106,17 @@ class BlastResult:
     version: str
     reference: str
     molecule: str  # "prot" for blastx, "nucl" for blastn
+
+
+def subject_count(reference: str | Path) -> int:
+    """How many sequences a reference FASTA holds — the only honest ``-max_target_seqs``.
+
+    Counted from the file the search is about to build its database from, so the cap cannot
+    disagree with the set: a header is a line whose first character is ``>``, which is what makes
+    a FASTA a FASTA.
+    """
+    with Path(reference).open(encoding="utf-8") as handle:
+        return sum(1 for line in handle if line.startswith(">"))
 
 
 def subject_key(sseqid: str) -> str:
@@ -182,8 +192,17 @@ def search_argv(
     database: str | Path,
     evalue: float,
     max_hsps: int,
+    max_target_seqs: int,
 ) -> list[str]:
-    """The exact command line, so a test can hold it still without running BLAST."""
+    """The exact command line, so a test can hold it still without running BLAST.
+
+    ``max_target_seqs`` is the size of the reference set, counted from the file — never a
+    constant. Measured 08/10/2026 (P3B-07): the 500 that sufficed for the mito path's 287
+    sequences silently truncated the plastid search, which searches 2,838 — BLAST reported 929
+    HSPs over 467 subjects where the same command with the cap lifted reported 4,382 over 2,603,
+    and **nothing in the output said so**. A cap that cannot truncate is the only kind worth
+    having.
+    """
     if tool not in SEARCH_TOOLS:
         raise ValueError(f"{tool!r} is not one of {SEARCH_TOOLS}")
     argv = [
@@ -199,7 +218,7 @@ def search_argv(
         "-max_hsps",
         str(max_hsps),
         "-max_target_seqs",
-        str(MAX_TARGET_SEQS),
+        str(max_target_seqs),
     ]
     if tool == "blastx":
         argv += [SEGMENT_OFF, "no"]
@@ -299,7 +318,13 @@ def parse_protein_hits(
 
 
 def blastp_argv(
-    *, binary: str, query: str | Path, database: str | Path, evalue: float, max_hsps: int
+    *,
+    binary: str,
+    query: str | Path,
+    database: str | Path,
+    evalue: float,
+    max_hsps: int,
+    max_target_seqs: int,
 ) -> list[str]:
     """The naming search's command line — held still by a test, so the thresholds stay attached."""
     return [
@@ -315,7 +340,7 @@ def blastp_argv(
         "-max_hsps",
         str(max_hsps),
         "-max_target_seqs",
-        str(MAX_TARGET_SEQS),
+        str(max_target_seqs),
         SEGMENT_OFF,
         "no",
     ]
@@ -373,6 +398,7 @@ def run_blastp(
                 database=database,
                 evalue=evalue,
                 max_hsps=max_hsps,
+                max_target_seqs=subject_count(source),
             ),
             kind="binary",
             tool_path=binary,
@@ -541,6 +567,7 @@ def _run(
                 database=database,
                 evalue=evalue,
                 max_hsps=max_hsps,
+                max_target_seqs=subject_count(source),
             ),
             kind="binary",
             tool_path=binary,

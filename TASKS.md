@@ -89,7 +89,7 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   the artifact is really in A, so a no-op naming step cannot pass. **New finding, named:** the
   artifact keeps **6 `gene` features in vocabulary B** — **H-17**, §9.K-1.
 
-- [ ] **P3B-07 · The calling engine** *(M3B.2 · D-e)*
+- [x] **P3B-07 · The calling engine** *(M3B.2 · D-e)* — DONE 08/10 (§8.46)
   - Extract the calling core from `core/mito_caller.py` (DRY's second copy) — the mito tests are the guard.
   - `blastx` against the reference's own published `/translation` (**never self-translate**), `blastn`
     for rRNA, IR self-blast behind the structural gate.
@@ -98,6 +98,15 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
     rRNA · identity + coverage floors (**measured on the answer key**).
   **Done when:** the mito tests pass unchanged against the extracted core; each of the six rules has a
   test naming it; a below-floor hit is reported with its reason.
+  ✅ all three. `core/caller.py` (the machinery) + `core/mito_caller.py` (thin: its measured floors
+  50 %/0.5 and table 1) + `core/plastid_caller.py` (the plastid half: reference index from GenBank
+  records, floors **50 %/0.7**, table **11**, the self-blast IR reading). **43 mito tests pass with
+  not one line changed** — the extraction's evidence. Measured on the golden × 33 leave-one-out
+  references: 4,382 HSPs → **80 CDS calls, every one landing on a published locus**, and 4 rRNA.
+  The golden **cannot choose the coverage floor** (0.5–0.8 give the identical called set), so 0.7 is
+  §8.41's corpus number, named — P3B-10 re-checks. **Three silent failures found by the measurement
+  and fixed** (§9.L): the truncating `-max_target_seqs` constant · a whitespace gene name cutting the
+  FASTA header · rRNA product-sentences unnormalized. **Named, unfixed:** `lhbA` = `psbZ` — **H-18**.
 
 - [ ] **P3B-08 · Arbitration & export** *(M3B.3)*
   - Structure first, score only **within one program**; **overlap kept and reported**; one call per
@@ -201,4 +210,5 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | H-12 | `gene_names` is declared **shared** but loads only the plastid alias table (0 renamed on a mito record, measured 05/10) | ON HOLD — reopen with plant mito data | the module picks the vocabulary per record — or the §13 row says the *layer* is organelle-aware |
 | H-13 | **An unannotated record's IR is only half-checked** — identity, never length (`PZ428230.1`: 15,756 bp vs ~25.7 kb, §9.A-8) | OPEN, named 05/10 | IR length checked against ≥ 3 same-genus records; a length outlier stops the run by name; the corpus record is the negative test |
 | H-16 | **Repeats (`repeat-match` + Vmatch) has no module** — milestone **M2.12** | OPEN — own branch when picked up (Phase 2 is closed + merged) | a `repeats` module reports every match ≥30 bp with coordinates and region (the IR pair included), its count a new §8 entry |
+| H-18 | **`lhbA` and `psbZ` are one locus under two names** — `NC_042827.1` spells the 62 aa locus `lhbA`, the other 33 reference records (and the golden) spell it `psbZ` (measured 08/10, §8.46), so the reference vocabulary carries **80** CDS names for **79** loci and the caller calls both | OPEN, named 08/10 (P3B-07); the naming layer's (D5-09), and P3B-08 needs it resolved — one call per locus is that task's Done-when | `data/gene_aliases.yaml` carries the entry with §8.9's three signals (syntenic neighbours · length · `/product`), the direction taken from the ★ record; a test proves the vocabulary count drops to 79 on the pinned set |
 | H-17 | **`gene_normalize`'s artifact mixes the two vocabularies in one file** — CDS/tRNA/rRNA come out in A, the `gene` feature over the same span stays in B (measured 08/10: 6 stale `gene` features on the gatesii artifact, §9.K-1) | OPEN, named 08/10 (P3B-06) | the `gene` feature is renamed with the feature it spans, matched by **span** (not by name — the golden has two different genes under `trnG-UCC`, H-04); both published Iris records are the standard it is measured against (132/132 agreeing, 0 stale); a record whose `gene` feature carries no counterpart is reported, not guessed |
