@@ -112,6 +112,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 |---|---|---|---|
 | D-a | tRNA/rRNA calling | **ARAGORN de novo for tRNA** (declared, `aragorn=1.2.41`, matches the mito path, no reference needed) + `blastn` for rRNA (P3A-03's pair) | PROJECT.md §3 · docs/D5-08 |
 | D-b | Which records form the reference set | the **taxonomy rule** (same family first) over pinned records; the corpus is validation, never production | the pin · §8 |
+| — | Naming thresholds | **margin ≥ 10 bits · identity ≥ 50 % + coverage ≥ 0.7** — measured §8.41 (smallest true margin 19.2 bits; the gap is 44.93–67.75 %). The mito path's coverage 0.5 is **not** enough for plastid: `psbJ` is 36 aa | `core/` · §8.41 |
 | D-e | Shared calling core | **extract from `core/mito_caller.py`** — second real copy arriving (DRY), its tests the guard | code · PROJECT.md §3 |
 | — | `gene_normalize`'s organelle group | **plastid** for now — the ★ is one plastid record, and normalizing a mito record against it would print plastid spellings for mito genes (H-12's lesson) | §13 group table |
 | — | Conflict-stop exit code | **4** — the ladder is 1 error · 2 usage/IR gate (and the audit) · 3 missing tool | `cli.py` · API doc |
@@ -127,6 +128,8 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 - **Never self-translate a CDS** (§8.21) → always `blastx` against the record's own `/translation`.
 - **Blast's measured traps** (§8.22) → `-seg no` (masking cost `atp9` half its bits) · never
   `-parse_seqids` (it errors on our reference set) · boundaries from the alignment, never ORF-walking.
+- **A short CDS walks through a coverage floor of 0.5** (§8.41) → `psbJ` (36 aa) reaches **52.38 %** against `matK` over 21 aa; use **coverage ≥ 0.7**, where the gap is 44.93–67.75 %.
+- **The golden annotates two different trnG genes under one name** (`trnG-UCC` ×2, 73.24 % identical) and the corpus spells the pair inconsistently in both directions (§8.41) → never merge a duplicate name; it is a `stop` tier case and H-04 is cô Trang's call.
 - **The golden carries four overlapping pairs in the contract** → a rule that drops the weaker
   overlap deletes real genes; keep both, report.
 - **2/34 corpus records carry an inverted SSC with clean ORFs (§8.34)** → report, never block.
@@ -154,7 +157,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 
 ## Housekeeping
 
-*(H-15 · H-08 · H-14 moved into P3B-05. H-16 is the repeats milestone M2.12, on its own branch when picked up.)*
+*(H-15 · H-08 · H-14 **done** in P3B-05, 08/10/2026 — §8.42. H-16 is the repeats milestone M2.12, on its own branch when picked up.)*
 
 | ID | Task | Status | Done when |
 |---|---|---|---|

@@ -14,14 +14,16 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-01** — the reference set, built and pinned — then the three naming
-numbers (P3B-02), which must be measured **before** any `gene_normalize` code (D5-09 §9.3). The
-board's order note says why the tasks do not follow the milestone numbers. The phase's open calls —
-D-a · D-b · D-e, the conflict exit code, the parameter name, the organelle group, the schema bump —
-sit in `TASKS.md` → "Decisions to make", each with its recommended default. On hold by D5-07:
-H-06 · H-10 · H-12. ROADMAP's "The pipeline" maps every step of the canonical diagram — and every
-tool named inside a box — to its owner milestone. Nothing else is scheduled: Phase 6 waits on
-mito/nuclear data, Phase 7 on real reads (Illumina **and** ONT/HiFi).
+**Immediate next action:** **P3B-03** — the reference-set audit (BLOCK / REPORT classes,
+`--audit-only`, `file — reason` messages, MAFFT `--adjustdirection` + dotplot, the name-set report
+at N ≥ 3) — then **P3B-04** (`gene_normalize`), whose thresholds are now **measured numbers**, not
+open questions: margin **≥ 10 bits**, floor **identity ≥ 50 % + coverage ≥ 0.7** (§8.41). Done and
+pushed on `feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-05** (§8.42) — so
+H-15 · H-08 · H-14 are closed. The phase's open calls — D-a · D-b · D-e, the conflict exit code,
+the parameter name, the organelle group, the schema bump — sit in `TASKS.md` → "Decisions to make",
+each with its recommended default. **The ★ pick still waits on the audit report**, which is P3B-03's
+output (D5-09 §7.1): a recorded override is allowed until then. On hold by D5-07: H-06 · H-10 ·
+H-12. Nothing else is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
 
 **What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
 `[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
@@ -51,6 +53,68 @@ H-11 · H-13 · H-14. **Waiting on the PI:** H-04 (`trnG`) and D5-05 (what a gen
 claim — the mechanism is built and follows the conservative default).
 
 ## Log
+
+### 2026-10-08 · Claude · dev WSL · session 24 (Phase 3B opens with its preface: the reference set, the three numbers, and the cache that was lying)
+
+**Did.** Three of the board's ten tasks, each committed and pushed; a pre-existing red test fixed
+first, because a commit has to stand on a green `make check`.
+
+* **The red test was a real finding (§9.C-37).** `make check` failed in
+  `test_second_identical_run_is_cached_and_identical`: this machine's clock stepped **~1 s
+  backwards** between two runs, so a later run was stamped earlier, reused a second, and took the
+  `-2` suffix — and `sorted()` over run ids then put the third run *before* the second. The test
+  read back the directory it had just emptied. The product is fine (`RunLayout.create` still
+  guarantees one run = one directory; a new test pins that for a standing **and** a backwards
+  clock); what was wrong is the tests' assumption that a name order is a time order. Every run
+  directory is now identified by the set difference before/after a run. **§9's items shift**: the
+  new item is `§9.C-37` and §9.J's four move to 38–41 (ranges updated in `CLAUDE.md` and the
+  guard's docstring).
+* **P3B-01 · the reference set, pinned (§8.40).** `.panel/plastid-reference/` — the 34 Iridaceae
+  corpus records, re-pinned, 34/34 past the IR gate, 5,204,491 bp, **every sha256 identical to the
+  corpus pin**. The taxonomy rule (D-b) is the family rule, and the family is Iridaceae because
+  the contract genome and the answer keys both are. The **leave-one-out design is data**, not
+  prose: `core/plastid_reference.py`'s `leave_one_out()` and the committed
+  `data/plastid_reference.json` (34 targets × the other 33), because the corpus carries the
+  golden's own sequence and PGA's reading of it is 85 CDS where the contract says 86. New doors:
+  `plastid reference verify` (re-hash, `file — reason`, exit 1) and `plastid reference loo`.
+* **P3B-02 · the three numbers, before any `gene_normalize` code (§8.41).** Measured on the
+  corpus with BLAST+ 2.17.0 (`blastp`, `-seg no`, E-value 10) plus a fixed-parameter alignment for
+  tRNA. **Two of D5-09's own reasons do not survive**: `rpl2`/`rpl23` are 22.0–44.4 % identical and
+  the two `trnL` 61.2 % — neither needs test 4. What does: the **serine tRNAs** (26 of 1,182
+  cross-record tRNA comparisons rank another locus first, up to 15.05 points), **two genes under
+  one name** (the golden annotates two trnG features as `trnG-UCC`, 73.24 % identical), and names
+  the vocabulary cannot resolve (72 tRNA name occurrences + `lhbA`). The margin is a **score**
+  margin in bits (min 19.2, median 298.0) — in identity points it can go *negative* (`psaB` vs
+  `psaA`). The floor: with **coverage ≥ 0.7** the wrong-locus ceiling is 44.93 % and the true
+  ortholog floor 67.75 %, so `identity ≥ 50 %` fits — but only with 0.7, because `psbJ` is 36 aa
+  and a 21-aa alignment of it reaches 52.38 % against `matK`. D5-09 §4 and §9.3 are corrected in
+  place; the numbers are pinned in `tests/golden/test_naming_numbers.py`. **H-04 measured for the
+  first time**: `trnG-GCC` and `trnG-UCC` are two genes and the records use the two names in both
+  directions — a curator's call, not a spelling to normalise.
+* **P3B-05 · the cache stops lying (§8.42).** The key now carries the **annotation** (not just the
+  sequence), the input **order** (not sorted), the module's **source**, and what the step was asked
+  to produce (`--docx`) — and any parameter naming a file is **content-addressed**, which is how
+  D5-09 §7.2's ★ sha256 reaches a key at all. Each old behaviour was shown broken by loading
+  HEAD's `cache.py` beside the new one; four regression tests pin them. Existing cache entries are
+  unreachable now — the next run recomputes.
+
+**Validation.** `make check` green after every commit: lint · **691** fast tests · golden **64
+passed / 4 skipped** with named reasons (PGA · chloe+julia · table2asn absent). New: 13 tests for
+the reference set, 4 tier-B naming-number tests, 5 in `test_run.py`. The old cache behaviours were
+demonstrated, not assumed.
+
+**Residual risks.** (1) The three naming numbers are measured on Iridaceae records only — a
+cross-family sample (the team's Oldenlandia/Coleus) is **outside what was measured**, and the
+identity floor may need re-measuring there; the numbers are recorded with that boundary. (2) The
+vocabulary gap §8.41 measured (an alias table that cannot resolve `trnL-CAU`, `trnL-GUA`,
+`trmA-UGC`, a bare `trnL`, or `lhbA`) is input to P3B-04 and nothing consumes it yet. (3) `gene_aliases.yaml` still
+runs D3-02's direction — flipping it belongs to P3B-04. (4) The cache-key change costs one
+recomputation of every cached step, by design.
+
+**Blocked.** Nothing. The ★ pick (end user, from the audit report) blocks only the real-DB
+normalize run of P3B-04 — a recorded override is allowed meanwhile.
+
+**Next.** **P3B-03** — the reference-set audit — then **P3B-04** with §8.41's thresholds.
 
 ### 2026-10-07 · Claude · dev WSL · session 23 (the coverage check re-run at tool level — and Phase 3B opens)
 
