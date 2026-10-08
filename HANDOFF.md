@@ -14,18 +14,20 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-06** — Ts/Tv re-measured under the new naming direction: the
-alias flip is in (P3B-04, §8.44), the canonical keys five loci changed, and **2.6917 is still a
-prediction** until `substitutions` is re-run over the scope *CDS only · 79 shared genes · MAFFT ·
-IR excluded* (PROJECT.md §6 says the difference must be explained, not patched). Then **P3B-07**
-(the calling engine — extract the core from `core/mito_caller.py`; `blastp` over published
-`/translation` is already wired for the naming step and can be reused). Done and pushed on
-`feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-03** (§8.43) · **P3B-04**
-(§8.44) · **P3B-05** (§8.42, so H-15 · H-08 · H-14 are closed). The phase's open calls — D-a ·
-D-b · D-e — sit in `TASKS.md` → "Decisions to make"; the conflict exit code, the parameter name,
-the manifest schema and the organelle group are **decided and shipped** (P3B-04). **The ★ pick**
-is still the end user's: `data/naming_reference.json` holds a **recorded override**
-(`provisional: true`, the golden) and the audit report the pick is read from exists
+**Immediate next action:** **P3B-07** — the calling engine (M3B.2, D-e): extract the calling core
+from `core/mito_caller.py` (DRY's second copy; the mito tests are the guard), then `blastx` against
+the reference's own published `/translation` (never self-translate), `blastn` for rRNA, and the six
+measured rules of §8.22 as code. `blastp` over published `/translation` is already wired for the
+naming step (`external/blast.py`, P3B-04) and can be reused. Then **P3B-08** (arbitration &
+export), **P3B-09** (CLI & batch), **P3B-10** (golden + corpus validation — the phase's Done-when).
+Done and pushed on `feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-03** (§8.43) ·
+**P3B-04** (§8.44) · **P3B-05** (§8.42, so H-15 · H-08 · H-14 are closed) · **P3B-06** (§8.45 —
+Ts/Tv re-measured under the new direction: **unchanged at 2.6917**, and measured to be
+*direction-invariant*). The phase's open calls — D-a · D-b · D-e — sit in `TASKS.md` → "Decisions
+to make"; the conflict exit code, the parameter name, the manifest schema and the organelle group
+are **decided and shipped** (P3B-04). **The ★ pick** is still the end user's:
+`data/naming_reference.json` holds a **recorded override** (`provisional: true`, the golden) and
+the audit report the pick is read from exists
 (`plastid reference audit --panel .panel/plastid-reference`). On hold by D5-07: H-06 · H-10 ·
 H-12. Nothing else is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
 
@@ -50,12 +52,58 @@ lesson, paid three times : overlapping region bands (§8.36) · a barcode band s
 plus a GC-skew ring with 50 % gaps (§8.37) · summary lines drawn inside the GC-skew panel (§8.39).
 
 **H-15 · H-08 · H-14 are closed** (P3B-05, §8.42). **On hold by D5-07 (plastid first):**
-H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-09 · H-11 · H-13 · H-16. **Waiting on the PI:**
+H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-09 · H-11 · H-13 · H-16 · **H-17** (named 08/10,
+§9.K-1: the artifact `gene_normalize` writes keeps its `gene` features in vocabulary B while the
+CDS/tRNA/rRNA over the same span come out in A — 6 stale on the gatesii artifact). **Waiting on the PI:**
 H-04 (`trnG` — now measured, and a `stop` tier case: the golden annotates two *different* genes
 under one name, §8.41) and D5-05 (what a generated sentence may claim — the mechanism is built and
 follows the conservative default).
 
 ## Log
+
+### 2026-10-08 · Claude · dev WSL · session 27 (P3B-06: Ts/Tv re-measured — the number holds, and now we know why)
+
+**Did.** Re-measured §6's Ts/Tv under the naming direction P3B-04 flipped — the task's own words
+were "a prediction until then", and P3B-04's log said "chưa đo" in as many words.
+
+* **Measured in the pipeline order, not by re-running the older test.** The existing CDS-scope
+  golden compares the two *published* records, which is §8.27's measurement of the *old*
+  direction; under D5-09 a sample inherits vocabulary A **through** the naming step. So: ran
+  `gene_normalize` (`mode=normalize`, the golden as reference) to get `NC_024936.1.normalized.gb`
+  — the six renames of §8.44 — then `substitutions --set scope=cds` on **that artifact**. Result:
+  **79 shared genes · 68,448 columns · 68,382 comparable · 443 substitutions · 323 Ts / 120 Tv =
+  2.6917** — identical to §8.27 to the unit (§8.45).
+* **And why it could not have moved.** The alias table maps every member of a locus to that locus
+  whichever member is canonical, so the flip **relabels** the shared set instead of re-selecting
+  it; it could only re-select if a record carried two *different* genes whose names fall in one
+  locus. Measured on both Iris records: 86 CDS → 79 canonical names each, **0** loci reached by two
+  spellings. The invariance is a measured property, not a hope.
+* **Labels move, numbers do not.** `substitutions_by_gene` now prints `ycf3` · `ycf4` · `psbN` ·
+  `clpP` · `ndhL` · `atpI` · `psaI` · `psbB` where §8.27 printed the old spellings for the same
+  loci — vocabulary, not conclusion.
+* **New guard.** `tests/golden/test_tier_b.py::test_the_naming_step_does_not_move_the_golden_ts_tv`
+  runs that order and asserts the artifact **is** in A (`atpI` · `psaI` · `psbB` present), so a
+  naming step that silently did nothing cannot pass.
+* **A finding, named not fixed.** Reading that artifact: **6 `gene` features still spell
+  vocabulary B** (`atpL` · `psaL` · `bspB` · `trnk-UUU` · `trnl-GUA` ×2) over the same spans as the
+  renamed CDS/tRNA — `GENE_KINDS` excludes `gene` from every renaming decision. Both published
+  records agree 132/132 at the same spans, and CGAS (D5-08's model) renames them too. **H-17**,
+  §9.K-1 (a new §9 subsection, so the item numbering rule now reads D–I and K).
+
+**Validation.** `make check` green: **756 fast tests · 69 golden passed / 4 skipped** (PGA ·
+chloe+julia · table2asn missing; MAFFT, MISA, BLAST+ on `PATH`). The four named goldens —
+`substitutions` (both scopes), `kaks`, `popgen` — pass. `tests/unit/test_project_docs.py` updated
+in the same commit: entry count 44 → 45, §9.K added to the restart-at-1 guard.
+
+**Residual risks.** (1) The ★ is still the recorded **override** (`provisional: true`, the golden),
+so the printed vocabulary is the dev's provisional choice; a different ★ re-runs this measurement
+with the same result only if that record's partition is clean too — the property is measurable per
+record and H-17's fix is the other place it matters. (2) H-17 is *display* today: `GENE_KINDS`
+keeps `gene` features out of every count and every comparison module, so no number is wrong yet.
+
+**Blocked.** Nothing new. The ★ pick still waits on the end user.
+
+**Next.** **P3B-07** — the calling engine (extract the core from `core/mito_caller.py`).
 
 ### 2026-10-08 · Claude · dev WSL · session 26 (P3B-04: one vocabulary, and the alias direction flipped)
 
