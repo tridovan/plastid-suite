@@ -60,6 +60,10 @@ ban-relative-imports = "all"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+# The repo root, so a test can import `tools/corpus_bar.py` — the instrument that measures
+# P3B-10's bar. It is not a shipped module (it drives the CLI as a user would), so it lives
+# outside `src/`, and its classification rule is tested like any other claim in this repo.
+pythonpath = ["."]
 markers = [
     "tier_b: requires external tools (MISA/cpstools/MAFFT); skipped with a printed reason when absent",
 ]
