@@ -157,18 +157,36 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   but the old set stays until the phase's own bar is met (D3-01 gains its update line then).
 
 - [~] **P3B-10 · Golden + corpus validation** *(M3B.5 — the phase's Done-when)* — IN PROGRESS
-  (10/10/2026, §8.50). **Half the golden bar is met: the artifact is 132 = 86 + 38 + 8.** The
-  corpus ran (34/34 LOO, 0 failed runs) and **the bar is not met**: 1,579 conclusion-level
-  differences against PGA's 637. The composition is the next work: 161 extra + 167 missing calls
-  (why: not measured), the truncated first exons of `rps16` · `petB` · `petD` · `rpl16` (6–40 bp),
-  `rps19` (**H-20**), `lhbA` (**H-18**), and 8 tRNA names ARAGORN reads differently (**H-04**'s
-  family). The classification harness is not committed yet.
+  (10/10/2026, §8.50–§8.51). **The corpus is measured end to end and the bar is NOT met**: 811
+  conclusion-level differences against PGA's 588 (0/34 records better, 32 worse, 2 tied). The
+  instrument is now in the repo — `tools/corpus_bar.py`, `make corpus-bar`, and
+  `tests/unit/test_corpus_bar.py` (19 tests for the rule itself): matched = same locus, same place
+  by **exon**; a different name is `vocabulary`; a different exon is a conclusion **unless every
+  exon end moves ≤ 1 bp**, which is `boundary` (measured: 719/1,264 pairs move exactly 1 bp, and
+  ARAGORN by hand returns the coordinates we emit — two methods ending a tRNA, not two
+  conclusions). The tolerance is applied to both readings and the no-tolerance totals are printed
+  beside it (1,413 against 699) — the bar is read at the tight setting, and **no reading of the
+  rule passes**.
+  - **The golden's 132 = 86 + 38 + 8 is right by accident, and that is the finding.** Our artifact
+    is **85 loci + a duplicate `lhbA` = 86**; the published record is **85 loci + `rps12` written
+    twice = 86**. Fixing H-18 alone drops the golden to 85 CDS — H-18 and the `rps12` IR copy are
+    one piece of work.
+  - **The next work, measured and named** (*why* of every count in §8.51): (a) **exon structure
+    from the reference** — the first exons of `petB` (6 bp) · `petD` (8) · `rpl16` (9) · `rps16`
+    (40) are below blastx's seed and are simply not called: 136 of our 242 moves > 30 bp, plus
+    `rps12`'s **26 bp middle exon and its whole IRa copy** (12 missing + 21 extent — PGA also
+    misses `rps12` and `ycf1` in the same records, so those two are hard for both methods);
+    (b) **H-18** (`lhbA`, 33 of our 41 extras); (c) **H-20** (`rps19`); (d) 8 tRNA names ARAGORN
+    reads differently (**H-04**'s family — incl. `trnI-GAU` read as `trnE-UUC`, which is the
+    intron's anticodon); (e) the golden's own difference list, kind + span, asserted in
+    `tests/golden/test_plastid_annotate.py`.
   - The reference set the corpus runs against is **the pinned set with `NC_024936.1` excluded**
     (`--exclude`), because the audit gate now stops any run that would search it (§8.49). Leave-one-
     out still applies on top: for a target inside the set, the drop and the LOO both bite.
   - Two named differences arrive from P3B-09 and must be classified, not discovered: **H-20**
-    (`rps19` 279 bp → 225 bp when the blocked record is dropped) and the **tRNA count** (30 called
-    vs 38 published — the export mirrors CDS and rRNA, not tRNA).
+    (`rps19` 279 bp → 225 bp when the blocked record is dropped — classified: `rps19` is 33 extent
+    + 1 missing, ours) and the **tRNA count** (30 called vs 38 published — **fixed** in §8.50's
+    ARAGORN `-i`; the export's tRNA mirroring is `boundary` work now, not a count).
   **Done when:** the golden sequence annotates to exactly **132 = 86 + 38 + 8** with every difference
   from the published record listed (kind + span, nothing summarized away); all 34 records ran
   leave-one-out, each result diffed against the published record **and** against PGA's reading, every

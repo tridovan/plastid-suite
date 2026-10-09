@@ -693,3 +693,70 @@ bản tham chiếu không, và cái giá của luật ấy); (c) `rps19` −54 b
 (d) 8 tên tRNA khác bản công bố (**H-04**'s `trnG`, `trnI-GAU` bị ARAGORN đọc thành `trnE-UUC`,
 `trnfM-CAU`/`trnI-CAU` thành `trnM-CAU` — ARAGORN đọc anticodon của tRNA có intron); (e) harness
 phân loại chưa được commit.
+
+### 8.51. P3B-10: chạy lại corpus sau hai bản sửa, dựng thước đo thành code trong repo — và ba phát hiện mới (10/10/2026)
+
+**(1) Con số của §8.50 là của bộ gọi *trước* hai bản sửa.** Chạy lại 34 bản ghi leave-one-out bằng
+code hiện tại (0 run hỏng, `--exclude NC_024936.1`): **thiếu 167 → 47, thừa 161 → 41**. Toàn bộ họ
+"sao chép IR" biến mất — đúng như bản sửa §8.50 dự đoán: `rps7` · `rpl23` · `rpl2` · `ndhB` · `ycf2`
+· `rps12` · bốn locus rRNA, mỗi thứ 11–12 bản ghi "thiếu" một bản sao, nay khớp. Số khác độ dài
+tăng nhẹ (1.251 → 1.278) vì bản sao nay đúng chỗ nên **nhiều cặp được đối chiếu hơn**, không phải
+vì có thêm lỗi.
+
+**(2) Thước đo nay nằm trong repo, có test.** P3B-10 hỏi một câu so sánh, nên nó chỉ tranh luận được
+nếu cái thước ở trong repo, chạy lại được, và **phát biểu luật của nó ở đúng một chỗ**:
+`tools/corpus_bar.py` (chạy `make corpus-bar`) + `tests/unit/test_corpus_bar.py` (19 test cho chính
+luật ấy). Khi chuyển luật từ script nháp vào repo, **hai lỗ của luật tự lộ ra** và đều đã sửa, mỗi
+lỗ một test: (a) bản đầu chỉ so **envelope** — hai cách đọc `rpoC1` của bản vàng cùng trải
+20.179–22.962 mà lệch nhau 27 bp *bên trong*, luật cũ gọi cặp ấy là giống hệt; (b) luật cũ **không
+so sợi** — một call trên sợi đối diện với toạ độ y hệt đi qua như "không khác gì" (corpus có đúng
+một ca: `trnS-UGA`).
+
+**(3) Luật, và một ngưỡng được khai ra.** Cặp khớp = cùng locus, cùng chỗ (chồng lấn ≥ một nửa
+exon ngắn hơn, **theo exon, không theo envelope**). Khác **tên** = `vocabulary`. Khác **exon** =
+`conclusion`, **trừ** khi mọi đầu exon lệch ≤ **1 bp**: ấy là `boundary` — cùng gen, cùng chỗ, hai
+phương pháp đặt đầu mút lệch nhau một base. Đo được, và là lý do của ngưỡng: **719/1.264** cặp khớp
+lệch đúng 1 bp ở một hoặc hai đầu, 634 trong đó bộ gọi của dự án **bao trùm** bản công bố; và chạy
+ARAGORN bằng tay trên bản vàng trả về **đúng** toạ độ bộ gọi xuất ra (`tRNA-Asp c[30540,30615]` so
+với `complement(30541..30614)` của bản ghi) — tức đây là hai phương pháp cắt đầu tRNA, không phải
+hai kết luận về hệ gen. Ngưỡng chọn **1 bp — mức chặt**, không phải mức làm con số đẹp: ở 3 bp
+(một codon, quy ước codon dừng của CDS) bộ gọi thắng ngay cả khi chưa sửa gì, nên **thanh chuẩn
+được đọc ở 1 bp** và con số 3 bp vẫn được in ra cạnh nó. Ngưỡng áp cho **cả hai** cách đọc như nhau.
+
+**(4) Kết quả, cả hai cách đọc:**
+
+| | kết luận | thiếu · thừa · độ dài | `boundary` | nếu tính mọi đầu mút (không ngưỡng) | vocabulary |
+|---|---|---|---|---|---|
+| **bộ gọi của dự án** | **811** | 47 · 41 · 723 | 602 | 1.413 | 373 |
+| **PGA** | **588** | 39 · 4 · 545 | 111 | 699 | 149 |
+
+**Thanh chuẩn KHÔNG đạt, ở cả hai cách đọc** (811 so với 588; không ngưỡng: 1.413 so với 699), và
+**0/34 bản ghi** bộ gọi của dự án tốt hơn PGA (32 kém hơn, 2 hoà). Không có cách đọc nào của luật
+đảo được kết luận này — nên §8.51 không phải một lần chỉnh luật để cho qua.
+
+**(5) Ba phát hiện mới, đều đo được, đều chưa sửa.**
+
+- **`lhbA` là một *call trùng*, không chỉ là một cái tên khác (H-18, nay có số):** artifact bản vàng
+  gọi **cả `psbZ` lẫn `lhbA` ở đúng 35.895–36.083** — hai feature CDS, một locus, phạm luật "một
+  locus một call" của P3B-08. Đây là **33 trong 41 call thừa** của cả corpus. Và nó làm **con số 86
+  của bản vàng đúng một cách tình cờ**: bộ gọi có **85 locus + 1 bản trùng `lhbA` = 86**, bản công
+  bố có **85 locus + `rps12` viết hai lần = 86**. Sửa H-18 (một mục trong `data/gene_aliases.yaml`)
+  mà không sửa `rps12` thì bản vàng **rơi xuống 85 CDS** — hai việc này đi cùng nhau.
+- **`rps12` bị gọi thiếu một exon và thiếu cả bản sao IR:** bản công bố viết `rps12` thành **hai
+  feature, mỗi cái 3 exon** (exon 1 dùng chung ở LSC, hai exon trong mỗi bản IR); bộ gọi xuất **một
+  feature, 2 exon** (68.976–69.089 + 97.786–98.016) — thiếu **exon giữa 26 bp (97.218–97.243)** và
+  thiếu hẳn bản sao trong IRa. Đây là **12 call thiếu** trong corpus (PGA cũng thiếu: 11) và 21
+  khác độ dài — gen trans-spliced nằm vắt qua ranh giới IR nên luật sao bản sao hiện tại
+  (`_ir_side`: chỉ sao gen **nằm trọn** trong một bản IR) không chạm tới nó.
+- **Exon đầu 6–40 bp: bốn gen, 136/242 ca lệch lớn nhất.** `petB` (exon đầu **6 bp**), `petD` (8),
+  `rpl16` (9), `rps16` (40) — bộ gọi ra **đúng exon thứ hai** và bỏ exon đầu, vì exon 2–13 codon
+  nằm dưới ngưỡng seed của blastx. Cộng `rps12` (21) · `rps19` (13) · `psbC` (18) · `rpl2` (8) ·
+  `ndhK` (8) · `clpP1` (7), nhóm ">30 bp" là **242 ca**. Đây là việc lớn nhất còn lại: lấy **cấu
+  trúc exon từ bản tham chiếu** thay vì suy từ alignment — đúng nguyên tắc "cấu trúc trước" của
+  D5-08 và cùng gốc với **H-20**.
+
+**(6) Phân rã độ lệch, để lần sau không phải đo lại:** bộ gọi — `rpl2` 68 · `trnA-UGC` 57 · `rps12`
+34 · `rps16` 34 · `rpoC1` 34 · `petB` 34 · `petD` 34 · `rpl16` 34; PGA — `rpl2` 62 · `ycf2` 62 ·
+`trnI-GAU` 44 · `rpoC2` 31 · `psbJ` 31 · `rpl16` 31 · `psbK` 29 · `ndhD` 28. Thiếu, bộ gọi: `ycf1`
+24 · `rps12` 12; PGA: `ycf1` 23 · `rps12` 11 — **hai bộ gọi cùng thiếu `ycf1` và `rps12`** ở cùng
+những bản ghi, tức hai locus ấy khó với cả hai phương pháp, không phải lỗi riêng của bộ gọi này.
