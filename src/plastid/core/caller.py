@@ -48,8 +48,8 @@ absent from the reference set is reported as not called, never guessed.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable, Iterator, Sequence
-from dataclasses import dataclass
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from dataclasses import dataclass, replace
 from io import StringIO
 from pathlib import Path
 
@@ -57,6 +57,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
+from plastid.core.exon_structure import Alignment, Junction, Placement, Transfer, place
 from plastid.core.model import Gene, Genome, Interval
 from plastid.core.orf import START_CODONS, STOP_CODONS
 from plastid.core.sequence import reverse_complement
@@ -72,8 +73,10 @@ __all__ = [
     "ReferenceIndex",
     "call_cds",
     "call_rrna",
+    "header_field",
     "read_reference",
     "render_fasta",
+    "transfer_structure",
 ]
 
 
@@ -94,6 +97,9 @@ class ReferenceEntry:
     source_gene: str  # the symbol the reference record itself used
     vocabulary: str | None  # our canonical symbol, when we have one
     sequence: str
+    # The record's own exon structure, as junctions a target can be searched with (P3B-10). Empty
+    # for a single-exon gene, for an rRNA, and on the mito path, which does not use this yet.
+    junctions: tuple[Junction, ...] = ()
 
     @property
     def key(self) -> str:
@@ -111,9 +117,8 @@ class ReferenceEntry:
         matching a key that could never match. The mito path never met this because no
         mitochondrial gene symbol contains a space.
         """
-        return "|".join(
-            _field(part) for part in (self.accession, self.source_gene, self.vocabulary or "-")
-        )
+        fields = (self.accession, self.source_gene, self.vocabulary or "-")
+        return "|".join(header_field(part) for part in fields)
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,8 +179,13 @@ class Hsp:
         return self.qlo <= other.qhi and other.qlo <= self.qhi
 
 
-def _field(value: str) -> str:
-    """One ``|``-delimited header field, whitespace-free — see :attr:`ReferenceEntry.key`."""
+def header_field(value: str) -> str:
+    """One ``|``-delimited header field, whitespace-free — see :attr:`ReferenceEntry.key`.
+
+    Public because a junction's id is built the same way (P3B-10): a header written with one rule
+    and read with another is the bug this function exists to prevent, and a second copy of the
+    rule is how it comes back.
+    """
     return "_".join(value.split())
 
 
@@ -234,6 +244,14 @@ class ReferenceIndex:
             (entry for entry in self.entries if entry.key == key and len(entry.sequence) == length),
             None,
         )
+
+
+# The two notes a placement from the reference's own exon structure supersedes: when the structure
+# establishes an end, the alignment's failure to reach it is no longer a fact about the call
+# (`exon_structure.place`), and a table that kept saying "partial" would contradict its own
+# coordinates. Named here because the note and the test that drops it must be the same string.
+NOT_REACHED_FIVE_PRIME = "the alignment does not reach the reference 5' end"
+NOT_REACHED_THREE_PRIME = "the alignment does not reach the reference 3' end"
 
 
 @dataclass(frozen=True, slots=True)
@@ -375,11 +393,17 @@ def call_cds(
     min_coverage: float,
     transl_table: int = 1,
     max_hsps_per_subject: int | None = None,
+    structure_first: bool = False,
 ) -> CallResult:
     """Call the protein-coding genes of ``genome`` from a blastx run's hits.
 
     The floors and the translation table are **required**: each organelle path measures its own
     (§8.22 for the mito path, §8.46 for the plastid one) and neither may inherit the other's.
+
+    ``structure_first`` is the same kind of per-path statement (see :func:`_choose`): it drops a
+    candidate whose protein is the C-terminal stretch of another candidate's, which is what a
+    record annotating one gene from an inner start codon looks like. The plastid path measured a
+    case for it (``rps19``, §8.55) and asks for it; the mito path does not, so it does not.
     """
     if transl_table not in START_CODONS:
         raise ValueError(
@@ -396,7 +420,96 @@ def call_cds(
         min_coverage=min_coverage,
         transl_table=transl_table,
         max_hsps_per_subject=max_hsps_per_subject,
+        structure_first=structure_first,
     )
+
+
+def transfer_structure(result: CallResult, hits: Mapping[str, Sequence[Alignment]]) -> CallResult:
+    """Rebuild every CDS call from its reference's **own** exon structure, where it could be placed.
+
+    The calls a protein search makes are as good as the words it can seed on: an exon shorter than
+    a word is invisible (``petB``'s 6 bp, ``petD``'s 8, ``rpl16``'s 9, ``rps16``'s 40 — measured
+    missed in all 34 corpus records), and an intron lying *inside* one alignment leaves the
+    boundaries around it wherever the local alignment stopped (``rpoC1`` 15 and 12 bp away from
+    the published ones). Neither is a scoring problem: no search over the target's own DNA can
+    find a 6 bp exon, and none of them is what the reference already knows.
+
+    So the reference's structure is placed instead — see :mod:`plastid.core.exon_structure` — and
+    a call is rebuilt around it. A call whose reference has no structure to place (a single-exon
+    gene, a trans-spliced one, an rRNA) comes back **unchanged**: this is a transfer of what the
+    reference states, not a second opinion about everything.
+
+    Only ``parts`` and the notes move. The floors, the identity, the reference itself and the
+    arbitration that chose it are untouched — the placement says *where*, never *which*.
+    """
+    calls: list[GeneCall] = []
+    findings = list(result.findings)
+    rebuilt = 0
+    for call in result.calls:
+        if call.kind != "CDS" or not call.reference.junctions or call.strand == 0:
+            calls.append(call)
+            continue
+        placement = place(
+            Transfer(
+                symbol=call.symbol,
+                strand=call.strand,
+                spans=tuple((part.start + 1, part.end) for part in call.parts),
+                partial_start=call.partial_start,
+                partial_end=call.partial_end,
+            ),
+            call.reference.junctions,
+            hits,
+        )
+        if placement is None:
+            calls.append(call)
+            continue
+        rebuilt += 1
+        findings.extend(placement.notes)
+        notes = _notes_kept(call.notes, placement)
+        calls.append(
+            GeneCall(
+                symbol=call.symbol,
+                kind=call.kind,
+                parts=tuple(
+                    Interval(
+                        start=span[0] - 1,
+                        end=span[1],
+                        strand=call.strand,
+                        partial_start=placement.partial_start and index == 0,
+                        partial_end=placement.partial_end and index == len(placement.spans) - 1,
+                    )
+                    for index, span in enumerate(placement.spans)
+                ),
+                coverage=call.coverage,
+                identity=call.identity,
+                bitscore=call.bitscore,
+                reference=call.reference,
+                transl_table=call.transl_table,
+                notes=notes,
+            )
+        )
+    if not rebuilt:
+        return result
+    return replace(result, calls=tuple(calls), findings=tuple(findings))
+
+
+def _notes_kept(notes: Sequence[str], placement: Placement) -> tuple[str, ...]:
+    """The call's own notes minus the ones the placement has just answered.
+
+    A note saying the alignment did not reach the reference's 5' end is a fact about the
+    *alignment*; once the reference's own structure placed that end, keeping it would put "partial"
+    in the table beside coordinates that are no longer partial. Notes about anything else stay —
+    this drops what was superseded and nothing else.
+    """
+    dropped = tuple(
+        prefix
+        for prefix, established in (
+            (NOT_REACHED_FIVE_PRIME, not placement.partial_start),
+            (NOT_REACHED_THREE_PRIME, not placement.partial_end),
+        )
+        if established
+    )
+    return tuple(note for note in notes if not note.startswith(dropped))
 
 
 def call_rrna(
@@ -431,6 +544,7 @@ def _call(
     min_coverage: float,
     transl_table: int | None,
     max_hsps_per_subject: int | None,
+    structure_first: bool = False,
 ) -> CallResult:
     by_key: dict[str, list[Hsp]] = defaultdict(list)
     for hsp in _deduplicate(hsps):
@@ -487,7 +601,7 @@ def _call(
         if not mine:
             not_called.append(_nothing_found(symbol, below_floor.get(symbol), min_identity))
             continue
-        chosen = _choose(mine)
+        chosen = _choose(mine, structure_first=structure_first)
         competing.extend(_competing_row(symbol, item, chosen) for item in mine)
         if chosen is None:
             not_called.append(_below_the_floors(symbol, mine, min_coverage))
@@ -755,18 +869,54 @@ def _candidate(
     )
 
 
-def _choose(candidates: Sequence[_Candidate]) -> _Candidate | None:
+def _choose(
+    candidates: Sequence[_Candidate], *, structure_first: bool = False
+) -> _Candidate | None:
     """The highest-identity candidate that passes the floors; bitscore breaks ties.
 
     Measured on ``atp6``: ranking by bitscore chose a 75.6 %-identity alignment 418 aa long that
     pulled the call 381 bp upstream of the published CDS over a 93.4 % one that matched it. The
     closest relative is what a gene model should be transferred from — not the longest alignment,
     which is how a divergent open reading frame gets welded onto a gene.
+
+    **Structure decides before the score.** H-19 keeps a truncated duplicate out of the *index*;
+    this is the same rule *between* candidates, and it is needed for the same reason. Measured on
+    the golden's ``rps19`` (10/10/2026): three references spell it 225 bp / 74 aa, and that
+    protein is a **suffix** of the 92 aa protein the target's own record carries — the same gene
+    annotated from an inner ATG. Those three score **100.00 %** against 98.91 % for the complete
+    ones, so identity alone transfers the truncation and the call lands 54 bp short of the
+    published CDS. A candidate that is a stretch of another candidate's protein explains a proper
+    subset of the target's residues and can never be the better model of it.
     """
     passing = [item for item in candidates if item.passes_floors]
     if not passing:
         return None
+    if structure_first:
+        passing = _not_truncated(passing)
     return max(passing, key=lambda item: (item.identity, item.bitscore, item.coverage))
+
+
+def _not_truncated(candidates: Sequence[_Candidate]) -> list[_Candidate]:
+    """The candidates whose protein is not the *end* of another candidate's — see :func:`_choose`.
+
+    A **suffix**, deliberately, and not any containment: two records spelling one gene from
+    different start codons make the shorter protein the longer one's C-terminal stretch, while an
+    arbitrary internal match is as likely to be low-complexity sequence as an annotation. Measured
+    over the whole pinned set (10/10/2026): the only containment at any locus is ``rps19``'s three
+    74 aa proteins inside the 92 aa ones, and one 92 aa record that is a *prefix* of a 94 aa one —
+    which this rule leaves alone, because a gene cut short at its 3' end is a different claim from
+    one started late, and the corpus has no measurement that would justify acting on it.
+    """
+    sequences = {item.entry.sequence for item in candidates}
+    truncated = {
+        sequence
+        for sequence in sequences
+        if any(
+            other.endswith(sequence) and other != sequence and len(other) > len(sequence)
+            for other in sequences
+        )
+    }
+    return [item for item in candidates if item.entry.sequence not in truncated]
 
 
 def _competing_row(
@@ -854,12 +1004,11 @@ def _refine_start(
     reached = _reaches_five_prime(candidate, exons[0])
     if kind != "CDS":
         if not reached:
-            notes.append("the alignment does not reach the reference 5' end")
+            notes.append(NOT_REACHED_FIVE_PRIME)
         return not reached
     if not reached:
         notes.append(
-            "the alignment does not reach the reference 5' end — the start is partial, and it is "
-            "not moved to the next ATG"
+            NOT_REACHED_FIVE_PRIME + " — the start is partial, and it is not moved to the next ATG"
         )
         return True
     codon = _codons(genome, exons[0], transl_table or 1)[0]
@@ -876,14 +1025,26 @@ def _refine_end(
     kind: str,
     notes: list[str],
 ) -> bool:
-    """Is the 3' coordinate established? At most one codon past the alignment is ever read."""
+    """Is the 3' coordinate established? At most one codon past the alignment is ever read.
+
+    **The stop codon is looked for whether or not the alignment reached the reference's own 3'
+    end**, because it is what says where *this* gene ends. blastx stops translating at a stop, so
+    a target whose gene is shorter than the reference's presents an alignment that simply ends —
+    and requiring the alignment to reach the reference's end left every such call one codon short
+    of the published CDS. Measured (P3B-10, §8.55): of the corpus's differences that survived the
+    exon-structure transfer, **65 were exactly this** — the published end 3 bp past ours with a
+    stop codon sitting there, ``psaJ`` (30 records) at the top of them.
+
+    What is *not* done is walking on: one codon is read, never two, and a gene whose next codon is
+    not a stop stays a partial end rather than being stretched to the next one.
+    """
     exon = exons[-1]
     start, end, strand, _ = exon
-    if not _reaches_three_prime(candidate, exon):
-        notes.append("the alignment does not reach the reference 3' end")
-        return True
+    reached = _reaches_three_prime(candidate, exon)
     if kind != "CDS":
-        return False  # rRNA has no stop codon to find or to miss
+        if not reached:
+            notes.append(NOT_REACHED_THREE_PRIME)
+        return not reached  # rRNA has no stop codon to find or to miss
     new_start, new_end = (start - 3, end) if strand < 0 else (start, end + 3)
     if new_start < 1 or new_end > len(genome):
         notes.append(
@@ -894,7 +1055,15 @@ def _refine_end(
     codon = _codons(genome, [new_start, new_end, strand, 0], 1)[-1]
     if codon in STOP_CODONS:
         exon[0], exon[1] = new_start, new_end
+        if not reached:
+            notes.append(
+                "the alignment stops short of the reference 3' end but the next codon is a stop — "
+                "this gene is one codon shorter than the reference's, and the stop is its end"
+            )
         return False
+    if not reached:
+        notes.append(NOT_REACHED_THREE_PRIME)
+        return True
     notes.append(
         f"the alignment reaches the reference 3' end but the next codon is {codon}, not a stop — "
         f"left as a partial end rather than walked on to the next stop"

@@ -12,7 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from plastid.core.caller import Hsp, ReferenceEntry
+from plastid.core import caller as core
+from plastid.core.caller import Hsp, ReferenceEntry, ReferenceIndex
 from plastid.core.genbank import read_genbank
 from plastid.core.ir import IRResult
 from plastid.core.model import Gene, Genome, Interval
@@ -295,3 +296,83 @@ def test_the_goldens_reference_index_names_every_cds_locus() -> None:
     assert index.unnameable() == ()
     assert len(vocabulary) == 79  # 86 features, 79 loci: the inverted repeat's copies
     assert set(vocabulary_of([golden], kind="rRNA")) == {"rrn16", "rrn23", "rrn4.5", "rrn5"}
+
+
+# ------------------------------------------------- structure decides before the score (H-20)
+
+
+def _entry(name: str, protein: str, accession: str) -> ReferenceEntry:
+    return ReferenceEntry(
+        accession=accession,
+        organism="Testus testus",
+        source_gene=name,
+        vocabulary=name,
+        sequence=protein,
+    )
+
+
+def _one_hsp(entry: ReferenceEntry, *, qstart: int, qend: int, pident: float, bitscore: float):
+    from plastid.core.caller import Hsp
+
+    return Hsp(
+        subject_key=entry.key,
+        pident=pident,
+        length=len(entry.sequence),
+        qstart=qstart,
+        qend=qend,
+        sstart=1,
+        send=len(entry.sequence),
+        evalue=1e-30,
+        bitscore=bitscore,
+        frame=1,
+    )
+
+
+def test_a_record_that_starts_a_gene_late_does_not_win_on_identity() -> None:
+    """Measured on the golden's ``rps19`` (§8.55): three references spell it 225 bp / 74 aa, and
+    that protein is the **suffix** of the 92 aa protein the target's own record carries — the same
+    gene annotated from an inner ATG. They score 100.00 % against 98.91 % for the complete ones,
+    so identity alone transfers the truncation and the call lands 54 bp short of the published CDS.
+
+    Structure decides before the score (D5-08 §3): H-19 keeps a truncated duplicate out of the
+    *index*; this is the same rule between candidates.
+    """
+    protein = "MK" + "A" * 90
+    complete = _entry("rps19", protein, "NC_000001.1")
+    late = _entry("rps19", protein[18:], "NC_000002.1")  # the complete protein's last 74
+    index = ReferenceIndex.from_entries((complete, late), vocabulary=("rps19",))
+    hsps = (
+        _one_hsp(complete, qstart=1, qend=279, pident=98.9, bitscore=189.0),
+        _one_hsp(late, qstart=19, qend=240, pident=100.0, bitscore=154.0),
+    )
+
+    plain = core.call_cds(_genome(), index, hsps, min_identity=50.0, min_coverage=0.5)
+    structured = call_cds(_genome(), index, hsps, min_identity=50.0, min_coverage=0.5)
+
+    assert plain.one("rps19").reference.accession == "NC_000002.1"  # identity picks the tail
+    assert structured.one("rps19").reference.accession == "NC_000001.1"  # the plastid path does not
+    # and it is a *choice*, not a silence: the loser is still reported with its own numbers
+    assert {row.reference_accession: row.chosen for row in structured.competing} == {
+        "NC_000001.1": True,
+        "NC_000002.1": False,
+    }
+
+
+def test_a_gene_cut_short_is_not_read_as_a_late_start() -> None:
+    """A prefix is a different claim from a suffix, and the rule deliberately leaves it alone:
+    no measurement yet says which of the two a record meant (see ``caller._not_truncated``)."""
+    protein = "MK" + "A" * 90
+    complete = _entry("rps19", protein, "NC_000001.1")
+    short = _entry("rps19", protein[:20], "NC_000002.1")  # a prefix, not a suffix
+    index = ReferenceIndex.from_entries((complete, short), vocabulary=("rps19",))
+    hsps = (
+        _one_hsp(complete, qstart=1, qend=279, pident=98.9, bitscore=189.0),
+        _one_hsp(short, qstart=1, qend=60, pident=100.0, bitscore=60.0),
+    )
+
+    assert (
+        call_cds(_genome(), index, hsps, min_identity=50.0, min_coverage=0.5)
+        .one("rps19")
+        .reference.accession
+        == "NC_000002.1"
+    )

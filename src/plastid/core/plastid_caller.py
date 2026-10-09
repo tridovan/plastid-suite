@@ -49,7 +49,9 @@ from plastid.core.caller import (
     Hsp,
     ReferenceEntry,
     ReferenceIndex,
+    header_field,
 )
+from plastid.core.exon_structure import junctions as junctions_of
 from plastid.core.gene_names import AliasTable, aliases_for, normalize_name
 from plastid.core.ir import IRResult
 from plastid.core.model import Gene, Genome, coding_sequence
@@ -224,6 +226,13 @@ def reference_entries(
                     source_gene=gene.name,
                     vocabulary=locus if allowed is None or locus in allowed else None,
                     sequence=sequence,
+                    junctions=(
+                        junctions_of(
+                            genome, gene, f"{header_field(accession)}|{header_field(gene.name)}|j"
+                        )
+                        if kind == "CDS"
+                        else ()
+                    ),
                 )
             )
     return tuple(entries)
@@ -278,6 +287,7 @@ def call_cds(
         min_coverage=min_coverage,
         transl_table=transl_table,
         max_hsps_per_subject=max_hsps_per_subject,
+        structure_first=True,  # measured on the golden's rps19 — see core/caller._choose
     )
 
 

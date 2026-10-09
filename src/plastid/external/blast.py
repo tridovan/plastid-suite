@@ -34,6 +34,7 @@ import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from plastid.core.mito_caller import Hsp
 from plastid.core.model import Genome
@@ -50,13 +51,17 @@ __all__ = [
     "BlastResult",
     "ProteinHits",
     "ProteinHit",
+    "TraceHit",
+    "TraceResult",
     "blast_version",
     "blastp_argv",
     "makeblastdb_argv",
     "parse_hits",
     "parse_protein_hits",
+    "parse_trace_hits",
     "resolve_binary",
     "run_blastn",
+    "run_blastn_trace",
     "run_blastp",
     "run_blastx",
     "search_argv",
@@ -95,6 +100,10 @@ _FRAME_COLUMN = "qframe"
 _VERSION = re.compile(r"\b(\d+)\.(\d+)\.(\d+)")
 _SUBJECT_FIELDS = 3
 
+# The columns of a search that has to answer *where inside an alignment* a position sits, as
+# `run_blastn_trace` does for P3B-10's exon structure. Only its own parser reads them.
+_TRACE_COLUMNS: tuple[str, ...] = _COLUMNS + ("qseq", "sseq")
+
 
 @dataclass(frozen=True, slots=True)
 class BlastResult:
@@ -106,6 +115,62 @@ class BlastResult:
     version: str
     reference: str
     molecule: str  # "prot" for blastx, "nucl" for blastn
+
+
+@dataclass(frozen=True, slots=True)
+class TraceHit:
+    """One hit **with its alignment** — the only way to place a position inside an alignment.
+
+    Coordinate arithmetic maps an alignment's two ends and nothing in between: the reference's own
+    introns carry indels against the target, so the k-th base of the query is not the k-th base of
+    the subject, and an exon boundary sitting between them is off by every indel before it.
+    Measured on the golden (10/10/2026): the petB junction's 741 bp intron aligns with one gap,
+    and the naive mapping put the first exon 1 bp away from where the published record has it.
+    """
+
+    subject_key: str
+    pident: float
+    length: int
+    qstart: int
+    qend: int
+    sstart: int
+    send: int
+    evalue: float
+    bitscore: float
+    qseq: str
+    sseq: str
+
+    def map_subject(self, position: int) -> int | None:
+        """The 1-based **query** position aligned to a 1-based subject position, or ``None``.
+
+        ``None`` has two meanings and both are "this base is not on the target": the position is
+        outside the alignment, or the alignment wrote a gap across from it (an insertion in the
+        subject). Either way a caller must not invent a coordinate for it.
+        """
+        if not min(self.sstart, self.send) <= position <= max(self.sstart, self.send):
+            return None
+        query, subject = self.qstart, self.sstart
+        step_query = 1 if self.qend >= self.qstart else -1
+        step_subject = 1 if self.send >= self.sstart else -1
+        for query_base, subject_base in zip(self.qseq, self.sseq, strict=True):
+            if subject == position:
+                return None if query_base == "-" else query
+            if query_base != "-":
+                query += step_query
+            if subject_base != "-":
+                subject += step_subject
+        return None
+
+
+@dataclass(frozen=True, slots=True)
+class TraceResult:
+    """What one traced search produced: the hits with their alignments, and what ran."""
+
+    hits: tuple[TraceHit, ...]
+    raw: str
+    search: str
+    version: str
+    reference: str
 
 
 def subject_count(reference: str | Path) -> int:
@@ -179,8 +244,59 @@ def parse_hits(text: str, *, seq_id: str, frame: bool) -> tuple[Hsp, ...]:
     return tuple(hits)
 
 
-def _outfmt(frame: bool) -> str:
+def parse_trace_hits(text: str, *, seq_id: str) -> tuple[TraceHit, ...]:
+    """Read a traced search's tabular output, alignment strings included.
+
+    Strict in the same way :func:`parse_hits` is, and for the same reason: a malformed line read
+    leniently is a boundary placed from the wrong row.
+    """
+    expected = len(_TRACE_COLUMNS)
+    hits: list[TraceHit] = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        if not line.strip():
+            continue
+        fields = line.split("\t")
+        if len(fields) != expected:
+            raise ValueError(
+                f"line {number}: expected {expected} tab-separated fields, found {len(fields)}: "
+                f"{line[:120]!r} — a traced search needs the alignment strings"
+            )
+        if fields[0] != seq_id:
+            raise ValueError(
+                f"line {number}: this is a hit for query {fields[0]!r}, not {seq_id!r} — the file "
+                f"is not this run's output"
+            )
+        query, subject = fields[-2], fields[-1]
+        if len(query) != len(subject):
+            raise ValueError(
+                f"line {number}: the alignment's two strings are {len(query)} and {len(subject)} "
+                f"long — an alignment whose halves do not line up cannot answer where a base is"
+            )
+        try:
+            hits.append(
+                TraceHit(
+                    subject_key=subject_key(fields[1]),
+                    pident=float(fields[2]),
+                    length=int(fields[3]),
+                    qstart=int(fields[6]),
+                    qend=int(fields[7]),
+                    sstart=int(fields[8]),
+                    send=int(fields[9]),
+                    evalue=float(fields[10]),
+                    bitscore=float(fields[11]),
+                    qseq=query,
+                    sseq=subject,
+                )
+            )
+        except ValueError as error:
+            raise ValueError(f"line {number}: {error}") from error
+    return tuple(hits)
+
+
+def _outfmt(frame: bool, trace: bool = False) -> str:
     columns = _COLUMNS + ((_FRAME_COLUMN,) if frame else ())
+    if trace:
+        columns += ("qseq", "sseq")
     return "6 " + " ".join(columns)
 
 
@@ -193,6 +309,7 @@ def search_argv(
     evalue: float,
     max_hsps: int,
     max_target_seqs: int,
+    trace: bool = False,
 ) -> list[str]:
     """The exact command line, so a test can hold it still without running BLAST.
 
@@ -212,7 +329,7 @@ def search_argv(
         "-db",
         str(database),
         "-outfmt",
-        _outfmt(tool == "blastx"),
+        _outfmt(tool == "blastx", trace),
         "-evalue",
         f"{evalue:g}",
         "-max_hsps",
@@ -481,7 +598,7 @@ def run_blastx(
     max_hsps: int = MAX_HSPS,
 ) -> BlastResult:
     """Search a genome's six reading frames against a protein reference set."""
-    return _run(
+    return _search(
         "blastx",
         genome,
         reference,
@@ -492,6 +609,7 @@ def run_blastx(
         directory=directory,
         evalue=evalue,
         max_hsps=max_hsps,
+        trace=False,
     )
 
 
@@ -508,7 +626,7 @@ def run_blastn(
     max_hsps: int = MAX_HSPS,
 ) -> BlastResult:
     """Search a genome's two strands against a nucleotide reference set (the rRNA)."""
-    return _run(
+    return _search(
         "blastn",
         genome,
         reference,
@@ -519,10 +637,44 @@ def run_blastn(
         directory=directory,
         evalue=evalue,
         max_hsps=max_hsps,
+        trace=False,
     )
 
 
-def _run(
+def run_blastn_trace(
+    genome: Genome,
+    reference: str | Path,
+    ctx: RunContext,
+    *,
+    seq_id: str,
+    blastn: str | Path | None = None,
+    makeblastdb: str | Path | None = None,
+    directory: str | Path | None = None,
+    evalue: float = DEFAULT_EVALUE,
+    max_hsps: int = MAX_HSPS,
+) -> TraceResult:
+    """Search a genome against a nucleotide reference and keep **where** every hit aligns.
+
+    The same search :func:`run_blastn` runs, with the alignment strings added to its output: the
+    tool's own record is the evidence, and re-running it to ask a second question would be a
+    second measurement of the same thing (and could disagree with the recorded argv).
+    """
+    return _search(
+        "blastn",
+        genome,
+        reference,
+        ctx,
+        seq_id=seq_id,
+        search=blastn,
+        makeblastdb=makeblastdb,
+        directory=directory,
+        evalue=evalue,
+        max_hsps=max_hsps,
+        trace=True,
+    )
+
+
+def _search(
     tool: str,
     genome: Genome,
     reference: str | Path,
@@ -534,7 +686,9 @@ def _run(
     directory: str | Path | None,
     evalue: float,
     max_hsps: int,
-) -> BlastResult:
+    trace: bool,
+) -> Any:
+    """One search, traced or not — the caller decides which result type it gets."""
     binary = resolve_binary(tool, explicit=search, directory=directory)
     db_binary = resolve_binary(DB_TOOL, explicit=makeblastdb, directory=directory)
     version = blast_version(binary)
@@ -568,6 +722,7 @@ def _run(
                 evalue=evalue,
                 max_hsps=max_hsps,
                 max_target_seqs=subject_count(source),
+                trace=trace,
             ),
             kind="binary",
             tool_path=binary,
@@ -577,6 +732,15 @@ def _run(
         # the search's own captured stdout is the result; re-running it to get the text would be
         # a second measurement of the same thing (and could disagree with the recorded argv)
         raw = Path(record.stdout_file).read_text(encoding="utf-8")
+
+    if trace:
+        return TraceResult(
+            hits=parse_trace_hits(raw, seq_id=seq_id),
+            raw=raw,
+            search=binary,
+            version=version,
+            reference=str(source),
+        )
 
     return BlastResult(
         hits=parse_hits(raw, seq_id=seq_id, frame=tool == "blastx"),

@@ -281,26 +281,34 @@ def test_every_copy_the_inverted_repeat_is_given_lands_where_the_record_puts_it(
 # ------------------------------------------------------------------ every difference, listed
 
 # P3B-10's Done-when asks for the golden's differences from the published record "kind + span,
-# nothing summarized away" — so they are written down, all 44, and the check below fails on any
-# that moves. Measured 10/10/2026 with the code as it stands (§8.54), from the run this module's
+# nothing summarized away" — so they are written down, all 35, and the check below fails on any
+# that moves. Measured 10/10/2026 with the code as it stands (§8.55), from the run this module's
 # fixture makes; a change here is a change in the claim, not a test that needs loosening.
 #
-# Two lists of three entries left it on 10/10/2026, and this check is what said so: `lhbA`'s
-# duplicate call (§8.54, H-18) and `rps12`'s missing second copy (§8.54) — the two that had been
-# agreeing with the published record's 86 CDS by accident, one wrong thing covering for the other.
-# They had to land together, and the count is now right for the right reason: `rps12` written
-# twice, as the record writes it.
+# What landed on 10/10/2026: the exon-structure transfer (§8.55) took the golden from 44
+# differences to 36 — the first exons of `petB` · `petD` · `rpl16` · `rps16`, `rpoC1`'s and
+# `clpP`'s intron boundaries and `rps12`'s 26 bp third exon are now the published record's own —
+# and reading the stop codon past an alignment that stopped short took `psaJ` (35).
 #
-# Known defects are in the list rather than hidden by it, each with its own task:
-#   * the four truncated first exons — `petB` 6 bp · `petD` 8 · `rpl16` 9 · `rps16` 40 — are the
-#     reference's exon structure missing (the exons sit below blastx's seed): P3B-10's next work;
-#   * `rps12`'s 26 bp middle exon (139609-139634), still missing after the second copy was
-#     written: the same cause as the four above;
-#   * `rps19` −54 bp on both copies: H-20 (structure-first is not enforced between candidates);
+# What is left is measured, and each line of it is one of three things rather than a defect with
+# a task number:
+#   * **the reference's own structure differs from the published record's**, by 2–3 bp at an
+#     intron boundary, and the transfer is faithful to the reference it chose: `rpl2` on both
+#     copies (391+431 → 393+432, which is how NC_042827.1 spells it), `rpl16` (399 → 402,
+#     NC_088562.1), `ycf3` (230+153 → 228+155) and `rps12`'s second exon (229 → 232), both
+#     NC_072562.1. The corpus measures this class at 34 records, and it is the price of
+#     transferring a structure instead of inventing one;
+#   * `ndhD`: the chosen reference annotates it 523 aa where the record has 501, and the target's
+#     own DNA supports the longer model at 97.90 % over all 523 residues, starting at TTG (an
+#     initiator) against the record's ATC (not one) — an annotation disagreement about where the
+#     gene starts, which an annotator may report but not settle;
+#   * **ARAGORN's tRNA ends against the submitters'**: `trnP-UGG` 2 bp past the record's 3' end on
+#     every record in the corpus (34 of them) and `trnS-UGA` read on the opposite strand. tRNA is
+#     called de novo by ARAGORN (D5-08), so this is a tool's convention next to a submitter's, and
+#     trimming to match would be fitting the number to the answer;
 #   * the eight tRNA names ARAGORN reads differently, `trnI-GAU` as `trnE-UUC` among them: H-04's
 #     family, and the anticodon it reads is the intron's.
 GOLDEN_DIFFERENCES: tuple[tuple[str, str, str, str, str], ...] = (
-    ("boundary", "CDS", "extent", "ndhA 118789-120935(-1)", "ndhA 118789-120935(-1)"),
     ("boundary", "rRNA", "extent", "rrn23 129981-132790(-1)", "rrn23 129982-132791(-1)"),
     ("boundary", "tRNA", "extent", "trnA-UGC 103034-103915(+1)", "trnA-UGC 103034-103915(+1)"),
     ("boundary", "tRNA", "extent", "trnA-UGC 132937-133818(-1)", "trnA-UGC 132937-133818(-1)"),
@@ -319,20 +327,12 @@ GOLDEN_DIFFERENCES: tuple[tuple[str, str, str, str, str], ...] = (
     ("boundary", "tRNA", "extent", "trnT-GGU 31775-31846(+1)", "trnT-GGU 31774-31847(+1)"),
     ("boundary", "tRNA", "extent", "trnT-UGU 46327-46399(-1)", "trnT-UGU 46326-46400(-1)"),
     ("boundary", "tRNA", "extent", "trnY-GUA 30998-31081(-1)", "trnY-GUA 30997-31082(-1)"),
-    ("conclusion", "CDS", "extent", "clpP 69228-71300(-1)", "clpP 69228-71300(-1)"),
     ("conclusion", "CDS", "extent", "ndhD 114661-116166(-1)", "ndhD 114661-116232(-1)"),
-    ("conclusion", "CDS", "extent", "petB 74233-75632(+1)", "petB 74985-75632(+1)"),
-    ("conclusion", "CDS", "extent", "petD 75840-77070(+1)", "petD 76588-77070(+1)"),
-    ("conclusion", "CDS", "extent", "psaJ 66340-66468(+1)", "psaJ 66340-66465(+1)"),
-    ("conclusion", "CDS", "extent", "rpl16 80539-81873(-1)", "rpl16 80539-80940(-1)"),
-    ("conclusion", "CDS", "extent", "rpl2 151668-153154(+1)", "rpl2 151671-153154(+1)"),
-    ("conclusion", "CDS", "extent", "rpl2 83698-85184(-1)", "rpl2 83698-85181(-1)"),
-    ("conclusion", "CDS", "extent", "rpoC1 20179-22962(-1)", "rpoC1 20179-22962(-1)"),
-    ("conclusion", "CDS", "extent", "rps12 68976-139634(-1)", "rps12 68976-139066(-1)"),
+    ("conclusion", "CDS", "extent", "rpl16 80539-81873(-1)", "rpl16 80539-81873(-1)"),
+    ("conclusion", "CDS", "extent", "rpl2 151668-153154(+1)", "rpl2 151668-153154(+1)"),
+    ("conclusion", "CDS", "extent", "rpl2 83698-85184(-1)", "rpl2 83698-85184(-1)"),
+    ("conclusion", "CDS", "extent", "rps12 68976-139634(-1)", "rps12 68976-139634(-1)"),
     ("conclusion", "CDS", "extent", "rps12 68976-98013(-1)", "rps12 68976-98016(-1)"),
-    ("conclusion", "CDS", "extent", "rps16 4697-5808(-1)", "rps16 4697-4915(-1)"),
-    ("conclusion", "CDS", "extent", "rps19 153401-153679(+1)", "rps19 153455-153679(+1)"),
-    ("conclusion", "CDS", "extent", "rps19 83173-83451(-1)", "rps19 83173-83397(-1)"),
     ("conclusion", "CDS", "extent", "ycf3 42508-44457(-1)", "ycf3 42508-44457(-1)"),
     ("conclusion", "tRNA", "extent", "trnP-UGG 66042-66115(-1)", "trnP-UGG 66040-66115(-1)"),
     ("conclusion", "tRNA", "extent", "trnS-UGA 35472-35564(+1)", "trnS-UGA 35471-35565(-1)"),
@@ -350,7 +350,7 @@ GOLDEN_DIFFERENCES: tuple[tuple[str, str, str, str, str], ...] = (
 def test_every_difference_from_the_published_record_is_listed(
     annotated: Path, data_dir: Path
 ) -> None:
-    """The phase's Done-when, first clause: 44 differences, every one of them with its span.
+    """The phase's Done-when, first clause: 35 differences, every one of them with its span.
 
     The count is deliberately not asserted as a number — the *set* is, so a difference that moves
     or changes verdict fails here and has to be written down with its evidence, and one that

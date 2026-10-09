@@ -49,7 +49,8 @@ from pathlib import Path
 from typing import Any
 
 from plastid.core import reference_audit
-from plastid.core.caller import render_fasta
+from plastid.core.caller import render_fasta, transfer_structure
+from plastid.core.exon_structure import Junction, render_junctions
 from plastid.core.genbank import read_genbank, to_genbank
 from plastid.core.model import Gene, Genome, Interval, count_genes
 from plastid.core.orf import check_genome
@@ -80,6 +81,7 @@ from plastid.external.blast import (
     MAX_HSPS,
     BlastResult,
     run_blastn,
+    run_blastn_trace,
     run_blastx,
 )
 from plastid.modules.registry import module
@@ -240,6 +242,31 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
     )
 
 
+def _chosen_junctions(calls: Sequence[Any]) -> tuple[Junction, ...]:
+    """The reference's own internal exon boundaries for the entries this run **chose**.
+
+    One set per called locus, not the whole reference set: a junction answers "where are *this*
+    call's exons", so searching the boundaries of references this run did not transfer from would
+    be paying for answers nobody asked for. Keyed by the junction's own search id, which carries
+    the record and the gene — two calls cannot share one.
+    """
+    chosen: dict[str, Junction] = {}
+    for call in calls:
+        if call.kind != "CDS":
+            continue
+        for junction in call.reference.junctions:
+            chosen[junction.key] = junction
+    return tuple(chosen.values())
+
+
+def _by_subject(hits: Sequence[Any]) -> dict[str, list[Any]]:
+    """The traced hits grouped by the junction each one answers."""
+    grouped: dict[str, list[Any]] = {}
+    for hit in hits:
+        grouped.setdefault(hit.subject_key, []).append(hit)
+    return grouped
+
+
 def _search_files(records: Sequence[Genome], work: Path) -> tuple[Path, Path]:
     """The two FASTA files the searches run against — one per kind, never one pooled database."""
     proteins = work / "proteins.faa"
@@ -326,6 +353,25 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             transl_table=table,
             max_hsps_per_subject=MAX_HSPS,
         )
+        # The reference's own exon structure, for the loci the caller just decided — the protein
+        # search cannot see an exon shorter than one of its words, and it has no evidence at all
+        # about where an intron inside one alignment starts (§8.55). Searched only for the
+        # entries that were chosen, never for the whole set: this answers a question about the
+        # calls this run made, and the corpus measures what it is worth.
+        junctions = _chosen_junctions(cds.calls)
+        if junctions:
+            junction_fasta = workdir / "junctions.fa"
+            junction_fasta.write_text(render_junctions(junctions), encoding="utf-8")
+            structure_run = run_blastn_trace(
+                genome,
+                junction_fasta,
+                ctx,
+                seq_id=seq_id,
+                directory=tools_dir,
+                evalue=evalue,
+                max_hsps=MAX_HSPS,
+            )
+            cds = transfer_structure(cds, _by_subject(structure_run.hits))
         rrna_calls = call_plastid_rrna(
             genome,
             reference_index(reference.records, kind="rRNA", vocabulary=rrna_vocabulary),
