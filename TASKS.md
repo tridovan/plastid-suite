@@ -231,13 +231,12 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   collaborator's GFF" is ever a capability we want, it is a named task with a real entry point**,
   not a reader left hanging.
 
-- [ ] **P3B-12 · Close the phase** — `git tag phase-3b feat/phase-3b` → `git switch main` →
-  `git merge --squash feat/phase-3b` → one commit listing the ten tasks (CLAUDE.md → Commits).
-  The branch is **never deleted**: it holds every task commit, and `git bisect` at task
-  granularity runs on it.
-  **Done when:** `main` holds phases 1–5, 4a and 3B; `phase-3b` tags the tree the branch closed
-  on; the phase's own numbers (§8.50–§8.55) are in the squash commit's message, **the strict
-  reading with the headline** (§8.55).
+- [x] **P3B-12 · Close the phase** — **DONE 10/10/2026**: `git tag phase-3b feat/phase-3b` →
+  `git switch main` → `git merge --squash feat/phase-3b` → **one commit for the whole phase**
+  listing the eleven tasks, with §8.55's numbers **and the strict reading beside them**. The
+  branch is **never deleted**: it holds every task commit (37 of them), and `git bisect` at task
+  granularity runs on it. `main` now holds phases 1–5, 4a and 3B — the first `phase-*` tag that is
+  not an `archive/*` one, which is what CLAUDE.md's closing recipe asks for.
 
 ## Decisions to make
 
