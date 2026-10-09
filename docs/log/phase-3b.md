@@ -851,3 +851,91 @@ nó đáng một câu hỏi riêng cho thước đo — nhưng **không đổi k
 biệt trình bày (bỏ 22 của ta) và áp y hệt cho PGA (bỏ 12 "missing rps12" của nó), thì **659 so với
 576 — vẫn KHÔNG đạt**. Thanh chuẩn không đạt ở mọi cách đọc trung thực của luật, và đó là điều
 đáng ghi lại: nó không phải một con số sát nút có thể lật bằng cách chỉnh luật.
+
+### 8.55. Cấu trúc exon lấy từ chính bản tham chiếu — và thanh chuẩn của phase đã đạt (10/10/2026)
+
+**Vấn đề, đo được.** Bộ gọi chuyển gen từ **protein** tham chiếu, mà blastx seed trên từ amino acid:
+exon nào ngắn hơn một từ thì **vô hình** với nó. Đo trên corpus 34 bản ghi: exon đầu của `petB`
+(6 bp) · `petD` (8) · `rpl16` (9) · `rps16` (40) **mất ở mọi bản ghi** (136 khác biệt mức kết
+luận, đứng đầu bảng độ dài), `rps12` mất exon thứ ba 26 bp, và ở những chỗ intron nằm **trọn trong
+một alignment** thì bộ gọi **không có bằng chứng nào** về chỗ intron bắt đầu — `rpoC1` lệch 15 và
+12 bp, `ycf3` 5 và 2, `rpl2` 4. Không phải vấn đề điểm số: **không tìm được exon 6 bp bằng cách đi
+tìm nó** (6 base khớp ngẫu nhiên một cửa sổ 3 kb khoảng 2 lần mỗi frame). Cái mang được là **cấu
+trúc bản ghi tham chiếu đã khai** — và **DNA của nó**, để đặt cấu trúc ấy lên target.
+
+**Cách làm.** `core/exon_structure.py`: với mỗi ranh giới exon nội bộ của gen tham chiếu, dựng một
+**junction** = exon k + **cả intron** + exon k+1, viết 5'→3' theo chiều gen; tìm target bằng
+blastn (`external/blast.py` → `run_blastn_trace`, thêm `qseq sseq` vào outfmt) và vì hit mang
+**chuỗi alignment**, mỗi ranh giới ánh xạ **chính xác** — kể cả qua các gap. Đây là chỗ số học toạ
+độ đơn thuần sai: đo trên bản vàng, intron 741 bp của `petB` align với **1 gap**, và ánh xạ thẳng
+đặt exon 1 lệch **1 bp** so với bản công bố. Junction **theo từng cặp exon, không theo cả gen**:
+`NC_072562.1` và `NC_072563.1` viết `rps12` là `-1, +1, +1` (gen *trans*-spliced, hai nửa từ hai
+mạch của IR) — cặp vắt qua trans-splice không có junction, cặp còn lại vẫn có, và nhờ vậy exon 26 bp
+của `rps12` được đặt đúng. Bốn điều nó **từ chối** làm, mỗi điều có lý do đo được: không đặt gì mà
+alignment không đặt (ranh giới chỉ dịch khi junction align **và** hai đầu exon đều map); không tin
+hit không đậm lên call (nửa exon ngắn hơn — không có luật này thì junction sai hướng của
+`NC_072562.1` bám 26 base dùng chung và **dời call 700 bp**); không suy từ độ dài intron hay frame;
+và **không bỏ exon của chính call** — junction không align (trans-splice 69 kb) thì exon đó giữ
+nguyên chỗ bộ gọi đặt.
+
+**Cái giá phải trả, và nó là một phép đo chứ không phải lỗi.** Chuyển cấu trúc là **trung thành với
+bản tham chiếu đã chọn**, nên khi bản tham chiếu tự khác bản công bố thì call khác theo: `rpl2`
+(391+431 → **393+432**, `NC_042827.1` viết vậy; 49 khác biệt), `rpl16` (399 → 402, `NC_088562.1`),
+`ycf3` (230+153 → 228+155) và exon 2 của `rps12` (229 → 232), cả hai ở `NC_072562.1`. `ndhD` là ca
+lớn nhất: bản tham chiếu được chọn annotate nó **523 aa** nơi bản ghi có **501**, và DNA của target
+**ủng hộ mô hình dài** ở 97,90 % trên cả 523 residue, mở đầu bằng **TTG** (một initiator) so với
+**ATC** của bản ghi (không phải) — bất đồng annotate về chỗ gen bắt đầu, thứ một annotator **báo
+được nhưng không phân xử được**. Bản vàng: **44 → 35** khác biệt (§8.53 cập nhật theo).
+
+**Cùng luật ấy chạm đường mito — đo, đọc, rồi mới ghi.** `core/caller.py` là lõi dùng chung, nên
+luật stop codon ở dưới đây cũng chạy trên đường mito. Tripwire bản vàng mito (`EXACT_SPANS`, đo
+03/10/2026) **báo động: 18 → 19**. Đã bỏ ra đọc trước khi sửa, và nó là **một ca tốt lên**:
+`rps1` từ `(3, 0)` — hụt 3 base ở đầu 3' (toạ độ thấp, vì gen trên mạch âm) — nay `(0, 0)`, khớp
+bản công bố; 12 khác biệt còn lại **không đổi**. §8.22 giữ nguyên 18/31 như điều nó đo lúc đó
+(§8 ghi thêm, không viết lại), còn tripwire nay là 19 kèm lý do ngay trên hằng số.
+
+**Stop codon đọc cả khi alignment dừng sớm.** `_refine_end` cũ chỉ tìm stop khi alignment **chạm**
+đầu 3' của tham chiếu; blastx dừng dịch ở stop và không align qua nó, nên target có gen **ngắn hơn**
+tham chiếu thì alignment chỉ **hết** — và mọi call như thế thiếu đúng **một codon** so với bản công
+bố. Đo phần còn lại của corpus: **65 khác biệt** đúng dạng này (đầu bản công bố cách 3 bp, có stop
+ngay đó; `psaJ` 30 bản ghi đứng đầu). Luật nay: đọc **một** codon, dù alignment chạm hay không;
+không codon nào nữa bị đi tiếp.
+
+**H-20 — cấu trúc quyết định *giữa các ứng viên*.** H-19 giữ bản sao cụt ra khỏi **index**; đây là
+cùng luật ấy ở tầng chọn. Đo trên `rps19` của bản vàng: ba bản ghi viết locus **225 bp / 74 aa**, và
+protein đó là **đuôi** của protein 92 aa mà bản ghi của target mang — **cùng gen, annotate từ ATG
+bên trong**. Ba bản ghi ấy đạt **100,00 %** so với **98,91 %** của các bản đầy đủ, nên chỉ theo
+identity là chuyển luôn chỗ cụt và call **hụt 54 bp**. Luật: loại ứng viên mà protein là **suffix**
+của protein ứng viên khác (suffix, không phải "nằm trong" bất kỳ — đo cả bộ đã pin: quan hệ chứa
+duy nhất ở mọi locus là `rps19`, và một bản 92 aa là **prefix** của bản 94 aa, luật này **không**
+đụng tới vì gen bị cắt ở đầu 3' là một khẳng định khác). Cờ `structure_first` **chỉ đường plastid
+bật**: đường mito đóng băng theo D5-07, và bộ test của nó là thứ nói ra điều đó.
+
+**Thanh chuẩn: ĐẠT.** Lần chạy sạch cuối cùng, 34 bản ghi leave-one-out, `--exclude NC_024936.1`:
+
+| | ta | PGA |
+|---|---|---|
+| mức kết luận | **418** (thiếu 34 · thừa 30 · độ dài 354) | 588 (thiếu 41 · thừa 4 · độ dài 543) |
+| `boundary` (≤ 1 bp) | 652 | 111 |
+| `vocabulary` | 373 | 153 |
+| **strict (không dung sai)** | **1070** | **699** |
+
+**30/34 bản ghi ta tốt hơn, 4 kém hơn, 0 hoà.** Và đây là chỗ phải nói thẳng: **hai cách đọc luật
+KHÔNG đồng ý** — ở dung sai 1 bp thì đạt (418 < 588), còn nếu tính **mọi** đầu dịch 1 bp là kết
+luận thì **không** (1070 > 699). Dung sai 1 bp được **đo trước** công việc này, không phải chọn cho
+vừa kết quả (§8.51: 719/1.264 cặp lệch đúng 1 bp; ARAGORN chạy tay trả về đúng toạ độ ta ghi), và
+nó áp **y hệt** cho cả hai phía (PGA 699 → 588). Thành phần của 652 cái `boundary`: **621 là tRNA**
+(còn 16 rRNA · 15 CDS) — tức gần như toàn bộ là **đầu tRNA của ARAGORN** lệch 1 bp so với người
+nộp, đúng loại mà dung sai được đo ra để dành cho. Nói cách khác: **ưu thế ở cách đọc này đến từ
+chỗ ta ít dịch đầu quá 1 bp, không phải từ chỗ ta ít dịch đầu** — và ai trích "418 so với 588" thì
+phải trích kèm dòng strict.
+
+**Còn lại gì, và vì sao không phải việc đã hẹn.** `rpl2` 49 · `trnP-UGG` 34 · `rps19` 28 · `petB`
+24 · `rps12` 23 · `psbC` 18 · `accD` 17 · `ycf3` 12. Ba nhóm: (a) **bản tham chiếu tự khác bản
+công bố** 2–3 bp ở ranh giới intron — giá của việc chuyển cấu trúc thay vì bịa ra nó; (b) **đầu
+tRNA của ARAGORN** (`trnP-UGG` +2 bp ở **cả 34** bản ghi, `trnS-UGA` đọc **mạch đối diện** ở 8) —
+tRNA gọi de novo theo D5-08, nên đây là quy ước của công cụ đứng cạnh quy ước người nộp, và cắt cho
+khớp là **uốn số cho vừa đáp án**; (c) 8 tên tRNA ARAGORN đọc khác (**H-04**'s họ, anticodon nó đọc
+là của intron) và `ycf1` 24 + `trnG-UCC` 5 (đã có tên từ trước). Trần `-i` 3.000 bp của ARAGORN
+vẫn là **H-22**, chưa đổi — và lần này đo thêm được lý do đổi nó phải kèm phép đo "nâng trần có
+thêm call sai nào không".

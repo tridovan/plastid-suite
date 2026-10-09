@@ -44,9 +44,11 @@ names in `TASKS.md`.
 
 **The annotate step is ours (D5-08).** Annotation will be built in-house on CGAS's model with our
 own search-and-decide core; **Chloe is dropped from the plan**, PGA stays only as the measured
-counter-example, and a reference-set audit gates every annotation run. Until that engine passes its
-Done-when, `modules/annotation.py` still ships `--set annotator=chloe|pga` — that is the code today,
-not the plan. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
+counter-example, and a reference-set audit gates every annotation run. **The engine passed its
+Done-when on 10/10/2026** (§8.55: the corpus bar 418 against PGA's 588, 30/34 records better —
+quoted with the strict reading, 1070 against 699, which does not pass). `modules/annotation.py`
+still ships `--set annotator=chloe|pga`; that set is **due for retirement** and is **P3B-11** on
+the board. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
 
 **Gene names are unified before annotation, on the reference DB (D5-09).** The pipeline is
 *(reference supply → audit → the user picks one naming record ★ → `gene_normalize` normalizes the
@@ -62,11 +64,13 @@ relabels the shared gene set, it does not re-select it (§8.45).
 the two vocabularies** (A everywhere; B only in the pairing table). Design:
 `docs/D5-09_reference_naming.md`; decision: PROJECT.md §3.
 
-**Current state: Phases 1–5 and 4a complete; Phase 3B is OPEN** on `feat/phase-3b` — the self-built
-plastid annotator (D5-08), with the **D5-09 naming step as its M3B.0** in front of the annotator.
-The board is `TASKS.md` (**P3B-01 … P3B-10**, built 07/10/2026); which tasks are done is read there
-and in `HANDOFF.md`. Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active checklists with
-Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
+**Current state: Phases 1–5 and 4a complete; Phase 3B is OPEN but its board is complete** on
+`feat/phase-3b` — the self-built plastid annotator (D5-08), with the **D5-09 naming step as its
+M3B.0** in front of the annotator. **P3B-01 … P3B-10 are all done** (10/10/2026); what remains is
+the close — **P3B-11** (retire `annotation`'s chloe · pga set) and **P3B-12** (tag, squash-merge to
+`main`) — both on the board with their Done-when.
+Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active checklists with Done-when). Exact resume
+point: **`HANDOFF.md` → Resume point**.
 
 ## Supreme objective — the deliverables decide, not the tools
 

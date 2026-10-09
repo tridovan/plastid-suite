@@ -161,6 +161,16 @@ external call goes through `run_tool()`.
 **The bar is the published record, not another tool**: (1) exact, and (2) every difference named
 and classified — with fewer conclusion-level differences than PGA's reading of the same sequences.
 
+**Measured 10/10/2026 — the Done-when is MET** (P3B-10, §8.55): the golden annotates to exactly
+132 = 86 + 38 + 8 with its **35** differences from the published record listed and pinned as a set;
+the corpus runs 34 leave-one-out and reads **418 conclusion-level differences against PGA's 588**
+(30/34 records better, 4 worse, 0 tied). **Read strictly** — every 1 bp move counted as a
+conclusion — it is **1070 against 699 and does not pass**, and 621 of our 652 `boundary`
+differences are ARAGORN's tRNA ends against the submitters'. The 1 bp tolerance was measured before
+this work (§8.51) and applies to both sides, so the clause is met on the rule as stated and the
+strict reading is the caveat that travels with it. What the pass makes due: **P3B-11** (retire
+`annotation`'s chloe · pga set) and **P3B-12** (close the phase) — `TASKS.md`.
+
 ## Open decisions (a call is needed before coding)
 
 | # | Question | Options (recommendation in bold) |

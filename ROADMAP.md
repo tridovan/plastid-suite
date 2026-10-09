@@ -126,15 +126,15 @@ exists for; check it whenever the diagram changes):
 | Box in the diagram | Owner | State |
 |---|---|---|
 | Reference supply · `plastid panel pin` | M1.10 | done 03/10 |
-| Quality assessment (the audit) | M3B.1 | planned — Phase 3B |
-| The end user picks the naming reference ★ | **M3B.0** | planned — Phase 3B |
-| Unify the reference DB (`gene_normalize`) | **M3B.0** | planned — Phase 3B |
+| Quality assessment (the audit) | M3B.1 | **done** — P3B-01 · P3B-03 · `--audit-only` (P3B-09), §8.40 · §8.43 · §8.49 |
+| The end user picks the naming reference ★ | **M3B.0** | **waiting on the end user** — the audit report is the evidence (§8.43) |
+| Unify the reference DB (`gene_normalize`) | **M3B.0** | **done** — P3B-04, §8.44 (the ★ override stands until it is picked) |
 | reads · `fastp` · `BWA`/`minimap2` (trim · map back) | M7.1 | **blocked — no real reads yet**; neither tool declared yet |
 | reads · `Bandage` (assembly graph) | M7.2 | **blocked — no real reads yet** |
 | 1 Assembly — short read (`GetOrganelle` + `SPAdes`) | M7.1 | **blocked — no real Illumina reads yet** |
 | 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **blocked — no ONT/HiFi reads**; declared · run in the survey (§7.1) |
-| 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | planned — Phase 3B |
-| 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | planned — Phase 3B |
+| 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | **done 10/10/2026** — P3B-07 … P3B-10, §8.46–§8.55; close = P3B-11 · P3B-12 |
+| 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | **done** — P3B-05, §8.45 |
 | [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | done, except **M2.12** (open) and M2.9 · M2.10 `[~]` |
 | [5] RNA editing (a reference of its own) | M4.5 | **blocked — needs RNA-seq** |
 | [6] Submission (`table2asn` · Excel · Supplementary) | M3.4 · M5.3 | done — except the team's `.sbt`, a TASKS.md waiting row |
@@ -339,26 +339,32 @@ failures: a search that finds nothing is a failed run, every below-floor hit rep
       and the alias direction is flipped. Left: **P3B-06** — Ts/Tv re-measured under the new
       direction — and the **★ pick**, which is the end user's (a recorded override stands until
       then).*
-- [~] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
+- [x] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
       majority-deviation report), `--audit-only`, errors printed as `file — reason`, confirmed
       exceptions pinned by sha256; MAFFT `--adjustdirection` per region + a dotplot for the
       user's confirmation; **its report is the evidence the end user picks the naming reference ★
       from** (D5-09 §7.1)
-      *P3B-01 (the set, §8.40) and P3B-03 (the gate, §8.43) are done 08/10/2026. What is left is
-      the flag itself: `--audit-only` belongs to `plastid annotate`, the command it is a flag of,
-      which arrives in **P3B-09** — the audit it will call (`core/reference_audit.audit_files`) is
-      what P3B-03 built.*
-- [ ] **M3B.2 Calling engine** — orthogonal searches (`blastx` on published `/translation` ·
+      *P3B-01 (the set, §8.40) and P3B-03 (the gate, §8.43) are done 08/10/2026, and the flag
+      itself shipped with the command it is a flag of — `--audit-only` on `plastid annotate`,
+      P3B-09 (§8.49), calling `core/reference_audit.audit_files`. The gate sits in front of the
+      first BLAST, so a blocked record produces no annotation at all.*
+- [x] **M3B.2 Calling engine** — orthogonal searches (`blastx` on published `/translation` ·
       `blastn` for rRNA · IR self-blast behind the structural gate), candidates carrying their
       evidence, the six measured rules of §8.22
-- [ ] **M3B.3 Arbitration & export** — structure first and score within one program; overlap kept
+- [x] **M3B.3 Arbitration & export** — structure first and score within one program; overlap kept
       and reported (the golden itself carries four overlapping pairs); many references → one call
       per locus with the losing candidates listed; ties → one call when identical, both with a
       note otherwise; GenBank that re-reads, `/organelle` on the source, a reason per rejected hit
-- [ ] **M3B.4 CLI & batch** — 1..N samples × 1..N reference records; organelle declared at input
+- [x] **M3B.4 CLI & batch** — 1..N samples × 1..N reference records; organelle declared at input
       (H-09); a failed sample is marked without killing the run; docx report (D2-04 pattern)
-- [ ] **M3B.5 Golden + corpus validation** — the phase's Done-when at both scales, every
+- [x] **M3B.5 Golden + corpus validation** — the phase's Done-when at both scales, every
       difference itemized
+      *P3B-10 done 10/10/2026 (§8.55): the golden is **132 = 86 + 38 + 8** with its **35**
+      differences from the published record listed and pinned; the corpus runs 34 leave-one-out
+      and reads **418 conclusion-level differences against PGA's 588** (30/34 records better) —
+      **with the strict reading beside it, 1070 against 699, which does not pass**, and 621 of
+      the 652 `boundary` differences being ARAGORN's tRNA ends. The engine's own Done-when is met
+      on the rule as stated; the close is **P3B-11** (retire chloe · pga) and **P3B-12**.*
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid; the mito half waits on H-10)*
 

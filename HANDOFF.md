@@ -11,97 +11,80 @@
 
 **Phases 1 – 5 and 4a — COMPLETE and merged to `main`.** **Phase 3B is OPEN** on `feat/phase-3b` —
 the self-built plastid annotator, with the naming step (D5-09) in front of it; the board is
-`TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
-skill.
+`TASKS.md` (**P3B-01 … P3B-10**).
 
-**Immediate next action:** **P3B-10** (IN PROGRESS, 10/10/2026, §8.50–§8.54) — golden + corpus
-validation, the phase's own Done-when. **The corpus is measured end to end and the bar is NOT met:
-681 conclusion-level differences against PGA's 588** (better in 9/34 records, worse in 21, tied in
-4) — and **even counting the one-copy-vs-two-copy `rps12` representation as a presentation
-difference on both sides, 659 against 576**: no honest reading of the rule passes, so this is not a
-near miss a rule tweak could flip. The instrument is in the repo (`tools/corpus_bar.py` ·
-`make corpus-bar` · 19 tests for the rule). **Four fixes landed on the way**, three of them
-silent-wrong modes no counting test could see: the IR mirror (§8.50 — every mirrored copy was one
-IR length out), ARAGORN's `-i` for intron tRNAs (§8.50) and its intron **field** (§8.52 — `b` in
-`i(a,b)` is the intron's *length*; read as an end, every spliced tRNA came out 104–134 nt), and
-**the two defects that were covering for each other** (§8.54): `lhbA` was a duplicate call at
-`psbZ`'s own 35895-36083, and the golden's 86 was right only because that duplicate stood in for
-the `rps12` second copy the mirror refused to write. Both are fixed; the golden's **86 CDS is now
-right for the right reason**, and the difference list (§8.53, 44 entries) is what showed the three
-lines moving. **Next work, measured and named:** (a) **exon structure from the reference** — the
-first exons of `petB` (6 bp) · `petD` (8) · `rpl16` (9) · `rps16` (40) are below blastx's seed,
-plus `rps12`'s 26 bp third exon; **a 6 bp exon cannot be found by searching** (a 6 bp window
-matches a 3 kb space ~twice per frame by chance), so the fix must bring the reference's own DNA,
-not walk ORFs; (b) **H-20** (`rps19`, 34 extent); (c) the 8 tRNA names ARAGORN reads differently
-(**H-04**'s family); (d) **H-22** (the silent 3,000 bp `-i` cap; longest measured intron 2,671 bp).
+**The board is complete and the phase's Done-when is met** (10/10/2026, §8.50–§8.55). **P3B-10**
+finished with the bar **MET: 418 conclusion-level differences against PGA's 588 — better in 30/34
+records, worse in 4, tied in 0** — and with the caveat that has to travel with that number: read
+**strictly** (every 1 bp move counted) it is **1070 against 699 and does not pass**, and **621 of
+our 652 `boundary` differences are ARAGORN's tRNA ends**. The 1 bp tolerance was measured *before*
+this work (§8.51) and applies to both sides, so the verdict rests on it; quote the strict line with
+the headline or the headline is half the measurement. The golden annotates to **132 = 86 + 38 + 8**
+for the right reason, with **35** differences from the published record listed and pinned as a set.
 
-**The bar itself:**
-the golden sequence annotates to exactly **132 = 86 + 38 + 8** with every difference from the
-published record listed (kind + span, nothing summarized away); all **34 records** ran
-leave-one-out, each result diffed against the published record **and** against PGA's reading, every
-difference classified (vocabulary vs conclusion) with **fewer conclusion-level differences than
-PGA's**; a search that finds nothing is a failed run. It starts from **two named differences** —
-the tRNA count (30 called vs 38 published: the export mirrors CDS and rRNA, not tRNA) and **H-20**
-(`rps19` 279 bp → 225 bp, because the audit gate forces `NC_024936.1` out of the set and three
-pinned records carry a truncated `rps19` that then wins the tie; structure-first *between*
-candidates is the piece H-19 did not implement) — and its corpus runs carry
-`--exclude NC_024936.1`. **H-09 is closed** and **P3B-09 is done** (09/10/2026, §8.49): the
-`plastid annotate` command, the batch as a batch of runs, the audit gate in front of the first
-BLAST, `--exclude` as D5-08's "drop the bad file" made mechanical, and the organelle declared by
-every module and refused by name in both directions. `annotation`'s chloe · pga set stays until
-P3B-10 passes (the decisions table says so), then it retires with D3-01's update line.
-Done and pushed on `feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-03** (§8.43) ·
-**P3B-04** (§8.44) · **P3B-05** (§8.42, so H-15 · H-08 · H-14 are closed) · **P3B-06** (§8.45 —
-Ts/Tv re-measured under the new direction: **unchanged at 2.6917**, and measured to be
-*direction-invariant*) · **P3B-07** (§8.46 — the shared calling core, three silent failures fixed:
-the truncating `-max_target_seqs`, a whitespace FASTA header, rRNA product-sentences) ·
-**P3B-08** (§8.47 — the annotator end to end: **86 CDS + 8 rRNA + 30 tRNA** on the golden, three of
-§8.34's four overlapping pairs exact, one call per locus with every loser listed) · **H-19** (§8.48
-— a locus a record annotated twice is searched once: the truncated duplicate is excluded from the
-reference index and **named**, 0.5 sitting inside a measured gap 0.2992 → 0.9927, and the golden's
-`ycf1` moves from 900 bp to the published 5,421 bp as the **only** line of the called set that
-changes) · **P3B-09** (§8.49). The phase's open calls — D-a · D-b · D-e — sit in `TASKS.md` → "Decisions
-to make"; the conflict exit code, the parameter name, the manifest schema and the organelle group
-are **decided and shipped** (P3B-04). **The ★ pick** is still the end user's:
-`data/naming_reference.json` holds a **recorded override** (`provisional: true`, the golden) and
-the audit report the pick is read from exists
-(`plastid reference audit --panel .panel/plastid-reference`). On hold by D5-07: H-06 · H-10 ·
-H-12. Nothing else is scheduled: Phase 6 waits on mito/nuclear data, Phase 7 on real reads.
+**Immediate next action — the two things the phase's close owes, both named and neither done:**
+1. **Retire `annotation`'s chloe · pga set**, the decisions table's own default ("chloe · pga
+   retires when P3B-10 passes; D3-01 gains its update line"). P3B-10 has now passed. It is a
+   **deletion with ripple** — `modules/annotation.py` (363 lines) · `external/chloe.py` (335) ·
+   `external/pga.py` (214) · `tests/unit/test_chloe.py` (291) · `tests/unit/test_annotation.py`
+   (370), plus references in `data/citations.yaml`, `data/gene_aliases.yaml`, `core/gff.py`,
+   `modules/registry.py`, `docs/tools/chloe.md`, `docs/D3-01_annotator.md` and `tests/data/`
+   fixtures. Give it its own task row with a Done-when (the golden still annotates through the
+   self-built engine; the old set's tests leave with it; D3-01 and §7.8 lose the tool whose
+   measurement is why it was dropped) rather than a sweep.
+2. **Close the phase**: `git tag phase-3b feat/phase-3b` → `git switch main` → `git merge --squash`
+   → one commit listing the ten tasks (CLAUDE.md → Commits). `main` then holds phases 1–5, 4a, 3B.
 
-**What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
-`[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
-function, each missing one a named `ExportDependencyError` + exit 3 · **nine figure types** in
-`result/figures/` (the ninth, `dotplot`, arrived with P3B-03), rendered at run level from the
-run's own `result.json` · `plastid run --figures`,
-`plastid figures`, `plastid package`, `plastid qc` · `core/stats.py` + the `stats` module ·
-`report/audit.py` (the queryable-number check) · `read_result`, which makes a run directory
-readable without re-running anything.
-
-**The phase's own numbers:** SVG · PDF · EPS byte-identical between two runs (a cached second run
-included) · the N-scaling rule **measured** at 2 · 8 · 34 (a series cap of 8, then the span the
-genomes cover) · 320 statistical tests over the stand-in panel with 0 significant after
-Benjamini–Hochberg, and 3 of the panel's 11 records carrying no annotation at all · **34/34**
-corpus records producing a one-page PDF, none failing · the audit clean over the whole Phase-4
-deliverable run (12 reports, 44 numbers).
-
-**Three layout defects were found by looking at rendered figures**, not by tests — the §9.C-34
-lesson, paid three times : overlapping region bands (§8.36) · a barcode band shading the whole axis
-plus a GC-skew ring with 50 % gaps (§8.37) · summary lines drawn inside the GC-skew panel (§8.39).
-
-**H-15 · H-08 · H-14 are closed** (P3B-05, §8.42). **On hold by D5-07 (plastid first):**
-H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-11 · H-13 · H-16 · **H-17** (named 08/10,
-§9.K-1: the artifact `gene_normalize` writes keeps its `gene` features in vocabulary B while the
-CDS/tRNA/rRNA over the same span come out in A — 6 stale on the gatesii artifact) · **H-18**
-(`lhbA` = `psbZ`: one 62 aa locus under two names, so the caller calls both) · **H-20** (named
-09/10, §9.L-5: structure-first is not enforced *between* candidates, so a reference with a truncated
-annotation of a locus wins the tie and drags the call to its own length — measured on the golden's
-`rps19`) · **H-21** (named 09/10, §9.L-6: the audit's partial-coordinate BLOCK refuses a record
-whose protein is complete). **H-09 · H-19 are closed** (§8.49 · §8.48). **Waiting on the PI:**
-H-04 (`trnG` — now measured, and a `stop` tier case: the golden annotates two *different* genes
-under one name, §8.41) and D5-05 (what a generated sentence may claim — the mechanism is built and
-follows the conservative default).
+**The bar itself, for the record:** the golden sequence annotates to exactly 132 = 86 + 38 + 8 with
+every difference from the published record listed (kind + span, nothing summarized away); all 34
+records ran leave-one-out, each result diffed against the published record **and** against PGA's
+reading, every difference classified (vocabulary vs conclusion) with fewer conclusion-level
+differences than PGA's; a search that finds nothing is a failed run. ✅ all four.
 
 ## Log
+
+### 2026-10-09 · Claude · dev WSL · session 33 (P3B-10 done: the exon structure comes from the reference, and the bar is MET)
+
+**Did.** The phase's Done-when, finished. Three changes, each measured first:
+
+* **The exon-structure transfer** (`core/exon_structure.py`, new; §8.55). blastx cannot seed an
+  exon shorter than a word, so `petB`'s 6 bp first exon was missed on **every** record, `rps12`'s
+  26 bp third exon with it, and where an intron sits *inside* one alignment the caller had no
+  evidence about its boundary at all (`rpoC1` 15/12 bp out, `ycf3` 5/2, `rpl2` 4). The fix brings
+  **the reference's own structure and its own DNA**: a *junction* (exon k + the whole intron +
+  exon k+1, gene orientation) is searched with `run_blastn_trace` — the first search in this repo
+  whose outfmt carries `qseq sseq` — and because the hit brings its alignment, each boundary maps
+  **exactly, gaps included**. Per **exon pair**, not per gene: `NC_072562.1` writes `rps12` as
+  `-1,+1,+1` (a trans-spliced gene's halves on opposite strands), and the pair across the
+  trans-splice is skipped while the other pair still places the 26 bp exon.
+* **The stop codon read even when the alignment stops short** (§8.55): 65 of the differences that
+  survived the transfer were exactly one codon, `psaJ` 30 of them — blastx cannot align past a
+  stop, so a target whose gene is shorter than the reference's presents an alignment that simply
+  ends.
+* **H-20** (§8.55): a candidate whose protein is the **suffix** of another's is the same gene
+  annotated from an inner ATG — three references spell the golden's `rps19` 74 aa, score
+  **100.00 %** against the complete 92 aa's 98.91 %, and identity alone transferred the truncation
+  (−54 bp). Flag on for the **plastid path only** (the mito path is frozen by D5-07).
+
+**Validation.** `make check` green. New: `tests/unit/test_exon_structure.py` (22 tests — the rule,
+the refusals, the interleave that keeps `rps12`'s exon across the trans-splice), the suffix rule in
+`tests/unit/test_plastid_caller.py`, `test_mito_caller.py`'s stop-codon section gains the
+"stopped short" case, and the golden's difference list is re-measured (**44 → 35**, pinned as a
+set). Corpus, clean run, 34 records leave-one-out: **418 against PGA's 588** (30 better · 4 worse ·
+0 tied) — **strict 1070 against 699**; 621/652 boundaries are ARGORN's tRNA ends.
+
+**Residual risks.** (1) **The verdict rests on the 1 bp tolerance** — stated in TASKS.md, §8.55 and
+here, never to be quoted without the strict line. (2) The transfer is **faithful to the chosen
+reference**, so where a reference's own structure differs from the published record by 2–3 bp at an
+intron boundary, our call differs too (`rpl2` 49 · `rpl16` · `ycf3` · `rps12`'s exon 2) — that is
+the price of transferring a structure instead of inventing one, and it is classified, not queued.
+(3) `ndhD`: the reference annotates 523 aa where the record has 501 and the target's DNA supports
+the longer model at 97.90 % from TTG against the record's ATC — an annotation disagreement the
+annotator reports but does not settle. (4) The corpus **has no test** — it is `make corpus-bar`,
+minutes long, not part of `check`; a regression in it would be found by running it, not by CI.
+
+**Blocked.** Nothing. **Next.** Retire chloe · pga (the decisions table's default, now due), then
+close the phase — see the Resume point.
 
 ### 2026-10-09 · Claude · dev WSL · session 32 (P3B-10: the corpus measured with the instrument in the repo — bar not met, and the golden's 86 is right by accident)
 
