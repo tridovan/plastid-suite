@@ -14,18 +14,19 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-10** (IN PROGRESS, 10/10/2026, §8.50) — golden + corpus
-validation, the phase's own Done-when. **Measured so far:** the golden artifact is now
-**132 = 86 + 38 + 8** ✓ (ARAGORN silently skipped intron-containing tRNAs — `-i` is now passed by
-the plastid path, and an intron splits the hit into the two exons a join needs); the IR copies the
-artifact writes were **placed one IR length from where they belong** (26,214 bp — outside the
-repeat) while the gene *count* stayed right, so no count-based test could see it: fixed, and the
-golden guard now checks the mirrored copies against the published record's own. **The corpus bar is
-NOT met**: 34/34 records ran leave-one-out (0 failures) and the classification gives **1,579
-conclusion-level differences against PGA's 637** (ours: 167 missing · 161 extra · 1,251 extent;
-PGA: 39 missing · 4 extra · 594 extent). Next: the composition of the extra/missing calls (not
-measured), the truncated first exons of `rps16` · `petB` · `petD` · `rpl16`, and committing the
-classification harness.
+**Immediate next action:** **P3B-10** (IN PROGRESS, 10/10/2026, §8.50–§8.51) — golden + corpus
+validation, the phase's own Done-when. **The corpus is now measured end to end and the bar is NOT
+met: 811 conclusion-level differences against PGA's 588** (0/34 records better, 32 worse, 2 tied;
+without the boundary tolerance 1,413 against 699 — no reading of the rule passes). The instrument
+lives in the repo: `tools/corpus_bar.py` · `make corpus-bar` · `tests/unit/test_corpus_bar.py`
+(19 tests for the rule). **Next work, in order and measured:** (a) **take the exon structure from
+the reference** — the first exons of `petB` (6 bp) · `petD` (8) · `rpl16` (9) · `rps16` (40) are
+below blastx's seed and are not called at all (136 of our 242 moves > 30 bp), and the same fix
+covers `rps12`'s **26 bp middle exon and its IRa copy** (12 missing + 21 extent); (b) **H-18** —
+`lhbA` is a *duplicate call* on the golden (33 of our 41 extras), and fixing it alone drops the
+golden to **85 CDS**, because the published 86 counts `rps12` twice: **the golden's 132 is right by
+accident today** — H-18 and the `rps12` IR copy are one piece of work; (c) **H-20** (`rps19`);
+(d) the golden's own difference list, kind + span, asserted in the golden test.
 
 **The bar itself:**
 the golden sequence annotates to exactly **132 = 86 + 38 + 8** with every difference from the
@@ -94,6 +95,43 @@ under one name, §8.41) and D5-05 (what a generated sentence may claim — the m
 follows the conservative default).
 
 ## Log
+
+### 2026-10-09 · Claude · dev WSL · session 32 (P3B-10: the corpus measured with the instrument in the repo — bar not met, and the golden's 86 is right by accident)
+
+**Did.** (1) **Re-ran the 34-record corpus** with the code from session 31's two fixes (34/34,
+0 failed runs, `--exclude NC_024936.1`); the composition changed exactly as predicted: **missing
+167 → 47, extra 161 → 41** — the whole IR-copy family gone. (2) **Committed the measuring
+instrument** (`tools/corpus_bar.py`, `make corpus-bar`, `19 tests` in
+`tests/unit/test_corpus_bar.py`, `pythonpath` in `pyproject.toml`) with its rule stated in one
+place. (3) **Declared and justified the boundary tolerance** (1 bp): 719/1,264 matched pairs move
+exactly one base, 634 of them with our call containing the record's, and ARAGORN run by hand on the
+golden returns the coordinates we emit — two methods ending a tRNA, not two conclusions. Applied to
+both readings; the no-tolerance totals printed beside it. (4) **Ran the bar**: **811 against
+PGA's 588 — NOT MET under either reading** (0/34 records better). (5) **Found three defects, none
+fixed**: `lhbA` is a *duplicate call* at the same span as `psbZ` (33 of 41 extras) and is what
+makes the golden's 86 — the published 86 counts `rps12` twice, ours counts `lhbA` twice, so both
+read 85 loci and **the golden number is right by accident**; `rps12` is missing its 26 bp middle
+exon and its whole IRa copy; the first exons of `petB`/`petD`/`rpl16`/`rps16` are below blastx's
+seed (136 of the 242 moves > 30 bp).
+
+**Validation.** `make check` green at the commit: **818 fast passed** (36 deselected) · **77 golden
+passed / 4 skipped** · ruff clean. The corpus numbers regenerate with `make corpus-bar` (needs
+`.panel/`, `TOOLS=/root/toolbox/env/pts/bin`); the harness's PGA pairing is by **sequence digest**,
+so a broken pair stops rather than comparing two different genomes.
+
+**Residual risks.** (a) The rule has a threshold in it, so it is reported with its sensitivity, not
+just its verdict — at 3 bp the bar would pass without any fix, which is exactly why the bar is read
+at 1 bp. (b) Writing the rule as code exposed two holes in it (envelope-only comparison; strand not
+compared) — both fixed with tests, but it says the rule was never as settled as it looked. (c) The
+stale first corpus run's numbers are still in §8.50; §8.51 says which run supersedes them.
+
+**Blocked.** Nothing. H-04 (cô Trang) and H-21 (a rule change) stay open by their own rows.
+
+**Next.** In order: the reference's **exon structure** in place of the alignment's span (fixes the
+four first exons *and* `rps12`); **H-18** together with the `rps12` IR copy (they move the golden's
+count together); **H-20**; then the golden's difference list as a test. The commit `e2c268c`'s
+subject says "session 31" — this entry is session 32; the subject is off by one and was left
+uncorrected rather than force-pushing a pushed commit.
 
 ### 2026-10-09 · Claude · dev WSL · session 31 (P3B-10 opened: two silent-wrong fixes, and the corpus bar measured — not met)
 
