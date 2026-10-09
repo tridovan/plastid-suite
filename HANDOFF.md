@@ -14,26 +14,26 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-10** (IN PROGRESS, 10/10/2026, §8.50–§8.52) — golden + corpus
+**Immediate next action:** **P3B-10** (IN PROGRESS, 10/10/2026, §8.50–§8.54) — golden + corpus
 validation, the phase's own Done-when. **The corpus is measured end to end and the bar is NOT met:
-692 conclusion-level differences against PGA's 588** (better in 9/34 records, worse in 23, tied in
-2; without the boundary tolerance 1,376 against 699 — no reading of the rule passes). The
-instrument lives in the repo: `tools/corpus_bar.py` · `make corpus-bar` ·
-`tests/unit/test_corpus_bar.py` (19 tests for the rule). Three fixes landed on the way: the IR
-mirror (§8.50), ARAGORN's `-i` for intron tRNAs (§8.50) and ARAGORN's intron **field** (§8.52 —
-`i(a,b)`: `b` is the intron's *length*, and reading it as an end made every spliced tRNA
-104–134 nt long; 811 → 692 when corrected). **Next work, in order and measured:** (a) **take the
-exon structure from the reference** — the first exons of `petB` (6 bp) · `petD` (8) · `rpl16` (9) ·
-`rps16` (40) are below blastx's seed and are not called at all (34 records each, top of the extent
-table), and the same fix covers `rps12`'s **26 bp middle exon and its IRa copy** (12 missing + 34
-extent); (b) **H-18** — `lhbA` is a *duplicate call* on the golden (33 of our 41 extras), and
-fixing it alone drops the golden to **85 CDS**, because the published 86 counts `rps12` twice:
-**the golden's 132 is right by accident today** — H-18 and the `rps12` IR copy are one piece of
-work; (c) **H-20** (`rps19`). **The golden's difference list is done** (§8.53): all **45**
-differences — 18 conclusion-level · 19 boundary · 8 vocabulary — are pinned as a set in
-`tests/golden/test_plastid_annotate.py`, with the four known defects named inside the list, so the
-next fix arrives as a visible change there. **New named risk: H-22** — ARAGORN's `-i` cap of
-3,000 bp is silent, and the longest intron measured on the corpus is **2,671 bp** (12 % margin).
+681 conclusion-level differences against PGA's 588** (better in 9/34 records, worse in 21, tied in
+4) — and **even counting the one-copy-vs-two-copy `rps12` representation as a presentation
+difference on both sides, 659 against 576**: no honest reading of the rule passes, so this is not a
+near miss a rule tweak could flip. The instrument is in the repo (`tools/corpus_bar.py` ·
+`make corpus-bar` · 19 tests for the rule). **Four fixes landed on the way**, three of them
+silent-wrong modes no counting test could see: the IR mirror (§8.50 — every mirrored copy was one
+IR length out), ARAGORN's `-i` for intron tRNAs (§8.50) and its intron **field** (§8.52 — `b` in
+`i(a,b)` is the intron's *length*; read as an end, every spliced tRNA came out 104–134 nt), and
+**the two defects that were covering for each other** (§8.54): `lhbA` was a duplicate call at
+`psbZ`'s own 35895-36083, and the golden's 86 was right only because that duplicate stood in for
+the `rps12` second copy the mirror refused to write. Both are fixed; the golden's **86 CDS is now
+right for the right reason**, and the difference list (§8.53, 44 entries) is what showed the three
+lines moving. **Next work, measured and named:** (a) **exon structure from the reference** — the
+first exons of `petB` (6 bp) · `petD` (8) · `rpl16` (9) · `rps16` (40) are below blastx's seed,
+plus `rps12`'s 26 bp third exon; **a 6 bp exon cannot be found by searching** (a 6 bp window
+matches a 3 kb space ~twice per frame by chance), so the fix must bring the reference's own DNA,
+not walk ORFs; (b) **H-20** (`rps19`, 34 extent); (c) the 8 tRNA names ARAGORN reads differently
+(**H-04**'s family); (d) **H-22** (the silent 3,000 bp `-i` cap; longest measured intron 2,671 bp).
 
 **The bar itself:**
 the golden sequence annotates to exactly **132 = 86 + 38 + 8** with every difference from the
@@ -139,6 +139,19 @@ four first exons *and* `rps12`); **H-18** together with the `rps12` IR copy (the
 count together); **H-20**; then the golden's difference list as a test. The commit `e2c268c`'s
 subject says "session 31" — this entry is session 32; the subject is off by one and was left
 uncorrected rather than force-pushing a pushed commit.
+
+**Also done in the same session (§8.54, H-18 + the `rps12` IR copy).** `lhbA` and `psbZ` are one
+locus by all three §8.9 signals, measured exact this time — **the same `/product` string**, the
+same 189 bp / 62 aa, the same neighbours `psbC … rps14`; 33 pinned records write `psbZ`, one
+(`NC_042827.1`) writes `lhbA`. The alias takes the pinned vocabulary **80 → 79 names**, and the
+caller stops writing both at the golden's 35895-36083. The `rps12` half is the mirror rule:
+`_ir_copies` now mirrors the exons of a **straddling** gene and keeps the shared exon in both
+features, which is how the published record writes a trans-spliced gene across the IR — the
+counter-case `ycf1` (one call reaching into the repeat gets **no** second copy) is pinned in
+`tests/unit/test_ir_copies.py`. **The measured cost, named rather than hidden: 22 of 34 published
+records write `rps12` once**, so our second copy reads as an extra there; the corpus moved 692 →
+**681** (missing 47 → 34, extra 41 → 30) and PGA stays 588. Even if that representation difference
+were excluded on both sides it is 659 against 576 — the bar is not met, and §8.54 says so.
 
 **Added later in the same session (§8.52).** The corpus measurement itself found a **silent-wrong**
 and it is fixed: ARAGORN's intron notation **`i(a,b)`** has `b` as the intron's **length**, not its

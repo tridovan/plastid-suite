@@ -812,3 +812,42 @@ gì đã đổi**, thay vì im lặng đi qua.
 
 Sau bản sửa §8.52, danh sách tRNA có intron đã sạch: `trnL-UAA` và `trnA-UGC` **không còn** trong
 danh sách (khớp bản công bố từng exon), `trnK-UUU` chỉ còn **1 bp mỗi đầu** (xếp vào `boundary`).
+
+### 8.54. `lhbA` là call trùng, và `rps12` phải viết hai lần — hai lỗi bù nhau làm con số 86 đúng tình cờ (10/10/2026)
+
+**(1) `lhbA` (H-18) — ba tín hiệu, đo được, khớp tuyệt đối.** Bản vàng `NC_050833.1` gọi locus
+62 aa là `psbZ`; `NC_042827.1` gọi **cùng locus** là `lhbA`, và ba tín hiệu của §8.9 trùng khít:
+**cùng chuỗi `/product`** ("photosystem II protein Z"), **cùng độ dài** 189 bp / 62 aa, **cùng
+hàng xóm** `psbC … rps14`. Đếm trên bộ đã pin: **33 bản ghi viết `psbZ`, 1 bản ghi viết `lhbA`** —
+đúng như §8.46 đã ghi. Không có entry alias thì bộ từ vựng tham chiếu mang **80 tên CDS cho 79
+locus**, và bộ gọi — vốn "một locus một call" — **viết cả hai tên tại đúng 35.895–36.083** của bản
+vàng: một **call trùng**, phạm chính Done-when của P3B-08. Đo sau khi thêm entry: **80 → 79 tên**,
+`lhbA` biến mất. Test: `test_the_pinned_set_spells_every_cds_locus_once`.
+
+**(2) `rps12` vắt qua ranh giới IR (luật sao bản sao).** Bản vàng có **đúng một** gen CDS vắt qua
+ranh giới IR: `rps12` — exon 1 ở LSC (68.976–69.089), hai exon trong IRa. Luật cũ chỉ sao gen **nằm
+trọn** trong một bên, nên gen này không được sao; bản công bố thì viết nó **hai lần**, mỗi feature
+mang **cùng exon 1** và exon của bản sao mình. Luật nay: exon nào nằm trong IR thì được soi gương,
+exon còn lại giữ nguyên — nên hai feature **dùng chung** exon 1, đúng như bản ghi. Đo lại bản vàng:
+`rps12` **có** bản sao thứ hai, khớp bản công bố tới **3 bp** (138.836–139.066 so với
+138.839–139.067), và vẫn thiếu **exon thứ ba 26 bp** (139.609–139.634) — cùng gốc với bốn exon đầu
+cụt (dưới ngưỡng seed của blastx). Test đơn vị mới `tests/unit/test_ir_copies.py` chốt luật
+trên plastome tổng hợp, **kèm ca đối chứng `ycf1`**: `ycf1` chạy từ SSC *vào* IR như **một** call,
+và một call không phải bản sao thứ hai — bản vàng công bố có **một** `ycf1` và **hai** `rps12`; một
+luật sao mọi gen chạm IR sẽ **phát minh** ra `ycf1` thứ hai.
+
+**(3) Vì sao hai việc phải đi cùng nhau — đo được, không phải suy luận.** Sửa H-18 một mình đưa bản
+vàng xuống **85 CDS**: con số 86 của nó đang đúng vì **một cái sai bù một cái sai** — artifact của
+ta là **85 locus + `lhbA` gọi trùng = 86**, bản công bố là **85 locus + `rps12` viết hai lần = 86**.
+Sau cả hai: **86 CDS = 86**, lần này vì đúng lý do, và test danh sách khác biệt (§8.53) tự báo đúng
+ba dòng đổi: mất `lhbA` extra, mất `rps12` missing, thêm `rps12` extent. Danh sách còn **44**.
+
+**(4) Cái giá trên corpus, đo được: 22/34 bản ghi viết `rps12` **một lần**.** Đo phân bố trên bộ
+Iridaceae: **22 bản ghi** viết `rps12` một feature (3 exon, gọn trong một bản IR), **12 bản ghi**
+viết hai feature — bản vàng thuộc nhóm 12. Luật "viết hai lần" theo hợp đồng của bản vàng
+(CLAUDE.md: 132 = 86 + 38 + 8), nên trên 22 bản ghi kia bản sao của ta thành **extra**: corpus
+692 → **681** (thiếu 47 → 34, thừa 41 → 30, độ dài 617). Đây là **khác biệt về cách trình bày**, và
+nó đáng một câu hỏi riêng cho thước đo — nhưng **không đổi kết luận**: nếu phân loại nó là khác
+biệt trình bày (bỏ 22 của ta) và áp y hệt cho PGA (bỏ 12 "missing rps12" của nó), thì **659 so với
+576 — vẫn KHÔNG đạt**. Thanh chuẩn không đạt ở mọi cách đọc trung thực của luật, và đó là điều
+đáng ghi lại: nó không phải một con số sát nút có thể lật bằng cách chỉnh luật.
