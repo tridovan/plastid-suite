@@ -793,3 +793,22 @@ intron **≤ 3.000 bp** và **không nói gì** khi bỏ qua (cùng hình dạng
 — chỉ cách trần **12 %**. Một loài có intron `trnK` dài hơn 3.000 bp sẽ **mất tRNA trong im lặng**.
 Chưa đổi trần: đổi mà chưa đo thì lại là một thay đổi không đo được, và câu hỏi đúng là "nâng trần
 có thêm call sai nào không" — ghi thành **H-22** kèm cách đo.
+
+### 8.53. Bản vàng: 45 khác biệt so với bản công bố, từng cái một, thành test (10/10/2026)
+
+Done-when của P3B-10 có hai vế; vế thứ nhất là *"mọi khác biệt so với bản công bố được liệt kê
+(kind + span, không tóm tắt cái nào)"*. Nay nó là một test: `GOLDEN_DIFFERENCES` trong
+`tests/golden/test_plastid_annotate.py` ghi **cả 45 khác biệt** — **18 mức kết luận · 19
+`boundary` · 8 `vocabulary`** — và test so **tập hợp**, không so con số, nên một khác biệt đổi
+verdict, đổi toạ độ, biến mất hay mới xuất hiện đều **fail kèm hai danh sách** (cái không còn thấy ·
+cái chưa có trong danh sách). Đã **xem nó fail** theo cả hai chiều trước khi tin nó.
+
+Bốn khiếm khuyết đã biết **nằm trong danh sách, không bị danh sách che**: exon đầu cụt của `petB`
+(6 bp) · `petD` (8) · `rpl16` (9) · `rps16` (40); `rps12` thiếu bản sao thứ hai và exon giữa 26 bp;
+`lhbA` (call trùng tại đúng `psbZ` 35.895–36.083 — và là lý do **86 của bản vàng đúng một cách tình
+cờ**, xem §8.51); `rps19` −54 bp ở cả hai bản (**H-20**); tám tên tRNA ARAGORN đọc khác (**H-04**'s
+họ). Mỗi cái có task riêng, ghi ngay trên danh sách — nên khi một cái được sửa, test sẽ nói **cái
+gì đã đổi**, thay vì im lặng đi qua.
+
+Sau bản sửa §8.52, danh sách tRNA có intron đã sạch: `trnL-UAA` và `trnA-UGC` **không còn** trong
+danh sách (khớp bản công bố từng exon), `trnK-UUU` chỉ còn **1 bp mỗi đầu** (xếp vào `boundary`).
