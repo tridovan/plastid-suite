@@ -14,18 +14,21 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-09** — CLI & batch (M3B.4, H-09): the `plastid annotate`
-command over 1..N samples × 1..N reference records, one artifact per sample and one report per run,
-a failed sample named **without killing the run**, the organelle declared at input (a mito input
-refused by name), the docx report, and the engine registered as the annotate step with
-`annotation`'s chloe · pga set retired — **plus the audit gate in front of the run** (measured
-09/10/2026, §8.48: `plastid_annotate` does not call the audit today, and a record the audit BLOCKs
-is still a candidate in a run). **P3B-10** (golden + corpus validation — the phase's Done-when)
-follows, and it inherits **one** named difference: the tRNA count (30 called vs 38 published — the
-export mirrors CDS and rRNA, not tRNA). It is conclusion-level, and P3B-10's bar is fewer of those
-than PGA. **H-19 is closed** (09/10/2026, §8.48): a locus a record annotated twice is now searched
-once — the truncated duplicate never enters the index — and the golden's `ycf1` matches the
-published gene base for base.
+**Immediate next action:** **P3B-10** — golden + corpus validation, the phase's own Done-when:
+the golden sequence annotates to exactly **132 = 86 + 38 + 8** with every difference from the
+published record listed (kind + span, nothing summarized away); all **34 records** ran
+leave-one-out, each result diffed against the published record **and** against PGA's reading, every
+difference classified (vocabulary vs conclusion) with **fewer conclusion-level differences than
+PGA's**; a search that finds nothing is a failed run. It starts from **two named differences** —
+the tRNA count (30 called vs 38 published: the export mirrors CDS and rRNA, not tRNA) and **H-20**
+(`rps19` 279 bp → 225 bp, because the audit gate forces `NC_024936.1` out of the set and three
+pinned records carry a truncated `rps19` that then wins the tie; structure-first *between*
+candidates is the piece H-19 did not implement) — and its corpus runs carry
+`--exclude NC_024936.1`. **H-09 is closed** and **P3B-09 is done** (09/10/2026, §8.49): the
+`plastid annotate` command, the batch as a batch of runs, the audit gate in front of the first
+BLAST, `--exclude` as D5-08's "drop the bad file" made mechanical, and the organelle declared by
+every module and refused by name in both directions. `annotation`'s chloe · pga set stays until
+P3B-10 passes (the decisions table says so), then it retires with D3-01's update line.
 Done and pushed on `feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-03** (§8.43) ·
 **P3B-04** (§8.44) · **P3B-05** (§8.42, so H-15 · H-08 · H-14 are closed) · **P3B-06** (§8.45 —
 Ts/Tv re-measured under the new direction: **unchanged at 2.6917**, and measured to be
@@ -36,7 +39,7 @@ the truncating `-max_target_seqs`, a whitespace FASTA header, rRNA product-sente
 — a locus a record annotated twice is searched once: the truncated duplicate is excluded from the
 reference index and **named**, 0.5 sitting inside a measured gap 0.2992 → 0.9927, and the golden's
 `ycf1` moves from 900 bp to the published 5,421 bp as the **only** line of the called set that
-changes). The phase's open calls — D-a · D-b · D-e — sit in `TASKS.md` → "Decisions
+changes) · **P3B-09** (§8.49). The phase's open calls — D-a · D-b · D-e — sit in `TASKS.md` → "Decisions
 to make"; the conflict exit code, the parameter name, the manifest schema and the organelle group
 are **decided and shipped** (P3B-04). **The ★ pick** is still the end user's:
 `data/naming_reference.json` holds a **recorded override** (`provisional: true`, the golden) and
@@ -65,16 +68,74 @@ lesson, paid three times : overlapping region bands (§8.36) · a barcode band s
 plus a GC-skew ring with 50 % gaps (§8.37) · summary lines drawn inside the GC-skew panel (§8.39).
 
 **H-15 · H-08 · H-14 are closed** (P3B-05, §8.42). **On hold by D5-07 (plastid first):**
-H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-09 · H-11 · H-13 · H-16 · **H-17** (named 08/10,
+H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-11 · H-13 · H-16 · **H-17** (named 08/10,
 §9.K-1: the artifact `gene_normalize` writes keeps its `gene` features in vocabulary B while the
 CDS/tRNA/rRNA over the same span come out in A — 6 stale on the gatesii artifact) · **H-18**
-(`lhbA` = `psbZ`: one 62 aa locus under two names, so the caller calls both). **H-19 is closed**
-(§8.48). **Waiting on the PI:**
+(`lhbA` = `psbZ`: one 62 aa locus under two names, so the caller calls both) · **H-20** (named
+09/10, §9.L-5: structure-first is not enforced *between* candidates, so a reference with a truncated
+annotation of a locus wins the tie and drags the call to its own length — measured on the golden's
+`rps19`) · **H-21** (named 09/10, §9.L-6: the audit's partial-coordinate BLOCK refuses a record
+whose protein is complete). **H-09 · H-19 are closed** (§8.49 · §8.48). **Waiting on the PI:**
 H-04 (`trnG` — now measured, and a `stop` tier case: the golden annotates two *different* genes
 under one name, §8.41) and D5-05 (what a generated sentence may claim — the mechanism is built and
 follows the conservative default).
 
 ## Log
+
+### 2026-10-09 · Claude · dev WSL · session 30 (P3B-09: `plastid annotate`, and the gate in front of the run)
+
+**Did.** **P3B-09** (M3B.4 · H-09) — the annotate command, the batch, and the organelle. Five
+pieces, each with a measured reason:
+
+* **`plastid annotate`** — 1..N samples × 1..N reference records. A batch is a **batch of runs**:
+  every sample goes through `_execute_run` (seam 3) into `<out>/<accession>/<run-id>/` with its own
+  manifest, report and artifact. A failed sample is named, its own run directory records
+  `status: failed` + the reason, the batch continues, and the exit code is non-zero. The manifest
+  gained an optional `dataset` key (schema 2 unchanged) so a run that failed before writing
+  anything still says which sample it was.
+* **The audit gate, in the module, before the first BLAST.** `_reference_set` audits exactly the
+  records the run will search (H-19 named this hole, §8.48). Measured on the real pinned set:
+  exit 2 in **13 s**, two `file — reason` lines (`NC_024936.1.gb — CDS rps19: partial coordinates
+  (>83020)` / `(<153124)`), no artifact. `--exclude <accession>` is D5-08's "drop the bad file" as
+  a mechanism — declared, recorded in the manifest, named in the reference label and in the run's
+  notes; a name matching nothing **stops the run**. `--audit-only` (P3B-03's flag) audits and stops.
+* **H-09 done.** `ModuleSpec.group` (`shared` · `plastid` · `mito`, **required**) on all 22 modules
+  per §13's table; `core/organelle.py` reads `/organelle` and refuses **both** mismatch directions
+  **and** a mixed set, by name, pointing at the command that serves it. A bare sequence declares
+  nothing and is not guessed (D5-06: the path declares).
+* **The `.docx` report had never run**: `citations=("blast", "aragorn")` with neither key in
+  `data/citations.yaml` → `CitationError`. Both added, and the engine had **no report template** at
+  all — `report/templates/plastid_annotate.en.md` written.
+* **A directory parameter is content-addressed** (P3B-05's promise, one level up): `--set
+  reference=<dir>` was hashed as a string, so editing a reference record served stale tables.
+
+**Validation.** `make check` green: **797 fast · 76 golden passed / 4 skipped** (the four are the
+missing external tools: PGA.pl, chloe · julia, table2asn). New tests: `tests/unit/test_organelle.py`
+(15 — the declaration, both directions, a mixed set, the registry's groups) ·
+`tests/unit/test_cli_annotate.py` (6 — the mito sample refused by name, a mito FASTA refused through
+its reference set, a mixed batch stopped before anything is annotated, `--audit-only` needs no
+sample, a failed sample marked without killing the batch, one artifact per sample) · three golden
+tests (the gate stops a real run on the real blocked record · a drop is named · an unmatched
+exclusion stops). The three existing golden checks now run with `--set exclude=NC_024936.1` (the gate
+forces the drop) and **still hold** — `ycf1` 122.984–128.404 unchanged.
+
+**Residual risks.** (1) **H-20** — dropping the blocked record changes exactly one call of the
+golden: `rps19` 279 bp → **225 bp**, because three pinned records carry a truncated `rps19`
+(225 bp/74 aa) and one of them wins the tie. Structure-first *between* candidates is the piece H-19
+did not implement; it is P3B-10's to classify and a fix of its own. (2) **H-21** — the audit's
+partial-coordinate BLOCK refuses `NC_024936.1`, whose `rps19` protein is **complete** (279 bp/92 aa);
+that very record produced the published call. The rule's stated reason does not hold for this shape.
+(3) The `--exclude` mechanism is a way to *drop*, not to *waive* — but it is the user's act, so a
+run's fidelity depends on it being written down; it is, in the manifest and the notes.
+
+**Blocked.** Nothing. The ★ pick is still the end user's (§8.44's provisional override stands).
+
+**Next.** **P3B-10** — the phase's Done-when: the golden to exactly **132 = 86 + 38 + 8** with every
+difference listed, and all **34 records leave-one-out**, diffed against the published record *and*
+against PGA's reading, every difference classified, with fewer conclusion-level differences than
+PGA. It starts from two named differences (the tRNA count — 30 called vs 38 published, the export
+mirrors CDS and rRNA but not tRNA — and **H-20**), and its corpus runs carry `--exclude
+NC_024936.1` because the gate now stops on it.
 
 ### 2026-10-09 · Claude · dev WSL · session 29 (H-19: a locus a record annotated twice is searched once)
 

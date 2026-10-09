@@ -127,7 +127,7 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   first — **[ĐÃ SỬA 09/10/2026: `ycf1` nay khớp bản công bố từng base — §8.48]**) and tRNA 30 vs 38
   (the export does not yet mirror tRNA).
 
-- [ ] **P3B-09 · CLI & batch** *(M3B.4 · H-09)*
+- [x] **P3B-09 · CLI & batch** *(M3B.4 · H-09)* — DONE 09/10 (§8.49)
   - 1..N samples × 1..N reference records; one artifact per sample, one report per run; a failed
     sample is marked **without killing the run** (the exit code reflects it).
   - The organelle declared at input; a mito input refused **by name**; docx report (the D2-04 pattern).
@@ -139,8 +139,30 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
     "an audit gate in front of every run"; `--audit-only` is the flag, this is the wiring.
   **Done when:** a batch with one broken sample completes, names it, exits non-zero; a mito FASTA is
   refused by name; the run directory holds one artifact per sample.
+  ✅ all three, plus the gate measured on the real pinned set: **exit 2 in 13 seconds, two
+  `file — reason` lines, no artifact** (`NC_024936.1.gb — CDS rps19: partial coordinates`). The
+  batch is a batch of runs — one run directory, manifest, report and artifact per sample, through
+  the same `_execute_run` every other command uses (seam 3). `--exclude <accession>` is D5-08's
+  "drop the bad file" as a mechanism: declared on the command line, recorded in the manifest, named
+  in the reference label and in the run's notes — and a name that matches nothing **stops the run**.
+  `--audit-only` (P3B-03's flag) audits and stops. `group` is now declared by all **22** modules
+  (`shared` · `plastid` · `mito`, required), and both mismatch directions **plus a mixed set** stop
+  by name — so **H-09 is done**. Three measured findings: **H-20** (structure-first between
+  candidates: dropping the blocked record truncates the golden's `rps19` from 279 bp to 225 bp) ·
+  **H-21** (the partial-coordinate BLOCK refuses a record whose `rps19` protein is complete — the
+  very record that reproduced the published call) · the `.docx` report had never run
+  (`CitationError: 'blast' is not in the registry`) and the engine had no report template — both
+  fixed here. **Not in this task, by the decisions table:** `annotation`'s chloe · pga set
+  **retires when P3B-10 passes** — the engine is registered and `plastid annotate` is its command,
+  but the old set stays until the phase's own bar is met (D3-01 gains its update line then).
 
 - [ ] **P3B-10 · Golden + corpus validation** *(M3B.5 — the phase's Done-when)*
+  - The reference set the corpus runs against is **the pinned set with `NC_024936.1` excluded**
+    (`--exclude`), because the audit gate now stops any run that would search it (§8.49). Leave-one-
+    out still applies on top: for a target inside the set, the drop and the LOO both bite.
+  - Two named differences arrive from P3B-09 and must be classified, not discovered: **H-20**
+    (`rps19` 279 bp → 225 bp when the blocked record is dropped) and the **tRNA count** (30 called
+    vs 38 published — the export mirrors CDS and rRNA, not tRNA).
   **Done when:** the golden sequence annotates to exactly **132 = 86 + 38 + 8** with every difference
   from the published record listed (kind + span, nothing summarized away); all 34 records ran
   leave-one-out, each result diffed against the published record **and** against PGA's reading, every
@@ -213,8 +235,10 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 ## Housekeeping
 
 *(H-15 · H-08 · H-14 **done** in P3B-05, 08/10/2026 — §8.42. **H-19 done** 09/10/2026, its own
-commit before P3B-09 — §8.48 · §9.L-4. H-16 is the repeats milestone M2.12, on its own branch when
-picked up.)*
+commit before P3B-09 — §8.48 · §9.L-4. **H-09 done** in P3B-09, 09/10/2026 — §8.49. **H-20 · H-21**
+named 09/10/2026 (P3B-09 — §8.49 · §9.L-5 · §9.L-6), both from measurements the audit gate produced;
+H-20 blocks P3B-10's golden bar on one locus. H-16 is the repeats milestone M2.12, on its own branch
+when picked up.)*
 
 | ID | Task | Status | Done when |
 |---|---|---|---|
@@ -222,10 +246,12 @@ picked up.)*
 | H-04 | `trnG-GCC` vs `trnG-UCC` (§10.10) | OPEN | cô Trang decides the name printed in the manuscript table |
 | H-06 | `mito_gene_names.yaml` holds **31** loci; the references carry **10 standard genes more** | ON HOLD — D5-07; measured 03/10 | each new locus carries the reference `/product` string that justifies it, and a test proves coverage; reopen with plant mito data |
 | H-07 | π per **intron/IGS** — the last piece of M2.9 | OPEN | intron spans derived in the shared layer first (DRY's second copy), then `diversity`'s region machinery; cross-checked against `introns`' count (17 on the golden) |
-| H-09 | No module declares **which organelle it serves**; no run checks its **inputs** are single-organelle. **Partly in P3B-09** | OPEN, decided 05/10 (D5-06) | the registry carries each module's group; a **mixed** input set and **both** mismatch directions exit with a named error; the Phase-6 transfer analysis stays the exemption |
+| H-09 | No module declares **which organelle it serves**; no run checks its **inputs** are single-organelle | **DONE 09/10/2026** (P3B-09, §8.49) — `ModuleSpec.group` on all 22 modules (required), `core/organelle.py` reads `/organelle` and refuses both mismatch directions **and** a mixed set, by name; the Phase-6 transfer analysis stays the named exemption | the registry carries each module's group; a **mixed** input set and **both** mismatch directions exit with a named error ✅ |
 | H-11 | An artifact this toolkit writes declares no organelle — `mito annotate` copies the input's empty `source`; the same artifact fails `submission`'s first pass 24× | OPEN, measured 05/10 | every path that writes a record writes a `source` with `/organelle`, proven by reading it back; `mito-prototype` rebuilt and re-pinned |
 | H-12 | `gene_names` is declared **shared** but loads only the plastid alias table (0 renamed on a mito record, measured 05/10) | ON HOLD — reopen with plant mito data | the module picks the vocabulary per record — or the §13 row says the *layer* is organelle-aware |
 | H-13 | **An unannotated record's IR is only half-checked** — identity, never length (`PZ428230.1`: 15,756 bp vs ~25.7 kb, §9.A-8) | OPEN, named 05/10 | IR length checked against ≥ 3 same-genus records; a length outlier stops the run by name; the corpus record is the negative test |
 | H-16 | **Repeats (`repeat-match` + Vmatch) has no module** — milestone **M2.12** | OPEN — own branch when picked up (Phase 2 is closed + merged) | a `repeats` module reports every match ≥30 bp with coordinates and region (the IR pair included), its count a new §8 entry |
 | H-18 | **`lhbA` and `psbZ` are one locus under two names** — `NC_042827.1` spells the 62 aa locus `lhbA`, the other 33 reference records (and the golden) spell it `psbZ` (measured 08/10, §8.46), so the reference vocabulary carries **80** CDS names for **79** loci and the caller calls both | OPEN, named 08/10 (P3B-07); the naming layer's (D5-09), and P3B-08 needs it resolved — one call per locus is that task's Done-when | `data/gene_aliases.yaml` carries the entry with §8.9's three signals (syntenic neighbours · length · `/product`), the direction taken from the ★ record; a test proves the vocabulary count drops to 79 on the pinned set |
+| H-20 | **Structure-first is not enforced *between* candidates** — H-19 fixed the within-one-record case (a truncated duplicate never enters the index), but when several references describe one locus the choice is still identity-first, and a reference with a **truncated annotation** of that locus wins a tie and drags the call to its own length. Measured 09/10/2026 (§8.49): dropping the blocked record makes the golden's `rps19` **279 bp → 225 bp**, and the pinned set measures `rps19` at 27 × 279 bp/92 aa · 2 × 285/94 · **3 × 225/74 · 1 × 69/22** | OPEN, named 09/10 (P3B-09) — the arbitration engine's (P3B-08), and a difference **P3B-10 must classify** | on an identity tie the structurally complete candidate wins (D5-08 §3: structure decides first, score only tie-breaks within one program); the golden's `rps19` lands on the published 83.173–83.451 with `NC_024936.1` excluded, and the pinned set's three 225 bp records do not move any other call |
+| H-21 | **The audit's partial-coordinate BLOCK refuses a record whose protein is complete** — `NC_024936.1`'s two `rps19` features are **279 bp / 92 aa** with full `/translation`; the `<`/`>` flags describe a gene at the IR junction, not a truncated protein. The rule's stated reason (a partial reference stamps partial flags on the target, §8.15 trap 1) is measured **not** to hold here: that very record produced the golden's `rps19` at the published span, 100.00 %, with no partial flag on the call (§8.49) | OPEN, named 09/10 (P3B-09) | a BLOCK rule distinguishes *partial coordinates with a complete protein* from *a truncated protein* (measured on the pinned set: translation length vs the locus's own class), the corpus is re-audited, and the rule's reason is re-stated with what it now measures |
 | H-17 | **`gene_normalize`'s artifact mixes the two vocabularies in one file** — CDS/tRNA/rRNA come out in A, the `gene` feature over the same span stays in B (measured 08/10: 6 stale `gene` features on the gatesii artifact, §9.K-1) | OPEN, named 08/10 (P3B-06) | the `gene` feature is renamed with the feature it spans, matched by **span** (not by name — the golden has two different genes under `trnG-UCC`, H-04); both published Iris records are the standard it is measured against (132/132 agreeing, 0 stale); a record whose `gene` feature carries no counterpart is reported, not guessed |

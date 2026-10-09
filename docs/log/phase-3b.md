@@ -550,3 +550,94 @@ bản IR bằng nhau vẫn là hai entry) cộng **một mới**: một feature 
 bắn trên một phép *so sánh*, và một feature thì không có phép so nào. Golden:
 `test_ycf1_lands_on_the_published_gene_not_on_a_truncated_reference` — khẳng định toạ độ
 122.984–128.404 **và** rằng run nói ra feature nó đã không tìm.
+
+### 8.49. `plastid annotate` — cổng audit trước run, batch một mẫu một thư mục, và hai phát hiện đo được (P3B-09, 09/10/2026)
+
+Task **P3B-09** (M3B.4 · H-09). Lệnh `plastid annotate` ra đời: 1..N mẫu × 1..N bản ghi tham
+chiếu, **mỗi mẫu một thư mục run riêng** (manifest · report · artifact) — batch là *một loạt run*,
+không phải một run chứa N mẫu, vì §2 chốt "output tách theo lần chạy/dataset, không ghi đè tại
+chỗ", và một mẫu hỏng **không được** làm hỏng dấu vết của các mẫu còn lại.
+
+**Cổng audit nay nằm trước run — và nằm trong module, không nằm ở CLI.** H-19 gọi tên lỗ này
+(§8.48): `plastid_annotate` không hề gọi audit. Chỗ nối là `_reference_set`, tức **đúng tập bản ghi
+run sắp tìm**, chạy **trước HSP đầu tiên** — nên "không chú giải gì" là nghĩa đen chứ không phải
+hy vọng. Đo trên chính bộ đã pin, `plastid annotate -i tests/data/NC_050833.1.gb --reference
+.panel/plastid-reference`: **exit 2** sau **13 giây**, hai dòng `file — reason` và **không artifact
+nào**:
+
+```
+.panel/plastid-reference/NC_024936.1.gb — CDS rps19: partial coordinates (>83020)
+.panel/plastid-reference/NC_024936.1.gb — CDS rps19: partial coordinates (<153124)
+```
+
+**Cách đi tiếp là `--exclude`, và nó không phải một lối vòng qua cổng.** D5-08 viết vòng lặp là
+*"fix or drop the bad file → run again"*; `--exclude <accession>` là dạng cơ học của "drop", **khai
+trên dòng lệnh** (manifest ghi lại nguyên argv) và **run nói ra**: nhãn bộ tham chiếu thành
+`32 GenBank record(s) …, audited (0 blocked), 1 left out by leave-one-out (…), 1 dropped by name
+(NC_024936.1)`, và `result.json` mang một note riêng. Phán quyết về file đó **không đổi** — pin
+không bao giờ waive được một BLOCK (`core/reference_audit`) — chỉ có điều file ấy không được tìm.
+Một cái tên không khớp bản ghi nào thì **dừng run** chứ không im lặng: người dùng tin rằng một bản
+ghi đã bị bỏ ra trong khi run vẫn tìm nó là đúng kiểu sai-im-lặng của dự án (§8.43, luật của pin).
+
+**Đo được — bỏ bản ghi bị chặn làm đổi đúng một dòng của tập call, và dòng ấy xấu đi.** Vàng
+(33 tham chiếu, có `NC_024936.1`) vs vàng (32 tham chiếu, đã bỏ nó): **cùng 84 dòng** (80 CDS + 4 rRNA), khác ở chỗ
+bản ghi được chọn cho nhiều locus (cột 9), và **đúng một dòng khác về nội dung** — `rps19`:
+
+| | toạ độ | dài | bản ghi được chọn |
+|---|---|---|---|
+| có `NC_024936.1` | 83.173–83.451 | **279 bp** | `NC_024936.1` |
+| đã bỏ nó | 83.173–83.397 | **225 bp** | (một bản ghi 225 bp) |
+| bản công bố | 83.173–83.451 | 279 bp | — |
+
+Nguyên nhân đo trên cả bộ: `rps19` của 34 bản ghi là **27 × 279 bp/92 aa · 2 × 285 bp/94 aa ·
+3 × 225 bp/74 aa · 1 × 69 bp/22 aa** — ba bản ghi (`NC_081929.1` · `NC_081930.1` · `NC_081932.1`)
+mang một `rps19` **bị chú giải cụt**, và khi bản ghi đầy đủ bị bỏ ra thì một trong ba bản cụt ấy
+thắng (cùng 100,00 % identity) rồi **kéo call về độ dài của chính nó**. Đây là đúng vế mà H-19
+**chưa làm**: D5-08 §3 "cấu trúc trước, điểm sau" trong *trọng tài giữa các ứng viên* — H-19 mới
+sửa được vế trong-một-bản-ghi (bản sao cụt bị loại khỏi chỉ mục), còn vế **giữa các bản ghi** thì
+chưa. **Ghi tên: H-20** (§9.L-5), và nó là một trong những khác biệt P3B-10 phải phân loại.
+
+**Phát hiện thứ hai, sửa ngay: báo cáo `.docx` của engine chưa từng chạy được.** `plastid annotate
+--docx` dừng với `CitationError: citation key 'blast' is not in the registry` — module khai
+`citations=("blast", "aragorn")` mà `data/citations.yaml` không có hai khoá ấy (registry mới có
+misa · biopython · mafft · pga · chloe · mummer · paml · cbol · yang_nielsen). Đã thêm hai mục
+(BLAST+ Camacho và cs. 2009 · ARAGORN Laslett & Canback 2004) và viết
+`report/templates/plastid_annotate.en.md` — engine mới **chưa có template**, nên trước đó run không
+sinh `report.md` nào cả. Đo lại: `--docx` chạy hết, `report.md` + `report.docx` ra đời, phần
+References in đúng hai bài.
+
+**Bào quan, khai ở đầu vào (H-09).** `core/organelle.py` là chỗ duy nhất trả lời "bản ghi này là
+bào quan nào": đọc `/organelle` (đo trên hai bộ đã pin: `plastid:chloroplast` ×29 · `plastid` ×5 ·
+`mitochondrion` ×8) và **không đoán** khi bản ghi không khai — D5-06: chuỗi trần tự khai bằng
+**đường vào**. Registry nay mang `group` cho cả **22 module** (§13 → "Hai bào quan" là bảng nguồn;
+`group` **bắt buộc**, không có mặc định, vì bỏ sót không phải là một lời khai). Hai chiều lệch đều
+dừng **có tên**, kèm đường đúng: `mito_genes` trên plastome hôm nay không còn đi qua im lặng (§9.J
+đo 05/10). Một **bộ trộn** hai bào quan cũng dừng, và dừng **trước khi** mẫu nào được chú giải.
+
+**Phát hiện thứ ba, ghi lại chứ chưa sửa: luật BLOCK "toạ độ partial" từ chối một bản ghi mà
+protein của nó đầy đủ.** `NC_024936.1` có **hai** feature `rps19`, mỗi cái **279 bp / 92 aa** với
+`/translation` trọn vẹn; cờ partial (`>83020`, `<153124`) là cách bản công bố mô tả gene nằm ở
+ranh giới IR, không phải một protein cụt. Bằng chứng mạnh nhất: **chính bản ghi ấy** là bản ghi đã
+cho ra `rps19` khớp bản công bố từng base (83.173–83.451, 100,00 %, không cờ partial nào trên
+call). Vậy lý do của luật ("một reference partial đóng dấu partial lên mẫu", §8.15 trap 1) **không
+đúng cho dạng này** — nhưng sửa một luật BLOCK đã chốt ở P3B-03 là việc của một task có đo lại
+toàn bộ, không phải việc lặng lẽ làm trong P3B-09. **Ghi tên: H-21**, kèm giá đo được của việc bỏ
+bản ghi ấy (bảng `rps19` ở trên).
+
+**Cache: một tham số là *thư mục* nay cũng được định địa chỉ theo nội dung.** P3B-05 hứa "một tham
+số mang giá trị file thì tính theo nội dung" nhưng chỉ áp cho `is_file()`; `--set reference=<dir>`
+được băm như chuỗi đường dẫn, nên sửa một bản ghi trong bộ tham chiếu sẽ trả lại bảng của lần chạy
+trước — đúng kiểu H-15, lùi một tầng. Nay thư mục được băm theo **tên file + sha256 từng file**, và
+test khẳng định cả ba cách bộ đổi (thêm · bớt · sửa) đều đổi khoá.
+
+**Test.** `tests/unit/test_organelle.py` (15) — khai báo · hai chiều lệch · bộ trộn · registry mang
+`group` cho cả 22 module (hai tập tên chính xác là tripwire có chủ ý) · không thể đăng ký module mà
+không khai nhóm. `tests/unit/test_cli_annotate.py` (6) — mẫu mito bị từ chối **có tên** · một
+FASTA mito bị từ chối qua bộ tham chiếu · batch trộn hai bào quan dừng trước khi chú giải gì ·
+`--audit-only` không cần mẫu còn batch thì cần · **mẫu hỏng được đánh dấu và nêu tên mà không giết
+batch** · mỗi mẫu một thư mục và một artifact. Golden
+`tests/golden/test_plastid_annotate.py`: ba test cũ nay chạy với `--set exclude=NC_024936.1` (cổng
+buộc phải bỏ bản ghi ấy) và **vẫn khẳng định đúng** — `ycf1` 122.984–128.404 không đổi — cộng ba
+mới: cổng chặn run thật · bỏ theo tên thì không tìm và run nói ra · một cái tên không khớp thì
+dừng. Manifest nay mang khoá `dataset` (tuỳ chọn, schema 2 không đổi): một run hỏng trước khi kịp
+ghi gì vẫn phải nói nó là mẫu nào — đo được ở chính batch này.
