@@ -40,7 +40,8 @@
   never overwritten in place.
 - Genome normalization (origin/strand → LSC start, 4 regions split) happens once in Phase 1 and is
   reused everywhere after.
-- Runs on: **ordinary machines** = phases 1–5, 8 · **remote server** = phase 6 (divergence time).
+- Runs on: **ordinary machines** = phases 1–6, 8. *(Earlier: "remote server = phase 6 (divergence
+  time)" — divergence time left the plan 10/10/2026; see Phase 6's note.)*
   Assembly (phase 7) runs **locally when the user's machine has the RAM**, otherwise the Galaxy
   remote path — confirmed 08/10/2026; data-sharing policy for unpublished reads: **open**
   (PROJECT.md §10.12).
@@ -218,6 +219,8 @@ tells you which file belongs to which job.
   an 8 GB machine leaves only 1.5–2.5 GB free per job. Recorded in PROJECT.md §3.
   *(Updated 08/10/2026: assembly runs locally when the user's machine has the RAM — the Galaxy
   remote path is for machines that do not. Divergence time stays remote.)*
+  *(Updated 10/10/2026: **there is no divergence-time remote path to keep** — M6.5 was deleted from
+  the plan; the toolkit runs on ordinary machines, and nothing in it needs a server.)*
 - [x] **M1.13 Hardening + API freeze v0.1** (2026-10-02) — README quickstart · `environment.yml` ·
   `docker/Dockerfile` skeleton · `docs/API_v0.1.md` (module contract, Result schema, coordinates,
   manifest keys, exit codes). *The environment checks in this milestone's Done-when — `make check` on
@@ -503,8 +506,13 @@ NUPT/MTPT has **no published benchmark** — its only check is the Oldenlandia/C
 - [ ] **M6.1 NUPT/MTPT** (nuclear ↔ plastid ↔ mito transfer) — **BLOCKED: needs nuclear genome**
 - [ ] **M6.2 Mito polymorphic structure + recombination via repeats** (Chimeric ORF/CMS)
 - [ ] **M6.3 Parallel plastid–mito comparison** within species
-- [ ] **M6.4 Ancestral state reconstruction**
-- [ ] **M6.5 Divergence time estimation** (mcmctree / BEAST2) — remote server
+
+**[ĐÃ THAY 10/10/2026 — dev's call: M6.4 (ancestral state reconstruction) and M6.5 (divergence
+time) are **deleted from this plan**.]** They are not toolkit modules: each needs a tree, fossil
+calibrations and a scientific question — not a genome — so they are analyses the PI runs for a
+paper, with her own tools. `mcmctree`/`BEAST2` are recorded in §7 as *surveyed, not adopted*.
+**The toolkit builds code; what to analyse, and what a paper claims, is cô Trang's** (CLAUDE.md →
+who decides). The three milestones left are modules and stay.
 
 ## Phase 7 — Assembly  *(§13.7 — after analysis, by decision 01/10)*
 

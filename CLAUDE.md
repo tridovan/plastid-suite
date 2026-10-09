@@ -14,7 +14,8 @@ his own machine; dev; Hermes). Academic, non-commercial. End users (defined 08/1
 toolkit as a **command line on Ubuntu** (Windows through Docker), on ordinary computers.
 ~20 analysis modules: genome structure, gene
 content, codon usage/RSCU, SSR, repeats, annotation, assembly, multi-genome comparison, RNA editing,
-divergence time, NUPT/MTPT…
+NUPT/MTPT… *(divergence time and ancestral state are **not** modules — they are the PI's analyses,
+deleted from the plan 10/10/2026, §13.6)*
 
 Deliverables driving the work:
 - **2 species manuscripts** (Oldenlandia, Coleus) — tables, figures, draft Results sections

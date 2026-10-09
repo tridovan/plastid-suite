@@ -91,6 +91,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 07/10 | **Đồng nhất tên gen là một bước riêng, chạy TRƯỚC chú giải và TRÊN bộ tham chiếu (D5-09, dev quyết — đảo chiều D3-02)**: pipeline nay là *(nguồn tham chiếu → audit → người dùng chọn một bản ghi ★ → `gene_normalize` chuẩn hoá DB)* → lắp ráp → chú giải → *`gene_normalize` chế độ kiểm* → phân tích; mẫu **thừa hưởng** từ vựng A qua bước chú giải, và chạy lại ở chế độ kiểm mà có gì đổi ⇒ **đó là phát hiện**, không phải việc thường. **Từ vựng A = tên của bản ghi ★** — **loại tham chiếu thứ 6** (không chọn lại theo taxonomy mỗi lần chạy, không phải của công cụ), do **người dùng cuối chọn từ báo cáo audit**; tên in trong bản thảo đổi theo ⇒ PI ký nhận. **Chiều chuẩn hoá đảo** — 5/9 locus đã đo đổi cách viết (`ycf3`·`ycf4`·`psbN`·`clpP`·`ndhL` thay `pafI`·`pafII`·`pbf1`·`clpP1`·`ndhI`); ba module đọc khoá chuẩn (`kaks`·`substitutions`·`popgen`) ⇒ **Ts/Tv 2,6917 là dự đoán cho tới khi đo lại — [ĐÃ ĐO 08/10/2026: giữ nguyên 2,6917 (323 Ts / 120 Tv), và phép đo cho thấy nó *bất biến theo chiều* vì việc lật chiều là đổi nhãn chứ không chọn lại tập gen dùng chung — §8.45]**, không giả định. Mô-đun mới `gene_normalize` (**không nới `gene_names`**); slot của bước mới còn mở — ROADMAP → Open decisions | Dev · người dùng cuối (chọn ★) | `docs/D5-09_reference_naming.md` |
 | 08/10 | **Nơi chạy phần lắp ráp: tuỳ máy người dùng (xác nhận 08/10/2026)** — máy **đủ RAM** thì chạy **tại chỗ**; **không đủ** thì đề xuất **đường từ xa Galaxy** (usegalaxy.eu, §13.7 / M7.4). Luật 03/10 ("giai đoạn 6–7 chạy máy chủ từ xa") nay chỉ còn nguyên với **giai đoạn 6 — thời gian phân kỳ**. Chính sách đưa dữ liệu chưa công bố lên máy chủ công khai: **chưa quyết định** (§10.12) | anh Điềm | §13 (điều kiện chung) · ROADMAP → "Cross-phase rules" |
 | 08/10 | **Người dùng cuối, và cách dùng (định nghĩa, xác nhận 08/10/2026)**: người dùng cuối là **nhà nghiên cứu công nghệ sinh học / tin sinh học**; giao diện là **dòng lệnh trên Ubuntu** (Windows qua Docker — như quyết định 01/10). Định nghĩa này là thứ D5-09 §7.1 dùng cho việc chọn ★, và là người phải đọc được báo cáo audit | anh Điềm | CLAUDE.md · `docs/D5-09_reference_naming.md` §7.1 |
+| 10/10 | **Thời gian phân kỳ và ancestral state KHÔNG phải mô-đun của bộ công cụ — xoá khỏi kế hoạch (dev quyết, 10/10/2026)**: hai phân tích đó cần **cây · hiệu chuẩn hoá thạch · một câu hỏi khoa học**, không cần bộ gen — chúng là phân tích của **cô Trang** cho bài báo, chạy bằng công cụ của cô (`mcmctree` · `BEAST2` ghi ở §7 là *đã khảo sát, không đưa vào*). Bộ công cụ làm **code**; *phân tích gì · khẳng định gì · đưa gì vào bài báo* là của PI (CLAUDE.md → who decides). Hệ quả: M6.4 và M6.5 ra khỏi ROADMAP, phase 6 còn ba mô-đun (NUPT/MTPT · cấu trúc mito · so sánh lục lạp–ty thể), và **không còn phần nào cần máy chủ từ xa** | Dev | §13.6 · ROADMAP → Phase 6 |
 | 09/10 | **Cổng audit chặn run, và "bỏ file" là một hành động được khai ra (P3B-09, dev quyết, có đo)**: D5-08 viết "mọi ca audit hỏng thì dừng run — exit 2, không chú giải gì", và vòng lặp là *"fix or drop the bad file → run again"*. Cổng nay nằm trong `plastid_annotate._reference_set` — **đúng tập bản ghi run sắp tìm, trước HSP đầu tiên** — nên mọi đường vào (lệnh `annotate` lẫn `plastid run -m plastid_annotate`) đều bị chặn như nhau. Nửa "drop" của vòng lặp là **`--exclude <accession>`**: khai trên dòng lệnh, ghi vào manifest (nguyên argv), nêu trong nhãn bộ tham chiếu và trong note của `result.json`; một cái tên không khớp bản ghi nào thì **dừng run**. Lý do phải có nửa ấy, đo được: bộ đã pin chặn đúng một bản ghi (`NC_024936.1`, `rps19` partial), nên nếu chỉ có "dừng" thì annotator **không chạy được trên chính bộ tham chiếu của dự án** cho tới khi người dùng tự dựng một thư mục khác. Một pin **không** waive được BLOCK — `--exclude` không phải lối vòng qua cổng, nó là "file ấy không được dùng" | Dev | §8.49 · §9.L-5 · §9.L-6 |
 | 09/10 | **`plastid annotate` = một loạt run, mỗi mẫu một thư mục (P3B-09, dev quyết)**: D5-08 viết "mỗi mẫu một artifact, run một report"; chỗ dựa là §2 ("output tách theo lần chạy/dataset, không ghi đè tại chỗ") và seam 3 ("lệnh thứ hai không được thành đường code thứ hai") — nên **mỗi mẫu đi qua đúng thân `_execute_run`** mà `plastid run` và `plastid mito annotate` dùng, ra một thư mục run với manifest · report · artifact riêng, dưới `<out>/<accession>/`. Mẫu hỏng: **được nêu tên, thư mục run của nó ghi `status: failed` + lý do, batch đi tiếp**, exit code khác 0 (mã của lỗi đầu tiên). Manifest thêm khoá `dataset` (tuỳ chọn — schema 2 không đổi) để một run hỏng trước khi ghi gì vẫn nói được nó là mẫu nào | Dev | §8.49 |
 
@@ -167,7 +168,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | Lắp ráp long-read + DB HMM | OATK 1.0 + `embryophyta_pltd.fam` (OatkDB) | đã chạy thật — 126.660 bp, identity 100,00 %; file `.annot_pltd.txt` **rỗng** |
 | Vẽ + thống kê đồ thị assembly (headless) | Bandage 0.9.0 | đã chạy thật — PNG 103.289 B trên GFA thật của OATK |
 | Mạng haplotype | PyPopART | đã chạy thật — 13 trình tự matK → mafft → mjn/analyze/visualize, rc=0 |
-| Ước tính thời gian phân kỳ | PAML mcmctree 4.10.10 · BEAST2 2.7.7 | xác nhận chương trình chạy; **chưa** chạy phân tích thật |
+| Ước tính thời gian phân kỳ **[ĐÃ THAY 10/10/2026 — không đưa vào bộ công cụ: không phải mô-đun, mà là phân tích của cô Trang cho bài báo; xem §13.6]** | PAML mcmctree 4.10.10 · BEAST2 2.7.7 | xác nhận chương trình chạy; **chưa** chạy phân tích thật |
 | RNA editing (đo từ RNA) | minimap2 + samtools mpileup (+ wgsim sinh dữ liệu) | đã chạy mô phỏng — 20 vị trí C→U: ngoài IR đúng 14/14 (recall 100 %), precision 74 %; 6 vị trí sót trong IR |
 | Phân tích so sánh plastome (IR/Pi/RSCU/SSRs/KaKs) | cpstools 3.0 + CGAS | đã cài, đã dùng |
 
@@ -1049,7 +1050,7 @@ Làm trước tiên: đây là thứ mọi giai đoạn sau phụ thuộc, nếu
 |---|---|---|
 | Tầng 0 | các accession khác của cùng loài | C.8 di truyền quần thể · phần "trong loài" của C.6 |
 | Tầng 1 | cùng chi | nhánh B · cặp Ka/Ks gần (C.2) · lớp mVISTA gần (C.4) |
-| Tầng 2 | cùng họ, khác chi | lớp mVISTA xa (C.4) · ancestral state (C.9) |
+| Tầng 2 | cùng họ, khác chi | lớp mVISTA xa (C.4) *(ancestral state — C.9 — ra khỏi kế hoạch 10/10/2026, §13.6)* |
 | Tầng 3 | cùng bộ, khác họ | đối chứng Ka/Ks tránh bão hoà site đồng nghĩa — **không dùng để gợi ý outgroup** |
 
 Engine có **2 chế độ**, không phải 1:
@@ -1124,8 +1125,10 @@ Chạy được trên bộ gen đã có sẵn.
 - NUPT/MTPT — chuyển gen giữa nhân, lục lạp, ty thể (trọng tâm)
 - Cấu trúc đa hình ty thể + tái tổ hợp qua trình tự lặp (Chimeric ORF/CMS)
 - So sánh song song lục lạp – ty thể trong cùng loài
-- Ancestral state reconstruction
-- Ước tính thời gian phân kỳ (rất nặng; cần máy chủ)
+- **[ĐÃ XOÁ 10/10/2026 — dev quyết: "Ancestral state reconstruction" và "Ước tính thời gian phân
+  kỳ" ra khỏi kế hoạch]** — hai cái đó không phải mô-đun của bộ công cụ: chúng cần **cây · hiệu
+  chuẩn hoá thạch · một câu hỏi khoa học**, không cần bộ gen, nên là phân tích **cô Trang** chạy cho
+  bài báo bằng công cụ của cô. `mcmctree` · `BEAST2` được ghi ở §7 là *đã khảo sát, không đưa vào*.
 
 **Kiểm tra trong giai đoạn:** phần cấu hình ty thể **có mốc công bố để đối chiếu ngay tại đây** — các mitogenome có cấu trúc phức tạp đã công bố: *Damnacanthus indicus* (qua trình tự lặp trực tiếp), *Salvia* (S. officinalis 2023 · S. splendens 2025 · S. miltiorrhiza 2022), *Hemiboea*, *Coffea arabica* (2023) — đều là mốc trong kế hoạch 22/9. Riêng **NUPT/MTPT chưa có số công bố** ⇒ mốc kiểm duy nhất hiện có là đối chiếu với bài Oldenlandia/Coleus, thực hiện ở giai đoạn 8. Giai đoạn này **chạy trên dữ liệu đã công bố / GenBank**; phần cần đồ thị lắp ráp thì chuyển sang giai đoạn 7.
 
