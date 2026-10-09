@@ -14,7 +14,20 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-10** — golden + corpus validation, the phase's own Done-when:
+**Immediate next action:** **P3B-10** (IN PROGRESS, 10/10/2026, §8.50) — golden + corpus
+validation, the phase's own Done-when. **Measured so far:** the golden artifact is now
+**132 = 86 + 38 + 8** ✓ (ARAGORN silently skipped intron-containing tRNAs — `-i` is now passed by
+the plastid path, and an intron splits the hit into the two exons a join needs); the IR copies the
+artifact writes were **placed one IR length from where they belong** (26,214 bp — outside the
+repeat) while the gene *count* stayed right, so no count-based test could see it: fixed, and the
+golden guard now checks the mirrored copies against the published record's own. **The corpus bar is
+NOT met**: 34/34 records ran leave-one-out (0 failures) and the classification gives **1,579
+conclusion-level differences against PGA's 637** (ours: 167 missing · 161 extra · 1,251 extent;
+PGA: 39 missing · 4 extra · 594 extent). Next: the composition of the extra/missing calls (not
+measured), the truncated first exons of `rps16` · `petB` · `petD` · `rpl16`, and committing the
+classification harness.
+
+**The bar itself:**
 the golden sequence annotates to exactly **132 = 86 + 38 + 8** with every difference from the
 published record listed (kind + span, nothing summarized away); all **34 records** ran
 leave-one-out, each result diffed against the published record **and** against PGA's reading, every
@@ -81,6 +94,45 @@ under one name, §8.41) and D5-05 (what a generated sentence may claim — the m
 follows the conservative default).
 
 ## Log
+
+### 2026-10-09 · Claude · dev WSL · session 31 (P3B-10 opened: two silent-wrong fixes, and the corpus bar measured — not met)
+
+**Did.** P3B-10 is **in progress**, not done. Three measurements, two of them fixes:
+
+* **ARAGORN skips intron-containing tRNAs in silence** unless `-i` is passed — its own help says
+  so and it reports nothing when it skips them. The golden read **30 tRNA where the published
+  record has 38**, and the eight missing were exactly the intron ones (`trnK-UUU` · `trnL-UAA` ·
+  `trnV-UAC` · one `trnG` · both copies of `trnI-GAU` and `trnA-UGC`). With `-i` and the intron
+  parsed into the two exons a `join` needs, the artifact is **132 = 86 CDS + 38 tRNA + 8 rRNA** —
+  the contract. `-i` is a *caller's* flag, not a default: on the mito answer-key record it takes
+  17 tRNAs to 21, four of which the published record does not have.
+* **The IR copies were written one IR length from where they belong** (26,214 bp — outside the
+  repeat), because the inversion was computed from the first repeat's *start* instead of its
+  *end*. The gene **count** stayed 86, so every count-based check passed. Fixed; `rpl23` · `ndhB` ·
+  `ycf2` · `rps7` · `rrn16` · `rrn5` now match the published record base for base, and a new golden
+  test checks the mirrored copies **against the record**, not against their own arithmetic.
+* **The corpus ran leave-one-out, 34/34, 0 failed runs** (`--exclude NC_024936.1`, the audit gate's
+  condition). Classified against the published record: **ours 1,579 conclusion-level differences ·
+  PGA 637**. The bar is *not* met. The split says why the two mechanisms differ: ours has far more
+  presence errors (167 missing · 161 extra) and PGA far fewer (39 · 4), while PGA's differences are
+  almost all extent (594) — PGA copies coordinates from its reference, this engine derives them
+  from the alignment.
+
+**Validation.** `make check` green: **799 fast · 77 golden passed / 4 skipped**. New tests: the
+intron split (both strands, plus the wrapped case), a `tRNA-Stop` line reported rather than fatal,
+and the IR-copy guard.
+
+**Residual risks.** The corpus composition is unmeasured: what the 161 extra and 167 missing calls
+*are* is the next question, and until it is answered the phase's bar cannot be argued. Four genes
+lose a 6–40 bp first exon (`rps16` · `petB` · `petD` · `rpl16`) — blastx cannot align two codons.
+`rps19` −54 bp is **H-20**; `lhbA` is **H-18**; eight tRNA names follow ARAGORN's anticodon reading
+on intron genes and are **H-04**'s family.
+
+**Blocked.** Nothing.
+
+**Next.** P3B-10: classify the extra/missing calls, decide what to do about the tiny first exons,
+commit the classification harness (`/tmp/p3b10_diff.py` — `compare` · `summarise`), then the
+phase's own bar can be argued.
 
 ### 2026-10-09 · Claude · dev WSL · session 30 (P3B-09: `plastid annotate`, and the gate in front of the run)
 

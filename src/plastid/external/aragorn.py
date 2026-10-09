@@ -83,9 +83,11 @@ AMINO_ACIDS: dict[str, str] = {
 
 # ``1   tRNA-Phe                   [258274,73]	35  	(gaa)``
 # ``8   tRNA-Met              c[107050,107126]	35  	(cat)``
+# ``1   tRNA-Lys              c[1367,4058]	34  	(ttt)i(39,2618)``  — with -i, the intron
 _LINE = re.compile(
     r"^\s*(?P<index>\d+)\s+(?P<kind>tRNA|tmRNA)(?:-(?P<amino>\S+))?\s+"
-    r"(?P<strand>c?)\[(?P<start>\d+),(?P<end>\d+)\]\s+(?P<score>\d+)?\s*\((?P<anticodon>\w+)\)\s*$"
+    r"(?P<strand>c?)\[(?P<start>\d+),(?P<end>\d+)\]\s+(?P<score>\d+)?\s*"
+    r"\((?P<anticodon>\w+)\)\s*(?:i\((?P<intron_start>\d+),(?P<intron_end>\d+)\))?\s*$"
 )
 _DECLARED = re.compile(r"^\s*(?P<count>\d+)\s+genes? found\s*$", re.MULTILINE)
 _VERSION = re.compile(r"ARAGORN\s+v(\d+\.\d+\.\d+)", re.IGNORECASE)
@@ -103,15 +105,56 @@ class TrnaHit:
     strand: int
     score: int | None
     wrapped: bool = False  # crosses the origin: ARAGORN prints start > end
+    # The intron, as positions **within the gene**, 1-based from its 5' end — ARAGORN's own
+    # ``i(39,2618)``. Kept in gene coordinates rather than converted here because the conversion
+    # depends on the strand and the origin: see `parts`.
+    intron: tuple[int, int] | None = None
+
+    def length(self, genome_length: int) -> int:
+        """How long the gene is, intron included — ARAGORN's span is the whole gene."""
+        if self.wrapped:
+            return (genome_length - self.start + 1) + self.end
+        return self.end - self.start + 1
+
+    def _coordinate(self, position: int, genome_length: int) -> int:
+        """The genome coordinate of gene position ``position`` (1-based, 5'→3' along the gene).
+
+        The 5' end is ``start`` on the plus strand and ``end`` on the minus strand, so a position
+        walks up the genome one way and down the other — and steps past the origin on a circular
+        record, which is where the wrap is undone.
+        """
+        value = self.start + position - 1 if self.strand > 0 else self.end - position + 1
+        if value > genome_length:
+            return value - genome_length
+        if value < 1:
+            return value + genome_length
+        return value
 
     def parts(self, genome_length: int) -> tuple[Interval, ...]:
-        """The hit as genome intervals, a wrapped one split into the two parts a join needs."""
-        if self.wrapped:
-            return (
-                Interval.from_1based(self.start, genome_length, self.strand),
-                Interval.from_1based(1, self.end, self.strand),
-            )
-        return (Interval.from_1based(self.start, self.end, self.strand),)
+        """The hit as genome intervals **in transcription order** — a join's parts, not one span.
+
+        Two things split a hit, and both would otherwise be written as a claim the sequence does
+        not support: an **intron** (ARAGORN's span covers it, and a feature written over the whole
+        span would say the intron is coding) and **the origin** (a wrapped interval is not a
+        GenBank coordinate). Measured on the golden 09/10/2026: eight of its thirty-eight tRNAs
+        carry an intron — ``trnK-UUU``, ``trnL-UAA``, ``trnV-UAC``, one of the two ``trnG``, and
+        both copies of ``trnI-GAU`` and ``trnA-UGC`` — and the published record writes every one
+        of them as a two-part join.
+        """
+        spans = (
+            ((1, self.intron[0] - 1), (self.intron[1] + 1, self.length(genome_length)))
+            if self.intron is not None
+            else ((1, self.length(genome_length)),)
+        )
+        runs: list[list[int]] = []
+        for first, last in spans:
+            for position in range(first, last + 1):
+                coordinate = self._coordinate(position, genome_length)
+                if runs and abs(coordinate - runs[-1][-1]) == 1:
+                    runs[-1].append(coordinate)
+                else:
+                    runs.append([coordinate])
+        return tuple(Interval.from_1based(min(run), max(run), self.strand) for run in runs if run)
 
     def gene(self, genome_length: int) -> Gene:
         return Gene(name=self.name, kind="tRNA", parts=self.parts(genome_length))
@@ -205,12 +248,24 @@ def parse_batch(text: str) -> tuple[tuple[TrnaHit, ...], tuple[str, ...]]:
         match = _LINE.match(line)
         if match is None:
             continue
-        if match.group("kind") != "tRNA" or match.group("amino") is None:
-            # a tmRNA, or a tRNA line whose shape this reader does not know: reported, never
-            # guessed at — an unparsed gene that vanished would look like a gene that is absent
+        if (
+            match.group("kind") != "tRNA"
+            or match.group("amino") is None
+            or match.group("amino") not in AMINO_ACIDS
+        ):
+            # Not a tRNA this reader can name — a tmRNA, or a tRNA whose amino acid is not one of
+            # the twenty-two. Reported through `others`, never dropped and never guessed at: an
+            # unparsed gene that vanished would look like a gene that is absent, and a run that
+            # *stopped* on one would lose every other gene with it. Measured 09/10/2026 on the
+            # pinned corpus (with `-i`): two records (`NC_072561.1` · `NC_072580.1`) bring a
+            # `tRNA-Stop` line at the `trnK-UUU` locus — ARAGORN reading the anticodon one base
+            # off, so that it spells a stop codon. The gene is real; the *name* is what this
+            # adapter cannot supply, and the run says so (the module's notes carry `others` and
+            # the gap against ARAGORN's own "N genes found").
             others.append(line.strip())
             continue
         start, end = int(match.group("start")), int(match.group("end"))
+        intron_start = match.group("intron_start")
         hits.append(
             TrnaHit(
                 name=trna_name(match.group("amino"), match.group("anticodon")),
@@ -221,6 +276,11 @@ def parse_batch(text: str) -> tuple[tuple[TrnaHit, ...], tuple[str, ...]]:
                 strand=-1 if match.group("strand") else 1,
                 score=int(match.group("score")) if match.group("score") else None,
                 wrapped=start > end,
+                intron=(
+                    (int(intron_start), int(match.group("intron_end")))
+                    if intron_start is not None
+                    else None
+                ),
             )
         )
     return tuple(hits), tuple(others)
@@ -234,6 +294,7 @@ def run_aragorn(
     aragorn: str | Path | None = None,
     directory: str | Path | None = None,
     timeout: int = 600,
+    introns: bool = False,
 ) -> AragornResult:
     """Call the tRNA genes of one genome, and read them back as :class:`Gene` records."""
     binary = aragorn_binary(aragorn, directory)
@@ -247,6 +308,18 @@ def run_aragorn(
             [
                 binary,
                 "-w",  # batch mode: one line per gene, instead of a structure drawing
+                # tRNA genes **with introns**, when the caller asks for them. ARAGORN's own help
+                # states it plainly — "Unless -i is specified, tRNA genes containing introns are
+                # not detected" — and it says nothing when it skips them, which makes this the
+                # same silent-shortfall shape as the truncating `-max_target_seqs` (§9.L-1).
+                #
+                # It is the caller's decision because each organelle path measures its own, and
+                # the two measurements disagree (09/10/2026, P3B-10): on the plastid golden the
+                # flag turns **30 into 38, exactly the published record's thirty-eight** (eight of
+                # its tRNAs carry an intron), while on the mito answer key it turns 17 into 21,
+                # four of which the published record does not have. The plastid path passes it;
+                # whether the mito path should is a question with a name, not a default.
+                *(["-i"] if introns else []),
                 "-gc1",  # the standard code — the same table the CDS calls carry
                 "-c" if genome.topology == "circular" else "-l",
                 str(fasta),

@@ -304,7 +304,9 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             evalue=evalue,
             max_hsps=MAX_HSPS,
         )
-        trna_run = run_aragorn(genome, ctx, seq_id=seq_id, directory=tools_dir)
+        trna_run = run_aragorn(
+            genome, ctx, seq_id=seq_id, directory=tools_dir, introns=True
+        )  # measured: without it ARAGORN skips 8 of the golden's 38 tRNAs, silently
 
         if not protein_run.hits and not rrna_run.hits:
             raise ToolError(
@@ -417,16 +419,21 @@ def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
         if where is None:
             inside.append(gene)
             continue
-        start, end = ira.start, irb.start
-        if where == "IRb":
-            start, end = irb.start, ira.start
+        # The inversion, as arithmetic: the copy sits the same distance inside the *other* repeat,
+        # counted from that repeat's own start. Measured 09/10/2026 (P3B-10): this used the
+        # distance from the first repeat's **start** instead of its **end**, which put every
+        # mirrored copy exactly one repeat-length (26,214 bp on the golden) away from where it
+        # belongs — outside the repeat, in the single-copy region. The gene *count* was right, so
+        # nothing caught it; the published record's own copy is what caught it.
+        source = ira if where == "IRa" else irb
+        target = irb if where == "IRa" else ira
         mirrored = Gene(
             name=gene.name,
             kind=gene.kind,
             parts=tuple(
                 Interval(
-                    start=start + (end - part.end),
-                    end=start + (end - part.start),
+                    start=target.start + (source.end - part.end),
+                    end=target.start + (source.end - part.start),
                     strand=-part.strand,
                     partial_start=part.partial_end,
                     partial_end=part.partial_start,
@@ -596,6 +603,7 @@ def _result(
         "listed in competing_references with the numbers it lost on",
         *_truncated_notes(reference.truncated),
         *_dropped_notes(reference.dropped),
+        *_aragorn_notes(trna),
         *cds.findings,
         *rrna.findings,
     ]
@@ -745,6 +753,30 @@ def _truncated_notes(truncated: Sequence[TruncatedAnnotation]) -> tuple[str, ...
         f"decides before any score (D5-08 §3)"
         for row in truncated
     )
+
+
+def _aragorn_notes(trna: AragornResult) -> tuple[str, ...]:
+    """What ARAGORN reported that this run did not turn into a call — named, with the count.
+
+    Two ways a tRNA search loses a gene, and both are things a reader has to be able to see: a
+    line this adapter cannot name, and a difference between ARAGORN's own "N genes found" and the
+    genes that came back. Measured 09/10/2026 (P3B-10): with intron detection on, `NC_072561.1`
+    and `NC_072580.1` each bring a ``tRNA-Stop`` line at the ``trnK-UUU`` locus — ARAGORN reading
+    the anticodon one base off, so that it spells a stop codon. Dropping the line would have made
+    the gene look absent; stopping the run would have lost the other thirty-seven with it.
+    """
+    notes: list[str] = []
+    if trna.others:
+        notes.append(
+            f"{len(trna.others)} ARAGORN line(s) are reported here rather than called — this "
+            f"adapter cannot name them: {'; '.join(trna.others)}"
+        )
+    if trna.declared is not None and trna.declared != len(trna.hits):
+        notes.append(
+            f"ARAGORN's own summary says {trna.declared} genes and this reader kept "
+            f"{len(trna.hits)} tRNAs — the difference is a finding, not a rounding"
+        )
+    return tuple(notes)
 
 
 def _dropped_notes(dropped: Sequence[tuple[str, str]]) -> tuple[str, ...]:

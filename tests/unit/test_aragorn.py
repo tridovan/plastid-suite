@@ -117,6 +117,48 @@ def test_a_gene_that_is_not_a_trna_is_reported_not_parsed_as_one() -> None:
     assert len(others) == 1 and "tmRNA" in others[0]
 
 
+def test_a_trna_whose_anticodon_is_a_stop_codon_is_reported_not_a_crash() -> None:
+    """Measured 09/10/2026 on the pinned corpus: ``NC_072561.1`` and ``NC_072580.1`` each bring
+    one ``tRNA-Stop`` line at the ``trnK-UUU`` locus — ARAGORN reading the anticodon one base off,
+    so that it spells a stop codon. The three records carry the **same** exon-1 sequence.
+
+    The gene is real and the name is what this adapter cannot supply, so the line is *reported*
+    (the module's notes carry it, next to ARAGORN's own "N genes found") — neither dropped, which
+    would make the gene look absent, nor fatal, which would cost the other thirty-seven tRNAs and
+    every CDS of that record with it.
+    """
+    text = BATCH + "18  tRNA-Stop             c[1399,4136]\t35  \t(tta)i(40,2662)\n"
+    hits, others = parse_batch(text)
+
+    assert len(hits) == 6, "a line this adapter cannot name took the whole run with it"
+    assert len(others) == 1 and "tRNA-Stop" in others[0]
+    # the refusal itself is still a refusal: asking for the name directly raises, and nothing
+    # here guesses a residue letter for it
+    with pytest.raises(ValueError, match="not one of the standard names"):
+        trna_name("Stop", "tta")
+
+
+def test_an_intron_splits_the_hit_into_the_two_exons_a_join_needs() -> None:
+    """ARAGORN was measured to skip every intron-containing tRNA unless ``-i`` is passed (its help
+    says so; the golden lost 8 of 38 that way). With ``-i`` its span **covers the intron**, and a
+    feature written over that span would claim the intron is coding sequence.
+
+    The intron is reported in the gene's own coordinates — 1-based from its 5' end — so the
+    conversion depends on the strand: on the minus strand the 5' end is the *higher* coordinate,
+    and walking towards the 3' end means walking down the genome.
+    """
+    plus = parse_batch("1   tRNA-Ser                 [8889,9634]\t688 \t(cga)i(32,655)\n")[0][0]
+    assert plus.intron == (32, 655)
+    assert [part.to_1based() for part in plus.parts(100_000)] == [(8889, 8919), (9544, 9634)], (
+        "the intron is not coding sequence"
+    )
+
+    minus = parse_batch("1   tRNA-Lys               c[1367,4058]\t34  \t(ttt)i(39,2618)\n")[0][0]
+    parts = minus.parts(153_724)
+    assert [part.to_1based() for part in parts] == [(4021, 4058), (1367, 1440)]
+    assert {part.strand for part in parts} == {-1}
+
+
 def test_the_declared_count_is_read_from_aragorns_own_line() -> None:
     from plastid.external.aragorn import _DECLARED
 

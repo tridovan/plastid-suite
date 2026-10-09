@@ -224,4 +224,52 @@ def test_the_artifact_re_reads_and_says_which_organelle_it_is(annotated: Path) -
     counts = Counter(gene.kind for gene in genome.genes)
     assert counts["CDS"] == 86, f"the inverted repeat's copies are not both written: {counts}"
     assert counts["rRNA"] == 8, f"the four rRNA loci are inside the repeat: {counts}"
+    # The contract itself: 132 = 86 + 38 + 8 (PROJECT.md §6, the invariant that is never written
+    # any other way). Measured 09/10/2026: the tRNA count was **30** until ARAGORN was asked for
+    # intron-containing genes — it skips them in silence unless `-i` is passed, and eight of this
+    # record's thirty-eight tRNAs carry an intron (trnK-UUU · trnL-UAA · trnV-UAC · one trnG ·
+    # both copies of trnI-GAU and trnA-UGC).
+    assert counts["tRNA"] == 38, f"the intron-containing tRNAs are missing: {counts}"
+    assert sum(counts.values()) == 132, f"132 = 86 + 38 + 8, got {dict(counts)}"
     assert len(genome.repeat_regions) == 2
+
+
+def test_every_copy_the_inverted_repeat_is_given_lands_where_the_record_puts_it(
+    annotated: Path, data_dir: Path
+) -> None:
+    """The mirror, checked against the published record rather than against its own arithmetic.
+
+    Measured 09/10/2026 (P3B-10): the copy was placed one **repeat length** from where it belongs
+    — 26,214 bp on the golden, i.e. outside the repeat altogether and into the single-copy region
+    — because the inversion was computed from the first repeat's *start* instead of its *end*. The
+    gene **count** was right (86 either way), which is why every count-based check passed while
+    every mirrored coordinate was wrong. A published plastome's own second copy is the check that
+    catches it, so that is what is asserted.
+    """
+    ours = read_genbank(annotated / "plastid_annotation.gb")
+    published = read_genbank(data_dir / f"{GOLDEN}.gb")
+
+    def copies(genome, name: str) -> list[tuple[int, int]]:
+        return sorted(
+            (min(part.start for part in gene.parts) + 1, max(part.end for part in gene.parts))
+            for gene in genome.genes
+            if gene.name == name and gene.kind in ("CDS", "rRNA")
+        )
+
+    checked = 0
+    for name in ("rpl2", "rpl23", "ndhB", "ycf2", "rps7", "rrn16", "rrn5"):
+        want = copies(published, name)
+        if len(want) < 2:  # a single-copy locus says nothing about the mirror
+            continue
+        got = copies(ours, name)
+        assert len(got) == len(want), (
+            f"{name}: {len(got)} copies written, the record has {len(want)}"
+        )
+        for (want_start, want_end), (got_start, got_end) in zip(want, got, strict=True):
+            # the detected repeat's boundaries differ from the record's by a few bases
+            assert abs(got_start - want_start) <= 10 and abs(got_end - want_end) <= 10, (
+                f"{name}: written at {got_start}-{got_end}, the record puts that copy at "
+                f"{want_start}-{want_end}"
+            )
+        checked += 1
+    assert checked >= 5, "the check found no repeated locus to verify the mirror on"

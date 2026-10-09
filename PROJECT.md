@@ -426,6 +426,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.47 | Annotator plastid chạy thật trên genome vàng — 86 CDS (nhân bản IR), ba cặp chồng lấn §8.34, và hai khác biệt mức kết luận (P3B-08, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.48 | Một locus bị chú giải hai lần: bản cụt không được tìm kiếm, và 0,5 nằm giữa một khoảng trống đo được — `ycf1` của bản ghi vàng nay khớp bản công bố từng base (H-19, 09/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.49 | `plastid annotate`: cổng audit trước run (exit 2, 13 giây, không artifact), batch một mẫu một thư mục, bào quan khai theo nhóm trong registry — và ba phát hiện đo được: `rps19` mất 54 bp khi bỏ bản ghi bị chặn (H-20) · luật BLOCK partial quá rộng (H-21) · `.docx` chưa từng chạy được vì thiếu citation (P3B-09, 09/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.50 | P3B-10 mở màn: ARAGORN bỏ qua tRNA có intron trong im lặng (30 → 38, bản vàng đạt 132 = 86 + 38 + 8) · bản sao IR bị đặt lệch đúng một chiều dài IR (số gen vẫn đúng nên không test nào bắt) · corpus 34 bản ghi chạy xong và **thanh chuẩn chưa đạt**: 1.579 khác biệt mức kết luận so với PGA 637 (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---

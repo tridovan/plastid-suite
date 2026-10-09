@@ -156,7 +156,13 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   **retires when P3B-10 passes** — the engine is registered and `plastid annotate` is its command,
   but the old set stays until the phase's own bar is met (D3-01 gains its update line then).
 
-- [ ] **P3B-10 · Golden + corpus validation** *(M3B.5 — the phase's Done-when)*
+- [~] **P3B-10 · Golden + corpus validation** *(M3B.5 — the phase's Done-when)* — IN PROGRESS
+  (10/10/2026, §8.50). **Half the golden bar is met: the artifact is 132 = 86 + 38 + 8.** The
+  corpus ran (34/34 LOO, 0 failed runs) and **the bar is not met**: 1,579 conclusion-level
+  differences against PGA's 637. The composition is the next work: 161 extra + 167 missing calls
+  (why: not measured), the truncated first exons of `rps16` · `petB` · `petD` · `rpl16` (6–40 bp),
+  `rps19` (**H-20**), `lhbA` (**H-18**), and 8 tRNA names ARAGORN reads differently (**H-04**'s
+  family). The classification harness is not committed yet.
   - The reference set the corpus runs against is **the pinned set with `NC_024936.1` excluded**
     (`--exclude`), because the audit gate now stops any run that would search it (§8.49). Leave-one-
     out still applies on top: for a target inside the set, the drop and the LOO both bite.

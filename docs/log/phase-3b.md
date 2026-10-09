@@ -641,3 +641,55 @@ buộc phải bỏ bản ghi ấy) và **vẫn khẳng định đúng** — `ycf
 mới: cổng chặn run thật · bỏ theo tên thì không tìm và run nói ra · một cái tên không khớp thì
 dừng. Manifest nay mang khoá `dataset` (tuỳ chọn, schema 2 không đổi): một run hỏng trước khi kịp
 ghi gì vẫn phải nói nó là mẫu nào — đo được ở chính batch này.
+
+### 8.50. P3B-10 mở màn: tRNA có intron, bản sao IR đặt sai chỗ, và con số corpus đầu tiên (10/10/2026)
+
+**P3B-10 chưa xong.** Mục này ghi lại ba phép đo đã làm và **nói thẳng chỗ thanh chuẩn chưa đạt**.
+
+**(1) ARAGORN bỏ qua tRNA có intron — trong im lặng.** Help của chính nó viết: *"Unless `-i` is
+specified, tRNA genes containing introns are not detected"*, và nó không nói gì khi bỏ qua. Adapter
+của dự án không truyền `-i`, nên bản ghi vàng ra **30 tRNA** nơi bản công bố có **38**; tám cái
+thiếu đúng là tám tRNA có intron (`trnK-UUU` · `trnL-UAA` · `trnV-UAC` · một `trnG` · cả hai bản
+`trnI-GAU` và `trnA-UGC`) — đo bằng cách khớp khoảng: 30/30 call khớp một feature công bố, và 8
+feature công bố không có call nào. Với `-i`: ARAGORN trả **38**, và artifact của bản ghi vàng nay là
+**132 = 86 CDS + 38 tRNA + 8 rRNA** — đúng hợp đồng §6. Span của gen có intron được **tách thành
+hai exon** (`i(start,end)` của ARAGORN, đổi theo mạch và theo gốc) — không tách thì một feature
+viết trên cả span sẽ nói rằng intron là vùng mã hoá.
+
+**`-i` là tham số của từng đường, không phải mặc định**, vì hai phép đo không đồng ý: trên lục lạp
+nó cho đúng 38/38; trên bản ghi mito answer-key nó cho 17 → **21**, bốn cái bản công bố không có.
+Đường lục lạp truyền cờ; mở cho mito là một câu hỏi có tên, không phải một mặc định.
+
+**(2) Bản sao IR trong artifact bị đặt sai — lệch đúng bằng chiều dài IR.** `_ir_copies` tính phép
+nghịch đảo từ **đầu** bản IR thứ nhất thay vì **cuối** bản ấy, nên mỗi bản sao được ghi ra cách chỗ
+đúng đúng một chiều dài IR (26.214 bp trên bản vàng) — tức **ngoài vùng lặp**, rơi vào vùng một
+bản. Đo 10/10/2026: `rpl2` bản thứ hai được ghi ở 125.457–126.940, bản công bố ở 151.668–153.154;
+`ndhB` ở 114.075–116.306 thay vì 140.289–142.520. **Số lượng gen vẫn đúng** (86) nên mọi test đếm
+đều xanh — đúng kiểu "sai mà không báo" mà dự án này tồn tại để chặn. Sửa: `target.start + (source.end
+- part.end)`. Đo lại: `rpl23` · `ndhB` · `ycf2` · `rps7` · `rrn16` · `rrn5` khớp bản công bố **từng
+base**, `rpl2` lệch 3 bp (ranh giới IR do bộ dò tìm khác bản ghi vài base). Test mới:
+`test_every_copy_the_inverted_repeat_is_given_lands_where_the_record_puts_it` — kiểm bản sao **theo
+toạ độ của bản công bố**, không theo số học của chính nó.
+
+**(3) Con số corpus đầu tiên — và thanh chuẩn CHƯA đạt.** 34/34 bản ghi chạy leave-one-out xong
+(0 run hỏng, `--exclude NC_024936.1` theo cổng audit). Đối chiếu với bản công bố, phân loại theo
+luật ghi trong harness (`vocabulary` = cùng locus khác cách viết; còn lại là `conclusion`):
+
+| | kết luận | trong đó: thiếu · thừa · khác độ dài | vocabulary |
+|---|---|---|---|
+| **bộ gọi của dự án** | **1.579** | 167 · 161 · 1.251 | 376 |
+| **PGA** | **637** | 39 · 4 · 594 | 149 |
+
+**PGA đang thắng ở mức kết luận** (637 so với 1.579) — Done-when của P3B-10 *không* đạt, và đây là
+con số nói điều đó. Bộ gọi của dự án **thừa/thiếu nhiều hơn hẳn** (161+167 so với 4+39), trong khi
+PGA gần như chỉ khác ở độ dài — hợp lý với hai cơ chế: PGA **chép toạ độ** từ bản tham chiếu (nên
+độ dài hay đúng) nhưng bỏ sót/thêm locus (đo được: 39 thiếu · 4 thừa), còn bộ gọi ở đây **suy toạ độ
+từ alignment** (nên độ dài lệch vài base, và bốn gen có exon đầu 6–40 bp không được gọi). Phân rã
+của bộ gọi: CDS 753 kết luận · tRNA 717 · rRNA 109; phần lớn là lệch 1–3 bp.
+
+**Việc còn lại của P3B-10, có tên:** (a) vì sao 161 call thừa / 167 thiếu — chưa đo; (b) exon cụt
+của `rps16` · `petB` · `petD` · `rpl16` (exon đầu 6–40 bp, blastx không bắt được — có nên lấy từ
+bản tham chiếu không, và cái giá của luật ấy); (c) `rps19` −54 bp (**H-20**) và `lhbA` (**H-18**);
+(d) 8 tên tRNA khác bản công bố (**H-04**'s `trnG`, `trnI-GAU` bị ARAGORN đọc thành `trnE-UUC`,
+`trnfM-CAU`/`trnI-CAU` thành `trnM-CAU` — ARAGORN đọc anticodon của tRNA có intron); (e) harness
+phân loại chưa được commit.
