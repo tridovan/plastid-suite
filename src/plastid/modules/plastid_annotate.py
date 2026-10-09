@@ -402,10 +402,16 @@ def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
     are the same fact written in the record's own coordinates rather than a second measurement.
 
     The mapping is the inversion itself: a part at ``[s, e]`` inside one copy sits at the mirrored
-    offset inside the other, on the opposite strand. A call that straddles an IR boundary is left
-    exactly as it was called and **named in the notes** — a trans-spliced gene whose exons span
-    the single-copy region and the repeat (the golden's ``rps12``) is not copied by a rule that
-    only knows how to mirror a gene that sits inside one side.
+    offset inside the other, on the opposite strand.
+
+    A gene that **straddles** a boundary — a trans-spliced one whose exons span the single-copy
+    region *and* the repeat — is copied too, and only its exons inside the repeat are mirrored;
+    the shared exon is written as it was called, so the two features overlap there. That is what
+    the published record does with the golden's ``rps12``: it writes the gene **twice**, each
+    feature carrying the same LSC exon 1 and its own copy's exons (measured 10/10/2026, §8.54).
+    ``rps12`` is the only gene on the golden that straddles — ``ycf1`` runs from the SSC into the
+    repeat as one call, and one call is not a second copy, which is why the record carries one
+    ``ycf1`` and two ``rps12``.
     """
     ira, irb = ir.ira, ir.irb
     if ira.length != irb.length:
@@ -415,37 +421,56 @@ def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
         )
     inside: list[Gene] = []
     for gene in genes:
-        where = _ir_side(gene, ira, irb)
-        if where is None:
-            inside.append(gene)
-            continue
-        # The inversion, as arithmetic: the copy sits the same distance inside the *other* repeat,
-        # counted from that repeat's own start. Measured 09/10/2026 (P3B-10): this used the
-        # distance from the first repeat's **start** instead of its **end**, which put every
-        # mirrored copy exactly one repeat-length (26,214 bp on the golden) away from where it
-        # belongs — outside the repeat, in the single-copy region. The gene *count* was right, so
-        # nothing caught it; the published record's own copy is what caught it.
-        source = ira if where == "IRa" else irb
-        target = irb if where == "IRa" else ira
-        mirrored = Gene(
-            name=gene.name,
-            kind=gene.kind,
-            parts=tuple(
-                Interval(
-                    start=target.start + (source.end - part.end),
-                    end=target.start + (source.end - part.start),
-                    strand=-part.strand,
-                    partial_start=part.partial_end,
-                    partial_end=part.partial_start,
-                )
-                for part in gene.parts
-            ),
-            transl_table=gene.transl_table,
-            translation=gene.translation,
-        )
         inside.append(gene)
-        inside.append(mirrored)
+        where = _ir_side(gene, ira, irb)
+        if where is not None:
+            source, target = (ira, irb) if where == "IRa" else (irb, ira)
+            inside.append(_mirrored(gene, source, target, whole=True))
+            continue
+        for source, target in ((ira, irb), (irb, ira)):
+            if any(_within(part, source) for part in gene.parts):
+                inside.append(_mirrored(gene, source, target, whole=False))
+                break
     return tuple(sorted(inside, key=lambda gene: gene.parts[0].start))
+
+
+def _within(part: Interval, region: Any) -> bool:
+    """Is this exon wholly inside one copy of the repeat?"""
+    return region.start <= part.start and part.end <= region.end
+
+
+def _mirrored(gene: Gene, source: Any, target: Any, *, whole: bool) -> Gene:
+    """One gene as the *other* copy of the repeat carries it.
+
+    The arithmetic is the inversion: a part at ``[s, e]`` inside one copy sits the same distance
+    inside the other, counted from that other copy's own start, on the opposite strand. Measured
+    09/10/2026 (P3B-10): it used to count from the first repeat's **start** instead of its
+    **end**, which put every mirrored copy exactly one repeat-length (26,214 bp on the golden)
+    away from where it belongs — outside the repeat, in the single-copy region. The gene *count*
+    was right, so nothing caught it; the published record's own copy is what caught it.
+
+    ``whole`` mirrors every exon — the gene sits inside one side. Otherwise only the exons inside
+    ``source`` are mirrored and the rest travel unchanged, which is how a trans-spliced gene's
+    shared exon ends up in both features.
+    """
+    return Gene(
+        name=gene.name,
+        kind=gene.kind,
+        parts=tuple(
+            Interval(
+                start=target.start + (source.end - part.end),
+                end=target.start + (source.end - part.start),
+                strand=-part.strand,
+                partial_start=part.partial_end,
+                partial_end=part.partial_start,
+            )
+            if whole or _within(part, source)
+            else part
+            for part in gene.parts
+        ),
+        transl_table=gene.transl_table,
+        translation=gene.translation,
+    )
 
 
 def _ir_side(gene: Gene, ira: Any, irb: Any) -> str | None:

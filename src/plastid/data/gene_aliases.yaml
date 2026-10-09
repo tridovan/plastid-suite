@@ -105,3 +105,17 @@ loci:
       like a transposition of psbB — which is what nine of the ten annotated panel records write.
       Without this entry the comparison silently drops a whole photosystem-II core gene from
       every Iris calculation.
+
+  - canonical: psbZ
+    synonyms: [lhbA]
+    evidence: >
+      PROJECT.md §8.46 and §8.54 (2026-10-08, re-measured 10/10/2026 with the pinned set in hand).
+      Same locus by all three signals, the first of them exact rather than close: **the same
+      /product string**, "photosystem II protein Z", and the **same length**, 189 bp / 62 aa, in
+      the golden record and in the one record that spells it differently; the syntenic
+      neighbours agree too (psbC … rps14 on both). 33 of the 34 pinned records write psbZ and
+      one — NC_042827.1 — writes lhbA, so without this entry the reference vocabulary carries
+      **80 CDS names for 79 loci** and the caller, which makes one call per locus, calls the
+      same span twice: measured on the golden, psbZ and lhbA were both written at
+      35895-36083. Canonical follows the standard name, which is also the recorded standard's
+      own spelling (data/naming_reference.json).

@@ -257,6 +257,9 @@ def test_every_copy_the_inverted_repeat_is_given_lands_where_the_record_puts_it(
         )
 
     checked = 0
+    # `rps12` is deliberately absent: its envelope is short by a *missing exon* (§8.54), not by
+    # a misplaced copy, and this check is about where a copy lands. The difference list above
+    # is where that shortfall is asserted.
     for name in ("rpl2", "rpl23", "ndhB", "ycf2", "rps7", "rrn16", "rrn5"):
         want = copies(published, name)
         if len(want) < 2:  # a single-copy locus says nothing about the mirror
@@ -278,19 +281,21 @@ def test_every_copy_the_inverted_repeat_is_given_lands_where_the_record_puts_it(
 # ------------------------------------------------------------------ every difference, listed
 
 # P3B-10's Done-when asks for the golden's differences from the published record "kind + span,
-# nothing summarized away" — so they are written down, all 45, and the check below fails on any
-# that moves. Measured 10/10/2026 with the code as it stands (§8.52), from the run this module's
+# nothing summarized away" — so they are written down, all 44, and the check below fails on any
+# that moves. Measured 10/10/2026 with the code as it stands (§8.54), from the run this module's
 # fixture makes; a change here is a change in the claim, not a test that needs loosening.
+#
+# Two lists of three entries left it on 10/10/2026, and this check is what said so: `lhbA`'s
+# duplicate call (§8.54, H-18) and `rps12`'s missing second copy (§8.54) — the two that had been
+# agreeing with the published record's 86 CDS by accident, one wrong thing covering for the other.
+# They had to land together, and the count is now right for the right reason: `rps12` written
+# twice, as the record writes it.
 #
 # Known defects are in the list rather than hidden by it, each with its own task:
 #   * the four truncated first exons — `petB` 6 bp · `petD` 8 · `rpl16` 9 · `rps16` 40 — are the
 #     reference's exon structure missing (the exons sit below blastx's seed): P3B-10's next work;
-#   * `rps12` missing its second representation and its 26 bp middle exon: the IR mirror copies
-#     only a gene that sits wholly inside one side, and `rps12` is trans-spliced across the
-#     boundary;
-#   * `lhbA` — a *duplicate call* at `psbZ`'s own 35895-36083, so the published record's 86 CDS
-#     (85 loci + `rps12` written twice) and ours (85 loci + `lhbA` written twice) agree by
-#     accident: H-18, and it has to land together with the `rps12` copy;
+#   * `rps12`'s 26 bp middle exon (139609-139634), still missing after the second copy was
+#     written: the same cause as the four above;
 #   * `rps19` −54 bp on both copies: H-20 (structure-first is not enforced between candidates);
 #   * the eight tRNA names ARAGORN reads differently, `trnI-GAU` as `trnE-UUC` among them: H-04's
 #     family, and the anticodon it reads is the intron's.
@@ -323,13 +328,12 @@ GOLDEN_DIFFERENCES: tuple[tuple[str, str, str, str, str], ...] = (
     ("conclusion", "CDS", "extent", "rpl2 151668-153154(+1)", "rpl2 151671-153154(+1)"),
     ("conclusion", "CDS", "extent", "rpl2 83698-85184(-1)", "rpl2 83698-85181(-1)"),
     ("conclusion", "CDS", "extent", "rpoC1 20179-22962(-1)", "rpoC1 20179-22962(-1)"),
-    ("conclusion", "CDS", "missing", "rps12 68976-139634(-1)", "—"),
+    ("conclusion", "CDS", "extent", "rps12 68976-139634(-1)", "rps12 68976-139066(-1)"),
     ("conclusion", "CDS", "extent", "rps12 68976-98013(-1)", "rps12 68976-98016(-1)"),
     ("conclusion", "CDS", "extent", "rps16 4697-5808(-1)", "rps16 4697-4915(-1)"),
     ("conclusion", "CDS", "extent", "rps19 153401-153679(+1)", "rps19 153455-153679(+1)"),
     ("conclusion", "CDS", "extent", "rps19 83173-83451(-1)", "rps19 83173-83397(-1)"),
     ("conclusion", "CDS", "extent", "ycf3 42508-44457(-1)", "ycf3 42508-44457(-1)"),
-    ("conclusion", "CDS", "extra", "—", "lhbA 35895-36083(+1)"),
     ("conclusion", "tRNA", "extent", "trnP-UGG 66042-66115(-1)", "trnP-UGG 66040-66115(-1)"),
     ("conclusion", "tRNA", "extent", "trnS-UGA 35472-35564(+1)", "trnS-UGA 35471-35565(-1)"),
     ("vocabulary", "tRNA", "name", "trnG-UCC 36413-36483(+1)", "trnG-GCC 36413-36484(+1)"),
@@ -346,12 +350,12 @@ GOLDEN_DIFFERENCES: tuple[tuple[str, str, str, str, str], ...] = (
 def test_every_difference_from_the_published_record_is_listed(
     annotated: Path, data_dir: Path
 ) -> None:
-    """The phase's Done-when, first clause: 45 differences, every one of them with its span.
+    """The phase's Done-when, first clause: 44 differences, every one of them with its span.
 
     The count is deliberately not asserted as a number — the *set* is, so a difference that moves
     or changes verdict fails here and has to be written down with its evidence, and one that
-    quietly disappears fails too. `lhbA` and the missing `rps12` are in the list on purpose: they
-    are today's measured truth, and the comment above says which tasks remove them.
+    quietly disappears fails too. The defects still in the list are today's measured truth, and
+    the comment above says which task removes each one.
     """
     from tools.corpus_bar import compare
 

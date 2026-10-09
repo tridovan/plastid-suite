@@ -293,3 +293,36 @@ def test_the_serine_trnas_are_where_the_ranking_fails() -> None:
     assert wrong_wins == 26
     assert wrong_family == {"trnS"}
     assert min(true_scores) == pytest.approx(53.76, abs=0.05)
+
+
+# --------------------------------------------------------- one locus, one name (H-18, §8.54)
+
+PINNED = ROOT / ".panel" / "plastid-reference"
+
+
+@pytest.mark.skipif(
+    not PINNED.is_dir(),
+    reason="the pinned plastid reference set is not here (.panel/ is gitignored)",
+)
+def test_the_pinned_set_spells_every_cds_locus_once() -> None:
+    """H-18: `lhbA` and `psbZ` are one locus, and the vocabulary says so — 80 names → 79.
+
+    Measured 10/10/2026 (§8.54): 33 of the 34 pinned records write `psbZ`, `NC_042827.1` writes
+    `lhbA`, and both carry the **same** `/product` ("photosystem II protein Z") at the **same**
+    length, 189 bp / 62 aa, between the same neighbours (psbC … rps14). Without the alias the
+    vocabulary carries 80 names for 79 loci, and the caller — which makes one call per locus —
+    wrote both names at the golden's 35895-36083.
+
+    Asserted as a count *and* as the two names, because either alone can be satisfied by the
+    wrong fix: 79 could come from a locus that vanished, and a name check alone says nothing
+    about the rest of the vocabulary.
+    """
+    from plastid.core.plastid_caller import vocabulary_of
+
+    records = [read_genbank(path) for path in sorted(PINNED.glob("*.gb"))]
+    vocabulary = vocabulary_of(records, kind="CDS")
+
+    assert len(records) == 34
+    assert len(vocabulary) == 79, f"the pinned set spells {len(vocabulary)} CDS names for 79 loci"
+    assert "lhbA" not in vocabulary
+    assert "psbZ" in vocabulary

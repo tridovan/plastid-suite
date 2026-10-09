@@ -155,6 +155,8 @@ def test_the_measured_loci_are_the_only_ones_shipped() -> None:
         "psaI",
         "psbB",
         "trnI-GAU",
+        # joined 10/10/2026 (§8.54) — NC_042827.1's lhbA against 33 records' psbZ
+        "psbZ",
     }
     assert all(locus.evidence for locus in ALIASES.loci)
 
