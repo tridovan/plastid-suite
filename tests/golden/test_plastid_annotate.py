@@ -20,6 +20,7 @@ import pytest
 from conftest import require_tools
 from plastid.cli import main
 from plastid.core.genbank import read_genbank
+from plastid.result.export import read_result
 
 ROOT = Path(__file__).resolve().parents[2]
 PANEL = ROOT / ".panel" / "plastid-reference"
@@ -116,6 +117,28 @@ def test_one_call_per_locus_and_every_loser_listed(annotated: Path) -> None:
     called = [row[0] for row in _rows(annotated, "called_genes")]
     assert called, "nothing was called"
     assert len(called) == len(set(called)), f"a locus was called twice: {sorted(called)}"
+
+
+def test_ycf1_lands_on_the_published_gene_not_on_a_truncated_reference(annotated: Path) -> None:
+    """H-19's negative test, measured 08/10/2026.
+
+    Before the structural rule, ``ycf1`` was called at **108,448-109,347** — 900 bp at 98.83 %
+    identity, from a reference whose own ycf1 is a 300-residue truncated copy of the gene — where
+    the published gene is **5,421 bp** at 122,984-128,404. 24 of the 34 pinned records annotate the
+    locus twice, complete and truncated, and the truncated copy scores *higher*: an identity-first
+    choice prefers it. Structure decides first (D5-08 §3), so the complete feature is the one
+    searched — and the run says which feature it did not search rather than dropping it in silence.
+    """
+    rows = {row[0]: row for row in _rows(annotated, "called_genes")}
+    start, end, identity = rows["ycf1"][2], rows["ycf1"][3], rows["ycf1"][6]
+    assert (start, end) == ("122984", "128404"), (
+        f"ycf1 was called at {start}-{end}, not on the published gene — a truncated reference won "
+        f"on identity at {identity} %"
+    )
+    seen = read_result((annotated / "result.json").read_text(encoding="utf-8"))
+    assert any("annotates ycf1 twice" in note for note in seen.notes), (
+        "the run searched a feature it did not report leaving out"
+    )
 
 
 def test_the_artifact_re_reads_and_says_which_organelle_it_is(annotated: Path) -> None:

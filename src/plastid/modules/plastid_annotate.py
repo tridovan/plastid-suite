@@ -56,10 +56,12 @@ from plastid.core.plastid_caller import (
     DEFAULT_MIN_COVERAGE,
     DEFAULT_MIN_IDENTITY,
     PLASTID_TRANSL_TABLE,
+    TruncatedAnnotation,
     read_inverted_repeat,
     reference_entries,
     reference_index,
     repeat_agreement,
+    truncated_annotations,
     vocabulary_of,
 )
 from plastid.core.plastid_caller import (
@@ -105,6 +107,7 @@ class _Reference:
     records: tuple[Genome, ...]
     label: str
     excluded: tuple[str, ...] = ()
+    truncated: tuple[TruncatedAnnotation, ...] = ()
 
 
 class ReferenceSetMissing(ToolError):
@@ -156,10 +159,21 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
             f"plastid_annotate: every record in {directory} is excluded for {target} — "
             f"leave-one-out leaves nothing to search"
         )
+    truncated = (
+        *truncated_annotations(records, kind="CDS"),
+        *truncated_annotations(records, kind="rRNA"),
+    )
     label = f"{len(records)} GenBank record(s) in {directory}"
     if excluded:
         label += f", {len(excluded)} left out by leave-one-out ({', '.join(sorted(excluded))})"
-    yield _Reference(records=tuple(records), label=label, excluded=tuple(sorted(excluded)))
+    if truncated:
+        label += f", {len(truncated)} truncated duplicate(s) not searched"
+    yield _Reference(
+        records=tuple(records),
+        label=label,
+        excluded=tuple(sorted(excluded)),
+        truncated=truncated,
+    )
 
 
 def _search_files(records: Sequence[Genome], work: Path) -> tuple[Path, Path]:
@@ -515,6 +529,7 @@ def _result(
         f"the inverted repeat: {repeat_note}",
         "one call per vocabulary locus; every other reference sequence considered for it is "
         "listed in competing_references with the numbers it lost on",
+        *_truncated_notes(reference.truncated),
         *cds.findings,
         *rrna.findings,
     ]
@@ -648,6 +663,21 @@ def _result(
         artifacts={"plastid_annotation.gb": text},
         notes=tuple(notes),
         citations=("blast", "aragorn"),
+    )
+
+
+def _truncated_notes(truncated: Sequence[TruncatedAnnotation]) -> tuple[str, ...]:
+    """One line per locus a record annotated twice — the feature the run did **not** search.
+
+    Reported because a reference set that quietly lost a feature would make every "not called"
+    row a lie, and because it is the reason a call can land on the complete gene rather than on
+    the truncated copy that scores higher (H-19, measured on the golden's ``ycf1``).
+    """
+    return tuple(
+        f"{row.accession} annotates {row.locus} twice: the {row.kept}-residue feature is used "
+        f"and its {row.dropped}-residue copy ({row.ratio:.0%} of it) is not searched — structure "
+        f"decides before any score (D5-08 §3)"
+        for row in truncated
     )
 
 

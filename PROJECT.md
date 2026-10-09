@@ -422,6 +422,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.45 | Ts/Tv đo lại dưới chiều tên mới — 2,6917 giữ nguyên, và phép đo cho thấy nó *bất biến theo chiều* (P3B-06, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.46 | Lõi gọi gen dùng chung — tách khỏi đường mito, ngưỡng plastid đo trên bản ghi vàng, và ba lỗi im lặng (P3B-07, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.47 | Annotator plastid chạy thật trên genome vàng — 86 CDS (nhân bản IR), ba cặp chồng lấn §8.34, và hai khác biệt mức kết luận (P3B-08, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.48 | Một locus bị chú giải hai lần: bản cụt không được tìm kiếm, và 0,5 nằm giữa một khoảng trống đo được — `ycf1` của bản ghi vàng nay khớp bản công bố từng base (H-19, 09/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---
@@ -749,10 +750,10 @@ cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào
    Hệ quả hôm nay là *hiển thị*, không phải *số*: `GENE_KINDS` loại feature `gene` khỏi mọi phép
    đếm và mọi mô-đun so sánh.
 
-### L. Bộ gọi gen dùng chung (P3B-07) — ba lỗi im lặng (08/10/2026)
+### L. Bộ gọi gen dùng chung (P3B-07 · P3B-08) — bốn lỗi im lặng (08–09/10/2026)
 
-Ba lỗi dưới đây không do test nào bắt: chúng chỉ hiện ra khi **chạy thật** bộ gọi plastid trên bộ
-tham chiếu 34 bản ghi. Cả ba đều thuộc đúng loại "sai mà không báo" mà dự án này tồn tại để chặn.
+Bốn lỗi dưới đây không do test nào bắt: chúng chỉ hiện ra khi **chạy thật** bộ gọi plastid trên bộ
+tham chiếu 34 bản ghi. Cả bốn đều thuộc đúng loại "sai mà không báo" mà dự án này tồn tại để chặn.
 
 1. **`-max_target_seqs 500` cắt cụt bộ tham chiếu trong im lặng.** Hằng số 500 được chọn cho 287
    chuỗi của bộ tham chiếu mito ("nothing may be truncated away" — chú thích cũ nói đúng ý định,
@@ -776,6 +777,18 @@ tham chiếu 34 bản ghi. Cả ba đều thuộc đúng loại "sai mà không 
    bảng `not_called` sẽ báo chúng "no alignment" trong khi alignment vẫn ở đó. Sửa: `gene_names`
    mở rộng luật đã có cho dạng `rrn16S` (cùng một tri thức: lớp kích thước nằm trong chuỗi) cho
    dạng câu; `rrnS`/`rrnL` của ty thể vẫn **không** bị chạm.
+
+4. **Một locus bị chú giải hai lần: bản cụt thắng bản đầy đủ.** `_choose` xếp theo identity
+   trước, và một bộ tham chiếu mang `ycf1` **cụt** — bản sao nằm trong IR, ~300 residue — khớp mẫu
+   ở **98,83 %**, cao hơn mọi ứng viên đầy đủ (97,2–97,7 %), nên `ycf1` của bản ghi vàng được gọi
+   thành **900 bp** ở 108.448–109.347 thay vì 5.421 bp ở 122.984–128.404. Đúng ca mà D5-08 §3 gọi
+   tên: **cấu trúc quyết trước, điểm chỉ tie-break**. Sửa: một locus mà **một bản ghi** chú giải
+   hai lần, bản ngắn dưới 50 % bản dài, là bản sao bị cụt — không vào chỉ mục tham chiếu, và
+   **được nêu tên** (`truncated_annotations`); ngưỡng 0,5 nằm giữa khoảng trống đo được
+   0,2992 → 0,9927 trên 243 locus trùng của bộ đã pin. Đo lại trên bản ghi vàng: **đúng một dòng
+   đổi**, và nó khớp bản công bố từng base (§8.48). Test:
+   `test_a_locus_a_record_annotated_twice_is_searched_once` ·
+   `test_ycf1_lands_on_the_published_gene_not_on_a_truncated_reference`.
 
 **Chưa sửa, đã đặt tên — H-18:** `lhbA` (`NC_042827.1`) và `psbZ` (33 bản ghi còn lại, kể cả bản
 ghi vàng) là **một locus**, cùng 62 aa; bộ từ vựng vì thế có 80 tên CDS cho 79 locus, và bộ gọi

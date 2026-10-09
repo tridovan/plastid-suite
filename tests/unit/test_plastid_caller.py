@@ -20,12 +20,14 @@ from plastid.core.plastid_caller import (
     DEFAULT_MIN_COVERAGE,
     DEFAULT_MIN_IDENTITY,
     PLASTID_TRANSL_TABLE,
+    TRUNCATED_DUPLICATE_FRACTION,
     call_cds,
     call_rrna,
     read_inverted_repeat,
     reference_entries,
     reference_index,
     repeat_agreement,
+    truncated_annotations,
     vocabulary_of,
 )
 
@@ -124,6 +126,81 @@ def test_a_name_with_a_space_gets_a_header_a_blast_hit_can_come_back_as() -> Non
     )
     assert entry.key == "NC_042827.1|23S_ribosomal_RNA|rrn23"
     assert " " not in entry.key
+
+
+# ---------------------------------------------------------------- a locus a record annotated twice
+
+
+def _twice(first: str, second: str) -> Genome:
+    """One record carrying two CDS features under one name — the measured ycf1 shape."""
+    return Genome(
+        name="doubly annotated",
+        accession="SYN_DUP.1",
+        sequence="ATGGCC" * 900,
+        genes=(
+            Gene(name="ycf1", kind="CDS", parts=(Interval(0, 30),), translation=first),
+            Gene(name="ycf1", kind="CDS", parts=(Interval(40, 70),), translation=second),
+        ),
+        source={"organelle": "plastid"},
+    )
+
+
+def test_a_locus_a_record_annotated_twice_is_searched_once() -> None:
+    """Measured 08/10/2026 (H-19): 24 of the 34 pinned records carry a **truncated** ``ycf1``
+    beside the complete one, and the truncated copy scores *higher* on identity — so the golden's
+    5,421 bp gene was called as 900 bp. Structure decides first (D5-08 §3), and the feature the
+    run does not search is **named**, not dropped in silence.
+    """
+    long_protein = "M" + "A" * 1799
+    genome = _twice(long_protein, long_protein[:300])
+    entries = reference_entries([genome], kind="CDS")
+    assert [len(entry.sequence) for entry in entries] == [1800]
+    reported = truncated_annotations([genome], kind="CDS")
+    assert len(reported) == 1
+    assert (reported[0].locus, reported[0].kept, reported[0].dropped) == ("ycf1", 1800, 300)
+    assert reported[0].ratio == pytest.approx(300 / 1800)
+
+
+def test_a_two_residue_difference_is_not_a_truncated_duplicate() -> None:
+    """The measured boundary: the pinned set's 243 within-record duplicate pairs sit **either**
+    below 0.2992 **or** at 0.9927 and above — nothing in between. A rule that called every unequal
+    pair a truncation would drop ``rpl2``'s own 271-against-273-residue pair.
+    """
+    assert TRUNCATED_DUPLICATE_FRACTION == 0.5
+    genome = _twice("M" + "A" * 272, "M" + "A" * 270)
+    assert len(reference_entries([genome], kind="CDS")) == 2
+    assert truncated_annotations([genome], kind="CDS") == ()
+
+
+def test_the_inverted_repeats_two_copies_are_two_entries() -> None:
+    """Equal length is the repeat's shape (216 of the 243 measured pairs). Those two features are
+    one gene in two copies, and both are searched — ``core/caller`` assigns an HSP to the smallest
+    reference that contains it."""
+    protein = "M" + "A" * 299
+    genome = _twice(protein, protein)
+    assert len(reference_entries([genome], kind="CDS")) == 2
+    assert truncated_annotations([genome], kind="CDS") == ()
+
+
+def test_a_lone_short_feature_is_still_searchable() -> None:
+    """The rule fires on a *comparison*, and one feature offers none — so it does not fire here.
+
+    A record that annotates a locus once, briefly, may be carrying a short ortholog; a partial CDS
+    is the audit's own case and it blocks on the coordinates themselves (§8.43 blocked
+    ``NC_024936.1`` that way). Dropping this one would take a locus out of the search on no
+    evidence at all — which is why the audit, not this rule, is where such a record is answered.
+    """
+    genome = Genome(
+        name="annotated once, briefly",
+        accession="SYN_ONCE.1",
+        sequence="ATGGCC" * 900,
+        genes=(
+            Gene(name="ycf1", kind="CDS", parts=(Interval(0, 30),), translation="M" + "A" * 299),
+        ),
+        source={"organelle": "plastid"},
+    )
+    assert [len(entry.sequence) for entry in reference_entries([genome], kind="CDS")] == [300]
+    assert truncated_annotations([genome], kind="CDS") == ()
 
 
 # ------------------------------------------------------------------ the inverted repeat reading

@@ -490,3 +490,63 @@ tên** một call vắt qua ranh giới IR thay vì đoán. Cùng luật ấy ch
 
 Cả hai đều là **khác biệt mức kết luận**, không phải mức từ vựng — đúng loại mà P3B-10 phải đếm
 và so với PGA.
+
+### 8.48. Một locus bị chú giải hai lần: bản cụt không được tìm kiếm, và 0,5 nằm giữa một khoảng trống đo được (H-19, 09/10/2026)
+
+**Việc.** H-19, đặt tên ở §8.47: `ycf1` của bản ghi vàng bị gọi thành 900 bp vì trọng tài
+identity-first chọn một bộ tham chiếu mà **chính nó** mang `ycf1` cụt — 98,83 % trên 299 residue,
+coverage 1,000 — thay vì các ứng viên đầy đủ (97,2–97,7 %). D5-08 §3 nói **cấu trúc quyết trước**.
+Luật thi hành: **một locus mà một bản ghi chú giải hai lần, bản ngắn dưới 50 % bản dài, là bản sao
+bị cụt — không được đưa vào tìm kiếm, và được nêu tên** (`truncated_annotations`, in thành note
+của run). Chỗ sửa không phải `_choose` mà là **bộ chỉ mục tham chiếu**: một ứng viên không tồn tại
+thì không có điểm nào để thắng.
+
+**Vì sao 0,5, và vì sao luật dừng ở trong-một-bản-ghi.** Đo trên bộ đã pin (34 bản ghi, **chỉ
+CDS**): **243** locus được chú giải hai lần — **216 ở đúng 1,000** (hai bản của IR), **một ở
+0,9927** (`rpl2`, 271 so với 273 residue: khác biệt thật, và nó **được giữ**), **26 nằm dưới 0,30**
+(`ycf1` 0,16–0,30 ở 24 bản ghi; `ycf4` 0,23 ở 2 bản ghi). **Không có gì nằm giữa 0,2992 và
+0,9927.** 136 locus rRNA trùng nhau đều ở 1,000.
+
+Phép so sánh **chỉ có nghĩa trong một bản ghi**, và đó là chỗ dựa của luật, không phải một giới
+hạn kỹ thuật. Trên 80 locus CDS, chỉ **3** locus có dải dài giữa-các-bản-ghi dưới 0,5 — và cả ba
+**chính là** ca trong-một-bản-ghi (`ycf1` · `ycf4` · `rps19` 22/22 của `NC_081931.1`) — trong khi
+`rpoB` chạy 614–1.070 residue và `ndhD` 383–523. Giữa các bản ghi, một **ortholog ngắn** và một
+**chú giải cụt** không phân biệt được bằng độ dài; trong một bản ghi thì hai bản là *cùng một gen*,
+nên so được. Luật vì thế không mở rộng ra ngoài, và lý do là hệ quả chứ không chỉ là độ chính xác:
+một luật độ dài xuyên-bản-ghi sẽ bỏ những entry như `rpoB` (0,574) hay `ndhD` (0,733) mà **chưa đo
+được** là cụt hay thật — và bỏ một reference thì không lấy lại được, mọi dòng `not_called` sau đó
+thành lời nói dối. Luật trong-một-bản-ghi chỉ bỏ một feature **đã có bản đầy đủ cùng bản ghi**.
+
+**Đo trên bản ghi vàng, trước/sau: toàn bộ tập call đổi đúng một dòng.**
+
+| | trước | sau |
+|---|---|---|
+| `ycf1` | 108.448–109.347 (**+**, 900 bp, 98,83 %, `NC_088562.1`) | **122.984–128.404 (−, 5.421 bp, 97,68 %, `NC_081929.1`)** |
+| bản công bố | `ycf1 [122983:128404](-)`, 1.806 aa | **khớp chính xác từng base** |
+
+Ứng viên `ycf1` nay còn **33**, tất cả đầy đủ (1.783–1.862 residue); artifact vẫn **86 CDS +
+8 rRNA + 30 tRNA** với `/organelle="plastid"`; note của run từ 30 lên **56** dòng, 26 dòng mới nêu
+tên từng feature bị bỏ ("`NC_088562.1` annotates `ycf1` twice: the 1.806-residue feature is used
+and its 299-residue copy (17 % of it) is not searched"). Lính gác mito: **65 test** mito (`-k mito`, tầng unit) xanh và **không file mito nào bị sửa**
+(`git status` chỉ có `plastid_caller.py` · `plastid_annotate.py` · test · tài liệu).
+
+**Vế thứ hai của Done-when đã không làm, và lý do là một phép đo.** Done-when viết "hoặc một ứng
+viên mà alignment không chạm hai đầu reference, trong khi một ứng viên dài hơn thì chạm". Đo lại
+thì vế ấy **không sửa được ca này**: alignment của bộ tham chiếu cụt **có** chạm cả hai đầu của nó
+— coverage 1,000, chính con số ấy là thứ đánh lừa trọng tài. Và nó là **cơ chế sai**: "gen của mẫu
+bị cụt" đã có cách biểu diễn đúng, cờ `partial_start`/`partial_end` trên call, nên ưu tiên một
+reference để *tránh* một call partial sẽ **giấu một phát hiện thật**. Ghi lại đây để P3B-10 đọc
+đúng phạm vi của luật.
+
+**Còn lại, có tên.** (1) Một bản ghi chú giải locus ấy **một lần** thì không có gì để so — luật
+không bắn; **đo được: bộ đã pin không có ca nào như thế**. (2) Audit **có** bắt lớp đó bằng toạ độ
+(`<`/`>`), đo trên chính bộ này: `NC_024936.1` bị **BLOCK** vì `rps19` partial (`>83020`,
+`<153124`) — **nhưng audit chưa được đặt trước run annotate**: `plastid_annotate` không gọi nó, và
+bản ghi ấy vẫn là ứng viên trong run vàng. Nối cổng ấy vào lệnh `annotate` là **P3B-09**, đã ghi
+vào checklist của task đó.
+
+**Test.** Ba test đơn vị đã có từ trước (luật bắn · khác biệt 2 residue không bị coi là cụt · hai
+bản IR bằng nhau vẫn là hai entry) cộng **một mới**: một feature lẻ, ngắn, **vẫn được tìm** — luật
+bắn trên một phép *so sánh*, và một feature thì không có phép so nào. Golden:
+`test_ycf1_lands_on_the_published_gene_not_on_a_truncated_reference` — khẳng định toạ độ
+122.984–128.404 **và** rằng run nói ra feature nó đã không tìm.

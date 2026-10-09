@@ -24,6 +24,13 @@ which makes the set's own names the only vocabulary a plastid call may print. A 
 set spells with a name outside the vocabulary is kept and **reported** rather than renamed
 (H-06's rule, the mito path's ``unnameable``).
 
+**A locus a record annotated twice is searched once.** Measured 08/10/2026 on the pinned set:
+24 of the 34 records carry **two** ``ycf1`` CDS features — a complete one (~1,800 aa) and a
+truncated copy of it (~300 aa, the part that sits inside the inverted repeat) — and the truncated
+one scored *higher* on identity, so an identity-first choice called the golden's 5,421 bp ``ycf1``
+as 900 bp. Structure decides first (D5-08 §3): the truncated feature is not searched, and it is
+named (``truncated_annotations``) rather than dropped in silence.
+
 **The inverted repeat is read behind the structural gate, never instead of it.** §9.A is the
 measured reason: naive IR detection got 2 of 9 published plastomes wrong, one of them silently.
 So the frame is established by ``core/ir.py`` and the ≥ 99.9 % gate, and a self-search only has to
@@ -45,11 +52,13 @@ from plastid.core.caller import (
 )
 from plastid.core.gene_names import AliasTable, aliases_for, normalize_name
 from plastid.core.ir import IRResult
-from plastid.core.model import Genome, coding_sequence
+from plastid.core.model import Gene, Genome, coding_sequence
 
 __all__ = [
     "DEFAULT_MIN_COVERAGE",
     "DEFAULT_MIN_IDENTITY",
+    "TRUNCATED_DUPLICATE_FRACTION",
+    "TruncatedAnnotation",
     "IR_AGREEMENT_TOLERANCE",
     "IR_MIN_IDENTITY",
     "PLASTID_TRANSL_TABLE",
@@ -83,6 +92,106 @@ IR_MIN_LENGTH = 1000
 # roughly what a search trims off each end of a run of near-identical repeats.
 IR_AGREEMENT_TOLERANCE = 0.01
 
+# A record that annotates **one locus twice** with very different lengths has annotated it twice,
+# and the short one is truncated — not a second locus.
+#
+# The comparison stops **at one record** because that is the only place the measurement separates
+# the two cases. Measured 08/10/2026 on the pinned Iridaceae set (34 records), CDS only: 243 loci
+# are annotated twice, **216 of them at 1.000** (the inverted repeat's two copies) and one at
+# 0.9927 — `rpl2`, 271 residues against 273, a real length difference that is **kept** — while
+# **26 sit below 0.30** (`ycf1` 0.16–0.30, `ycf4` 0.23: the truncated copies). Nothing at all sits
+# between **0.2992 and 0.9927**, so 0.5 is not a chosen number, it is the middle of that gap. The
+# 136 duplicated rRNA loci are all at 1.000.
+#
+# Across records there is no such gap, and the difference is not a defect of the rule: of the 80
+# CDS loci, the **3** whose across-record spread falls below 0.5 are the within-record cases again
+# (`ycf1`, `ycf4`, and NC_081931.1's two equal 22-residue `rps19` features), while `rpoB` runs
+# 614–1,070 residues and `ndhD` 383–523 over the same set — a short ortholog and a truncated
+# annotation, indistinguishable by length. Within one record the two copies are the same gene,
+# which is what makes the comparison decidable there and nowhere else.
+TRUNCATED_DUPLICATE_FRACTION = 0.5
+
+
+@dataclass(frozen=True, slots=True)
+class TruncatedAnnotation:
+    """One locus a record annotated twice, where the shorter feature is a truncated copy.
+
+    The complete feature is what a call is transferred from; this row is the reason the other one
+    is not (D5-08 §3 — structure decides before any score).
+    """
+
+    accession: str
+    locus: str
+    kept: int  # residues in the feature that is used
+    dropped: int  # residues in the truncated one
+    ratio: float
+
+
+def _features_by_locus(genome: Genome, kind: str) -> dict[str, list[tuple[Gene, str]]]:
+    """One record's genes of ``kind``, grouped by canonical locus, with the sequence to search.
+
+    A CDS is its own ``/translation`` and an rRNA its own nucleotide sequence — the same rule
+    :func:`reference_entries` writes down, kept in one place so the report and the index can never
+    disagree about which feature a row is about.
+    """
+    table = aliases_for(genome)
+    grouped: dict[str, list[tuple[Gene, str]]] = {}
+    for gene in genome.genes:
+        if gene.kind != kind or gene.pseudo:
+            continue
+        if kind == "CDS":
+            if not gene.translation:
+                continue
+            sequence = gene.translation
+        else:
+            sequence = coding_sequence(genome, gene)
+        name = normalize_name(gene.name, table).canonical
+        grouped.setdefault(name, []).append((gene, sequence))
+    return grouped
+
+
+def _split_truncated(
+    accession: str, grouped: dict[str, list[tuple[Gene, str]]]
+) -> tuple[list[tuple[str, Gene, str]], list[TruncatedAnnotation]]:
+    """``(kept, truncated)`` for one record — see :data:`TRUNCATED_DUPLICATE_FRACTION`."""
+    kept: list[tuple[str, Gene, str]] = []
+    truncated: list[TruncatedAnnotation] = []
+    for locus, group in grouped.items():
+        longest = max(len(sequence) for _gene, sequence in group)
+        for gene, sequence in group:
+            ratio = len(sequence) / longest if longest else 0.0
+            if len(group) > 1 and ratio < TRUNCATED_DUPLICATE_FRACTION:
+                truncated.append(
+                    TruncatedAnnotation(
+                        accession=accession,
+                        locus=locus,
+                        kept=longest,
+                        dropped=len(sequence),
+                        ratio=ratio,
+                    )
+                )
+                continue
+            kept.append((locus, gene, sequence))
+    return kept, truncated
+
+
+def truncated_annotations(
+    records: Iterable[Genome], *, kind: str
+) -> tuple[TruncatedAnnotation, ...]:
+    """Every locus a record annotated twice with a truncated copy — the reason it is not searched.
+
+    Reported rather than silently dropped: a reference set that quietly lost a feature would make
+    every "not called" row a lie (the same rule ``ReferenceBuild.excluded`` follows on the mito
+    path).
+    """
+    out: list[TruncatedAnnotation] = []
+    for genome in records:
+        _kept, truncated = _split_truncated(
+            genome.accession or genome.name, _features_by_locus(genome, kind)
+        )
+        out.extend(truncated)
+    return tuple(out)
+
 
 def reference_entries(
     records: Iterable[Genome], *, kind: str, vocabulary: Sequence[str] | None = None
@@ -106,23 +215,14 @@ def reference_entries(
     entries: list[ReferenceEntry] = []
     for genome in records:
         accession = genome.accession or genome.name
-        table = aliases_for(genome)
-        for gene in genome.genes:
-            if gene.kind != kind or gene.pseudo:
-                continue
-            if kind == "CDS":
-                if not gene.translation:
-                    continue
-                sequence = gene.translation
-            else:
-                sequence = coding_sequence(genome, gene)
-            name = normalize_name(gene.name, table).canonical
+        kept, _truncated = _split_truncated(accession, _features_by_locus(genome, kind))
+        for locus, gene, sequence in kept:
             entries.append(
                 ReferenceEntry(
                     accession=accession,
                     organism=genome.name,
                     source_gene=gene.name,
-                    vocabulary=name if allowed is None or name in allowed else None,
+                    vocabulary=locus if allowed is None or locus in allowed else None,
                     sequence=sequence,
                 )
             )
