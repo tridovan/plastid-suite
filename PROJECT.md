@@ -1119,7 +1119,7 @@ Chạy được trên bộ gen đã có sẵn.
 
 **Kiểm tra trong giai đoạn:** sinh lại được bảng/hình từ dữ liệu trung gian (không làm tay) · **kiểm thử truy vấn số**: mỗi số trong report phải trỏ được về **đúng một ô** trong bảng gốc (nếu không, lỗi “số trông hợp lý nhưng sai” vẫn lọt) · report công cụ + thông số có đủ tên, phiên bản, đường dẫn, ngưỡng.
 
-### 13.6. Giai đoạn 6 — Nội dung bài báo công cụ
+### 13.6. Giai đoạn 6 — Các phân tích cho bài báo công cụ  **[ĐÃ THAY 10/10/2026 — tên gọi, không phải công việc: đây là **năm phân tích** công cụ phải chạy được (NUPT/MTPT · cấu trúc mito · so sánh lục lạp–ty thể · ancestral state · divergence time), tức việc xây công cụ của dev. *Nội dung* bài báo — phân tích gì, khẳng định gì, đưa gì vào bài — là của **cô Trang** (CLAUDE.md → who decides).]**
 
 - NUPT/MTPT — chuyển gen giữa nhân, lục lạp, ty thể (trọng tâm)
 - Cấu trúc đa hình ty thể + tái tổ hợp qua trình tự lặp (Chimeric ORF/CMS)

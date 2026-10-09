@@ -50,15 +50,18 @@ machinery that task puts in the shared layer, and DRY's rule fires at its second
   **Done when:** the module runs on the golden, reports every match ≥30 bp with its region, the
   count is a new §8 entry, and a test pins the IR pair among the matches.
 
-- [ ] **P2B-03 · The manuscript draft, re-run** *(M2.10)*
-  - Regenerate both species' tables and the Results draft from the pinned stand-in set — now with
-    the **π** and **Ts/Tv** sections (MAFFT has been present since 03/10; the draft simply predates
-    them) and the figures, plus whatever P2B-01/P2B-02 add.
+- [ ] **P2B-03 · The tables and figures the manuscripts need, regenerated** *(M2.10)*
+  - **Our half is the run:** both species' **tables and figures**, regenerated from the pinned
+    stand-in set — now with the **π** and **Ts/Tv** sections (MAFFT has been present since 03/10;
+    the draft simply predates them), plus whatever P2B-01/P2B-02 add. **The prose, the claims and
+    what goes in the manuscript are cô Trang's** (CLAUDE.md → who decides); the draft Results
+    sections in `docs/P2-10_manuscript_draft.md` are a *draft for her to own*, never a decision
+    this board makes.
   - Every table carries its **scope** label and the **stand-in** label; no number is typed into a
     template (the report templates reference table cells, never literals).
-  **Done when:** the draft carries π and Ts/Tv, every exported table is labelled *stand-in* and
-  scoped, and the numbers agree with §6's golden values (Ts/Tv **2.6917** · SSR **37** ·
-  **132 = 86 + 38 + 8**).
+  **Done when:** every table and figure the two manuscripts need is produced by a run and labelled
+  *stand-in* + scoped, the π and Ts/Tv sections are in the draft, and the numbers agree with §6's
+  golden values (Ts/Tv **2.6917** · SSR **37** · **132 = 86 + 38 + 8**).
 
 ## Decisions to make
 

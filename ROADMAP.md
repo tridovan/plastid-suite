@@ -252,7 +252,10 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
 - [~] **M2.10 Manuscript deliverable** — tables + draft Results produced for both species from the
   public stand-in set (labelled); **the draft predates the π/Ts/Tv sections** (MAFFT has been
   present since 03/10, §8.25 — the draft simply has not been re-run with them) and figures; real
-  samples outstanding
+  samples outstanding. **[ĐÃ THAY 10/10/2026 — the split, spelled out because the milestone's name
+  hides it: our half is the **run** — every table and figure, produced and labelled. The prose, the
+  claims and what goes in the manuscript are **cô Trang's** (CLAUDE.md → who decides); the draft in
+  `docs/P2-10_manuscript_draft.md` is a draft for her to own.]**
 - [x] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
   (moved here from M1.11, whose loader shipped in Phase 1: `core/samples.py`)
 
@@ -482,9 +485,17 @@ Done-when measured: the figures (§8.36–§8.37), the statistics (§8.38), the 
 queryable-number audit (§8.35). Three layout defects were found by *looking at* the rendered
 figures rather than by a test — the lesson of §9.C-34, paid three times in one phase.
 
-## Phase 6 — Tool-paper content  *(§13.6 — published/GenBank data; assembly-dependent parts move to P7)*
+## Phase 6 — The analyses the tool paper is built on  *(§13.6 — published/GenBank data; assembly-dependent parts move to P7)*
 
-**Goal:** the scientific content of the Eleutherine bulbosa tool paper.
+**[ĐÃ THAY 10/10/2026 — the label, not the work: this phase was called "Tool-paper content", which
+reads as the dev writing a paper. It is not that. Every milestone below is a **module** — an
+analysis this toolkit must be able to run — and *"what to analyse · scope of a scientific claim ·
+what goes in a manuscript"* is **cô Trang's** by CLAUDE.md's own decision table. The paper is hers;
+the code that produces its figures and tables is ours.]**
+
+**Goal:** the five analyses the Eleutherine bulbosa tool paper rests on — built, measured against
+published benchmarks, and reported by the toolkit. **The paper itself — what it claims, what goes
+in it, in what order — is the PI's.**
 **In-phase checks:** mito-structure parts have published benchmarks to compare against
 (*Damnacanthus indicus* · *Salvia* 2022–2025 · *Hemiboea* · *Coffea arabica* 2023).
 NUPT/MTPT has **no published benchmark** — its only check is the Oldenlandia/Coleus comparison in Phase 8.
@@ -540,7 +551,10 @@ across 3 environments (WSL · CI · Docker).
   macOS experimental, unverified)
 - [ ] **M9.5 "Things we don't do" statement** — no native Windows; no assembly below RAM threshold;
   no RNA-editing prediction without RNA-seq data
-- [ ] **M9.6 Short how-to video · tool manuscript · DOI (Zenodo) + CITATION.cff**
+- [ ] **M9.6 Release artifacts** — short how-to video · **DOI (Zenodo) + CITATION.cff**.
+  **[ĐÃ THAY 10/10/2026: "tool manuscript" was listed here, in a phase of our own — writing the
+  paper is the PI's (CLAUDE.md → who decides), not a release step. What this phase owes it is the
+  artifacts a paper needs from a tool: the figures, the tables and the citable DOI.]**
 - [ ] **M9.7 Web UI** — deferred until the core is stable
 
 ---
