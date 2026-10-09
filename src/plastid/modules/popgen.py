@@ -29,6 +29,7 @@ from typing import Any
 from plastid.core.align import Alignment
 from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.model import Genome, coding_sequence
+from plastid.core.organelle import GROUP_SHARED
 from plastid.core.popgen import fst_gst, summarise
 from plastid.external.mafft import align
 from plastid.modules.registry import module
@@ -41,6 +42,7 @@ MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (s
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Population genetics",
     requires_ir=False,  # gene-based; the mito half of the phase has no IR to gate on

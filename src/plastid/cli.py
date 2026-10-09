@@ -24,7 +24,7 @@ from functools import partial
 from pathlib import Path
 
 from plastid import __version__
-from plastid.core import plastid_reference, reference_audit
+from plastid.core import organelle, plastid_reference, reference_audit
 from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
 from plastid.core.gene_names import NamingConflictError, load_recorded_reference, repo_root
@@ -162,6 +162,59 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="ID",
         help="render only this figure (repeatable; default: every figure the run's tables feed)",
+    )
+
+    annotate_parser = subparsers.add_parser(
+        "annotate",
+        help="annotate plastomes by transfer from the pinned plastid reference set",
+    )
+    annotate_parser.add_argument(
+        "-i",
+        "--input",
+        action="append",
+        default=[],
+        help="FASTA or GenBank sample, one record — repeat the flag to annotate a batch, "
+        "one run directory and one artifact per sample (not needed with --audit-only)",
+    )
+    annotate_parser.add_argument(
+        "--reference",
+        default=None,
+        help="directory of GenBank records to transfer from (default: the pinned plastid set)",
+    )
+    annotate_parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        metavar="ACCESSION",
+        help=(
+            "leave this reference record out of the search (repeatable) — the mechanical form of "
+            "D5-08's 'fix or drop the bad file': the run names what it did not search"
+        ),
+    )
+    annotate_parser.add_argument(
+        "--audit-only",
+        action="store_true",
+        help="audit the reference set and stop — nothing is annotated (P3B-03's flag)",
+    )
+    annotate_parser.add_argument(
+        "--no-confirm",
+        action="store_true",
+        help="with --audit-only: skip the second reading; the report then says not measured",
+    )
+    annotate_parser.add_argument(
+        "-o", "--out", default=".runs", help="output root (default: .runs)"
+    )
+    annotate_parser.add_argument(
+        "--dataset", default=None, help="dataset label (default: each sample's accession)"
+    )
+    annotate_parser.add_argument(
+        "--docx",
+        action="store_true",
+        help="also write report.docx in each run's module directory (needs the 'docx' extra)",
+    )
+    annotate_parser.add_argument("--force", action="store_true", help="ignore the cache and re-run")
+    annotate_parser.add_argument(
+        "--set", action="append", default=[], metavar="KEY=VALUE", help="module parameter"
     )
 
     mito = subparsers.add_parser("mito", help="mitochondrial annotation (Phase 3A prototype)")
@@ -661,6 +714,7 @@ def _execute_run(
                 "normalized frame (LSC -> IRa -> SSC -> IRb)"
             ),
         },
+        dataset=label,
     )
 
     if any(spec.requires_ir for spec in specs):
@@ -741,6 +795,20 @@ def _execute_run(
             )
         except IRGateError as error:
             return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_USAGE)
+        except reference_audit.ReferenceAuditError as error:
+            # 2, the gate's own number, next to the IR gate: the run was well-formed and it is the
+            # reference set that cannot be used. The message is the audit's own `file — reason`
+            # lines; the way out (drop the file, or re-check the set) is said here, once.
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                f"{error}\n`plastid annotate --audit-only` re-checks the set without annotating "
+                f"anything; `--exclude <accession>` drops a record from the search, and the run "
+                f"says which records it did not search",
+                EXIT_USAGE,
+            )
         except NamingConflictError as error:
             # 4, not 2: the run was well-formed and the data disagrees with the reference — a
             # number of its own keeps it apart from the IR gate and the audit (D5-09 §5, §9.7).
@@ -943,6 +1011,144 @@ def _cmd_figures(args: argparse.Namespace) -> int:
 
 
 MITO_MODULE = "mito_annotate"
+PLASTID_MODULE = "plastid_annotate"
+
+
+def _cmd_annotate(args: argparse.Namespace) -> int:
+    """Annotate 1..N plastomes from the reference set — one run per sample (P3B-09, M3B.4).
+
+    **The batch is a batch of runs, not one run with N samples.** Each sample gets the run
+    directory, manifest, tool record and report that every other output in this toolkit has
+    (PROJECT.md §2: output is split by run/dataset and never overwritten in place), so a sample's
+    annotation is traceable on its own — and the command's own numbers are the reference set it
+    searched, recorded in each manifest, plus its exit code.
+
+    **A sample that fails does not kill the batch.** It is named on stderr, its own run directory
+    records the failure and the reason, and the command exits non-zero so a script cannot mistake
+    a partial batch for a whole one (D5-08: "a failed sample is marked and named without killing
+    the run, but the exit code reflects that something failed"). The first failure's code is what
+    the command returns: the number is about *why* the run was refused, and the samples that
+    failed for the most specific reason are the ones that ran furthest.
+
+    **One organelle, declared at input.** A plastid sample that declares ``/organelle`` otherwise
+    is refused by name, as is a reference set of mito records, and so is a batch that mixes the
+    two — the path declares for a bare sequence (D5-06), and where a record declares, the record
+    is what is read. ``plastid mito annotate`` is the path that serves a mitogenome.
+    """
+    try:
+        spec = registry.get(PLASTID_MODULE)
+    except registry.UnknownModuleError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_ERROR
+
+    try:
+        params = _parse_sets(args.set or [])
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_USAGE
+    if args.reference:
+        params["reference"] = args.reference
+    planted = params.get("exclude")
+    exclusions = [planted] if isinstance(planted, str) else list(planted or ())
+    if args.exclude:
+        exclusions.extend(args.exclude)
+    if exclusions:
+        params["exclude"] = exclusions
+
+    directory = plastid_reference.resolve_directory(params.get("reference"))
+    if args.audit_only:
+        return _audit_reference_directory(
+            panel=directory,
+            out=args.out,
+            no_confirm=args.no_confirm,
+            exceptions_path=directory / reference_audit.EXCEPTIONS_FILENAME,
+            command=[
+                "plastid",
+                "annotate",
+                "--audit-only",
+                "--reference",
+                str(directory),
+                *(["--no-confirm"] if args.no_confirm else []),
+            ],
+        )
+
+    if not args.input:
+        print(
+            "annotate: --input is required unless --audit-only is asked for — one sample per "
+            "-i, repeated for a batch",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+
+    # Every sample is read and checked *before* anything is annotated: a batch that mixed two
+    # organelles would otherwise have written half its runs before saying so (D5-06 — one run,
+    # one organelle, and a mixed input set stops by name).
+    samples: list[tuple[str, Genome]] = []
+    codes: list[int] = []
+    for text in args.input:
+        try:
+            samples.append((text, _read_input(text)))
+        except (OSError, ValueError) as error:
+            print(f"{text} — {error}", file=sys.stderr)
+            codes.append(EXIT_ERROR)
+    if samples:
+        try:
+            organelle.check_set(
+                [genome for _text, genome in samples],
+                group=spec.group,
+                path="plastid annotate",
+            )
+        except organelle.OrganelleError as error:
+            print(str(error), file=sys.stderr)
+            print("annotate: nothing was annotated", file=sys.stderr)
+            return EXIT_USAGE
+
+    for text, genome in samples:
+        codes.append(
+            _annotate_sample(text=text, genome=genome, spec=spec, params=params, args=args)
+        )
+
+    failed = [code for code in codes if code != EXIT_OK]
+    if failed:
+        print(
+            f"annotate: {len(failed)} of {len(codes)} sample(s) failed — each one's run directory "
+            f"names the reason",
+            file=sys.stderr,
+        )
+        return failed[0]
+    print(f"annotate: {len(codes)} sample(s) annotated")
+    return EXIT_OK
+
+
+def _annotate_sample(
+    *,
+    text: str,
+    genome: Genome,
+    spec: registry.ModuleSpec,
+    params: dict,
+    args: argparse.Namespace,
+) -> int:
+    """One sample of the batch, through the same body every other run uses (seam 3)."""
+    return _execute_run(
+        genomes=(genome,),
+        specs=(spec,),
+        params=dict(params),
+        out=args.out,
+        dataset=args.dataset or genome.accession or genome.name,
+        force=args.force,
+        docx=args.docx,
+        command=[
+            "plastid",
+            "annotate",
+            "-i",
+            text,
+            *(["--reference", args.reference] if args.reference else []),
+            *[part for name in args.exclude for part in ("--exclude", name)],
+            *(["--dataset", args.dataset] if args.dataset else []),
+            *(["--docx"] if args.docx else []),
+        ],
+        inputs=[text],
+    )
 
 
 def _cmd_mito(args: argparse.Namespace) -> int:
@@ -1043,19 +1249,50 @@ def _reference_audit(args: argparse.Namespace) -> int:
     Blocking findings stop here with exit 2 and nothing is annotated; reporting findings are named
     and the run proceeds, because the classes they cover are real published data (§8.34).
     """
-    from plastid.modules import reference_audit as audit_module
-
     panel = Path(args.panel)
-    paths = sorted(panel.glob("*.gb"))
-    if not paths:
-        print(f"{panel}: no *.gb record to audit", file=sys.stderr)
-        return EXIT_ERROR
     exceptions_path = (
         Path(args.exceptions) if args.exceptions else panel / reference_audit.EXCEPTIONS_FILENAME
     )
 
     if args.confirm_exception:
         return _reference_confirm_exception(args, panel, exceptions_path)
+
+    return _audit_reference_directory(
+        panel=panel,
+        out=args.out,
+        no_confirm=args.no_confirm,
+        exceptions_path=exceptions_path,
+        command=[
+            "plastid",
+            "reference",
+            "audit",
+            "--panel",
+            str(panel),
+            *(["--no-confirm"] if args.no_confirm else []),
+        ],
+    )
+
+
+def _audit_reference_directory(
+    *,
+    panel: Path,
+    out: str,
+    no_confirm: bool,
+    exceptions_path: Path | None,
+    command: Sequence[str],
+) -> int:
+    """The audit as a run — its own directory, manifest and tool record (P3B-03, P3B-09).
+
+    Shared by ``plastid reference audit`` and by ``plastid annotate --audit-only``: the flag the
+    design gives the user to fix and re-check a set **without annotating anything** (D5-08) is the
+    same audit, so it is the same code. Two entry points, one gate.
+    """
+    from plastid.modules import reference_audit as audit_module
+
+    paths = sorted(panel.glob("*.gb"))
+    if not paths:
+        print(f"{panel}: no *.gb record to audit", file=sys.stderr)
+        return EXIT_ERROR
 
     try:
         pins = reference_audit.read_exceptions(exceptions_path)
@@ -1065,20 +1302,13 @@ def _reference_audit(args: argparse.Namespace) -> int:
 
     digests = "".join(f"{_sha256_file(path)}\x00" for path in paths)
     layout = RunLayout.create(
-        args.out, panel.name, fingerprint=hashlib.sha256(digests.encode()).hexdigest()
+        out, panel.name, fingerprint=hashlib.sha256(digests.encode()).hexdigest()
     )
     layout.make_dirs()
     ctx = RunContext(layout=layout, params={}, module_id=audit_module.MODULE_ID, module_order=1)
     manifest = build_manifest(
         run_id=layout.run_id,
-        command=[
-            "plastid",
-            "reference",
-            "audit",
-            "--panel",
-            str(panel),
-            *(["--no-confirm"] if args.no_confirm else []),
-        ],
+        command=list(command),
         package_version=__version__,
         started_at=datetime.now().isoformat(timespec="seconds"),
         params={},
@@ -1091,9 +1321,10 @@ def _reference_audit(args: argparse.Namespace) -> int:
             "rotation_offset": 0,
             "note": "region tables use the normalized frame (LSC → IRa → SSC → IRb)",
         },
+        dataset=layout.dataset,
     )
 
-    confirmer, note = _audit_aligner(args)
+    confirmer, note = _audit_aligner(no_confirm)
     try:
         report = reference_audit.audit_files(
             paths, ctx=ctx, exceptions=pins, confirm=confirmer, confirm_note=note
@@ -1150,14 +1381,14 @@ def _reference_audit(args: argparse.Namespace) -> int:
     return EXIT_OK if report.ok else EXIT_USAGE
 
 
-def _audit_aligner(args: argparse.Namespace):
+def _audit_aligner(no_confirm: bool):
     """The second reading, if this machine has an aligner — and the sentence to say if it has not.
 
     A missing MAFFT is not a failure: the minimum install has no external tools at all, and the
     audit's own rule already reached a verdict. What is forbidden is reporting that verdict as
     *confirmed* when nothing confirmed it.
     """
-    if args.no_confirm:
+    if no_confirm:
         return None, "not measured (confirmation not requested)"
     from plastid.external.mafft import MAFFT_VERSION, adjust_direction
     from plastid.run.tools import which
@@ -1483,6 +1714,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "qc":
         return _cmd_qc(args)
+
+    if args.command == "annotate":
+        return _cmd_annotate(args)
 
     if args.command == "mito":
         return _cmd_mito(args)

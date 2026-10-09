@@ -33,13 +33,17 @@ from datetime import datetime
 from pathlib import Path
 
 from plastid.core.panel import load_pinned
+from plastid.core.resources import data_file
 
 __all__ = [
     "MANIFEST_FILENAME",
+    "RECORDED_MANIFEST",
     "ReferenceSet",
     "build_manifest",
     "leave_one_out",
+    "load_recorded_manifest",
     "read_manifest",
+    "resolve_directory",
     "verify_pin",
     "write_manifest",
 ]
@@ -47,6 +51,11 @@ __all__ = [
 # The manifest lives beside PINNED.json, in the reference set's own directory: a pin says what
 # the bytes are, the manifest says what the set is for and which target each record may annotate.
 MANIFEST_FILENAME = "REFERENCE_SET.json"
+
+# The *committed* copy of that manifest. The records themselves live outside the repository
+# (`.panel/` is gitignored, and a 34-record plastome set is data, not source), so this file is what
+# a run reads to learn where they are and which of them may annotate a given target.
+RECORDED_MANIFEST = "plastid_reference.json"
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,6 +194,30 @@ def write_manifest(reference_set: ReferenceSet, path: str | Path) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(payload, indent=1) + "\n", encoding="utf-8")
     return target
+
+
+def load_recorded_manifest() -> ReferenceSet | None:
+    """The committed copy of the set's design, or ``None`` where this tree has none.
+
+    A tree without the recorded manifest is not a broken tree — the minimum install ships no
+    reference set, and the annotate step then says so by name rather than guessing a directory.
+    """
+    path = data_file(RECORDED_MANIFEST)
+    return read_manifest(path) if path.is_file() else None
+
+
+def resolve_directory(given: str | Path | None) -> Path:
+    """Where the reference records are: what the run was told, or the recorded set's own directory.
+
+    One source of truth for the default, because two callers need it and they must not disagree:
+    the annotator (which searches the records) and ``plastid annotate --audit-only`` (which audits
+    them without annotating anything) — a flag that audited a *different* directory than the run
+    would be worse than no flag.
+    """
+    if given is not None:
+        return Path(given)
+    recorded = load_recorded_manifest()
+    return Path(recorded.directory if recorded is not None else "")
 
 
 def read_manifest(path: str | Path) -> ReferenceSet:

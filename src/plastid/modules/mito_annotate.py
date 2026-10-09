@@ -50,6 +50,7 @@ from plastid.core.mito_reference import (
 )
 from plastid.core.model import Gene, Genome, count_genes
 from plastid.core.orf import ORF_STATUSES, check_genome
+from plastid.core.organelle import GROUP_MITO
 from plastid.core.resources import data_file
 from plastid.external.aragorn import AragornResult, run_aragorn
 from plastid.external.blast import (
@@ -130,6 +131,7 @@ def _reference_set(params: dict[str, Any], vocabulary: Sequence[str]) -> Iterato
 
 @module(
     MODULE_ID,
+    group=GROUP_MITO,
     version=MODULE_VERSION,
     title="Mitochondrial annotation (reference transfer, prototype)",
     requires_ir=False,  # deliberate: see NO_IR_NOTE

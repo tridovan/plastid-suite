@@ -1381,6 +1381,79 @@ def _mito_annotate_result() -> Result:
     )
 
 
+def _plastid_annotate_result() -> Result:
+    """The P3B-08 engine's summary, in the smallest shape its template resolves against.
+
+    The columns are the module's own (``modules/plastid_annotate.py``) rather than a subset: the
+    guard this fixture serves is "every ``{{reference}}`` in a shipped template resolves", and a
+    fixture that carried only the columns this template happens to use today would pass while the
+    template grew a reference nothing produces.
+    """
+    scope = Scope(
+        label="CDS and rRNA called by transfer from the pinned plastid reference set; "
+        "tRNA called de novo by ARAGORN; GenBank coordinates",
+        coord_system="genbank",
+    )
+    summary = Table(
+        id="plastid_annotation_summary",
+        title="Plastid annotation",
+        columns=(
+            Column("organism", "Organism"),
+            Column("accession", "Accession"),
+            Column("organelle", "Organelle"),
+            Column("length_bp", "Length", dtype="int", unit="bp"),
+            Column("n_calls", "Genes called", dtype="int"),
+            Column("n_cds", "CDS", dtype="int"),
+            Column("n_rrna", "rRNA", dtype="int"),
+            Column("n_trna", "tRNA", dtype="int"),
+            Column("n_not_called", "Vocabulary loci not called", dtype="int"),
+            Column("n_cds_failing_orf", "Called CDS failing the ORF checks", dtype="int"),
+            Column("n_dropped", "Hits not used", dtype="int"),
+            Column("n_unnameable", "Hits this vocabulary cannot name", dtype="int"),
+            Column("n_overlapping_pairs", "Overlapping call pairs", dtype="int"),
+            Column("min_identity_pct", "Identity floor", dtype="float", unit="%"),
+            Column("min_coverage_pct", "Coverage floor", dtype="float", unit="%"),
+            Column("evalue", "E-value ceiling"),
+            Column("transl_table", "Translation table", dtype="int"),
+            Column("blast", "BLAST"),
+            Column("aragorn", "ARAGORN"),
+            Column("reference", "Reference set"),
+        ),
+        rows=(
+            {
+                "organism": "Iris domestica",
+                "accession": "NC_050833.1",
+                "organelle": "plastid",
+                "length_bp": 153_724,
+                "n_calls": 114,
+                "n_cds": 80,
+                "n_rrna": 4,
+                "n_trna": 30,
+                "n_not_called": 0,
+                "n_cds_failing_orf": 0,
+                "n_dropped": 43,
+                "n_unnameable": 0,
+                "n_overlapping_pairs": 3,
+                "min_identity_pct": 50.0,
+                "min_coverage_pct": 70.0,
+                "evalue": "1e-05",
+                "transl_table": 11,
+                "blast": "BLAST+ 2.17.0",
+                "aragorn": "ARAGORN 1.2.41",
+                "reference": (
+                    "32 GenBank record(s) in .panel/plastid-reference, audited (0 blocked)"
+                ),
+            },
+        ),
+        scope=scope,
+    )
+    return Result(
+        module="plastid_annotate",
+        module_version="0.1.0",
+        tables={summary.id: summary},
+    )
+
+
 def _stats_result() -> Result:
     """The P5-03 module's summary, in the shape its template resolves against."""
     columns = (
@@ -1530,6 +1603,7 @@ TEMPLATE_FIXTURES = {
     "gene_normalize": _gene_normalize_result,
     "reference_audit": _reference_audit_result,
     "mito_annotate": _mito_annotate_result,
+    "plastid_annotate": _plastid_annotate_result,
     "mito_genes": _mito_genes_result,
     "annotation": _annotation_result,
     "genome_stats": _result,

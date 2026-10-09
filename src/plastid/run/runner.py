@@ -69,6 +69,19 @@ def _content_addressed(value: object) -> object:
         path = Path(value)
         if path.is_file():
             return {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        if path.is_dir():
+            # A *directory* of inputs is a parameter the annotate step takes, and the same rule
+            # holds: the path is not the identity. Measured 09/10/2026 — `--set
+            # reference=.panel/plastid-reference` was hashed as that string, so re-pinning a
+            # record, or editing one, served the previous run's tables from the cache with no
+            # sign that the reference had moved. The digest is over the file names and the files'
+            # own digests, so adding, removing and editing each change the key.
+            listing = {
+                entry.name: hashlib.sha256(entry.read_bytes()).hexdigest()
+                for entry in sorted(path.iterdir())
+                if entry.is_file()
+            }
+            return {"path": str(path), "contents": listing}
     return value
 
 

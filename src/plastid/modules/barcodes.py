@@ -44,6 +44,7 @@ from plastid.core.barcodes import (
 from plastid.core.gene_names import aliases_for, normalize_genome
 from plastid.core.model import GENE_KINDS, Gene, Genome
 from plastid.core.normalize import normalize
+from plastid.core.organelle import GROUP_PLASTID
 from plastid.external.mafft import align
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
@@ -56,6 +57,7 @@ MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (s
 
 @module(
     MODULE_ID,
+    group=GROUP_PLASTID,
     version=MODULE_VERSION,
     title="Barcode candidates and hypervariable regions",
     # positions along the reference: the same gate every position-based module passes

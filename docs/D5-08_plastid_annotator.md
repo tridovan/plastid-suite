@@ -81,6 +81,19 @@ and the run gets one report. A failed sample is marked and named **without killi
 the exit code reflects that something failed. Provenance records every reference file with its
 sha256 — the same sample annotated against 1 vs 7 references measurably differs (§8.15).
 
+> **Built 09/10/2026 (P3B-09, §8.49), with two amendments this text did not have.** (1) **A batch is
+> a batch of runs**: each sample goes through the same run body every other command uses and gets
+> its own directory (`<out>/<accession>/<run-id>/`), its own manifest, report and artifact — so
+> "the run gets one report" holds per sample, and "a failed sample is marked" has a durable place
+> to be marked. (2) **The gate stops the run, and dropping a file is a declared act**:
+> `plastid_annotate._reference_set` audits exactly the records it is about to search, before the
+> first BLAST, and a BLOCK raises with `file — reason` and exit 2 — nothing annotated.
+> `--exclude <accession>` is the mechanical form of this document's own loop, *"fix or drop the bad
+> file → run again"*, recorded in the manifest and named in the run's notes; a name that matches no
+> record stops the run. `--audit-only` is the flag that re-checks a set without annotating.
+> Measured need for it: the pinned 34-record set blocks on `NC_024936.1`, so without the drop the
+> annotator could not run against the project's own reference set at all.
+
 **The report.** English `.docx` (the D2-04 pattern: optional extra, byte-reproducible, and every
 number traced to a table cell).
 

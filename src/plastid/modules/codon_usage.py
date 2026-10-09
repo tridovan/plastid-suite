@@ -29,6 +29,7 @@ from plastid.core.codon import (
     translation_table_label,
 )
 from plastid.core.model import Genome, cds_features, coding_sequence
+from plastid.core.organelle import GROUP_SHARED
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -42,6 +43,7 @@ RSCU_TOLERANCE = 1e-9
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Codon usage",
     requires_ir=True,

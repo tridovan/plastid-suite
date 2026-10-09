@@ -16,6 +16,7 @@ from typing import Any
 
 from plastid.core.codon import translate, translation_table_label
 from plastid.core.model import Genome, cds_features, coding_sequence
+from plastid.core.organelle import GROUP_SHARED
 from plastid.core.protein import (
     KYTE_DOOLITTLE,
     RESIDUES,
@@ -34,6 +35,7 @@ MODULE_VERSION = "0.1.0"
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Amino-acid composition",
     requires_ir=True,

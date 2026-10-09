@@ -432,6 +432,34 @@ def test_a_parameter_that_names_a_file_is_content_addressed(tmp_path: Path) -> N
     assert _params_hash({"mode": "normalize"}) != _params_hash({"mode": "verify"})
 
 
+def test_a_parameter_that_names_a_directory_is_content_addressed(tmp_path: Path) -> None:
+    """The same rule for a *directory* — the annotate step's reference set (P3B-09).
+
+    Measured 09/10/2026: ``--set reference=<directory>`` was hashed as that string, so editing or
+    re-pinning a record served the previous run's tables out of the cache with nothing to say the
+    reference had moved — H-15's failure mode, one level up. The digest is over the file names
+    *and* their contents, so all three ways a set changes (add, remove, edit) move the key.
+    """
+    reference = tmp_path / "reference"
+    reference.mkdir()
+    first = reference / "NC_050833.1.gb"
+    first.write_text("LOCUS       NC_050833\n", encoding="utf-8")
+    before = _params_hash({"reference": str(reference)})
+    assert before == _params_hash({"reference": str(reference)})
+
+    first.write_text("LOCUS       NC_050833  edited\n", encoding="utf-8")
+    edited = _params_hash({"reference": str(reference)})
+    assert edited != before, "editing a record did not move the key"
+
+    (reference / "NC_024936.1.gb").write_text("LOCUS       NC_024936\n", encoding="utf-8")
+    added = _params_hash({"reference": str(reference)})
+    assert added not in {before, edited}, "adding a record did not move the key"
+
+    (reference / "NC_024936.1.gb").unlink()
+    assert _params_hash({"reference": str(reference)}) == edited, "removing restored the state"
+    assert _params_hash({"reference": str(reference)}) != added
+
+
 def test_a_changed_module_source_changes_the_key(tmp_path: Path) -> None:
     """H-08: the key used to carry the version and nothing else about the code.
 

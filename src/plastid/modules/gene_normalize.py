@@ -60,6 +60,7 @@ from plastid.core.gene_names import (
 )
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
 from plastid.core.model import GENE_KINDS, Gene, Genome, coding_sequence
+from plastid.core.organelle import GROUP_PLASTID
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -85,6 +86,7 @@ _NUCLEOTIDE_CANDIDATES = 8
 
 @module(
     MODULE_ID,
+    group=GROUP_PLASTID,
     version=MODULE_VERSION,
     title="Reference-driven gene naming (A/B pairing)",
     requires_ir=False,  # names are not a position-based analysis; the IR frame only feeds test 4

@@ -48,10 +48,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from plastid.core import reference_audit
 from plastid.core.caller import render_fasta
 from plastid.core.genbank import read_genbank, to_genbank
 from plastid.core.model import Gene, Genome, Interval, count_genes
 from plastid.core.orf import check_genome
+from plastid.core.organelle import GROUP_PLASTID, PLASTID_PATH, check_set
 from plastid.core.plastid_caller import (
     DEFAULT_MIN_COVERAGE,
     DEFAULT_MIN_IDENTITY,
@@ -70,8 +72,7 @@ from plastid.core.plastid_caller import (
 from plastid.core.plastid_caller import (
     call_rrna as call_plastid_rrna,
 )
-from plastid.core.plastid_reference import read_manifest
-from plastid.core.resources import data_file
+from plastid.core.plastid_reference import load_recorded_manifest, resolve_directory
 from plastid.core.submission import to_fasta
 from plastid.external.aragorn import AragornResult, run_aragorn
 from plastid.external.blast import (
@@ -97,7 +98,6 @@ SCOPE_LABEL = (
     "CDS and rRNA called by transfer from the pinned plastid reference set; tRNA called de novo "
     "by ARAGORN; one call per vocabulary locus; GenBank coordinates"
 )
-REFERENCE_MANIFEST = "plastid_reference.json"
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +108,7 @@ class _Reference:
     label: str
     excluded: tuple[str, ...] = ()
     truncated: tuple[TruncatedAnnotation, ...] = ()
+    dropped: tuple[tuple[str, str], ...] = ()
 
 
 class ReferenceSetMissing(ToolError):
@@ -123,10 +124,8 @@ def _reference_directory(params: dict[str, Any], target: str) -> tuple[Path, tup
     own measured trap (§8.31: the PGA set carried the golden's sequence and read 85 CDS where the
     contract says 86).
     """
-    recorded = data_file(REFERENCE_MANIFEST)
-    manifest = read_manifest(recorded) if recorded.is_file() else None
-    given = params.get("reference")
-    directory = Path(given) if given is not None else Path(manifest.directory if manifest else "")
+    manifest = load_recorded_manifest()
+    directory = resolve_directory(params.get("reference"))
     if not directory.is_dir():
         raise ReferenceSetMissing(
             f"plastid_annotate: the reference set is not at {directory} — the pinned plastid "
@@ -139,33 +138,97 @@ def _reference_directory(params: dict[str, Any], target: str) -> tuple[Path, tup
 
 @contextmanager
 def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
-    """The records to search, read from disk, with the target's own copies left out."""
+    """The records to search, read from disk, with the target's own copies left out.
+
+    **The audit gate runs here, before a single search**, over exactly the records that will be
+    searched — the same set the caller is about to build its index from. That placement is what
+    makes the gate a gate: it stops the run before the first BLAST, so a set that cannot be
+    transferred from produces no annotation at all rather than a plausible one (D5-08: "every
+    audit failure stops the run — exit 2, nothing annotated"). Measured 09/10/2026 (H-19, §8.48):
+    the module did not call the audit at all, so a record the audit BLOCKs was still a candidate
+    in a run on the golden.
+
+    A record may be left out of the search **by name** (``--set exclude=ACC``), which is the
+    mechanical form of D5-08's "fix or drop the bad file → run again": the file is not searched
+    and the run says so, in the label and in the notes. It is not a way past the gate — the verdict
+    on that file stands (``core/reference_audit``: a pin may never waive a BLOCK check), and the
+    record it names is not annotated from.
+    """
     directory, allowed = _reference_directory(params, target)
     paths = sorted(directory.glob("*.gb"))
     if not paths:
         raise ReferenceSetMissing(
             f"plastid_annotate: {directory} holds no *.gb records to transfer an annotation from"
         )
-    records, excluded = [], []
+    # A name, or several separated by commas: `--set exclude=A` and `--set exclude=A,B` are the
+    # same request, and neither may be read as a set of characters (which is what iterating the
+    # string would silently give).
+    raw_exclusions = params.get("exclude", ())
+    if isinstance(raw_exclusions, str):
+        raw_exclusions = (raw_exclusions,)
+    dropped_by_request = {
+        name.strip() for item in raw_exclusions for name in str(item).split(",") if name.strip()
+    }
+    searched: list[Path] = []
+    records, excluded, dropped = [], [], []
+    matched: set[str] = set()
     for path in paths:
+        accession = path.stem
+        if accession in dropped_by_request or path.name in dropped_by_request:
+            matched.add(accession)
+            dropped.append((accession, "left out by --set exclude"))
+            continue
         genome = read_genbank(path)
         accession = genome.accession or genome.name
         if allowed and accession not in allowed:
             excluded.append(accession)
             continue
+        searched.append(path)
         records.append(genome)
+    unmatched = sorted(dropped_by_request - matched)
+    if unmatched:
+        # A name that matches nothing is not a no-op: the user believes a record was left out and
+        # the run searched it. The same rule the audit's own exceptions follow — a pin that
+        # applies to nothing is reported, never implied (measured 08/10/2026, §8.43).
+        raise ReferenceSetMissing(
+            f"plastid_annotate: --set exclude={', '.join(unmatched)} matches no record in "
+            f"{directory} — nothing was left out, and a run that silently searched it anyway "
+            f"would disagree with the command that asked for it"
+        )
     if not records:
         raise ReferenceSetMissing(
             f"plastid_annotate: every record in {directory} is excluded for {target} — "
             f"leave-one-out leaves nothing to search"
         )
+
+    # The organelle, before the audit: a reference set whose records declare another organelle is
+    # a set this module cannot transfer from at all, and saying so by name — with the path that
+    # does serve them — is more use than a run that searches and finds nothing (H-09).
+    check_set(records, group=GROUP_PLASTID, path=PLASTID_PATH)
+
+    # The set's own pinned confirmations, when it carries any. A malformed pin raises inside
+    # `read_exceptions` rather than being skipped: a confirmation nobody can parse would come back
+    # as a silent block, and the user would be told a file is unusable for a reason that is not
+    # the file.
+    pins = reference_audit.read_exceptions(directory / reference_audit.EXCEPTIONS_FILENAME)
+    report = reference_audit.audit_files(searched, exceptions=pins)
+    if not report.ok:
+        # `file — reason`, and nothing else: the audit says what is wrong with the bytes, and what
+        # to do about it belongs to whoever holds the reference set (D5-08). The command line adds
+        # the one sentence a user needs to act on it.
+        raise reference_audit.ReferenceAuditError(
+            "\n".join(finding.line for finding in report.blocked)
+        )
+
     truncated = (
         *truncated_annotations(records, kind="CDS"),
         *truncated_annotations(records, kind="rRNA"),
     )
-    label = f"{len(records)} GenBank record(s) in {directory}"
+    label = f"{len(records)} GenBank record(s) in {directory}, audited (0 blocked)"
     if excluded:
         label += f", {len(excluded)} left out by leave-one-out ({', '.join(sorted(excluded))})"
+    if dropped:
+        label += f", {len(dropped)} dropped by name ({', '.join(name for name, _ in dropped)})"
     if truncated:
         label += f", {len(truncated)} truncated duplicate(s) not searched"
     yield _Reference(
@@ -173,6 +236,7 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
         label=label,
         excluded=tuple(sorted(excluded)),
         truncated=truncated,
+        dropped=tuple(dropped),
     )
 
 
@@ -187,6 +251,7 @@ def _search_files(records: Sequence[Genome], work: Path) -> tuple[Path, Path]:
 
 @module(
     MODULE_ID,
+    group=GROUP_PLASTID,
     version=MODULE_VERSION,
     title="Plastid annotation (reference transfer)",
     requires_ir=True,
@@ -530,6 +595,7 @@ def _result(
         "one call per vocabulary locus; every other reference sequence considered for it is "
         "listed in competing_references with the numbers it lost on",
         *_truncated_notes(reference.truncated),
+        *_dropped_notes(reference.dropped),
         *cds.findings,
         *rrna.findings,
     ]
@@ -678,6 +744,20 @@ def _truncated_notes(truncated: Sequence[TruncatedAnnotation]) -> tuple[str, ...
         f"and its {row.dropped}-residue copy ({row.ratio:.0%} of it) is not searched — structure "
         f"decides before any score (D5-08 §3)"
         for row in truncated
+    )
+
+
+def _dropped_notes(dropped: Sequence[tuple[str, str]]) -> tuple[str, ...]:
+    """One line per record the run was told to leave out — a smaller set is a stated one.
+
+    Dropping a record is how D5-08's loop ends ("fix or drop the bad file → run again"), and the
+    drop changes every number the run produces: with one reference fewer, a locus can fall below
+    its floor or be called from a different record. The result has to say so, or a reader comparing
+    two runs cannot tell why they differ.
+    """
+    return tuple(
+        f"{accession} was not searched — {reason} (D5-08: fix or drop, then run again)"
+        for accession, reason in dropped
     )
 
 

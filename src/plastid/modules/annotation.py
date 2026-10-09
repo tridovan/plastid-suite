@@ -31,6 +31,7 @@ from plastid.core.gene_groups import assign, load_gene_groups
 from plastid.core.gene_names import GenomeNames, load_gene_aliases, normalize_genome
 from plastid.core.model import GENE_KINDS, Genome, count_genes
 from plastid.core.orf import ORF_STATUSES, STATUS_PSEUDOGENE, check_genome
+from plastid.core.organelle import GROUP_PLASTID
 from plastid.external.chloe import run_chloe
 from plastid.external.pga import run_pga
 from plastid.modules.registry import module
@@ -71,6 +72,7 @@ class _Annotated:
 
 @module(
     MODULE_ID,
+    group=GROUP_PLASTID,
     version=MODULE_VERSION,
     title="Annotation",
     requires_ir=False,  # annotating is not a position-based analysis

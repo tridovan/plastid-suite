@@ -12,6 +12,7 @@ from plastid.core.gene_names import GenomeNames, load_gene_aliases, normalize_ge
 from plastid.core.ir import IRResult
 from plastid.core.model import Gene, Genome, Interval, count_genes
 from plastid.core.normalize import normalize
+from plastid.core.organelle import GROUP_PLASTID
 from plastid.core.sequence import gc_percent
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
@@ -23,6 +24,7 @@ MODULE_VERSION = "0.1.0"
 
 @module(
     MODULE_ID,
+    group=GROUP_PLASTID,
     version=MODULE_VERSION,
     title="Genome statistics",
     requires_ir=True,

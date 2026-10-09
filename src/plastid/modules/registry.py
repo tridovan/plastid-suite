@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from plastid.core.model import Genome
+from plastid.core.organelle import GROUP_SHARED, GROUPS
 from plastid.result.result import Result
 from plastid.run.context import RunContext
 
@@ -42,6 +43,13 @@ class ModuleSpec:
     requires_ir: bool = False
     arity: int = 1
     citations: tuple[str, ...] = ()
+    # Which organelle this module serves — PROJECT.md §13 → "Hai bào quan" is the table, and this
+    # is how a module says which row of it it is in (H-09). It is deliberately *not* `requires_ir`:
+    # that flag answers "does this need the inverted repeat", which `gene_table` (a plastome table
+    # that needs no IR) and `codon_usage` (no positions at all, still gated) both show is a
+    # different question. Default `shared` — a module that says nothing is claiming to run on
+    # either organelle, which is the claim the run then checks.
+    group: str = GROUP_SHARED
     # The parameter naming a *file* this module works against — a privileged record rather than
     # one of the run's equal inputs (D5-09 §7: the naming reference). Declared here so the CLI can
     # resolve it, audit it and record its digest without knowing which module is asking: the
@@ -57,6 +65,7 @@ def module(
     *,
     version: str,
     title: str,
+    group: str,
     requires_ir: bool = False,
     arity: int = 1,
     citations: tuple[str, ...] = (),
@@ -67,6 +76,10 @@ def module(
     ``arity=1`` keeps the frozen v0.1 contract ``run(genome, params, ctx)``; a larger arity
     declares the v0.2 multi-genome contract ``run(genomes, params, ctx)``. A module never
     receives genomes it does not use, so the two contracts stay separate.
+
+    ``group`` has no default on purpose: a module that declares nothing would be claiming to run
+    on either organelle (PROJECT.md §13 → "Hai bào quan"), and an omission is not a claim. Making
+    it required means the claim is made at the one place that already fails loudly — import time.
     """
 
     def decorate(run_fn: ModuleFn) -> ModuleFn:
@@ -74,6 +87,10 @@ def module(
             raise ValueError(f"module {module_id!r} is already registered")
         if arity < 1:
             raise ValueError(f"module {module_id!r}: arity must be at least 1, got {arity}")
+        if group not in GROUPS:
+            raise ValueError(
+                f"module {module_id!r}: group must be one of {', '.join(GROUPS)}, got {group!r}"
+            )
         _REGISTRY[module_id] = ModuleSpec(
             id=module_id,
             version=version,
@@ -82,6 +99,7 @@ def module(
             requires_ir=requires_ir,
             arity=arity,
             citations=citations,
+            group=group,
             reference_param=reference_param,
         )
         return run_fn

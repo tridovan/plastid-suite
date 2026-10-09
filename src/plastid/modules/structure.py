@@ -15,6 +15,7 @@ from typing import Any
 
 from plastid.core.model import Genome
 from plastid.core.normalize import Region, normalize
+from plastid.core.organelle import GROUP_PLASTID
 from plastid.core.sequence import gc_percent, gc_skew
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
@@ -29,6 +30,7 @@ DEFAULT_STEP_BP = 1000
 
 @module(
     MODULE_ID,
+    group=GROUP_PLASTID,
     version=MODULE_VERSION,
     title="Genome structure",
     requires_ir=True,

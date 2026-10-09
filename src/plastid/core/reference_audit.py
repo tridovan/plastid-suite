@@ -64,6 +64,7 @@ __all__ = [
     "Match",
     "PinStatus",
     "RecordFacts",
+    "ReferenceAuditError",
     "audit_files",
     "confirm_findings",
     "dotplot_runs",
@@ -95,6 +96,15 @@ DOTPLOT_WORD = 15
 # A second reading of one region, exactly as :func:`plastid.external.mafft.adjust_direction`
 # answers: rows in, name → was-reversed out.
 ConfirmFn = Callable[[Sequence[tuple[str, str]], object], Mapping[str, bool]]
+
+
+class ReferenceAuditError(Exception):
+    """A record the audit blocks was about to be searched — the run stops, nothing annotated.
+
+    Its own class rather than a ``ValueError`` because the command line has to answer it with
+    exit 2 (the gate's own number, the same one the IR gate uses): the run was well-formed and the
+    *reference set* is what is wrong, so exit 1 ("bad input") would name the wrong culprit.
+    """
 
 
 @dataclass(frozen=True, slots=True)

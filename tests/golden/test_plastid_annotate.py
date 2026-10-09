@@ -25,6 +25,8 @@ from plastid.result.export import read_result
 ROOT = Path(__file__).resolve().parents[2]
 PANEL = ROOT / ".panel" / "plastid-reference"
 GOLDEN = "NC_050833.1"
+# The one record of the pinned set the audit blocks — measured 09/10/2026, §8.43's own prediction.
+BLOCKED = "NC_024936.1"
 
 pytestmark = [
     pytest.mark.tier_b,
@@ -71,6 +73,12 @@ def annotated(
                 str(out / "runs"),
                 "--set",
                 f"reference={PANEL}",
+                # The pinned set carries one record the audit blocks (NC_024936.1, ``rps19``
+                # annotated as partial on both copies), and the gate stops a run that would
+                # search it (P3B-09). Dropping it by name is D5-08's own loop — "fix or drop the
+                # bad file → run again" — and the run records the drop rather than making it.
+                "--set",
+                f"exclude={BLOCKED}",
             ]
         )
         == 0
@@ -139,6 +147,70 @@ def test_ycf1_lands_on_the_published_gene_not_on_a_truncated_reference(annotated
     assert any("annotates ycf1 twice" in note for note in seen.notes), (
         "the run searched a feature it did not report leaving out"
     )
+
+
+def test_the_audit_gate_stops_the_run_on_a_record_it_blocks(
+    data_dir: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """P3B-09's wiring, measured on the project's own pinned set — and **before any search**.
+
+    H-19 named this hole (§8.48): ``plastid_annotate`` did not call the audit at all, so a record
+    the audit BLOCKs was still a candidate in a run. The gate now runs over exactly the records
+    the run would search, ahead of the first BLAST — which is why this check needs no BLAST
+    itself, and why "nothing annotated" is literal rather than hopeful.
+    """
+    out = tmp_path / "runs"
+    code = main(
+        [
+            "annotate",
+            "-i",
+            str(data_dir / f"{GOLDEN}.gb"),
+            "--reference",
+            str(PANEL),
+            "-o",
+            str(out),
+        ]
+    )
+    assert code == 2, "a blocked reference record did not stop the run"
+    message = capsys.readouterr().err
+    assert f"{BLOCKED}.gb — CDS rps19: partial coordinates" in message
+    assert not list(out.glob("**/plastid_annotation.gb")), "the run annotated from a blocked set"
+
+
+def test_a_record_dropped_by_name_is_not_searched_and_the_run_says_which() -> None:
+    """D5-08's loop, as a mechanism: drop the file, and the run records the drop.
+
+    The assertions are on the reference set the module actually hands the caller — the records, the
+    label a reader sees, and the drop — because that object *is* what the searches are built from.
+    """
+    from plastid.modules import plastid_annotate
+
+    with plastid_annotate._reference_set(
+        {"reference": str(PANEL), "exclude": [BLOCKED]}, GOLDEN
+    ) as reference:
+        searched = {genome.accession for genome in reference.records}
+        assert BLOCKED not in searched
+        assert GOLDEN not in searched, "the target's own record was searched — leave-one-out"
+        assert len(searched) == 32, f"34 records, one target, one drop: got {len(searched)}"
+        assert reference.dropped == ((BLOCKED, "left out by --set exclude"),)
+        assert "audited (0 blocked)" in reference.label
+        assert f"dropped by name ({BLOCKED})" in reference.label
+
+
+def test_an_exclusion_that_matches_nothing_stops_the_run() -> None:
+    """A name that matches no record is not a no-op — it is a run that searched what the user
+    asked it not to (the audit's rule for a pin that applies to nothing, §8.43)."""
+    from plastid.modules import plastid_annotate
+
+    with (
+        pytest.raises(plastid_annotate.ReferenceSetMissing, match="matches no record"),
+        plastid_annotate._reference_set(
+            {"reference": str(PANEL), "exclude": ["NC_999999.1"]}, GOLDEN
+        ),
+    ):
+        pass
 
 
 def test_the_artifact_re_reads_and_says_which_organelle_it_is(annotated: Path) -> None:
