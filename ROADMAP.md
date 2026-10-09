@@ -262,6 +262,24 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
       data (§9.H's trap). *In scope since §1 and §7.1 and named in the canonical diagram (§13.0,
       `repeat (vmatch)`); it had no milestone until 07/10/2026.*
 
+## Phase 2B — The plastome analysis set, completed  *(slot decided 10/10/2026: the next **unblocked** work after 3B; it serves M2.9 · M2.10 · M2.12, whose milestones stay in Phase 2's own list)*
+
+**Goal:** the last three unblocked analysis outputs, so that every analysis the toolkit promises
+exists before it is cross-checked — π per intron/IGS (M2.9's remainder, **H-07**), the **repeats**
+module (M2.12), and the two species' manuscript draft re-run (M2.10).
+
+**Why here, and not Phase 8:** Phase 6 and 7 wait on data the project does not have yet (a nuclear
+genome for M6.1 · real reads for M7.1/M7.5), and Phase 8's M8.1 is a cross-check against
+CPStools' IR/π/RSCU/SSR/KaKs set — which cannot be honest while one of those analyses, **repeats**,
+does not exist. The two species manuscripts are the nearest deliverable, and these are their
+remaining tables.
+
+**In-phase checks:** the repeats count on the golden is a **new §8 entry** — measured, never the
+26/9 survey's "9 matches" (§9.H's trap) — with the IR pair among its matches · π per intron and per
+IGS over the spans the shared layer derives, the **17 introns** `introns` reports as the
+cross-check, the IR excluded and the scope labelled · the draft carries its π and Ts/Tv sections
+and its figures, every table labelled *stand-in* and scoped.
+
 ## Phase 3 — Annotation  *(§13.3)*
 
 **Goal:** annotate genomes we already have; prepare NCBI submissions.
@@ -313,7 +331,7 @@ with the eight it could not call reported and measured (§8.24).
 - [x] **M3A.6 Golden check** (2026-10-03) — 31 · 17 · 3 against the published record, differences itemized
 - [x] **M3A.7 AP045469.1** (2026-10-03) — the unannotated sample: run it, report it, pin it
 
-## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; **board open 07/10/2026** — `TASKS.md` P3B-01…P3B-10, branch `feat/phase-3b`)*
+## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; **board open 07/10/2026**, **closed 10/10/2026** — tagged `phase-3b`, merged to `main` as one commit; the boards P3B-01…P3B-12 live in git and in §8.40–§8.56)*
 
 **Goal:** the annotate step of the pipeline (assembly → annotate → analyses, with gene names
 unified **on the reference set before** annotation and verified after it — D5-09) as this

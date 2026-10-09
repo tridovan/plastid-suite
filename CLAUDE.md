@@ -65,12 +65,12 @@ relabels the shared gene set, it does not re-select it (§8.45).
 the two vocabularies** (A everywhere; B only in the pairing table). Design:
 `docs/D5-09_reference_naming.md`; decision: PROJECT.md §3.
 
-**Current state: Phases 1–5 and 4a complete; Phase 3B is OPEN but its board is complete** on
-`feat/phase-3b` — the self-built plastid annotator (D5-08), with the **D5-09 naming step as its
-M3B.0** in front of the annotator. **P3B-01 … P3B-11 are all done** (10/10/2026): the engine, its
-measurements, and the retirement of the two annotators it replaced (§8.56). What remains is the
-close — **P3B-12** (tag `phase-3b`, squash-merge to `main`, one commit listing the tasks) — on the
-board with its Done-when.
+**Current state: Phases 1–5, 4a and 3B complete** — 3B closed 10/10/2026 (tagged `phase-3b`,
+merged to `main` as one commit). **Phase 2B is OPEN** on `feat/phase-2b`: the plastome analysis
+set, completed — π per intron/IGS (H-07) · the **repeats** module (M2.12) · the two species'
+manuscript draft re-run (M2.10). It is the next **unblocked** work: Phases 6 and 7 wait on data the
+project does not have (a nuclear genome · plant mito data · real Illumina/ONT reads), and Phase 8's
+cross-check against CPStools is not honest while one of those analyses does not exist.
 Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active checklists with Done-when). Exact resume
 point: **`HANDOFF.md` → Resume point**.
 

@@ -9,51 +9,60 @@
 
 ## Resume point
 
-**Phases 1 – 5 and 4a — COMPLETE and merged to `main`.** **Phase 3B is OPEN** on `feat/phase-3b` —
-the self-built plastid annotator, with the naming step (D5-09) in front of it. **The board is
-complete: P3B-01 … P3B-11 are done** (10/10/2026, §8.50–§8.56).
+**Phases 1 – 5, 4a and 3B — COMPLETE and merged to `main`** (3B closed 10/10/2026: tagged
+`phase-3b`, squashed into one commit, `main` = `5698288`; the branch `feat/phase-3b` keeps all 38
+task commits). **Phase 2B is OPEN** on `feat/phase-2b`.
 
-**Immediate next action: P3B-12 — close the phase** (the only row left, and it is mechanical):
+**Immediate next action: P2B-01** — the intron and IGS spans into the shared layer (M2.9's
+remainder, H-07). `modules/introns.py` derives its spans today; `diversity` needs the same
+derivation for a per-intron/IGS π, which makes it DRY's **second real copy** — extract it into
+`core/`, then let the region machinery read it. **Done when:** `diversity` reports π per intron and
+per IGS, the intron count equals `introns`' **17** on the golden, and the numbers are a new §8
+entry. The full board — three tasks, two decisions (D-f the repeats engine · D-g what an IGS is),
+five pitfalls — is `TASKS.md`.
 
-```
-git tag phase-3b feat/phase-3b        # the detail outlives the close
-git switch main
-git merge --squash feat/phase-3b
-git commit                            # one commit, the ten tasks listed, §8.50–§8.56
-```
+**Why Phase 2B and not Phase 6/7/8** (decided 10/10/2026, with the evidence in the ROADMAP):
+Phase 6 and 7 wait on data the project does not have — a nuclear genome (M6.1), plant mito data
+(M6.2 · M6.3), real Illumina/ONT reads (M7.1 · M7.5 · M7.6) — and Phase 8's M8.1 is a cross-check
+against **CPStools' IR/π/RSCU/SSR/KaKs set**, which is not honest while one of those analyses,
+**repeats**, has no module. Phase 2B is the last unblocked analysis work, and the two species
+manuscripts are the nearest deliverable: these are their remaining tables.
 
-The branch is **never deleted** — it holds every task commit, and `git bisect` at task granularity
-runs on it. The squash commit's message must carry **the strict reading beside the headline**:
-418 conclusion-level differences against PGA's 588, and **1070 against 699 if every 1 bp move is
-counted** (§8.55). After the merge, `main` holds phases 1–5, 4a and 3B, and the next phase opens on
-a fresh branch.
+**Coverage gap found while planning, and it belongs to P2B-02:** **CPGview** is named in M8.1 and
+in §13.8's scope text but appears **nowhere in §7.8** — no source, no version, no survey entry.
+It is a web service (so: no version to pin, no argv to record, and unpublished data would leave the
+machine — the §10.12 question). P2B-02's task text and the phase's first cross-check will have to
+either declare it properly or mark it *surveyed — not adopted* with the measurement that says why;
+the ROADMAP's own coverage rule calls an unnamed tool a gap, not a footnote.
 
-**What landed in this session's second half (P3B-11, §8.56).** The two external annotators retired
-— `annotation`'s chloe · pga set, the decisions table's own default, due the moment P3B-10 passed.
-9 files / 2,406 lines deleted (`modules/annotation.py` · `external/chloe.py` · `external/pga.py` ·
-`core/gff.py` · their three test files · the Chloe GFF fixture · `docs/tools/chloe.md`), the
-registry 22 → 21 modules and the plastid group 7 → 6. **Kept on purpose:** `tests/data/corpus/*.pga.gb`
-and `tools/corpus_bar.py` — PGA's home is being the measured counter-example, and deleting them
-would blind the bar. **The order mattered:** reading the old tests first showed that P3B-10's
-clause 4 ("a search that finds nothing is a failed run") was tested **only on the mito path** while
-TASKS.md claimed "both paths" — `tests/unit/test_plastid_annotate_module.py` was written before
-anything was deleted, and the false sentence was corrected in place.
-
-**What P3B-10 left, for the record** (§8.55): the golden annotates to 132 = 86 + 38 + 8 for the
-right reason with **35** differences from the published record listed and pinned as a set; the
-corpus runs 34 leave-one-out and reads **418 against PGA's 588** — better in 30/34 records, worse
-in 4 — with the strict reading (**1070 against 699, does not pass**) and the composition (621 of
-our 652 `boundary` differences are ARAGORN's tRNA ends) stated wherever the headline appears. The
-three changes that got there: the reference's **own exon structure** placed through an alignment of
-its own DNA · the **stop codon read even when the alignment stops short** · **H-20** (a candidate
-whose protein is the *suffix* of another's is a gene annotated from an inner ATG).
-
-**Open, named, not scheduled:** **H-22** (ARAGORN's `-i` 3,000 bp cap — the change now has a
-measured Done-when) · **H-04** · **H-07** · **H-11** · **H-13** · **H-16** · **H-17** · **H-21**;
-on hold H-06 · H-12; blocked D-03 (cô Trang). The eight tRNA names ARAGORN reads differently and
-ARAGORN's tRNA ends are **measured differences, not defects** — they are classified in §8.55.
+**What the last phase left, for the record:** the annotator (P3B-01…P3B-11, §8.40–§8.56) — the
+golden annotates to **132 = 86 + 38 + 8** with its **35** differences from the published record
+listed and pinned, the 34-record corpus reads **418 conclusion-level differences against PGA's
+588** (30/34 better, 4 worse) **and 1070 against 699 when read strictly**, and `chloe` · `pga` were
+retired from the toolkit (§8.56). The strict line travels with the headline wherever it is quoted.
 
 ## Log
+
+### 2026-10-09 · Claude · dev WSL · session 34 (Phase 2B opened: the last unblocked analysis work)
+
+**Did.** Closed Phase 3B (P3B-12: tagged `phase-3b`, squash-merged to `main` as one commit — the
+merge conflicted in `CLAUDE.md` with `main`'s own "one commit per phase" edit, resolved by keeping
+main's changes and taking the branch's newer annotate paragraph), then opened **Phase 2B** on
+`feat/phase-2b` with a board built by the `make-tasks` skill: three tasks (π per intron/IGS ·
+the repeats module · the manuscript draft re-run), two decisions, five pitfalls, the waiting-on
+table.
+
+**Validation.** `make check` green *on main's own tree* before the push (805 fast + 79 golden).
+The board's self-check is done by hand, as the skill asks: every task has a runnable Done-when,
+every blocker names a dataset or a person, nothing finished is left on it, 89 lines.
+
+**Residual risks.** (1) P2B-02 needs **Vmatch**, declared but not installed here — the install
+ships in the session that first uses it (§7.8), and its academic-only licence keeps it out of the
+minimum install. (2) P2B-03's output stays a **stand-in** draft until real samples arrive; a real
+sample means re-running, never patching numbers. (3) **CPGview** is named in M8.1/§13.8 with no
+§7.8 record — named here rather than silently inherited.
+
+**Blocked.** Phases 6 and 7 (nuclear genome · plant mito data · real reads). **Next.** P2B-01.
 
 ### 2026-10-09 · Claude · dev WSL · session 33 (P3B-10 done — the bar is met; and P3B-11, the two annotators retire)
 
