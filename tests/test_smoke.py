@@ -224,8 +224,8 @@ def test_cli_panel_pin_resolves_an_accession_the_index_cannot_hold(
 
 
 def test_cli_run_reads_a_bare_fasta(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """A sample off an assembler is a FASTA, and annotating it is what the ``annotation`` module
-    does — so ``plastid run`` has to accept one (P4a-04). The genome a FASTA produces carries no
+    """A sample off an assembler is a FASTA, and annotating it is what ``plastid annotate`` does —
+    so ``plastid run`` has to accept one (P4a-04). The genome a FASTA produces carries no
     features, which is the point: ``orf`` reports that plainly and does not fail on it.
 
     A module that needs IR positions is *not* usable on a bare sequence yet, and says so through

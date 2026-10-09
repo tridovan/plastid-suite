@@ -45,7 +45,7 @@ __all__ = [
 ]
 
 # The release the toolkit's numbers are measured with. A different PAML is a different estimator
-# implementation, so a mismatch is refused rather than noted (the BLAST/Chloe precedent).
+# implementation, so a mismatch is refused rather than noted (the BLAST precedent, §8.15).
 PAML_VERSION = "4.10.10"
 
 _BANNER = re.compile(r"YN00 in paml version\s+([\w.]+)")

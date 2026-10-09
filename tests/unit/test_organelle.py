@@ -124,7 +124,6 @@ def test_the_registry_carries_each_modules_group() -> None:
         "mito_genes",
     }
     assert {mid for mid, spec in modules.items() if spec.group == GROUP_PLASTID} == {
-        "annotation",
         "barcodes",
         "gene_normalize",
         "gene_table",

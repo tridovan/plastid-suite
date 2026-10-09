@@ -96,7 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         action="append",
         help="GenBank or FASTA file (one record); repeat the flag for a multi-genome module. "
-        "A bare FASTA is a genome with no features yet — what the annotation module takes",
+        "A bare FASTA is a genome with no features yet — what `plastid annotate` takes",
     )
     run_parser.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
     run_parser.add_argument("--dataset", default=None, help="dataset label (default: accession)")
@@ -649,7 +649,7 @@ def _read_input(path: str) -> Genome:
     """One input file as a genome — GenBank or FASTA, decided by the file's own first line.
 
     A sample that has just come off an assembler is a bare sequence, and annotating it is exactly
-    what the ``annotation`` module is for, so ``plastid run`` has to accept one (P4a-04). The
+    what ``plastid annotate`` is for, so ``plastid run`` has to accept one (P4a-04). The
     choice is made on content rather than on the suffix: ``.fa``, ``.fasta``, ``.fna`` and ``.fas``
     all occur in the wild, and a sequencing facility's file naming is not ours to require.
 

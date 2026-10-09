@@ -14,7 +14,7 @@ Four things this module refuses to do, each for a measured reason:
   wording belongs to a submitter, and ``data/mito_gene_names.yaml``'s synonyms were quoted *from*
   the answer-key record, so writing them back would be the annotation grading its own homework.
 * **report success on nothing.** A search that finds no hit at all is a failed run, not an
-  annotation of a genome with no genes (the rule ``external/chloe.py`` learned the same way).
+  annotation of a genome with no genes (the rule the plastid path states the same way).
 * **let the artifact go out unread.** The GenBank text is read back with our own reader before it
   is returned; a file that does not re-read is not a result (P3A-01's rule).
 
