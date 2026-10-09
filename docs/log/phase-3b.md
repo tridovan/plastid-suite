@@ -939,3 +939,48 @@ khớp là **uốn số cho vừa đáp án**; (c) 8 tên tRNA ARAGORN đọc kh
 là của intron) và `ycf1` 24 + `trnG-UCC` 5 (đã có tên từ trước). Trần `-i` 3.000 bp của ARAGORN
 vẫn là **H-22**, chưa đổi — và lần này đo thêm được lý do đổi nó phải kèm phép đo "nâng trần có
 thêm call sai nào không".
+
+### 8.56. Nghỉ hưu `chloe` · `pga` — và một lỗ hổng lộ ra khi dọn (P3B-11, 10/10/2026)
+
+**Việc đã được quyết từ trước, hôm nay mới tới hạn.** Bảng quyết định ghi *"chloe · pga retires
+when P3B-10 passes; D3-01 gains its update line"*. P3B-10 đạt (§8.55), nên đây không phải một
+quyết định mới — chỉ là thi hành. Xoá **9 tệp, 2.406 dòng**: `modules/annotation.py` (363 — cái bọc
+quanh hai annotator, hết annotator thì hết việc) · `external/chloe.py` (335) · `external/pga.py`
+(214) · `core/gff.py` (219 — **chỉ** Chloe dùng; pipeline không có GFF ở đâu: vào là GenBank/FASTA,
+ra là GenBank/`.tbl`/`.sqn`) · ba tệp test của chúng (872) · fixture `chloe_NC_050833.1.gff` (327) ·
+`docs/tools/chloe.md` (76).
+
+**Cái KHÔNG xoá, và vì sao.** `tests/data/corpus/*.pga.gb` và `tools/corpus_bar.py` **ở lại** —
+PGA giờ sống ở đó, đúng vai "đối chứng đã đo" của D5-08, và là nửa còn lại của thanh chuẩn 418 so
+với 588; xoá chúng là tự bịt mắt. §7.8 (bảng công cụ) và §8.15–8.17 giữ nguyên — §8 ghi thêm chứ
+không viết lại — chỉ thêm dòng `[ĐÃ THAY 10/10/2026 …]`; đoạn chữ "Chloe names it ndhI" trong
+`gene_aliases.yaml` cũng ở lại vì nó là **bằng chứng** cho một alias, không phải chỉ dẫn chạy công
+cụ. Cái duy nhất *mất* là đường install của Chloe, nên nó được **giữ bằng chữ** ở dòng cập nhật
+D3-01 (repo + version 0.1.18): §8.17 phải tái lập được trên giấy, không thì nó thành phép đo không
+ai làm lại được.
+
+**Lỗ hổng lộ ra khi dọn — và đây là lý do thứ tự đúng là "vá trước, xoá sau".** Soi 10 test của
+`test_annotation.py` trước khi xoá: phần lớn canh luật **đã có** test mới ở động cơ tự viết (một
+call một locus + danh sách kẻ thua · bản sao IR không tính là trùng · toạ độ partial bị audit chặn ·
+thư mục tham chiếu thiếu thì gọi tên). **Nhưng một luật thì không:** *"một lượt tìm không ra gì là
+lượt chạy hỏng"* — **vế 4 trong Done-when của P3B-10** — chỉ có test ở **đường mito**; hai nhánh
+plastid có code (`plastid_annotate` raise `ToolError` ở cả hai: không hit nào · có hit nhưng không
+locus nào qua ngưỡng) mà **không test nào chạy nó**. Và TASKS.md khi đó đang viết *"asserted on both
+paths"* — **câu đó sai**, đã sửa tại chỗ. Nên: viết `tests/unit/test_plastid_annotate_module.py`
+**trước** (3 ca: baseline chạy được · không hit nào · hit rụng hết vì ngưỡng, mỗi nhánh một thông
+điệp riêng vì cách sửa khác nhau), rồi mới xoá 661 dòng test cũ. Xoá trước là tự tháo một cái lưới
+mà không ai thay.
+
+**Fixture của test mới, hai lần đo.** Bản ghi tham chiếu tổng hợp phải **qua được cổng audit** đứng
+trước mọi lượt tìm, mà audit từ chối một bản ghi không có vùng lặp đảo — nên fixture cần IR thật, và
+`core/ir.py` chỉ nhận cửa sổ đã kiểm định **10–35 kb**: IR nhỏ vài trăm base đọc dễ hơn nhưng
+**không qua**. Lần thử đầu dùng IR `"ACGT"×2.500`: mọi 20-mer có mặt trong index **mười nghìn lần**
+và phép quét de-novo thành bậc hai — **quá hai phút cho một fixture**. Bản chốt dùng IR giả-ngẫu-nhiên
+10 kb (seed cố định): 0,37 giây cho cả ba ca. Hai con số đó nằm ngay trên hằng số, vì lần sau ai
+đổi fixture cũng sẽ đứng trước đúng hai cái bẫy ấy.
+
+**Đã đo sau khi dọn:** registry **22 → 21 mô-đun**, nhóm plastid **7 → 6** — tripwire
+`test_the_declared_groups_are_the_tables` (test_organelle) chốt *đúng tập* và đã phải **đọc bảng §13
+rồi mới sửa**, đúng như nó được thiết kế; §13 nay mang dòng `[ĐÃ THAY]`. `make check` xanh: 778 test
+nhanh + golden. `core/gff.py` ra đi cùng người dùng duy nhất của nó — nếu sau này cần *"nhận GFF của
+người ngoài gửi"* thì đó là một **task có tên** với đường vào thật, không phải một reader treo.

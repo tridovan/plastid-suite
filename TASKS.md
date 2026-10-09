@@ -183,7 +183,10 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
     and ARAGORN — `make corpus-bar TOOLS=<dir>`), and `tests/unit/test_corpus_bar.py` (19 tests for
     the rule itself): matched = same locus, same place by **exon** (never by envelope); a different
     name is `vocabulary`; a different exon is a conclusion **unless every exon end moves ≤ 1 bp**.
-    A search that finds nothing is a failed run, asserted on both paths.
+    A search that finds nothing is a failed run, asserted on **both** paths —
+    `tests/unit/test_mito_annotate_module.py` and `tests/unit/test_plastid_annotate_module.py`
+    (the second written 10/10/2026: the plastid branches had no test until the old `annotation`
+    module was retired, and its tests were the only ones covering them).
   - **What is left, classified rather than scheduled** (§8.55): the reference's own structure
     differing from the published record's by 2–3 bp at an intron boundary (`rpl2` 49 · `rpl16` ·
     `ycf3` · `rps12`'s second exon — the price of transferring a structure instead of inventing
@@ -204,8 +207,8 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
 
 ## Closing the phase — the two steps P3B-10's pass makes due (named 10/10/2026)
 
-- [ ] **P3B-11 · Retire `annotation`'s chloe · pga set** — the decisions table's own default, now
-  due: *"chloe · pga retires when P3B-10 passes; D3-01 gains its update line"*. P3B-10 passed on
+- [x] **P3B-11 · Retire `annotation`'s chloe · pga set** — **DONE 10/10/2026** (§8.56) — the
+  decisions table's own default, now due: *"chloe · pga retires when P3B-10 passes; D3-01 gains its update line"*. P3B-10 passed on
   10/10/2026 (§8.55). It is a **deletion with ripple**, not a sweep: `modules/annotation.py` ·
   `external/chloe.py` · `external/pga.py` and their two test files, plus the references in
   `data/citations.yaml` · `data/gene_aliases.yaml` · `core/gff.py` · `modules/registry.py` ·
@@ -217,6 +220,16 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   set's tests leave with the code they guard (no test deleted for any other reason); D3-01 in
   PROJECT.md §3 carries its update line, and §7.8's tool table loses the pin whose measurement is
   why it was dropped; `make check` green.
+  ✅ all four, **and the check that had to come first**: reading the old tests before deleting them
+  showed that *"a search that finds nothing is a failed run"* — P3B-10's Done-when, clause 4 — had
+  a test **only on the mito path**, and TASKS.md's own claim *"asserted on both paths"* was false.
+  `tests/unit/test_plastid_annotate_module.py` (3 cases, each branch with its own message) was
+  written **before** the 661 lines went. 9 files / 2,406 lines deleted; `tests/data/corpus/*.pga.gb`
+  and `tools/corpus_bar.py` **kept** — PGA's home now is being the measured counter-example. The
+  registry went 22 → 21 modules and the plastid group 7 → 6, which is a tripwire that made me read
+  §13's table before it would pass. `core/gff.py` went with its only caller; **if "ingest a
+  collaborator's GFF" is ever a capability we want, it is a named task with a real entry point**,
+  not a reader left hanging.
 
 - [ ] **P3B-12 · Close the phase** — `git tag phase-3b feat/phase-3b` → `git switch main` →
   `git merge --squash feat/phase-3b` → one commit listing the ten tasks (CLAUDE.md → Commits).
@@ -240,7 +253,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | — | Conflict-stop exit code | **4** — the ladder is 1 error · 2 usage/IR gate (and the audit) · 3 missing tool · **4 naming conflict** — **decided and shipped 08/10/2026** (P3B-04) | `cli.py` · API doc |
 | — | Parameter name | **`naming_reference`** — `reference` already carries two meanings (§7.2) — **decided and shipped 08/10/2026** as `ModuleSpec.reference_param` (P3B-04) | `defaults.yaml` · API doc |
 | — | Manifest schema | **bumped to 2** 08/10/2026 — a new per-module `reference` entry `{path, accession, sha256}` (P3B-04) | `run/manifest.py` |
-| — | Replacing Chloe | a **new module mirroring `mito_annotate`**; chloe · pga retires when P3B-10 passes; D3-01 gains its update line | PROJECT.md §3 |
+| — | Replacing Chloe | a **new module mirroring `mito_annotate`** — **shipped** (P3B-07 … P3B-10); chloe · pga **retired 10/10/2026** (P3B-11, §8.56) and D3-01 has its update line | PROJECT.md §3 |
 
 ## Pitfalls — the project's own measured traps
 

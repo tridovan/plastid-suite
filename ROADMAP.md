@@ -271,7 +271,7 @@ the golden genome's value, not a constant**: P2-10 measured 131 (*S. diffusum*) 
 (*C. amboinicus*), both correct. *De-novo assemblies (Phase 7 only) get the extra "verify vs close
 relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined" rule — skipped here.*
 
-- [x] **M3.1 Annotation** (2026-10-03) — plastome: **Chloe** (PGA measured and replaced, §8.15/§8.17),
+- [x] **M3.1 Annotation** (2026-10-03) — plastome: **Chloe** (PGA measured and replaced, §8.15/§8.17; **cả hai đã nghỉ hưu 10/10/2026 — P3B-11, §8.56**),
       **132 = 86 + 38 + 8** through our own reader, 0 CDS failing the ORF checks; mito path
       (`mito_genes`, no IR gate) done and measured; the mito **count check closed in Phase 3A** by
       this project's own annotator — PMGA never ran here (11 GB + MAKER against an 8 GB cap; its web

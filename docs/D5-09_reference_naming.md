@@ -292,8 +292,8 @@ answers** to "what is the reference":
 
 | Stage | Reference | Chosen by |
 |---|---|---|
-| annotate — today | Chloe's own curated set; a different one is **refused** | the tool |
-| annotate — after D5-08 | a reference **set** of 1..N records, same family first | the team, by taxonomy |
+| annotate — before D5-08 | Chloe's own curated set; a different one was **refused** | the tool |
+| annotate — **today and after D5-08** | a reference **set** of 1..N records, same family first, audited before the first search — `--set reference=<dir>` | the team, by taxonomy |
 | **name unification — this file** | **one record, fixed for the project** | **the end user, from the audit report** |
 
 The naming reference is a kind of its own: **it is not chosen by taxonomy per run**, and it is not
@@ -434,12 +434,14 @@ samtools · wgsim · beast2 · treePL) are not.
 Kind 6 is a kind of its own. In particular it is **not** kind 1: the naming reference is not
 re-selected per run by taxonomy.
 
-**Where a tool's reference cannot be substituted.** Chloe reads its reference set from its clone's
-`Artifacts.toml` and **refuses** a different one — `external/chloe.py:73` pins the tree hash
-`9163915d99fdfbc7d8510f0479b3d08905682ca5`, checked at `:200-207` with the message *"a different
-reference set is a different annotation"*. The module records what was used as
-`its own curated set (Chloe_refs 9163915d99fd)` (`modules/annotation.py:273`) — the pattern to
-follow: when a tool ignores the user's reference, the run has to say so.
+**Where a tool's reference cannot be substituted** — the measurement this file was written from,
+and now history: Chloe read its reference set from its clone's `Artifacts.toml` and **refused** a
+different one (the adapter pinned the tree hash `9163915d99fdfbc7d8510f0479b3d08905682ca5` and
+said *"a different reference set is a different annotation"*), and the run recorded what was used
+as `its own curated set (Chloe_refs 9163915d99fd)`. **[ĐÃ THAY 10/10/2026 — P3B-11, §8.56: Chloe
+nghỉ hưu; đường chú giải nay nhận đúng tập tham chiếu người dùng đưa, có audit chặn trước lượt tìm
+đầu tiên — `--set reference=<dir>`.]** The pattern it set is the one the self-built engine follows:
+what a run used is stated by the run.
 
 **The RNA-editing case, and why the pairing is ours.** The two published plastid RNA-editing
 predictors (PREP-Cp, PREPACT) are both web services and both measured unreachable (`http=000`,

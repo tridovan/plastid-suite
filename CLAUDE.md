@@ -47,8 +47,9 @@ own search-and-decide core; **Chloe is dropped from the plan**, PGA stays only a
 counter-example, and a reference-set audit gates every annotation run. **The engine passed its
 Done-when on 10/10/2026** (§8.55: the corpus bar 418 against PGA's 588, 30/34 records better —
 quoted with the strict reading, 1070 against 699, which does not pass). `modules/annotation.py`
-still ships `--set annotator=chloe|pga`; that set is **due for retirement** and is **P3B-11** on
-the board. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
+no longer ships `--set annotator=chloe|pga`: that set was **retired 10/10/2026** (P3B-11, §8.56)
+and `plastid annotate` is the annotate step. Design: `docs/D5-08_plastid_annotator.md`; decision:
+PROJECT.md §3.
 
 **Gene names are unified before annotation, on the reference DB (D5-09).** The pipeline is
 *(reference supply → audit → the user picks one naming record ★ → `gene_normalize` normalizes the
@@ -66,9 +67,10 @@ the two vocabularies** (A everywhere; B only in the pairing table). Design:
 
 **Current state: Phases 1–5 and 4a complete; Phase 3B is OPEN but its board is complete** on
 `feat/phase-3b` — the self-built plastid annotator (D5-08), with the **D5-09 naming step as its
-M3B.0** in front of the annotator. **P3B-01 … P3B-10 are all done** (10/10/2026); what remains is
-the close — **P3B-11** (retire `annotation`'s chloe · pga set) and **P3B-12** (tag, squash-merge to
-`main`) — both on the board with their Done-when.
+M3B.0** in front of the annotator. **P3B-01 … P3B-11 are all done** (10/10/2026): the engine, its
+measurements, and the retirement of the two annotators it replaced (§8.56). What remains is the
+close — **P3B-12** (tag `phase-3b`, squash-merge to `main`, one commit listing the tasks) — on the
+board with its Done-when.
 Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active checklists with Done-when). Exact resume
 point: **`HANDOFF.md` → Resume point**.
 
