@@ -29,9 +29,11 @@ table), and the same fix covers `rps12`'s **26 bp middle exon and its IRa copy**
 extent); (b) **H-18** — `lhbA` is a *duplicate call* on the golden (33 of our 41 extras), and
 fixing it alone drops the golden to **85 CDS**, because the published 86 counts `rps12` twice:
 **the golden's 132 is right by accident today** — H-18 and the `rps12` IR copy are one piece of
-work; (c) **H-20** (`rps19`); (d) the golden's own difference list, kind + span, asserted in the
-golden test. **New named risk: H-22** — ARAGORN's `-i` cap of 3,000 bp is silent, and the longest
-intron measured on the corpus is **2,671 bp** (12 % margin).
+work; (c) **H-20** (`rps19`). **The golden's difference list is done** (§8.53): all **45**
+differences — 18 conclusion-level · 19 boundary · 8 vocabulary — are pinned as a set in
+`tests/golden/test_plastid_annotate.py`, with the four known defects named inside the list, so the
+next fix arrives as a visible change there. **New named risk: H-22** — ARAGORN's `-i` cap of
+3,000 bp is silent, and the longest intron measured on the corpus is **2,671 bp** (12 % margin).
 
 **The bar itself:**
 the golden sequence annotates to exactly **132 = 86 + 38 + 8** with every difference from the
