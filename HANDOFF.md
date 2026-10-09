@@ -18,18 +18,25 @@ skill.
 command over 1..N samples × 1..N reference records, one artifact per sample and one report per run,
 a failed sample named **without killing the run**, the organelle declared at input (a mito input
 refused by name), the docx report, and the engine registered as the annotate step with
-`annotation`'s chloe · pga set retired. **P3B-10** (golden + corpus validation — the phase's
-Done-when) follows, and it inherits two named differences: **H-19** (arbitration is identity-first,
-D5-08 says structure first — the golden's `ycf1` was called 900 bp where the published gene is
-5,421) and the tRNA count (30 called vs 38 published — the export mirrors CDS and rRNA, not tRNA).
-Both are conclusion-level, and P3B-10's bar is fewer of those than PGA.
+`annotation`'s chloe · pga set retired — **plus the audit gate in front of the run** (measured
+09/10/2026, §8.48: `plastid_annotate` does not call the audit today, and a record the audit BLOCKs
+is still a candidate in a run). **P3B-10** (golden + corpus validation — the phase's Done-when)
+follows, and it inherits **one** named difference: the tRNA count (30 called vs 38 published — the
+export mirrors CDS and rRNA, not tRNA). It is conclusion-level, and P3B-10's bar is fewer of those
+than PGA. **H-19 is closed** (09/10/2026, §8.48): a locus a record annotated twice is now searched
+once — the truncated duplicate never enters the index — and the golden's `ycf1` matches the
+published gene base for base.
 Done and pushed on `feat/phase-3b`: **P3B-01** (§8.40) · **P3B-02** (§8.41) · **P3B-03** (§8.43) ·
 **P3B-04** (§8.44) · **P3B-05** (§8.42, so H-15 · H-08 · H-14 are closed) · **P3B-06** (§8.45 —
 Ts/Tv re-measured under the new direction: **unchanged at 2.6917**, and measured to be
 *direction-invariant*) · **P3B-07** (§8.46 — the shared calling core, three silent failures fixed:
 the truncating `-max_target_seqs`, a whitespace FASTA header, rRNA product-sentences) ·
 **P3B-08** (§8.47 — the annotator end to end: **86 CDS + 8 rRNA + 30 tRNA** on the golden, three of
-§8.34's four overlapping pairs exact, one call per locus with every loser listed). The phase's open calls — D-a · D-b · D-e — sit in `TASKS.md` → "Decisions
+§8.34's four overlapping pairs exact, one call per locus with every loser listed) · **H-19** (§8.48
+— a locus a record annotated twice is searched once: the truncated duplicate is excluded from the
+reference index and **named**, 0.5 sitting inside a measured gap 0.2992 → 0.9927, and the golden's
+`ycf1` moves from 900 bp to the published 5,421 bp as the **only** line of the called set that
+changes). The phase's open calls — D-a · D-b · D-e — sit in `TASKS.md` → "Decisions
 to make"; the conflict exit code, the parameter name, the manifest schema and the organelle group
 are **decided and shipped** (P3B-04). **The ★ pick** is still the end user's:
 `data/naming_reference.json` holds a **recorded override** (`provisional: true`, the golden) and
@@ -61,13 +68,63 @@ plus a GC-skew ring with 50 % gaps (§8.37) · summary lines drawn inside the GC
 H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-09 · H-11 · H-13 · H-16 · **H-17** (named 08/10,
 §9.K-1: the artifact `gene_normalize` writes keeps its `gene` features in vocabulary B while the
 CDS/tRNA/rRNA over the same span come out in A — 6 stale on the gatesii artifact) · **H-18**
-(`lhbA` = `psbZ`: one 62 aa locus under two names, so the caller calls both) · **H-19** (arbitration
-is identity-first; D5-08 says structure first). **Waiting on the PI:**
+(`lhbA` = `psbZ`: one 62 aa locus under two names, so the caller calls both). **H-19 is closed**
+(§8.48). **Waiting on the PI:**
 H-04 (`trnG` — now measured, and a `stop` tier case: the golden annotates two *different* genes
 under one name, §8.41) and D5-05 (what a generated sentence may claim — the mechanism is built and
 follows the conservative default).
 
 ## Log
+
+### 2026-10-09 · Claude · dev WSL · session 29 (H-19: a locus a record annotated twice is searched once)
+
+**Did.** **H-19**, the conclusion-level difference P3B-08 named: arbitration was identity-first
+where D5-08 §3 says structure first, and the golden's `ycf1` came out 900 bp from a reference whose
+own `ycf1` is a truncated copy of the gene.
+
+* **The rule is structural, and the fix is not in `_choose`.** A candidate that is never indexed has
+  no score to win on, so it lives in the reference index: a locus **one record** annotates twice,
+  where the short feature is under 50 % of the long one, is a truncated duplicate — excluded, and
+  **named** (`truncated_annotations`, one run note per row; 26 on the golden).
+* **`0.5` is the middle of a measured gap, and the comparison stops at one record because that is
+  where the measurement works.** CDS only, the pinned 34 records: 243 loci annotated twice — 216 at
+  1.000, one at 0.9927 (`rpl2` 271 against 273, a real difference and **kept**), 26 below 0.30 — and
+  **nothing at all between 0.2992 and 0.9927**. Across records the same test separates nothing: only
+  3 of 80 CDS loci fall below 0.5 and all three are the within-record cases again, while `rpoB`
+  runs 614–1,070 residues and `ndhD` 383–523. Within one record the two features are the same gene;
+  across records a short ortholog and a truncated annotation are one and the same number.
+* **Measured on the golden: exactly one line of the called set changes** — `ycf1` from
+  108,448–109,347 (`+`, 900 bp, 98.83 %, `NC_088562.1`) to **122,984–128,404 (`−`, 5,421 bp,
+  97.68 %, `NC_081929.1`)**, which is the published `ycf1 [122983:128404](-)` base for base. The
+  artifact still reads **86 CDS + 8 rRNA + 30 tRNA** with `/organelle="plastid"`, and the 33 `ycf1`
+  candidates left are all complete (1,783–1,862 residues).
+* **The Done-when's second clause was not implemented, and a measurement is why.** "an alignment
+  that does not reach the reference's ends" would not have fixed this case — the truncated
+  reference's alignment *does* reach both of its ends (coverage 1.000, the very number that misled
+  the arbiter) — and it is the wrong mechanism: a partial query gene is already expressed by the
+  call's own `partial_start`/`partial_end` flags, so preferring a reference in order to avoid one
+  would hide a finding. Recorded in §8.48 so P3B-10 reads the rule's real scope.
+* **A gap found while measuring, named into P3B-09.** `plastid_annotate` never calls the reference
+  audit: `plastid reference audit` **BLOCKs** `NC_024936.1` for a partial `rps19`, and that record
+  is still a candidate in a run on the golden. The phase's goal is "an audit gate in front of every
+  run"; the wiring is now a line in P3B-09's checklist.
+
+**Validation.** `make check` green: **775 fast · 73 golden passed / 4 skipped** (the four skipped are
+the missing external tools: PGA.pl, chloe · julia, table2asn). New: four unit tests on the rule (it fires · a
+2-residue difference is not a truncation · the IR's equal copies stay two entries · **a lone short
+feature is still searched**) and one golden negative test asserting both the coordinates and that
+the run names the feature it did not search. **The 65 mito tests pass** and no mito file is touched.
+Recorded as §8.48 · §9.L-4.
+
+**Residual risks.** (1) A record that annotates a locus **once**, briefly, is not caught by this
+rule — measured: no such case in the pinned set, and the audit is the gate that catches the class
+by coordinates (`<`/`>`) once P3B-09 wires it in. (2) The run's notes grow 30 → 56 lines, 26 of
+them the new rows; the `rps12` envelope lines are the pre-existing bulk (P3B-08's envelope-vs-exon
+issue, in the *notes* rather than in the table).
+
+**Blocked.** Nothing new.
+
+**Next.** **P3B-09** — CLI & batch, with the audit wiring.
 
 ### 2026-10-08 · Claude · dev WSL · session 28 (P3B-07 and P3B-08: the calling core, and the annotator runs)
 
