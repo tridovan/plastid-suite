@@ -40,8 +40,10 @@
   never overwritten in place.
 - Genome normalization (origin/strand → LSC start, 4 regions split) happens once in Phase 1 and is
   reused everywhere after.
-- Runs on: **ordinary machines** = phases 1–5, 8 · **remote server** = phase 6 (divergence time)
-  and phase 7 (assembly).
+- Runs on: **ordinary machines** = phases 1–5, 8 · **remote server** = phase 6 (divergence time).
+  Assembly (phase 7) runs **locally when the user's machine has the RAM**, otherwise the Galaxy
+  remote path — confirmed 08/10/2026; data-sharing policy for unpublished reads: **open**
+  (PROJECT.md §10.12).
 - Standard test case: **Eleutherine bulbosa dataset + the golden numbers** (PROJECT.md §6).
 
 ## The pipeline — every step, and who owns it
@@ -124,15 +126,15 @@ exists for; check it whenever the diagram changes):
 | Box in the diagram | Owner | State |
 |---|---|---|
 | Reference supply · `plastid panel pin` | M1.10 | done 03/10 |
-| Quality assessment (the audit) | M3B.1 | planned — Phase 3B |
-| The end user picks the naming reference ★ | **M3B.0** | planned — Phase 3B |
-| Unify the reference DB (`gene_normalize`) | **M3B.0** | planned — Phase 3B |
+| Quality assessment (the audit) | M3B.1 | **done** — P3B-01 · P3B-03 · `--audit-only` (P3B-09), §8.40 · §8.43 · §8.49 |
+| The end user picks the naming reference ★ | **M3B.0** | **waiting on the end user** — the audit report is the evidence (§8.43) |
+| Unify the reference DB (`gene_normalize`) | **M3B.0** | **done** — P3B-04, §8.44 (the ★ override stands until it is picked) |
 | reads · `fastp` · `BWA`/`minimap2` (trim · map back) | M7.1 | **blocked — no real reads yet**; neither tool declared yet |
 | reads · `Bandage` (assembly graph) | M7.2 | **blocked — no real reads yet** |
 | 1 Assembly — short read (`GetOrganelle` + `SPAdes`) | M7.1 | **blocked — no real Illumina reads yet** |
 | 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **blocked — no ONT/HiFi reads**; declared · run in the survey (§7.1) |
-| 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | planned — Phase 3B |
-| 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | planned — Phase 3B |
+| 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | **done 10/10/2026** — P3B-07 … P3B-10, §8.46–§8.55; close = P3B-11 · P3B-12 |
+| 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | **done** — P3B-05, §8.45 |
 | [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | done, except **M2.12** (open) and M2.9 · M2.10 `[~]` |
 | [5] RNA editing (a reference of its own) | M4.5 | **blocked — needs RNA-seq** |
 | [6] Submission (`table2asn` · Excel · Supplementary) | M3.4 · M5.3 | done — except the team's `.sbt`, a TASKS.md waiting row |
@@ -213,7 +215,9 @@ tells you which file belongs to which job.
   duplicate-accession guard, tests); the "used by a comparison table" half moved to **M2.11**
 - [x] **M1.12 Execution backend decision** (2026-10-03, dev decision) — local for phases 1–5 and 8;
   remote for phase 6 (divergence time) and phase 7 (assembly), where PROJECT.md §9.28 measured that
-  an 8 GB machine leaves only 1.5–2.5 GB free per job. Recorded in PROJECT.md §3
+  an 8 GB machine leaves only 1.5–2.5 GB free per job. Recorded in PROJECT.md §3.
+  *(Updated 08/10/2026: assembly runs locally when the user's machine has the RAM — the Galaxy
+  remote path is for machines that do not. Divergence time stays remote.)*
 - [x] **M1.13 Hardening + API freeze v0.1** (2026-10-02) — README quickstart · `environment.yml` ·
   `docker/Dockerfile` skeleton · `docs/API_v0.1.md` (module contract, Result schema, coordinates,
   manifest keys, exit codes). *The environment checks in this milestone's Done-when — `make check` on
@@ -267,7 +271,7 @@ the golden genome's value, not a constant**: P2-10 measured 131 (*S. diffusum*) 
 (*C. amboinicus*), both correct. *De-novo assemblies (Phase 7 only) get the extra "verify vs close
 relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined" rule — skipped here.*
 
-- [x] **M3.1 Annotation** (2026-10-03) — plastome: **Chloe** (PGA measured and replaced, §8.15/§8.17),
+- [x] **M3.1 Annotation** (2026-10-03) — plastome: **Chloe** (PGA measured and replaced, §8.15/§8.17; **cả hai đã nghỉ hưu 10/10/2026 — P3B-11, §8.56**),
       **132 = 86 + 38 + 8** through our own reader, 0 CDS failing the ORF checks; mito path
       (`mito_genes`, no IR gate) done and measured; the mito **count check closed in Phase 3A** by
       this project's own annotator — PMGA never ran here (11 GB + MAKER against an 8 GB cap; its web
@@ -309,7 +313,7 @@ with the eight it could not call reported and measured (§8.24).
 - [x] **M3A.6 Golden check** (2026-10-03) — 31 · 17 · 3 against the published record, differences itemized
 - [x] **M3A.7 AP045469.1** (2026-10-03) — the unannotated sample: run it, report it, pin it
 
-## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; board not yet open)*
+## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; **board open 07/10/2026** — `TASKS.md` P3B-01…P3B-10, branch `feat/phase-3b`)*
 
 **Goal:** the annotate step of the pipeline (assembly → annotate → analyses, with gene names
 unified **on the reference set before** annotation and verified after it — D5-09) as this
@@ -324,29 +328,43 @@ leave-one-out, each result diffed against the published record and every differe
 a failed reference audit stops the run with `file — reason`, nothing annotated · no silent
 failures: a search that finds nothing is a failed run, every below-floor hit reported.
 
-- [ ] **M3B.0 Naming (D5-09)** — the step that stands in front of the annotator: the audit's
+- [~] **M3B.0 Naming (D5-09)** — the step that stands in front of the annotator: the audit's
       report is what the end user reads to pick the naming reference ★ (D5-09 §7.1); the three
       numbers of D5-09 §9.3 measured **before** coding (the margin · whether neighbours separate
       `rpl2`/`rpl23` and the two `trnL` · the `identity_floor`); `gene_normalize` — normalize the
       reference DB, verify the annotated samples — with every table in vocabulary **A**; the
       `gene_aliases.yaml` direction flips with its guard test; **Ts/Tv re-measured** (§6's 2.6917
       is a prediction until this lands)
-- [ ] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
+      *P3B-02 (the three numbers, §8.41) and P3B-04 (`gene_normalize`, §8.44) are done 08/10/2026,
+      and the alias direction is flipped. Left: **P3B-06** — Ts/Tv re-measured under the new
+      direction — and the **★ pick**, which is the end user's (a recorded override stands until
+      then).*
+- [x] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
       majority-deviation report), `--audit-only`, errors printed as `file — reason`, confirmed
       exceptions pinned by sha256; MAFFT `--adjustdirection` per region + a dotplot for the
       user's confirmation; **its report is the evidence the end user picks the naming reference ★
       from** (D5-09 §7.1)
-- [ ] **M3B.2 Calling engine** — orthogonal searches (`blastx` on published `/translation` ·
+      *P3B-01 (the set, §8.40) and P3B-03 (the gate, §8.43) are done 08/10/2026, and the flag
+      itself shipped with the command it is a flag of — `--audit-only` on `plastid annotate`,
+      P3B-09 (§8.49), calling `core/reference_audit.audit_files`. The gate sits in front of the
+      first BLAST, so a blocked record produces no annotation at all.*
+- [x] **M3B.2 Calling engine** — orthogonal searches (`blastx` on published `/translation` ·
       `blastn` for rRNA · IR self-blast behind the structural gate), candidates carrying their
       evidence, the six measured rules of §8.22
-- [ ] **M3B.3 Arbitration & export** — structure first and score within one program; overlap kept
+- [x] **M3B.3 Arbitration & export** — structure first and score within one program; overlap kept
       and reported (the golden itself carries four overlapping pairs); many references → one call
       per locus with the losing candidates listed; ties → one call when identical, both with a
       note otherwise; GenBank that re-reads, `/organelle` on the source, a reason per rejected hit
-- [ ] **M3B.4 CLI & batch** — 1..N samples × 1..N reference records; organelle declared at input
+- [x] **M3B.4 CLI & batch** — 1..N samples × 1..N reference records; organelle declared at input
       (H-09); a failed sample is marked without killing the run; docx report (D2-04 pattern)
-- [ ] **M3B.5 Golden + corpus validation** — the phase's Done-when at both scales, every
+- [x] **M3B.5 Golden + corpus validation** — the phase's Done-when at both scales, every
       difference itemized
+      *P3B-10 done 10/10/2026 (§8.55): the golden is **132 = 86 + 38 + 8** with its **35**
+      differences from the published record listed and pinned; the corpus runs 34 leave-one-out
+      and reads **418 conclusion-level differences against PGA's 588** (30/34 records better) —
+      **with the strict reading beside it, 1070 against 699, which does not pass**, and 621 of
+      the 652 `boundary` differences being ARAGORN's tRNA ends. The engine's own Done-when is met
+      on the rule as stated; the close is **P3B-11** (retire chloe · pga) and **P3B-12**.*
 
 ## Phase 4 — Multi-genome comparison  *(§13.4 — plastid; the mito half waits on H-10)*
 
@@ -475,7 +493,8 @@ RAM here and replaced (§7.1, PROJECT.md §13.0's dated note).*
 - [ ] **M7.2 Assembly-graph checks** (Bandage)
 - [ ] **M7.3 Feed mito-structure work** (M6.2)
 - [ ] **M7.4 Remote path** (usegalaxy.eu `get_organelle_from_reads`) — subsample reads before upload ·
-  pin tool version · record history ID
+  pin tool version · record history ID · data-sharing policy for unpublished reads: **open**
+  (PROJECT.md §10.12)
 - [ ] **M7.5 Peak-RAM with real reads** — **BLOCKED: no real reads yet**
 - [ ] **M7.6 Long-read path** (OATK · raven-assembler — ONT/HiFi) — **BLOCKED: no ONT/HiFi reads**;
   both tools are declared (`environment.yml`) and were run in the survey (§7.1); feeds M7.3

@@ -81,6 +81,19 @@ and the run gets one report. A failed sample is marked and named **without killi
 the exit code reflects that something failed. Provenance records every reference file with its
 sha256 — the same sample annotated against 1 vs 7 references measurably differs (§8.15).
 
+> **Built 09/10/2026 (P3B-09, §8.49), with two amendments this text did not have.** (1) **A batch is
+> a batch of runs**: each sample goes through the same run body every other command uses and gets
+> its own directory (`<out>/<accession>/<run-id>/`), its own manifest, report and artifact — so
+> "the run gets one report" holds per sample, and "a failed sample is marked" has a durable place
+> to be marked. (2) **The gate stops the run, and dropping a file is a declared act**:
+> `plastid_annotate._reference_set` audits exactly the records it is about to search, before the
+> first BLAST, and a BLOCK raises with `file — reason` and exit 2 — nothing annotated.
+> `--exclude <accession>` is the mechanical form of this document's own loop, *"fix or drop the bad
+> file → run again"*, recorded in the manifest and named in the run's notes; a name that matches no
+> record stops the run. `--audit-only` is the flag that re-checks a set without annotating.
+> Measured need for it: the pinned 34-record set blocks on `NC_024936.1`, so without the drop the
+> annotator could not run against the project's own reference set at all.
+
 **The report.** English `.docx` (the D2-04 pattern: optional extra, byte-reproducible, and every
 number traced to a table cell).
 
@@ -147,6 +160,16 @@ external call goes through `run_tool()`.
 
 **The bar is the published record, not another tool**: (1) exact, and (2) every difference named
 and classified — with fewer conclusion-level differences than PGA's reading of the same sequences.
+
+**Measured 10/10/2026 — the Done-when is MET** (P3B-10, §8.55): the golden annotates to exactly
+132 = 86 + 38 + 8 with its **35** differences from the published record listed and pinned as a set;
+the corpus runs 34 leave-one-out and reads **418 conclusion-level differences against PGA's 588**
+(30/34 records better, 4 worse, 0 tied). **Read strictly** — every 1 bp move counted as a
+conclusion — it is **1070 against 699 and does not pass**, and 621 of our 652 `boundary`
+differences are ARAGORN's tRNA ends against the submitters'. The 1 bp tolerance was measured before
+this work (§8.51) and applies to both sides, so the clause is met on the rule as stated and the
+strict reading is the caveat that travels with it. What the pass makes due: **P3B-11** (retire
+`annotation`'s chloe · pga set) and **P3B-12** (close the phase) — `TASKS.md`.
 
 ## Open decisions (a call is needed before coding)
 

@@ -16,13 +16,67 @@ from plastid.core.align import Alignment
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, tool_version, which
 
-__all__ = ["MAFFT_VERSION", "align"]
+__all__ = ["MAFFT_VERSION", "adjust_direction", "align", "parse_directions"]
 
 MAFFT_VERSION = "7.526"
 
 
 def align(rows: Sequence[tuple[str, str]], ctx: RunContext) -> Alignment:
     """Align ``(name, sequence)`` rows and return them in the order given."""
+    text = _run(rows, ctx, extra=())
+    aligned = _parse_fasta(text)
+    missing = [name for name, _ in rows if name not in aligned]
+    if missing:
+        raise ToolError(f"mafft returned no row for {', '.join(missing)}")
+    return Alignment(
+        names=tuple(name for name, _ in rows),
+        sequences=tuple(aligned[name] for name, _ in rows),
+    )
+
+
+def adjust_direction(rows: Sequence[tuple[str, str]], ctx: RunContext) -> dict[str, bool]:
+    """Which rows MAFFT read as reverse-oriented — name → True when it flipped the sequence.
+
+    ``--adjustdirection`` makes MAFFT compare every sequence's direction against **the first row**
+    and reverse-complement the ones that came out the other way, marking each with an ``_R_``
+    prefix on its output name (measured 08/10/2026 on 7.526, the corpus's SSC region: the two
+    records the audit's gene-strand rule calls inverted are exactly the two that come back
+    ``_R_``). It answers the one question a rule over a single record cannot settle alone — is
+    this region oriented the way its relatives are? — and the caller decides what the first row
+    means.
+    """
+    text = _run(rows, ctx, extra=("--adjustdirection",))
+    directions = parse_directions(text)
+    missing = [name for name, _ in rows if name not in directions]
+    if missing:
+        raise ToolError(f"mafft returned no row for {', '.join(missing)}")
+    return directions
+
+
+def parse_directions(text: str) -> dict[str, bool]:
+    """MAFFT's answer, read off its headers: ``_R_`` prefix means it flipped that sequence.
+
+    Split out from the call because it is the part with a rule in it, and a rule deserves a test
+    that does not need the aligner installed: the marker is a prefix on the **name**, and the name
+    is what BLAST and every other tool would truncate at the first whitespace.
+    """
+    directions: dict[str, bool] = {}
+    for line in text.splitlines():
+        if not line.startswith(">"):
+            continue
+        name = line[1:].strip().split(" ")[0]
+        reversed_name = name[3:] if name.startswith("_R_") else name
+        directions[reversed_name] = name.startswith("_R_")
+    return directions
+
+
+def _run(rows: Sequence[tuple[str, str]], ctx: RunContext, *, extra: Sequence[str]) -> str:
+    """One MAFFT call, through the tool door: a temp file in, its stdout out.
+
+    Both callers need the same three things — the binary located and version-checked, the aligned
+    fasta written somewhere we can name, and every argument recorded — so the call is written
+    once here rather than twice (CLAUDE.md: DRY after the second real copy).
+    """
     if len(rows) < 2:
         raise ValueError(f"an alignment needs at least two sequences, got {len(rows)}")
     binary = which("mafft")
@@ -38,20 +92,12 @@ def align(rows: Sequence[tuple[str, str]], ctx: RunContext) -> Alignment:
         fasta.write_text(_to_fasta(rows), encoding="utf-8")
         record = ctx.tool(
             "mafft",
-            [binary, "--auto", "--quiet", fasta.name],
+            [binary, "--auto", "--quiet", *extra, fasta.name],
             tool_path=binary,
             pinned_version=MAFFT_VERSION,
             cwd=workdir,
         )
-        text = Path(record.stdout_file).read_text(encoding="utf-8")
-    aligned = _parse_fasta(text)
-    missing = [name for name, _ in rows if name not in aligned]
-    if missing:
-        raise ToolError(f"mafft returned no row for {', '.join(missing)}")
-    return Alignment(
-        names=tuple(name for name, _ in rows),
-        sequences=tuple(aligned[name] for name, _ in rows),
-    )
+        return Path(record.stdout_file).read_text(encoding="utf-8")
 
 
 def _to_fasta(rows: Sequence[tuple[str, str]], width: int = 60) -> str:

@@ -122,7 +122,21 @@ def _to_gene(feature: SeqFeature) -> Gene:
         transl_table=_int_qualifier(feature, "transl_table"),
         codon_start=_int_qualifier(feature, "codon_start") or 1,
         exception=_first_qualifier(feature, "exception"),
+        translation=_translation(feature),
     )
+
+
+def _translation(feature: SeqFeature) -> str | None:
+    """The record's own ``/translation``, whitespace and all removed.
+
+    GenBank wraps a long translation across lines and our reader gets the joined value from
+    BioPython; the internal spaces some records carry are removed here so the sequence is what
+    the record means. Never reconstructed by translating the CDS (D5-08 §8.21).
+    """
+    raw = _first_qualifier(feature, "translation")
+    if raw is None:
+        return None
+    return "".join(raw.split()).upper()
 
 
 def _int_qualifier(feature: SeqFeature, key: str) -> int | None:
@@ -160,7 +174,7 @@ def _is_partial(position: object) -> bool:
     return isinstance(position, BeforePosition | AfterPosition | UnknownPosition)
 
 
-def to_genbank(genome: Genome) -> str:
+def to_genbank(genome: Genome, *, translations: bool = False) -> str:
     """Write a :class:`Genome` out as a single-record GenBank file.
 
     This is how an annotation produced by this toolkit becomes a file: the annotator's output is
@@ -173,17 +187,24 @@ def to_genbank(genome: Genome) -> str:
     ``/exception``) and the ``repeat_region`` spans.
 
     **What it does not:** qualifiers this model never held — ``/locus_tag``, ``/db_xref``,
-    ``/protein_id``, ``/translation``, ``/note`` — and features outside ``GENE_KINDS`` plus
-    ``repeat_region`` (``misc_feature``). The LOCUS metadata is regenerated: the division is
-    ``PLN`` and the date is today's, because the model does not carry either. So this writes a
-    record *of the model*, not a byte-for-byte copy of the file it was read from.
+    ``/protein_id``, ``/note`` — and features outside ``GENE_KINDS`` plus ``repeat_region``
+    (``misc_feature``). The LOCUS metadata is regenerated: the division is ``PLN`` and the date is
+    today's, because the model does not carry either. So this writes a record *of the model*, not
+    a byte-for-byte copy of the file it was read from.
+
+    ``translations=True`` adds the record's own ``/translation`` back for every CDS that carries
+    one. Off by default, and the split is a decision rather than a default: ``/translation`` is
+    NCBI's to assign on a record this toolkit *annotates*, but a curated record being
+    re-normalized is a different thing — that protein is exactly what the annotator searches
+    (D5-08 §8.21), and a normalization that dropped it would silently disarm the step behind it
+    (``gene_normalize``'s artifact is the worked example).
     """
     handle = StringIO()
-    SeqIO.write(_to_record(genome), handle, "genbank")
+    SeqIO.write(_to_record(genome, translations=translations), handle, "genbank")
     return handle.getvalue()
 
 
-def _to_record(genome: Genome) -> SeqRecord:
+def _to_record(genome: Genome, *, translations: bool = False) -> SeqRecord:
     length = len(genome)
     # a GenBank record always carries an identifier, so a Genome without an accession gets one
     # derived from its name — that is the one field of the round trip that cannot come back as
@@ -204,7 +225,7 @@ def _to_record(genome: Genome) -> SeqRecord:
     source = _source_feature(genome)
     if source is not None:
         features.append(source)
-    features.extend(_gene_feature(gene, length) for gene in genome.genes)
+    features.extend(_gene_feature(gene, length, translations) for gene in genome.genes)
     features.extend(_repeat_feature(interval, length) for interval in genome.repeat_regions)
     record.features = features
     return record
@@ -241,11 +262,14 @@ def _source_feature(genome: Genome) -> SeqFeature | None:
     )
 
 
-def _gene_feature(gene: Gene, length: int) -> SeqFeature:
+def _gene_feature(gene: Gene, length: int, translations: bool = False) -> SeqFeature:
+    qualifiers = dict(gene_qualifiers(gene))
+    if translations and gene.translation:
+        qualifiers["translation"] = gene.translation
     return SeqFeature(
         _location(gene.parts, length, gene.name),
         type=gene.kind,
-        qualifiers={key: [value] for key, value in gene_qualifiers(gene).items()},
+        qualifiers={key: [value] for key, value in qualifiers.items()},
     )
 
 

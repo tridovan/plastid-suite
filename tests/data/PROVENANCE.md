@@ -15,24 +15,6 @@
 - **Licence:** NCBI GenBank data is in the public domain.
 - **Rule:** tests never touch the network — these files are the only inputs.
 
-## A real annotator run (P3-03)
-
-| File | Source | Size |
-|---|---|---|
-| `chloe_NC_050833.1.gff` | Chloe 0.1.18 annotating the golden genome's sequence | 56,975 B |
-
-- **What it is:** what the annotator we now use actually wrote, byte for byte, for the golden
-  genome after its own annotation was stripped — the file every P3-03 number comes from
-  (PROJECT.md §8.17). It is here so the read-back, the count **132 = 86 + 38 + 8** and the ORF
-  profile (80 `ok` + 6 `alternative_start`, none failing) can be checked on any machine, without
-  Julia and without the tool.
-- **How it was produced:** `julia --project=<chloe> chloe.jl annotate --no-transform <golden
-  sequence>.fa`, 2026-10-03, on the checkout at commit `1d7b710` with the reference set
-  `Chloe_refs` 1.0.1 (`git-tree-sha1 9163915d…`). The `--no-transform` flag is the point: without
-  it Chloe flips the single-copy region and writes coordinates in a frame the input never had.
-- **Licence:** Chloe is deposited on Zenodo under the MIT licence (doi:10.5281/zenodo.18194040).
-  Its own repository carries no LICENSE file — recorded for the M9.3 review.
-
 ## The stand-in submission template (P3-05)
 
 | File | Source | Size |

@@ -6,13 +6,20 @@
 #
 # THE RULE (D3-02, PROJECT.md §8.10) — [ĐÃ THAY 07/10/2026: D5-09 reverses the direction — the
 # canonical forms follow the project's naming reference (the ★ record the end user picks), not the
-# group's dialect. This table keeps D3-02's direction until the naming step is built, so the shipped
-# code and its tests stay consistent]. `canonical` is the name this toolkit compares and prints;
-# every other name of that locus is a synonym and is printed beside it: `pafI (ycf3)`. The
-# direction is not a majority vote — the canonical forms are the ones the team's own records and
-# submissions use (their records come out of GeSeq, which emits them), so normalizing to the
-# classic names would make the team's paper print a name that disagrees with the team's own
-# submitted record. Printing both keeps every reader able to find either name.
+# group's dialect]. `canonical` is the name this toolkit compares and prints; every other name of
+# that locus is a synonym and is printed beside it: `ycf3 (pafI)`. The direction is not a majority
+# vote and not a preference for either dialect.
+#
+# [ĐÃ THAY 08/10/2026 — P3B-04 flipped five of these entries, and the flip is the rule applied
+# rather than a change of mind: the naming step is built, the recorded standard is
+# `data/naming_reference.json`, and a standard whose spelling is not the canonical form would make
+# every printed table disagree with the record the project names after. Measured against the
+# golden `NC_050833.1` (PROJECT.md §8.41, tests/golden/test_naming_numbers.py, D5-09 §8): five of
+# the nine loci flip — ycf3 (was pafI) · ycf4 (was pafII) · psbN (was pbf1) · clpP (was clpP1) ·
+# ndhL (was ndhI) — while atpI · psaI · psbB · trnI-GAU keep their direction because the golden
+# agrees with them. `core/gene_names.oriented_aliases` orients this table by whatever record the
+# run hands it, so a different ★ flips it again without editing this file; the entries here are the
+# direction of the **recorded** standard, and a test keeps the two in step.]
 #
 # It ships empty of guesses: every entry carries the evidence it rests on, and the loader
 # refuses an entry without one. A name that is not listed here is left exactly as it arrived.
@@ -21,8 +28,8 @@
 # neighbours, length, /product — not matching a name that "looks like" another.
 
 loci:
-  - canonical: pafI
-    synonyms: [ycf3]
+  - canonical: ycf3
+    synonyms: [pafI]
     evidence: >
       PROJECT.md §8.9–8.10 (2026-10-03), measured on the project's own nine annotated records.
       Same locus by three independent signals: identical syntenic neighbours (psaA … trnS-GGA
@@ -30,29 +37,29 @@ loci:
       assembly factor I" against "photosystem I assembly protein Ycf3"), and matching length
       (507 bp; the Coleus copy 510 bp, exactly as the classic copies differ).
 
-  - canonical: pafII
-    synonyms: [ycf4]
+  - canonical: ycf4
+    synonyms: [pafII]
     evidence: >
       PROJECT.md §8.9–8.10 (2026-10-03). Same locus as ycf4: syntenic neighbours psaI … cemA in
       all seven classic records, matching /product, and length 531 bp against 555 bp in both
       dialects — the same difference in both records that carry the functional name.
 
-  - canonical: pbf1
-    synonyms: [psbN]
+  - canonical: psbN
+    synonyms: [pbf1]
     evidence: >
       PROJECT.md §8.9–8.10 (2026-10-03). Same locus as psbN, and the strongest of the four:
       the length matches exactly — both are 132 bp, 43 codons plus the stop — and the syntenic
       neighbours (psbT … psbH) match in all seven classic records. Krech et al. 2013 proposed
       pbf1 after showing the product acts in the biogenesis of both photosystems.
 
-  - canonical: clpP1
-    synonyms: [clpP]
+  - canonical: clpP
+    synonyms: [clpP1]
     evidence: >
       PROJECT.md §8.9–8.10 (2026-10-03). Same locus as clpP: syntenic neighbours rps12 … psbB
       in all seven classic records, matching /product, and length 591 bp.
 
-  - canonical: ndhI
-    synonyms: [ndhL]
+  - canonical: ndhL
+    synonyms: [ndhI]
     evidence: >
       PROJECT.md §8.17 (2026-10-03), measured while annotating the golden genome with Chloe. The
       golden record names this locus ndhL; Chloe names it ndhI; the two proteins are identical
@@ -98,3 +105,17 @@ loci:
       like a transposition of psbB — which is what nine of the ten annotated panel records write.
       Without this entry the comparison silently drops a whole photosystem-II core gene from
       every Iris calculation.
+
+  - canonical: psbZ
+    synonyms: [lhbA]
+    evidence: >
+      PROJECT.md §8.46 and §8.54 (2026-10-08, re-measured 10/10/2026 with the pinned set in hand).
+      Same locus by all three signals, the first of them exact rather than close: **the same
+      /product string**, "photosystem II protein Z", and the **same length**, 189 bp / 62 aa, in
+      the golden record and in the one record that spells it differently; the syntenic
+      neighbours agree too (psbC … rps14 on both). 33 of the 34 pinned records write psbZ and
+      one — NC_042827.1 — writes lhbA, so without this entry the reference vocabulary carries
+      **80 CDS names for 79 loci** and the caller, which makes one call per locus, calls the
+      same span twice: measured on the golden, psbZ and lhbA were both written at
+      35895-36083. Canonical follows the standard name, which is also the recorded standard's
+      own spelling (data/naming_reference.json).

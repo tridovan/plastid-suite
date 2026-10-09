@@ -28,6 +28,7 @@ from plastid.core import stats as statistics
 from plastid.core.codon import codon_counts, enc
 from plastid.core.gene_names import load_gene_aliases, normalize_name
 from plastid.core.model import Genome
+from plastid.core.organelle import GROUP_SHARED
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -226,6 +227,7 @@ def _below(value: float | None, alpha: float) -> bool:
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Group comparison statistics",
     arity=2,

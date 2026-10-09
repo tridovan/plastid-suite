@@ -276,13 +276,14 @@ def test_gene_table_lists_tirna_by_anticodon_with_copy_counts(golden_genome: Gen
     assert "trnfM-CAU" in trna["genes"]  # lowercase f: a prefix match, not a name list
     assert "trnL-TAA" not in trna["genes"]
 
-    # ycf3/ycf4 are printed under their canonical names (pafI/pafII, D3-02) and sit with
+    # ycf3/ycf4 are printed under their canonical names — the naming reference's spelling
+    # (D5-09 §8, flipped 08/10/2026) — and sit with
     # photosystem I, so only ycf1 and the two ycf2 copies remain in the unknown-function group
     assert rows["Conserved open reading frames"]["copies"] == 3  # ycf1, ycf2 x2
-    assert "pafI (ycf3)" in rows["Subunits of photosystem I"]["genes"]
-    assert "pafII (ycf4)" in rows["Subunits of photosystem I"]["genes"]
-    assert "pbf1 (psbN)" in rows["Subunits of photosystem II"]["genes"]
-    assert rows["Protease"]["genes"] == "clpP1 (clpP)"
+    assert "ycf3 (pafI)" in rows["Subunits of photosystem I"]["genes"]
+    assert "ycf4 (pafII)" in rows["Subunits of photosystem I"]["genes"]
+    assert "psbN (pbf1)" in rows["Subunits of photosystem II"]["genes"]
+    assert rows["Protease"]["genes"] == "clpP (clpP1)"
     assert rows["Subunits of NADH dehydrogenase"]["copies"] == 12  # includes the ndhL fragment
 
 

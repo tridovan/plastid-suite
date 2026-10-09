@@ -2,6 +2,11 @@
 
 ``manifest.json`` records what ran, with what parameters, on what inputs, and where every
 file went. ``validate()`` is hand-written on purpose: no schema library for one dict.
+
+**Version 2** (08/10/2026, P3B-04) adds a per-module ``reference`` entry: the privileged record a
+step worked against (its path, accession and sha256 — the naming reference, D5-09 §7.2). Version 1
+manifests do not validate against this build, which is the point of a version number: a reader can
+tell which fields a file may be missing.
 """
 
 from __future__ import annotations
@@ -18,7 +23,7 @@ __all__ = [
     "write_manifest",
 ]
 
-MANIFEST_SCHEMA_VERSION = 1
+MANIFEST_SCHEMA_VERSION = 2
 
 _REQUIRED: dict[str, type] = {
     "schema_version": int,
@@ -48,8 +53,17 @@ def build_manifest(
     params: dict[str, Any],
     inputs: list[dict[str, Any]],
     coordinate_system: dict[str, Any],
+    dataset: str = "",
 ) -> dict[str, Any]:
-    """A fresh manifest; the runner fills ``modules``/``files``/``status`` as it goes."""
+    """A fresh manifest; the runner fills ``modules``/``files``/``status`` as it goes.
+
+    ``dataset`` is the run's label — the same string the run directory is slugged from. It is
+    recorded here as well as in the path because a *batch* writes one run per sample into one
+    output root, and a run that failed before it could write anything else has to say which sample
+    it was: measured 09/10/2026 (P3B-09), where a failed sample's manifest named the module and
+    the reason and nothing that identified the sample itself. Optional, so the manifests written
+    before this key existed still validate (schema 2, unchanged — the key is additive).
+    """
     return {
         "schema_version": MANIFEST_SCHEMA_VERSION,
         "run_id": run_id,
@@ -58,6 +72,7 @@ def build_manifest(
         "started_at": started_at,
         "finished_at": None,
         "status": "running",
+        "dataset": dataset,
         "params": params,
         "inputs": list(inputs),
         "ir": None,

@@ -25,6 +25,7 @@ from plastid.core.align import codon_frame_breaks
 from plastid.core.codon import translate
 from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.model import Gene, Genome, coding_sequence
+from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mafft import align
 from plastid.external.paml import resolve_binary, run_yn00, yn00_version
 from plastid.modules.registry import module
@@ -53,6 +54,7 @@ STATUS_TOOL_FAILED = "yn00 refused the pair"
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Ka/Ks selection pressure",
     requires_ir=False,  # gene-based; see the module docstring

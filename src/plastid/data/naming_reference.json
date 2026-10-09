@@ -1,0 +1,9 @@
+{
+ "provisional": true,
+ "path": "tests/data/NC_050833.1.gb",
+ "accession": "NC_050833.1",
+ "sha256": "a946f23e6e5f6a886eea93c52d72497209531aaf855ec08853dbef7997638493",
+ "recorded": "2026-10-08",
+ "recorded_by": "the dev",
+ "why": "The end user's pick (D5-09 7.1) is still open, and the step has to run before it is made. This override names the contract genome as the standard because it is the record the project's own numbers are measured on and the one its tables print. It is provisional: when the end user picks from the audit report, this file changes and P3B-06 re-measures Ts/Tv under the new direction."
+}

@@ -10,15 +10,17 @@ biopython:
 mafft:
   text: "Katoh K, Standley DM. MAFFT multiple sequence alignment software version 7: improvements in performance and usability. Molecular Biology and Evolution 30:772–780 (2013)."
   doi: "10.1093/molbev/mst010"
-pga:
-  text: "Qu X-J, Moore MJ, Li D-Z, Yi T-S. PGA: a software package for rapid, accurate, and flexible batch annotation of plastomes. Plant Methods 15:50 (2019)."
-  doi: "10.1186/s13007-019-0435-7"
-# Chloe has no peer-reviewed paper: the citable artifact is its Zenodo software deposit, which is
-# also where its licence is declared (the checkout itself carries no LICENSE file — see
-# docs/tools/chloe.md, and M9.3 for the licence review).
-chloe:
-  text: "Zhong X, Hooper CM, Tonti-Filippini J, Castleden I, Small I. Chloë: Organelle Annotator, version 0.1.18 (computer software). Zenodo (2026)."
-  doi: "10.5281/zenodo.18194040"
+# BLAST+ and ARAGORN are the two tools the self-built annotator runs itself (P3B-07/P3B-08), so a
+# report of its results has to cite them — measured 09/10/2026 (P3B-09): the module declared both
+# keys and neither was in this registry, so `plastid annotate --docx` stopped with a CitationError
+# instead of writing the report. A citation is not decoration here: the report is the artifact that
+# says which programs produced an annotation.
+blast:
+  text: "Camacho C, Coulouris G, Avagyan V, Ma N, Papadopoulos J, Bealer K, Madden TL. BLAST+: architecture and applications. BMC Bioinformatics 10:421 (2009)."
+  doi: "10.1186/1471-2105-10-421"
+aragorn:
+  text: "Laslett D, Canback B. ARAGORN, a program to detect tRNA genes and tmRNA genes in nucleotide sequences. Nucleic Acids Research 32:11–16 (2004)."
+  doi: "10.1093/nar/gkh152"
 mummer:
   text: "Marçais G, Delcher AL, Phillippy AM, Coston R, Salzberg SL, Zimin A. MUMmer4: a fast and versatile genome alignment system. PLOS Computational Biology 14:e1005944 (2018)."
   doi: "10.1371/journal.pcbi.1005944"

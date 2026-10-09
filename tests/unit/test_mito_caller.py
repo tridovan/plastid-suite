@@ -142,12 +142,18 @@ def test_a_plus_frame_hsp_becomes_a_cds_on_the_plus_strand() -> None:
 def test_a_minus_frame_hsp_becomes_a_complement_interval() -> None:
     """BLAST reports a minus-frame hit with qstart > qend. Getting this backwards puts the whole
     gene on the wrong strand while every count stays right — this project's definition of a
-    silent wrong."""
+    silent wrong.
+
+    The 3' end is 58, one codon below the alignment's own end: this fixture's minus strand reads
+    TAA at 58–60, and the stop codon is read whether or not the alignment reached the reference's
+    end (``test_a_stop_after_an_alignment_that_stopped_short_is_still_the_end``). The strand and
+    the orientation are what this test is about.
+    """
     entry = _ref("cox3", 10)
     hsps = (_hsp(entry, qstart=90, qend=61, frame=-2, send=9),)
     part = call_cds(GENOME, _index(entry), hsps).one("cox3").parts[0]
 
-    assert (part.to_1based(), part.strand) == ((61, 90), -1)
+    assert (part.to_1based(), part.strand) == ((58, 90), -1)
 
 
 def test_a_first_codon_that_is_not_an_initiator_is_a_partial_start_never_a_shift() -> None:
@@ -378,6 +384,22 @@ def test_the_stop_extension_moves_the_transcript_end_on_the_minus_strand() -> No
 
     assert call.parts[0].to_1based() == (58, 90)
     assert call.partial_end is False
+
+
+def test_a_stop_after_an_alignment_that_stopped_short_is_still_the_end() -> None:
+    """Measured (P3B-10, §8.55): the stop codon is read whether or not the alignment reached the
+    reference's 3' end. A target whose gene is shorter than the reference's presents an alignment
+    that simply ends — blastx stops translating at a stop and cannot align past one — and
+    requiring the alignment to reach the reference's end left every such call one codon short of
+    the published CDS. 65 of the corpus's remaining differences were exactly this, ``psaJ`` (30
+    records) at the top of them."""
+    entry = _ref("cox3", 10)
+    hsps = (_hsp(entry, qstart=90, qend=61, frame=-2, send=9),)
+    call = call_cds(GENOME, _index(entry), hsps).one("cox3")
+
+    assert call.parts[0].to_1based() == (58, 90)
+    assert call.partial_end is False
+    assert any("one codon shorter than the reference" in note for note in call.notes)
 
 
 def test_an_alignment_that_stops_short_of_the_reference_end_is_partial() -> None:

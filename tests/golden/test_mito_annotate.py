@@ -57,7 +57,15 @@ NEEDS_PANEL = pytest.mark.skipif(
 
 # Measured 03/10/2026 with BLAST+ 2.17.0 against the committed reference set. Not a target: a
 # change that moves one of these is a finding to read first.
-EXACT_SPANS = 18
+#
+# **Moved 18 -> 19 on 10/10/2026, read first, and it is a fix** (P3B-10, §8.55). The change is one
+# shared rule reaching this path: the stop codon is now read whether or not the alignment reached
+# the reference's 3' end, because blastx cannot align past a stop and a target whose gene is
+# shorter than the reference's therefore presents an alignment that simply ends. On the mito
+# record that is ``rps1``, which was `(3, 0)` — three bases short at the 3' end, that being the low
+# coordinate on a minus-strand gene — and is now `(0, 0)`, matching the published CDS. The other
+# twelve differences are unchanged; §8.22's 18/31 stays in the log as what it measured then.
+EXACT_SPANS = 19
 MAX_END_DIFFERENCE = 75
 
 

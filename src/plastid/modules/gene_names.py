@@ -28,6 +28,7 @@ from plastid.core.gene_names import (
     references_from,
 )
 from plastid.core.model import GENE_KINDS, Gene, Genome
+from plastid.core.organelle import GROUP_SHARED
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -47,6 +48,7 @@ _RULE_MEANING = {
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Gene-name check & normalization",
     requires_ir=False,  # names are not a position-based analysis

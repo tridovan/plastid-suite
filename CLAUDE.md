@@ -9,8 +9,10 @@ task needs it (see Reading guide).
 
 **PlastidToolSuite** — a Python toolkit to analyse **plastid (chloroplast) and mitochondrial genomes**
 for a plant research group (PI: cô Trang; bioinformatician: anh Điềm, who runs the real tool chain on
-his own machine; dev; Hermes). Academic, non-commercial. End users are biologists who are **not**
-command-line experts, working on ordinary computers. ~20 analysis modules: genome structure, gene
+his own machine; dev; Hermes). Academic, non-commercial. End users (defined 08/10/2026) are
+**researchers in biotechnology / bioinformatics** — **not** command-line experts — who run the
+toolkit as a **command line on Ubuntu** (Windows through Docker), on ordinary computers.
+~20 analysis modules: genome structure, gene
 content, codon usage/RSCU, SSR, repeats, annotation, assembly, multi-genome comparison, RNA editing,
 divergence time, NUPT/MTPT…
 
@@ -42,9 +44,12 @@ names in `TASKS.md`.
 
 **The annotate step is ours (D5-08).** Annotation will be built in-house on CGAS's model with our
 own search-and-decide core; **Chloe is dropped from the plan**, PGA stays only as the measured
-counter-example, and a reference-set audit gates every annotation run. Until that engine passes its
-Done-when, `modules/annotation.py` still ships `--set annotator=chloe|pga` — that is the code today,
-not the plan. Design: `docs/D5-08_plastid_annotator.md`; decision: PROJECT.md §3.
+counter-example, and a reference-set audit gates every annotation run. **The engine passed its
+Done-when on 10/10/2026** (§8.55: the corpus bar 418 against PGA's 588, 30/34 records better —
+quoted with the strict reading, 1070 against 699, which does not pass). `modules/annotation.py`
+no longer ships `--set annotator=chloe|pga`: that set was **retired 10/10/2026** (P3B-11, §8.56)
+and `plastid annotate` is the annotate step. Design: `docs/D5-08_plastid_annotator.md`; decision:
+PROJECT.md §3.
 
 **Gene names are unified before annotation, on the reference DB (D5-09).** The pipeline is
 *(reference supply → audit → the user picks one naming record ★ → `gene_normalize` normalizes the
@@ -53,16 +58,21 @@ reference DB)* → assembly → annotate → *`gene_normalize`, verify mode* →
 the verify step is a **finding**, not routine. The naming reference is a **kind of its own** — one
 record, fixed for the project, chosen by the end user from the audit report, never re-picked per
 run by taxonomy; canonical names follow it, which **reverses D3-02** (the group's dialect — five of
-the nine measured loci change spelling, and Ts/Tv 2.6917 must be **re-measured**, never assumed).
+the nine measured loci change spelling). Re-measured 08/10/2026 under the new direction: Ts/Tv
+**2.6917 is unchanged** (323 Ts / 120 Tv), and the measurement says why it *cannot* move — the flip
+relabels the shared gene set, it does not re-select it (§8.45).
 `gene_normalize` is a new module — `gene_names` is not grown to cover it — and **no table may mix
 the two vocabularies** (A everywhere; B only in the pairing table). Design:
 `docs/D5-09_reference_naming.md`; decision: PROJECT.md §3.
 
-**Current state: Phases 1–5 and 4a complete; no phase is open.** The next board is **Phase 3B**
-(the self-built plastid annotator, D5-08) — its slot is **decided** (07/10/2026: this phase, after
-Phase 5), with the **D5-09 naming step as its M3B.0** in front of the annotator; the board itself is
-not yet built (ROADMAP.md → Phase 3B). Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active
-checklists with Done-when). Exact resume point: **`HANDOFF.md` → Resume point**.
+**Current state: Phases 1–5 and 4a complete; Phase 3B is OPEN but its board is complete** on
+`feat/phase-3b` — the self-built plastid annotator (D5-08), with the **D5-09 naming step as its
+M3B.0** in front of the annotator. **P3B-01 … P3B-11 are all done** (10/10/2026): the engine, its
+measurements, and the retirement of the two annotators it replaced (§8.56). What remains is the
+close — **P3B-12** (tag `phase-3b`, squash-merge to `main`, one commit listing the tasks) — on the
+board with its Done-when.
+Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active checklists with Done-when). Exact resume
+point: **`HANDOFF.md` → Resume point**.
 
 ## Supreme objective — the deliverables decide, not the tools
 
@@ -109,9 +119,11 @@ Changing any of these requires fresh measured evidence. Full provenance: PROJECT
 
 ## Data — real samples vs development stand-ins
 
-Real datasets arrive from anh Điềm / cô Trang. Until one exists, **development and testing may use
-public stand-in data** (GenBank records of the same genus, or the nearest available relative):
-choosing a *suitable* stand-in is a dev call, not a PI call.
+Real datasets arrive from anh Điềm / cô Trang. **Status 08/10/2026: no real project dataset exists
+yet** — every file in the tree (the pinned panels, `.data/thanhdiem_data/`) is stand-in or
+tool-test material, given to exercise tools, never project samples. Until a real dataset exists,
+**development and testing may use public stand-in data** (GenBank records of the same genus, or the
+nearest available relative): choosing a *suitable* stand-in is a dev call, not a PI call.
 
 A stand-in never stops being a stand-in:
 
@@ -283,8 +295,8 @@ only when it changes the science or is expensive to reverse.
 |---|---|---|
 | Architecture · formats · libraries · tool choice · local vs remote · test strategy | Dev (+ Claude) | PROJECT.md §3 or `docs/` |
 | What to analyse · scope of a scientific claim · what goes in a manuscript · taxonomy choices for a paper | PI (cô Trang) | PROJECT.md §3 |
-| Which record becomes the project's naming reference (★, D5-09) — the vocabulary every result table prints | the end user, from the audit report; the PI signs off on the names a manuscript prints | PROJECT.md §3 (D5-09) |
-| Data and tool environments on the bioinformatician's machine | anh Điềm | TASKS.md → "Waiting on data" |
+| Which record becomes the project's naming reference (★, D5-09) — the vocabulary every result table prints | the end user — a researcher in biotechnology / bioinformatics (defined 08/10/2026) — from the audit report; the PI signs off on the names a manuscript prints | PROJECT.md §3 (D5-09) |
+| The tool environment installed on the bioinformatician's own machine (his box, his envs) — the toolkit's own tool choice and pinned versions stay the dev's, row above | anh Điềm | TASKS.md → "Waiting on data" |
 | Big or irreversible work | dev approves the plan first | plan → TASKS.md |
 
 A blocked task must name the **specific** decision or dataset it waits for — "needs the team's call"
@@ -357,10 +369,10 @@ byte-identical to the commit it was taken from.
   re-counting is a measurement, not a constant). Renaming or renumbering an entry breaks citations
   nobody can re-derive. New entry: the next number, in the file of the phase you are in.
 - **§9's items are numbered per subsection, and a citation carries the subsection.** A/B/C run
-  continuously (1–36) and J continues them (37–40); **D–I each restart at 1** — measured
+  continuously (1–37) and J continues them (38–41); **D–I, K and L each restart at 1** — measured
   05/10/2026: the numbers 1–8 appear in seven subsections, so a bare `§9.20` is ambiguous and the
   address is `§9.C-34`. `tests/unit/test_project_docs.py` guards what is true of the file: A/B/C
-  run 1..n with no repeat, D–I restart at 1..n, and every cited number resolves.
+  run 1..n with no repeat, D–I, K and L restart at 1..n, and every cited number resolves.
 - **`PROJECT.md` §8 is the index** — one line per entry, and the only place a citation has to
   resolve from. `tests/unit/test_project_docs.py` fails the build if a cited `§8.N` has no heading,
   if an entry is missing from the index, or if one number appears in two files.

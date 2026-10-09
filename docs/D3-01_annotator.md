@@ -106,3 +106,22 @@ decision can be made on the engineering constraint alone.
 A container image or a documented, versioned CLI for GeSeq. The check was made on 2026-10-03: GeSeq
 is a CHLOROBOX web service with no standalone distribution; its "additional command line parameters"
 field is a web-form option, not an executable. Re-check before Phase 9 packaging.
+
+## [ĐÃ THAY 10/10/2026] — dòng cập nhật của D3-01
+
+Bảng quyết định ghi *"chloe · pga retires when P3B-10 passes; D3-01 gains its update line"*. **P3B-10
+đạt 10/10/2026** (§8.55: bản vàng 132 = 86 + 38 + 8 với 35 khác biệt được liệt kê; corpus 418 so
+với PGA 588 — **đọc strict là 1070 so với 699, không đạt**), và **P3B-11 đã thi hành**: hai
+annotator ngoài cùng cái bọc `annotation` và `core/gff.py` đã bị xoá khỏi cây làm việc (§8.56).
+Đường chú giải lục lạp bây giờ là **`plastid annotate`** — động cơ tự viết theo D5-08.
+
+**Phép đo cũ vẫn nguyên giá trị và vẫn ở đó:** §8.15 (PGA trên bản vàng: 147 gen, ba kiểu hỏng im
+lặng) · §8.17 (Chloe qua reader của mình: 132 = 86 + 38 + 8, 0 CDS lỗi ORF — chỉ đúng khi
+`--no-transform`). **PGA sống tiếp trong repo** ở `tests/data/corpus/*.pga.gb` + `tools/corpus_bar.py`
+— vai "đối chứng đã đo" của D5-08, và là nửa còn lại của thanh chuẩn.
+
+**Nếu một ngày phải chạy lại Chloe** (ví dụ để đo trên một loài mới): tool là
+`github.com/…/chloe` (Chloë: Organelle Annotator) **0.1.18**, chạy bằng Julia, cài đặt và bản đã
+đo nằm trong lịch sử git của `docs/tools/chloe.md` và `src/plastid/external/chloe.py`; điều duy nhất
+phải nhớ là `--no-transform` — không có nó Chloe lật vùng sao chép đơn và ghi toạ độ trong một hệ
+quy chiếu mà đầu vào chưa từng có (§8.17). Con số cần tái lập là **132 = 86 + 38 + 8**.

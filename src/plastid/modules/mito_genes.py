@@ -23,6 +23,7 @@ from plastid.core.gene_names import (
     normalize_genome,
 )
 from plastid.core.model import GENE_KINDS, Gene, Genome, count_genes
+from plastid.core.organelle import GROUP_MITO
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -39,6 +40,7 @@ NO_IR_NOTE = (
 
 @module(
     MODULE_ID,
+    group=GROUP_MITO,
     version=MODULE_VERSION,
     title="Mitochondrial gene set",
     requires_ir=False,  # deliberate: see the module docstring and NO_IR_NOTE

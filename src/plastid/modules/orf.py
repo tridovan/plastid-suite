@@ -26,6 +26,7 @@ from plastid.core.orf import (
     annotated_not_coding,
     check_genome,
 )
+from plastid.core.organelle import GROUP_SHARED
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -49,6 +50,7 @@ _STATUS_MEANING = {
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="ORF checks",
     requires_ir=False,  # reading frames come from the sequence, not from IR positions

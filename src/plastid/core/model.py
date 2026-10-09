@@ -95,6 +95,11 @@ class Gene:
     # whose start codon is created by RNA editing is rejected by NCBI's validator unless its
     # /exception travels with it (PROJECT.md §8.18).
     exception: str | None = None
+    # the record's own /translation — the curator's protein, kept **because it is the thing an
+    # annotation is transferred from** (D5-08 §8.21): the search layer aligns a query against
+    # these, never against a translation this toolkit made. It is read, never written: /translation
+    # is NCBI's to assign on a new record (see ``gene_qualifiers``).
+    translation: str | None = None
 
     def __post_init__(self) -> None:
         if not self.parts:

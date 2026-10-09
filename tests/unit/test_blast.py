@@ -32,6 +32,7 @@ from plastid.external.blast import (
     run_blastn,
     run_blastx,
     search_argv,
+    subject_count,
 )
 from plastid.run.context import RunContext
 from plastid.run.layout import RunLayout
@@ -143,6 +144,7 @@ def test_the_search_argv_pins_what_the_measurements_decided() -> None:
         database=Path("/tmp/refdb"),
         evalue=1e-5,
         max_hsps=10,
+        max_target_seqs=287,
     )
     joined = " ".join(argv)
 
@@ -151,8 +153,35 @@ def test_the_search_argv_pins_what_the_measurements_decided() -> None:
     assert "-db /tmp/refdb" in joined
     assert "-evalue 1e-05" in joined
     assert "-max_hsps 10" in joined
+    assert "-max_target_seqs 287" in joined
     assert "qframe" in joined, "a protein hit's strand comes from its frame"
     assert " pident " in joined and " sstart " in joined and " bitscore " in joined
+
+
+def test_the_target_cap_is_the_size_of_the_reference_set(tmp_path: Path) -> None:
+    """Measured 08/10/2026 (P3B-07): a **constant** cap truncates in silence.
+
+    The 500 that sufficed for the mito path's 287 sequences met the plastid set's 2,838 and BLAST
+    returned 929 HSPs over 467 subjects where the same search with the cap lifted returned 4,382
+    over 2,603 — and nothing in the output said a subject had been dropped. So the value is
+    counted from the file the database is built from, and this test holds that it is counted
+    rather than chosen.
+    """
+    reference = tmp_path / "reference.faa"
+    reference.write_text(
+        "".join(f">NC_00000{i}.1|gene{i}|gene{i}\nMAAA\n" for i in range(7)), encoding="utf-8"
+    )
+    assert subject_count(reference) == 7
+    argv = search_argv(
+        "blastx",
+        binary="blastx",
+        query=Path("q"),
+        database=Path("d"),
+        evalue=1e-5,
+        max_hsps=10,
+        max_target_seqs=subject_count(reference),
+    )
+    assert "-max_target_seqs 7" in " ".join(argv)
 
 
 def test_seg_masking_is_off_and_the_test_says_why() -> None:
@@ -160,7 +189,13 @@ def test_seg_masking_is_off_and_the_test_says_why() -> None:
     real genes — it is built to hide low-complexity *query* sequence, and a plant mitogenome is
     full of hydrophobic membrane proteins. The floor, not the mask, is what keeps junk out."""
     argv = search_argv(
-        "blastx", binary="blastx", query=Path("q"), database=Path("d"), evalue=1e-5, max_hsps=10
+        "blastx",
+        binary="blastx",
+        query=Path("q"),
+        database=Path("d"),
+        evalue=1e-5,
+        max_hsps=10,
+        max_target_seqs=1,
     )
     assert (SEGMENT_OFF, "no") == ("-seg", "no")
     assert "-seg no" in " ".join(argv)
@@ -170,7 +205,13 @@ def test_a_nucleotide_search_asks_for_the_sensitive_task() -> None:
     """Megablast and blastn found the same three rRNAs here, but the target may be a divergent
     sample and the database is 25 sequences — sensitivity is nearly free."""
     argv = search_argv(
-        "blastn", binary="blastn", query=Path("q"), database=Path("d"), evalue=1e-5, max_hsps=10
+        "blastn",
+        binary="blastn",
+        query=Path("q"),
+        database=Path("d"),
+        evalue=1e-5,
+        max_hsps=10,
+        max_target_seqs=1,
     )
     assert "-task blastn" in " ".join(argv)
     assert "qframe" not in " ".join(argv)

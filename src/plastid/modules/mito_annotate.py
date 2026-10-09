@@ -14,7 +14,7 @@ Four things this module refuses to do, each for a measured reason:
   wording belongs to a submitter, and ``data/mito_gene_names.yaml``'s synonyms were quoted *from*
   the answer-key record, so writing them back would be the annotation grading its own homework.
 * **report success on nothing.** A search that finds no hit at all is a failed run, not an
-  annotation of a genome with no genes (the rule ``external/chloe.py`` learned the same way).
+  annotation of a genome with no genes (the rule the plastid path states the same way).
 * **let the artifact go out unread.** The GenBank text is read back with our own reader before it
   is returned; a file that does not re-read is not a result (P3A-01's rule).
 
@@ -50,6 +50,7 @@ from plastid.core.mito_reference import (
 )
 from plastid.core.model import Gene, Genome, count_genes
 from plastid.core.orf import ORF_STATUSES, check_genome
+from plastid.core.organelle import GROUP_MITO
 from plastid.core.resources import data_file
 from plastid.external.aragorn import AragornResult, run_aragorn
 from plastid.external.blast import (
@@ -130,6 +131,7 @@ def _reference_set(params: dict[str, Any], vocabulary: Sequence[str]) -> Iterato
 
 @module(
     MODULE_ID,
+    group=GROUP_MITO,
     version=MODULE_VERSION,
     title="Mitochondrial annotation (reference transfer, prototype)",
     requires_ir=False,  # deliberate: see NO_IR_NOTE

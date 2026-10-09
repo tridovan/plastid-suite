@@ -21,6 +21,7 @@ from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.ir import detect_ir
 from plastid.core.model import Genome, coding_sequence
 from plastid.core.normalize import normalize
+from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mafft import align
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
@@ -41,6 +42,7 @@ DEFAULT_SCOPE = "whole"
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Substitutions",
     requires_ir=True,

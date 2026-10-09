@@ -70,6 +70,26 @@ def test_the_rrna_size_suffix_is_dropped_but_the_mito_dialect_is_not() -> None:
     assert normalize_name("rrnL", ALIASES).canonical == "rrnL"
 
 
+def test_an_rrna_named_by_its_product_sentence_is_the_same_locus() -> None:
+    """Measured 08/10/2026 on the pinned plastid reference set (P3B-07).
+
+    ``NC_042827.1`` carries no ``/gene`` on its rRNA at all — the reader falls back to
+    ``/product``, so "16S ribosomal RNA" arrived as a *gene name* and four loci no run could ever
+    name. The size class is in the string, so this is the same rule as ``rrn16S``, not new
+    knowledge.
+    """
+    assert normalize_name("16S ribosomal RNA", ALIASES).canonical == "rrn16"
+    assert normalize_name("23S ribosomal RNA", ALIASES).canonical == "rrn23"
+    assert normalize_name("4.5S ribosomal RNA", ALIASES).canonical == "rrn4.5"
+    assert normalize_name("5S ribosomal RNA", ALIASES).canonical == "rrn5"
+    assert normalize_name("16S rRNA", ALIASES).canonical == "rrn16"
+    # a product sentence that is not a size class is left exactly as it arrived
+    assert normalize_name("ribosomal protein S3", ALIASES).canonical == "ribosomal protein S3"
+    assert normalize_name("cytochrome b6-f complex subunit V", ALIASES).canonical == (
+        "cytochrome b6-f complex subunit V"
+    )
+
+
 def test_whitespace_is_collapsed_and_an_already_canonical_name_says_so() -> None:
     assert normalize_name("  rbcL  ", ALIASES).canonical == "rbcL"
     assert normalize_name("rbcL", ALIASES).rule == IDENTICAL_RULE
@@ -85,22 +105,32 @@ def test_normalizing_is_idempotent() -> None:
 # --- semantic aliases -----------------------------------------------------------------------
 
 
-def test_the_classic_name_resolves_to_the_teams_canonical_and_prints_both() -> None:
-    """D3-02: canonical is the team's own dialect; the classic name travels beside it."""
-    normalized = normalize_name("ycf3", ALIASES)
-    assert normalized.canonical == "pafI"
-    assert normalized.synonyms == ("ycf3",)
-    assert normalized.label == "pafI (ycf3)"
+def test_the_alias_resolves_to_the_naming_references_spelling_and_prints_both() -> None:
+    """D5-09 §8 (flipped 08/10/2026): canonical is the naming reference's spelling.
+
+    The shipped direction is the **recorded standard**'s (``data/naming_reference.json``, the
+    golden ``NC_050833.1``): it spells ``ycf3``, so ``pafI`` is the synonym that travels beside
+    it. D3-02 had this the other way round — canonical was the group's dialect — and the whole
+    point of the flip is that the direction is a project-level decision rather than a preference.
+    """
+    normalized = normalize_name("pafI", ALIASES)
+    assert normalized.canonical == "ycf3"
+    assert normalized.synonyms == ("pafI",)
+    assert normalized.label == "ycf3 (pafI)"
     assert normalized.rule == SEMANTIC_RULE
     assert normalized.changed
+
+    # the reference's own spelling is canonical and needs no change
+    goldens = normalize_name("ycf3", ALIASES)
+    assert goldens.canonical == "ycf3" and not goldens.changed
 
 
 def test_the_canonical_name_prints_the_same_label_as_its_synonym() -> None:
     """A reader must not be able to tell which dialect a record used — that is the whole point."""
     assert normalize_name("pafI", ALIASES).label == normalize_name("ycf3", ALIASES).label
-    assert normalize_name("pbf1", ALIASES).label == "pbf1 (psbN)"
-    assert normalize_name("clpP", ALIASES).label == "clpP1 (clpP)"
-    assert normalize_name("ycf4", ALIASES).label == "pafII (ycf4)"
+    assert normalize_name("pbf1", ALIASES).label == "psbN (pbf1)"
+    assert normalize_name("clpP1", ALIASES).label == "clpP (clpP1)"
+    assert normalize_name("pafII", ALIASES).label == "ycf4 (pafII)"
 
 
 def test_the_measured_loci_are_the_only_ones_shipped() -> None:
@@ -114,15 +144,19 @@ def test_the_measured_loci_are_the_only_ones_shipped() -> None:
     NC_024936.1's trnl-GUA turned out to be that locus's tRNA, byte for byte (§8.28).
     """
     assert {locus.canonical for locus in ALIASES.loci} == {
-        "pafI",
-        "pafII",
-        "pbf1",
-        "clpP1",
-        "ndhI",
+        # five flipped 08/10/2026 with D5-09 §8 — the recorded reference spells the classic names
+        "ycf3",
+        "ycf4",
+        "psbN",
+        "clpP",
+        "ndhL",
+        # four kept their direction because the reference agrees with them
         "atpI",
         "psaI",
         "psbB",
         "trnI-GAU",
+        # joined 10/10/2026 (§8.54) — NC_042827.1's lhbA against 33 records' psbZ
+        "psbZ",
     }
     assert all(locus.evidence for locus in ALIASES.loci)
 
@@ -247,13 +281,14 @@ def test_normalizing_a_genome_keeps_every_name_it_arrived_with(data_dir: Path) -
 
 
 def test_the_golden_genome_reports_the_four_aliased_loci(data_dir: Path) -> None:
+    """The golden spells five of the aliased loci itself (D5-09 §8), so its labels are its own."""
     golden = read_genbank(data_dir / "NC_050833.1.gb")
     names = normalize_genome(golden, ALIASES)
     labels = {gene.name: names.label(gene) for gene in golden.genes}
-    assert labels["ycf3"] == "pafI (ycf3)"
-    assert labels["ycf4"] == "pafII (ycf4)"
-    assert labels["psbN"] == "pbf1 (psbN)"
-    assert labels["clpP"] == "clpP1 (clpP)"
+    assert labels["ycf3"] == "ycf3 (pafI)"
+    assert labels["ycf4"] == "ycf4 (pafII)"
+    assert labels["psbN"] == "psbN (pbf1)"
+    assert labels["clpP"] == "clpP (clpP1)"
     assert labels["rbcL"] == "rbcL"
 
 
@@ -321,9 +356,10 @@ def test_the_module_summarises_the_two_dialects_of_one_locus() -> None:
     assert panel["n_distinct_names"] == 2
     assert panel["n_distinct_canonical"] == 1
     assert panel["n_aliased"] == 2
+    # both spellings of the one locus print the same label, and it is the reference's spelling
     assert {(row["name"], row["printed"]) for row in result.tables["name_mappings"].rows} == {
-        ("ycf3", "pafI (ycf3)"),
-        ("pafI", "pafI (ycf3)"),
+        ("ycf3", "ycf3 (pafI)"),
+        ("pafI", "ycf3 (pafI)"),
     }
 
 
@@ -456,10 +492,20 @@ def test_the_panel_normalizes_every_name_and_resolves_the_bare_trna_names() -> N
     assert labels[("PX923121.1", "trnK")] == "trnK-UUU"
     assert labels[("NC_069583.1", "trnI")] == "trnI-GAU"
 
-    # the four loci under their functional names are one canonical each, not two genes
-    for name in ("pafI", "pafII", "pbf1", "clpP1"):
-        assert normalize_name(name, ALIASES).canonical == name
-    assert {"pafI", "pafII", "pbf1", "clpP1"} <= canonicals
+    # the four loci under their functional names are one canonical each, not two genes — and
+    # since 08/10/2026 that canonical form is the *naming reference's* spelling, so these names
+    # (the panel's own dialect, not the golden's) resolve across to it
+    for name, canonical in (
+        ("pafI", "ycf3"),
+        ("pafII", "ycf4"),
+        ("pbf1", "psbN"),
+        ("clpP1", "clpP"),
+    ):
+        assert normalize_name(name, ALIASES).canonical == canonical
+        assert normalize_name(canonical, ALIASES).canonical == canonical
+    # ... and the canonical forms themselves are the reference's, which is what the tables print
+    assert {"ycf3", "ycf4", "psbN", "clpP"} <= canonicals
+    assert not {"pafI", "pafII", "pbf1", "clpP1"} & canonicals
 
 
 @NEEDS_PANEL
@@ -513,9 +559,8 @@ def test_cds_by_canonical_name_keeps_one_copy_per_name(data_dir: Path) -> None:
     assert len(by_name) == 79  # 86 CDS features; the difference is the second IR copy
     assert len(set(by_name)) == len(by_name)
     assert "rbcL" in by_name
-    assert "ndhI" in by_name  # canonical for the locus the golden record writes ndhL (see the
-    #                           alias table; without a table the default is the record's own
-    #                           organelle's vocabulary)
+    assert "ndhL" in by_name  # the golden's own spelling: the naming reference decides the
+    #                           canonical form (D5-09 §8), and the golden writes ndhL
     # every value is a real CDS of that genome, and at most one feature per canonical name
     features = set(cds_features(genome))
     assert set(by_name.values()) <= features

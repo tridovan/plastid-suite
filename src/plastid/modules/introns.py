@@ -18,6 +18,7 @@ from typing import Any
 
 from plastid.core.model import Gene, Genome, cds_features
 from plastid.core.normalize import normalize
+from plastid.core.organelle import GROUP_SHARED
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -28,6 +29,7 @@ MODULE_VERSION = "0.1.0"
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Introns",
     requires_ir=True,

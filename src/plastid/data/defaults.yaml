@@ -67,3 +67,38 @@ mito:
   # calls, so the initiator test that decides a partial start and the ORF checks downstream read
   # the same number instead of two defaults that happen to agree.
   translation_table: 1
+
+plastid:
+  # P3B-07/P3B-08 (08/10/2026): the floors a transferred plastid call must clear, and the code it
+  # is read in. Measured on the golden as the answer key against the 33 other pinned records
+  # (§8.46): 4,382 HSPs, 80 CDS calls, every one landing on a published locus. The golden is a
+  # close relative and **cannot choose the coverage floor** — 0.5 through 0.8 give the identical
+  # called set — so 0.7 is §8.41's corpus number (the gap runs 44.93 % to 67.75 %, and psbJ is
+  # 36 aa, which is why 0.5 does not hold here). P3B-10 re-checks it on the corpus.
+  min_identity: 50.0
+  min_coverage: 0.7
+  evalue: 1.0e-5
+  # Plastomes translate with NCBI table 11 (D3-03: 1,099 of 1,099 measured CDS declare it). The
+  # caller stamps it on every CDS, so the initiator test and the ORF checks behind it read one
+  # number instead of two defaults that happen to agree.
+  translation_table: 11
+
+naming:
+  # D5-09 §7 (P3B-04). The **naming reference** is the record whose spelling every table this
+  # project prints; it is genomes[0] of a gene_normalize run, supplied with
+  # `--set naming_reference=<file>`, and this file records which record that is until the end user
+  # picks one from the audit report. The parameter is deliberately not called `reference`: that
+  # key already carries two meanings in this toolkit (a module's own reference and a record's
+  # /reference qualifier), and a third would be read as one of them.
+  reference_record: src/plastid/data/naming_reference.json
+  # The four tests' thresholds — measured, not chosen (PROJECT.md §8.41): the smallest true
+  # margin was 19.2 bits, and with coverage ≥ 0.7 no wrong locus reached 44.93 % while no true
+  # ortholog fell below 67.75 %. The mito path's coverage floor of 0.5 does not hold here —
+  # psbJ is 36 aa, and a 21-aa alignment of it reaches 52.38 % against matK.
+  min_identity: 50.0
+  min_coverage: 0.7
+  min_margin_bits: 10.0
+  # A tRNA is never renamed on a sequence ranking: measured, true and wrong tRNA loci overlap
+  # (53.76–100 % against up to 73.97 %), so identity decides nothing at that length. The name and
+  # the flanking genes are what a person can check.
+  trna_sequence_decides: false

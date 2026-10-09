@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import sys
 from datetime import datetime
@@ -9,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from plastid.core.genbank import read_genbank
 from plastid.core.model import Genome
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.cache import Cache
@@ -21,7 +23,7 @@ from plastid.run.manifest import (
     validate,
     write_manifest,
 )
-from plastid.run.runner import execute_step
+from plastid.run.runner import _input_hash, _module_source_hash, _params_hash, execute_step
 from plastid.run.tools import ToolError, run_tool, tool_version, which
 
 WHEN = datetime(2026, 10, 2, 15, 30, 0)
@@ -42,6 +44,24 @@ def test_layout_builds_run_scoped_paths(tmp_path: Path) -> None:
     assert layout.run_info_dir.is_dir()
     assert layout.logs_dir.is_dir()
     assert layout.module_dir(1, "genome_stats").name == "01_genome_stats"
+
+
+def test_two_runs_never_share_a_directory_however_the_clock_behaves(tmp_path: Path) -> None:
+    """One run = one directory, even in the same second — and even when the clock steps back.
+
+    Measured 08/10/2026 (PROJECT.md §9.C-37): this machine's clock moved ~1 s *backwards* between
+    two runs, so a later run was stamped earlier than the one before it and the run directories
+    no longer sorted into the order they were made. The guarantee that survives a clock that is
+    not monotonic is not "the names sort" but "no run overwrites another".
+    """
+    first = RunLayout.create(tmp_path, "iris", fingerprint="abcdef1234567890", now=WHEN)
+    first.make_dirs()
+    same_second = RunLayout.create(tmp_path, "iris", fingerprint="abcdef1234567890", now=WHEN)
+    stepped_back = RunLayout.create(
+        tmp_path, "iris", fingerprint="abcdef1234567890", now=datetime(2026, 10, 2, 15, 29, 59)
+    )
+    assert len({first.run_id, same_second.run_id, stepped_back.run_id}) == 3
+    assert stepped_back.run_dir.parent == first.run_dir.parent  # same dataset, different run
 
 
 def test_manifest_validates_and_round_trips(tmp_path: Path) -> None:
@@ -363,3 +383,157 @@ def test_every_tool_call_keeps_its_own_log(tmp_path: Path) -> None:
     assert [record.stdout_file for record in ctx.tools] == [
         str(layout.logs_dir / f"{index:03d}__echo__stdout.log") for index in (1, 2, 3)
     ]
+
+
+def test_two_annotations_of_one_sequence_are_two_cache_keys() -> None:
+    """H-15, measured 05/10/2026: the corpus's own pair shares a sequence and not a gene set.
+
+    The published and PGA records of *Iris domestica* carry the same 153,724 bp; they differ in
+    their annotation (86 vs 85 CDS). Hashing the sequence alone gave them one cache key, and six
+    modules take ``genomes[0]`` as their reference — so the second run was served the first's
+    tables. The premise is asserted too: if the sequences ever differed, this test would stop
+    measuring what it says it measures.
+    """
+    corpus = Path(__file__).resolve().parents[1] / "data" / "corpus"
+    published = read_genbank(corpus / "Iris_domestica_NC_050833.1.pga.gb")
+    golden = read_genbank(Path(__file__).resolve().parents[1] / "data" / "NC_050833.1.gb")
+    assert published.sequence == golden.sequence, "the pair must carry one sequence"
+    assert len(published.genes) != len(golden.genes), "and two different annotations"
+    assert _input_hash(published) != _input_hash(golden)
+
+
+def test_the_cache_key_keeps_the_input_order() -> None:
+    """Input order is meaning: six modules read ``genomes[0]`` as their reference."""
+    first = Cache.key(
+        module_id="kaks",
+        module_version="0.1.0",
+        params_hash="p",
+        input_sha256s=("aa", "bb"),
+    )
+    swapped = Cache.key(
+        module_id="kaks",
+        module_version="0.1.0",
+        params_hash="p",
+        input_sha256s=("bb", "aa"),
+    )
+    assert first != swapped
+
+
+def test_a_parameter_that_names_a_file_is_content_addressed(tmp_path: Path) -> None:
+    """D5-09 §7.2: a path is not an identity — the ★ record's sha256 has to reach the key."""
+    reference = tmp_path / "naming_reference.gb"
+    reference.write_text("LOCUS       NC_050833\n", encoding="utf-8")
+    before = _params_hash({"naming_reference": str(reference)})
+    assert before == _params_hash({"naming_reference": str(reference)})
+    reference.write_text("LOCUS       NC_024936\n", encoding="utf-8")
+    assert _params_hash({"naming_reference": str(reference)}) != before
+    # a parameter that is not a path is hashed as itself, and stays stable
+    assert _params_hash({"mode": "normalize"}) == _params_hash({"mode": "normalize"})
+    assert _params_hash({"mode": "normalize"}) != _params_hash({"mode": "verify"})
+
+
+def test_a_parameter_that_names_a_directory_is_content_addressed(tmp_path: Path) -> None:
+    """The same rule for a *directory* — the annotate step's reference set (P3B-09).
+
+    Measured 09/10/2026: ``--set reference=<directory>`` was hashed as that string, so editing or
+    re-pinning a record served the previous run's tables out of the cache with nothing to say the
+    reference had moved — H-15's failure mode, one level up. The digest is over the file names
+    *and* their contents, so all three ways a set changes (add, remove, edit) move the key.
+    """
+    reference = tmp_path / "reference"
+    reference.mkdir()
+    first = reference / "NC_050833.1.gb"
+    first.write_text("LOCUS       NC_050833\n", encoding="utf-8")
+    before = _params_hash({"reference": str(reference)})
+    assert before == _params_hash({"reference": str(reference)})
+
+    first.write_text("LOCUS       NC_050833  edited\n", encoding="utf-8")
+    edited = _params_hash({"reference": str(reference)})
+    assert edited != before, "editing a record did not move the key"
+
+    (reference / "NC_024936.1.gb").write_text("LOCUS       NC_024936\n", encoding="utf-8")
+    added = _params_hash({"reference": str(reference)})
+    assert added not in {before, edited}, "adding a record did not move the key"
+
+    (reference / "NC_024936.1.gb").unlink()
+    assert _params_hash({"reference": str(reference)}) == edited, "removing restored the state"
+    assert _params_hash({"reference": str(reference)}) != added
+
+
+def test_a_changed_module_source_changes_the_key(tmp_path: Path) -> None:
+    """H-08: the key used to carry the version and nothing else about the code.
+
+    The module file is loaded for real rather than stubbed: what the guard hashes is *the file
+    the function came from*, so a stub defined inside this test would hash this test.
+    """
+
+    def load(text: str):
+        path = tmp_path / "stub_module.py"
+        path.write_text(text, encoding="utf-8")
+        spec = importlib.util.spec_from_file_location(f"stub_module_{len(text)}", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.run
+
+    first = _module_source_hash(load("def run():\n    return 1\n"))
+    same = _module_source_hash(load("def run():\n    return 1\n"))
+    changed = _module_source_hash(load("def run():\n    return 2\n"))
+    assert first == same
+    assert changed != first
+
+
+def test_a_second_run_asking_for_a_document_is_not_served_the_cached_payload(
+    tmp_path: Path,
+) -> None:
+    """H-14, measured 05/10/2026: a `--docx` run came back `cached` with 0 .docx files."""
+    layout = RunLayout.create(tmp_path, "dataset", fingerprint="0" * 16, now=WHEN)
+    layout.make_dirs()
+    cache = Cache(layout.cache_dir)
+    calls: list[int] = []
+
+    def run_fn(genome: Genome, params: dict, ctx: RunContext) -> Result:
+        calls.append(1)
+        return _stub_result()
+
+    def context() -> RunContext:
+        return RunContext(layout=layout, params={}, module_id="stub", module_order=1)
+
+    first = execute_step(
+        module_id="stub",
+        module_version="0.1.0",
+        run_fn=run_fn,
+        genomes=(_stub_genome(),),
+        arity=1,
+        params={},
+        ctx=context(),
+        cache=cache,
+        render_document=lambda result, report: b"a document",
+    )
+    assert first.status == "ok" and len(calls) == 1
+
+    # the same run, now also asked for the Word document: a new key, and the document appears
+    second = execute_step(
+        module_id="stub",
+        module_version="0.1.0",
+        run_fn=run_fn,
+        genomes=(_stub_genome(),),
+        arity=1,
+        params={},
+        ctx=context(),
+        cache=cache,
+        render_document=lambda result, report: b"a document",
+    )
+    assert second.status == "cached"
+
+    third = execute_step(
+        module_id="stub",
+        module_version="0.1.0",
+        run_fn=run_fn,
+        genomes=(_stub_genome(),),
+        arity=1,
+        params={},
+        ctx=context(),
+        cache=cache,
+        render_document=None,
+    )
+    assert third.status == "ok", "a payload without the document must not answer a --docx run"

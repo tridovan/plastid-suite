@@ -18,6 +18,7 @@ from typing import Any
 from plastid.core.gene_groups import GeneGroup, GeneGroups, assign, load_gene_groups
 from plastid.core.gene_names import GenomeNames, load_gene_aliases, normalize_genome
 from plastid.core.model import GENE_KINDS, Gene, GeneCounts, Genome, count_genes
+from plastid.core.organelle import GROUP_PLASTID
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -32,6 +33,7 @@ _KINDS = ("CDS", "tRNA", "rRNA")
 
 @module(
     MODULE_ID,
+    group=GROUP_PLASTID,
     version=MODULE_VERSION,
     title="Publication gene table",
     requires_ir=False,  # grouping a gene by function is not a position-based analysis

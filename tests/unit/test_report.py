@@ -1381,6 +1381,79 @@ def _mito_annotate_result() -> Result:
     )
 
 
+def _plastid_annotate_result() -> Result:
+    """The P3B-08 engine's summary, in the smallest shape its template resolves against.
+
+    The columns are the module's own (``modules/plastid_annotate.py``) rather than a subset: the
+    guard this fixture serves is "every ``{{reference}}`` in a shipped template resolves", and a
+    fixture that carried only the columns this template happens to use today would pass while the
+    template grew a reference nothing produces.
+    """
+    scope = Scope(
+        label="CDS and rRNA called by transfer from the pinned plastid reference set; "
+        "tRNA called de novo by ARAGORN; GenBank coordinates",
+        coord_system="genbank",
+    )
+    summary = Table(
+        id="plastid_annotation_summary",
+        title="Plastid annotation",
+        columns=(
+            Column("organism", "Organism"),
+            Column("accession", "Accession"),
+            Column("organelle", "Organelle"),
+            Column("length_bp", "Length", dtype="int", unit="bp"),
+            Column("n_calls", "Genes called", dtype="int"),
+            Column("n_cds", "CDS", dtype="int"),
+            Column("n_rrna", "rRNA", dtype="int"),
+            Column("n_trna", "tRNA", dtype="int"),
+            Column("n_not_called", "Vocabulary loci not called", dtype="int"),
+            Column("n_cds_failing_orf", "Called CDS failing the ORF checks", dtype="int"),
+            Column("n_dropped", "Hits not used", dtype="int"),
+            Column("n_unnameable", "Hits this vocabulary cannot name", dtype="int"),
+            Column("n_overlapping_pairs", "Overlapping call pairs", dtype="int"),
+            Column("min_identity_pct", "Identity floor", dtype="float", unit="%"),
+            Column("min_coverage_pct", "Coverage floor", dtype="float", unit="%"),
+            Column("evalue", "E-value ceiling"),
+            Column("transl_table", "Translation table", dtype="int"),
+            Column("blast", "BLAST"),
+            Column("aragorn", "ARAGORN"),
+            Column("reference", "Reference set"),
+        ),
+        rows=(
+            {
+                "organism": "Iris domestica",
+                "accession": "NC_050833.1",
+                "organelle": "plastid",
+                "length_bp": 153_724,
+                "n_calls": 114,
+                "n_cds": 80,
+                "n_rrna": 4,
+                "n_trna": 30,
+                "n_not_called": 0,
+                "n_cds_failing_orf": 0,
+                "n_dropped": 43,
+                "n_unnameable": 0,
+                "n_overlapping_pairs": 3,
+                "min_identity_pct": 50.0,
+                "min_coverage_pct": 70.0,
+                "evalue": "1e-05",
+                "transl_table": 11,
+                "blast": "BLAST+ 2.17.0",
+                "aragorn": "ARAGORN 1.2.41",
+                "reference": (
+                    "32 GenBank record(s) in .panel/plastid-reference, audited (0 blocked)"
+                ),
+            },
+        ),
+        scope=scope,
+    )
+    return Result(
+        module="plastid_annotate",
+        module_version="0.1.0",
+        tables={summary.id: summary},
+    )
+
+
 def _stats_result() -> Result:
     """The P5-03 module's summary, in the shape its template resolves against."""
     columns = (
@@ -1440,8 +1513,97 @@ def _stats_result() -> Result:
     )
 
 
+def _reference_audit_result() -> Result:
+    """Built by the module's own table builder, so the template's contract is with the real one."""
+    from plastid.core.reference_audit import AuditReport, Confirmation, Finding, RecordFacts
+    from plastid.modules import reference_audit as audit_module
+
+    record = RecordFacts(
+        file="/references/NC_050833.1.gb",
+        sha256="a" * 64,
+        accession="NC_050833.1",
+        length_bp=153_724,
+        cds=86,
+        trna=38,
+        rrna=8,
+        gene_names=("rbcL", "trnG-UCC"),
+        ssc_orientation="opposite",
+        blocked=False,
+    )
+    report = AuditReport(
+        findings=(
+            Finding(
+                file=record.file,
+                check="orientation",
+                verdict="REPORT",
+                reason="SSC orientation differs from the majority (2 of 3 read the other way)",
+            ),
+        ),
+        records=(record,),
+        confirmations=(
+            Confirmation(
+                region="SSC",
+                technique="mafft --adjustdirection",
+                measured=False,
+                note="not measured (mafft 7.526 not found)",
+            ),
+        ),
+    )
+    return audit_module.audit_result(report)
+
+
+def _gene_normalize_result() -> Result:
+    """The summary a naming run writes — the cells its template reads.
+
+    Hand-built like the fixtures around it: what the guard checks is that the template's
+    references resolve against the schema the module documents, and a fixture that called the
+    module's own table builders would only be checking that the module agrees with itself.
+    """
+    summary = Table(
+        id="normalize_summary",
+        title="Reference-driven naming",
+        columns=(
+            Column("mode", "Mode"),
+            Column("reference", "Naming reference (A)"),
+            Column("records", "Records normalized", dtype="int"),
+            Column("genes", "Genes read", dtype="int"),
+            Column("renamed", "Renamed", dtype="int"),
+            Column("confirmed", "Confirmed", dtype="int"),
+            Column("conflicts", "Conflicts", dtype="int"),
+            Column("measured", "Status: measured", dtype="int"),
+            Column("not_measured", "Status: not measured", dtype="int"),
+            Column("outside", "Status: outside vocabulary", dtype="int"),
+            Column("artifacts", "Normalized records written", dtype="int"),
+        ),
+        rows=(
+            {
+                "mode": "normalize",
+                "reference": "NC_050833.1",
+                "records": 1,
+                "genes": 132,
+                "renamed": 5,
+                "confirmed": 120,
+                "conflicts": 0,
+                "measured": 120,
+                "not_measured": 11,
+                "outside": 1,
+                "artifacts": 1,
+            },
+        ),
+        scope=Scope(
+            label="one record against the project's naming reference (D5-09, vocabulary A)"
+        ),
+    )
+    return Result(
+        module="gene_normalize", module_version="0.1.0", tables={"normalize_summary": summary}
+    )
+
+
 TEMPLATE_FIXTURES = {
+    "gene_normalize": _gene_normalize_result,
+    "reference_audit": _reference_audit_result,
     "mito_annotate": _mito_annotate_result,
+    "plastid_annotate": _plastid_annotate_result,
     "mito_genes": _mito_genes_result,
     "annotation": _annotation_result,
     "genome_stats": _result,

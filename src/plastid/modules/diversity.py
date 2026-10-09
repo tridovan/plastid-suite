@@ -25,6 +25,7 @@ from plastid.core.align import (
 from plastid.core.ir import detect_ir
 from plastid.core.model import GENE_KINDS, Genome
 from plastid.core.normalize import NormalizedFrame, normalize
+from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mafft import align
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
@@ -39,6 +40,7 @@ DEFAULT_STEP_BP = 200
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Nucleotide diversity (π)",
     requires_ir=True,

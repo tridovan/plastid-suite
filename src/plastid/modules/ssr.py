@@ -11,6 +11,7 @@ from typing import Any
 
 from plastid.core.ir import IRResult
 from plastid.core.model import Genome, Interval
+from plastid.core.organelle import GROUP_SHARED
 from plastid.external.misa import UNIT_LABELS, MisaResult, run_misa
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
@@ -25,6 +26,7 @@ _GENE_KINDS = ("CDS", "tRNA", "rRNA")
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="SSR (microsatellites)",
     requires_ir=True,

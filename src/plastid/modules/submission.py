@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from plastid.core.model import Genome, count_genes
+from plastid.core.organelle import GROUP_SHARED
 from plastid.core.submission import (
     partial_start_genes,
     source_qualifiers_left_out,
@@ -83,6 +84,7 @@ _TOOL_REPORTS = ("val", "stats", "dr")
 
 @module(
     MODULE_ID,
+    group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="NCBI submission files",
     requires_ir=False,  # writing features is not a position-based analysis

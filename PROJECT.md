@@ -47,7 +47,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 02/10 | **Hệ toạ độ** (§10.6): bảng theo từng genome ghi **toạ độ GenBank** (truy ngược về bản nộp NCBI); hình so sánh chéo nhiều genome dùng **hệ đã chuẩn hoá**; **mọi bảng ghi rõ đang ở hệ nào**; `rotation_offset` lưu trong `00_run_info` |
 | 02/10 | **Report sinh từ `Result`** (§10.7): mọi số trong report trỏ về **đúng một ô bảng gốc**; template chỉ trỏ `{{bảng.cột}}` / `{{bảng[dòng].cột}}`, không gõ số; ref không giải được ⇒ **raise**, không in trống |
 | 02/10 | **Reference Panel** (§10.8): engine **gợi ý** qua cache RefSeq có ngày (làm mới được); khi người dùng chốt danh sách thì **tải về + ghim checksum**; chạy lại **không cần mạng**. Mục (c) điền sau, không chặn code |
-| 03/10 | **Backend (P1-12, dev quyết)**: giai đoạn 1–5 và 8 chạy **tại chỗ** trên máy phổ thông; giai đoạn 6 (thời gian phân kỳ) + 7 (lắp ráp) chạy **máy chủ từ xa** — máy 8 GB chỉ còn 1,5–2,5 GB trống mỗi việc (§9.28). Ghi lại theo luật phân quyết định trong CLAUDE.md |
+| 03/10 | **Backend (P1-12, dev quyết)**: giai đoạn 1–5 và 8 chạy **tại chỗ** trên máy phổ thông; giai đoạn 6 (thời gian phân kỳ) + 7 (lắp ráp) chạy **máy chủ từ xa** — máy 8 GB chỉ còn 1,5–2,5 GB trống mỗi việc (§9.28). Ghi lại theo luật phân quyết định trong CLAUDE.md. **[ĐÃ THAY 08/10/2026 — riêng giai đoạn 7 (lắp ráp): nay tuỳ máy người dùng, xem dòng 08/10 bên dưới; giai đoạn 6 vẫn chạy máy chủ từ xa]** |
 | 03/10 | **Bảng gen xuất bản (P2-09, dev quyết)**: bảng in ra bài báo là bảng **phân nhóm theo chức năng**, không phải bản dump từng feature; nhóm gen là **dữ liệu** (`src/plastid/data/gene_groups.yaml`), không phải code. tRNA/rRNA khớp theo **tiền tố tên** (`trn`, `rrn`) chứ không theo danh sách anticodon — bản Oldenlandia/Coleus thật sẽ mang anticodon khác, danh sách cứng sẽ **rơi im lặng**. Gen không nhóm nào nhận ⇒ một dòng *unclassified* + ghi tên trong notes, **không bao giờ bị bỏ** |
 | 03/10 | **Số đếm của bảng gen = số bản sao** (kể cả 2 bản IR), đúng quy ước 132 = 86 + 38 + 8, và bảng **tự đối chiếu với `count_genes()`** trong một bảng riêng — cùng kiểu đối chiếu đã bắt lỗi MISA ở P2-06. Một gen rơi giữa bộ đếm và bảng sẽ hiện ra thành *DISAGREES*, không phải thành một số nhỏ hơn không ai kiểm |
 | 03/10 | **Xuất Word (D2-04 + P2-09, dev quyết)**: `python-docx` là **extra tuỳ chọn** (`pip install 'plastid-suite[docx]'`), import **bên trong hàm** nên bản cài tối thiểu vẫn thuần Python; thiếu nó ⇒ `ExportDependencyError` + exit 3, không phải traceback ImportError. `openpyxl` **chưa thêm** — chưa có gì dùng (YAGNI); sẽ vào cùng extra khi làm Excel ở Giai đoạn 5 |
@@ -62,7 +62,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 03/10 | **ORF: đọc bảng mã của chính bản ghi, từ chối thay vì đoán (D3-03 + P3-01)**: `Gene` mang `/transl_table` và `/codon_start` của bản ghi; bảng mã ngoài {1, 11} ⇒ `OrfError` (hai bảng này chia sẻ toàn bộ axit amin, chỉ khác mã khởi đầu), `/codon_start` ≠ 1 ⇒ `OrfError` — dịch sai khung là kiểu "sai mà không báo". **ACG được nhận là mã khởi đầu nhưng xếp lớp riêng `non_canonical`**: nó *không* có trong danh sách của bảng 11, nhưng bản ghi đã công bố dùng nó cho rpl2/ndhD (RNA editing ACG→AUG); xếp vào `no_start` sẽ là báo động giả trên 2/86 CDS của genome vàng (§8.11) |
 | 03/10 | **Lớp "annotated, not coding" khớp cả TÊN lẫn VỊ TRÍ (P3-01)**: ycf1 cụt chồng lấn 21 bp với CDS của `ndhF`, nên khớp theo vị trí không thôi thì ndhF "phủ" nó, còn khớp theo tên không thôi thì CDS ycf1 thật ở chỗ khác "phủ" nó — mỗi cách hỏng một kiểu im lặng (§8.11) |
 | 03/10 | **File nộp NCBI: `.fsa` + `.tbl` thuần Python, luôn luôn; `.sqn` chỉ khi có `table2asn` *và* có template `.sbt` (D3-04, P3-05)**: web submission của NCBI nhận thẳng cặp `.fsa`+`.tbl`, nên bản cài tối thiểu vẫn nộp được. `.tbl` mang **tên gốc của bản ghi** (đổi tên là đổi nội dung nộp — D3-06 chỉ nói về *chữ in trong bản thảo*); toạ độ partial đi theo bản ghi, partial ở interval giữa ⇒ **từ chối**, không bỏ im lặng (§8.13) |
-| 03/10 | **[ĐÃ THAY 05/10 — xem dòng D5-08] Chú giải: Chloe là annotator của pipeline; PGA còn lại cho genome ngoài angiosperm (D3-01 — sửa lại sau khi ĐO, dev quyết)**: ràng buộc cũ vẫn nguyên (offline, ghi được tên · phiên bản · đường dẫn · argv), nhưng *"công cụ offline nào"* chỉ là **giả thuyết cho tới khi chạy thật**. PGA trên genome vàng ra **147 gen** (7 reference) và **130** (1 reference) so với **132**, kèm ba kiểu hỏng im lặng (§8.15) ⇒ **thay bằng Chloe**: offline, có bộ reference chuẩn hoá của chính nó, và **đo qua reader của mình ra đúng 132 = 86 + 38 + 8, 0 CDS lỗi ORF** (§8.17). Giữ `--set annotator=pga` cho plastome không phải thực vật có hoa (Chloe chỉ làm angiosperm). GeSeq vẫn là kiểm tra chéo ghim một lần. **Bài học ghi lại:** công cụ thắng không nằm trong danh sách khảo sát ban đầu | Dev | `docs/D3-01_annotator.md`, `docs/tools/chloe.md` |
+| 03/10 | **[ĐÃ THAY 05/10 — xem dòng D5-08; và ĐÃ THAY LẦN NỮA 10/10/2026 — xem dòng D5-08 · §8.56: cả hai annotator ngoài đã nghỉ hưu theo P3B-11] Chú giải: Chloe là annotator của pipeline; PGA còn lại cho genome ngoài angiosperm (D3-01 — sửa lại sau khi ĐO, dev quyết)**: ràng buộc cũ vẫn nguyên (offline, ghi được tên · phiên bản · đường dẫn · argv), nhưng *"công cụ offline nào"* chỉ là **giả thuyết cho tới khi chạy thật**. PGA trên genome vàng ra **147 gen** (7 reference) và **130** (1 reference) so với **132**, kèm ba kiểu hỏng im lặng (§8.15) ⇒ **thay bằng Chloe**: offline, có bộ reference chuẩn hoá của chính nó, và **đo qua reader của mình ra đúng 132 = 86 + 38 + 8, 0 CDS lỗi ORF** (§8.17). Giữ `--set annotator=pga` cho plastome không phải thực vật có hoa (Chloe chỉ làm angiosperm). GeSeq vẫn là kiểm tra chéo ghim một lần. **Bài học ghi lại:** công cụ thắng không nằm trong danh sách khảo sát ban đầu | Dev | `docs/D3-01_annotator.md`, `docs/tools/chloe.md` |
 | 03/10 | **[ĐÃ THAY 03/10 (cùng ngày) — xem dòng "Bộ gọi gen mito tự viết" bên dưới] Nối công cụ chú giải mito (P3-04) — PMGA**, không phải MITOS2 (annotator của động vật có vú, bộ tham chiếu `refseq81m`). PMGA phân phối dạng **singularity container** (Figshare 27201798) + web server, không có repo git và không có tài liệu CLI công khai ⇒ **chưa viết adapter**: viết theo CLI tự nghĩ ra sẽ là một placeholder trông như thật. Cần: kéo container, ghi entry point vào `docs/` |
 | 03/10 | **Bước nặng: chạy ở đâu, và kết quả chạy ở nơi khác phải ghim được (P1-12, làm nốt 03/10)**: luật backend đã có từ 03/10 (giai đoạn 1–5 và 8 chạy tại chỗ; 6–7 chạy máy chủ từ xa) nhưng **thiếu đường thực hiện** cho công cụ chạy bên ngoài: `panel pin` chỉ nhận accession. Bổ sung `plastid panel pin --file … --note …` (§8.19) để kết quả của web service / máy chủ khác vào được panel với đủ checksum + đọc lại + provenance — PMGA là ca đầu tiên dùng nó | Dev | `docs/tools/pmga.md`, §8.19 |
 | 03/10 | **[ĐÃ THAY 03/10 (cùng ngày) — xem dòng "Bộ gọi gen mito tự viết" bên dưới: PMGA không chạy nổi ở đây, đường chú giải mito là bộ gọi của dự án; dòng này giữ làm bằng chứng đo] Chú giải mito: PMGA chạy trên web service rồi GHIM, không chạy local (dev quyết, xác nhận bởi anh Trí)**: máy này **không đủ mạnh để chạy annotate** — container PMGA 3,18 GB nén → **11 GB giải nén, 138.045 file**, cần Apptainer và bên trong chạy MAKER; trần WSL 8 GB, ổ C: thật chỉ còn 42 GB. Container đã được tải về, đọc lấy CLI thật, rồi **xoá** (14 GB = một phần ba chỗ trống). Chú giải mito đi theo **đường thứ hai của chính luật P1-12**: chạy PMGA trên web service một lần mỗi loài ⇒ `plastid panel pin --file … --note …` (§8.19) ghim kết quả với đủ checksum + đọc lại ⇒ `mito_genes` đọc offline. **`external/pmga.py` để mở có điều kiện:** viết khi có máy chạy nổi container, và số đầu tiên phải đo khi đó là RAM đỉnh + thời gian | Dev | `docs/tools/pmga.md` (P3-04; nay H-05) |
@@ -88,7 +88,11 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 | 05/10 | **Hình nằm ở tầng `result/`, render ở MỨC RUN từ `result.json` — không phải `core/figure.py` như board viết (dev quyết, có đo)**: (a) `tests/unit/test_architecture.py` chỉ cho `core/` import `plastid.core`, mà một hình là **hàm của `Result`** — `Result` ở tầng `result`; (b) **hai hình đọc bảng của hai module khác nhau** (`circular_map`, `ir_junction`: `genome_stats` ở khung GenBank + `structure` ở khung chuẩn hoá), việc mà một callback theo từng module không làm được. Hệ quả: hình render **sau** vòng lặp module, đọc `result.json` đã ghi — nên **một run được phục vụ hoàn toàn từ cache vẫn có hình**, và `plastid run --figures` với `plastid figures <run-dir>` là **cùng một hàm**. Đo: chạy hai lần trên cặp Iris đã pin ⇒ svg · pdf · eps **byte y hệt**; lần thứ hai là cache hit | Dev | §8.36 |
 | 05/10 | **Luật "đúng một ô" cho report đã sinh: ô CHỮ có chữ cái là văn xuôi, không phải lượng (dev quyết, có đo)**: luật nghiêm (mọi số phải nằm trong giá trị đã render của một ô) hỏng trên chính bộ giao phẩm Pha 4 với **10 phát hiện, 6 lớp** — và **cả 10** là một lượng va vào một số in bên trong một ô *chữ* được report trích nguyên văn (id khối `…_072561.1#10`, chuỗi luật `mean + 1 sd …`, cỡ nhóm `Coleus: 6, Oldenlandia: 5`, một câu ghi chú). Luật nay: giá trị của cột `str` mà chứa chữ cái bị **bỏ khỏi thân report đang quét** và **không tính là ô mang số**; ô `str` render đúng một số trần thì vẫn là ô mang số. Ca *hai dòng render cùng một giá trị* **không** bị coi là mơ hồ — hai ô không thể mâu thuẫn (genome vàng: hai bản IR đều 26.214 bp) | Dev | §8.35 |
 | 05/10 | **Ưu tiên hiện tại: LỤC LẠP trước — ty thể giữ nguyên và chừa hướng tích hợp sau (D5-07, cả nhóm chốt)**: dữ liệu **ty thể thực vật còn rất ít**, nên mọi phát triển mô-đun mới tập trung vào **lục lạp**; đường ty thể đã có (`mito_annotate` · `mito_genes` · bộ tham chiếu mito) **giữ nguyên, không mở rộng**. "Chừa hướng" là các điểm mở của D5-06, giữ nguyên hiệu lực: từ vựng tên theo bào quan · nhóm mô-đun khai báo · bộ dữ liệu một bào quan · bản ghi tự khai `/organelle` — nhờ đó sau này thêm phân tích ty thể **không phải đập lại cấu trúc**. Hệ quả xếp việc: **H-10** (mở 7 phân tích chuyển tiếp cho ty thể) và **H-06** (mở rộng từ vựng mito lên 10 locus chuẩn) **tạm hoãn** tới khi có dữ liệu ty thể; M6.2/M6.3 vẫn chờ dữ liệu như cũ | Cả nhóm (cô Trang) | §13 "Hai bào quan" (H-06 · H-10) |
-| 07/10 | **Đồng nhất tên gen là một bước riêng, chạy TRƯỚC chú giải và TRÊN bộ tham chiếu (D5-09, dev quyết — đảo chiều D3-02)**: pipeline nay là *(nguồn tham chiếu → audit → người dùng chọn một bản ghi ★ → `gene_normalize` chuẩn hoá DB)* → lắp ráp → chú giải → *`gene_normalize` chế độ kiểm* → phân tích; mẫu **thừa hưởng** từ vựng A qua bước chú giải, và chạy lại ở chế độ kiểm mà có gì đổi ⇒ **đó là phát hiện**, không phải việc thường. **Từ vựng A = tên của bản ghi ★** — **loại tham chiếu thứ 6** (không chọn lại theo taxonomy mỗi lần chạy, không phải của công cụ), do **người dùng cuối chọn từ báo cáo audit**; tên in trong bản thảo đổi theo ⇒ PI ký nhận. **Chiều chuẩn hoá đảo** — 5/9 locus đã đo đổi cách viết (`ycf3`·`ycf4`·`psbN`·`clpP`·`ndhL` thay `pafI`·`pafII`·`pbf1`·`clpP1`·`ndhI`); ba module đọc khoá chuẩn (`kaks`·`substitutions`·`popgen`) ⇒ **Ts/Tv 2,6917 dự đoán giữ nguyên nhưng phải đo lại**, không giả định. Mô-đun mới `gene_normalize` (**không nới `gene_names`**); slot của bước mới còn mở — ROADMAP → Open decisions | Dev · người dùng cuối (chọn ★) | `docs/D5-09_reference_naming.md` |
+| 07/10 | **Đồng nhất tên gen là một bước riêng, chạy TRƯỚC chú giải và TRÊN bộ tham chiếu (D5-09, dev quyết — đảo chiều D3-02)**: pipeline nay là *(nguồn tham chiếu → audit → người dùng chọn một bản ghi ★ → `gene_normalize` chuẩn hoá DB)* → lắp ráp → chú giải → *`gene_normalize` chế độ kiểm* → phân tích; mẫu **thừa hưởng** từ vựng A qua bước chú giải, và chạy lại ở chế độ kiểm mà có gì đổi ⇒ **đó là phát hiện**, không phải việc thường. **Từ vựng A = tên của bản ghi ★** — **loại tham chiếu thứ 6** (không chọn lại theo taxonomy mỗi lần chạy, không phải của công cụ), do **người dùng cuối chọn từ báo cáo audit**; tên in trong bản thảo đổi theo ⇒ PI ký nhận. **Chiều chuẩn hoá đảo** — 5/9 locus đã đo đổi cách viết (`ycf3`·`ycf4`·`psbN`·`clpP`·`ndhL` thay `pafI`·`pafII`·`pbf1`·`clpP1`·`ndhI`); ba module đọc khoá chuẩn (`kaks`·`substitutions`·`popgen`) ⇒ **Ts/Tv 2,6917 là dự đoán cho tới khi đo lại — [ĐÃ ĐO 08/10/2026: giữ nguyên 2,6917 (323 Ts / 120 Tv), và phép đo cho thấy nó *bất biến theo chiều* vì việc lật chiều là đổi nhãn chứ không chọn lại tập gen dùng chung — §8.45]**, không giả định. Mô-đun mới `gene_normalize` (**không nới `gene_names`**); slot của bước mới còn mở — ROADMAP → Open decisions | Dev · người dùng cuối (chọn ★) | `docs/D5-09_reference_naming.md` |
+| 08/10 | **Nơi chạy phần lắp ráp: tuỳ máy người dùng (xác nhận 08/10/2026)** — máy **đủ RAM** thì chạy **tại chỗ**; **không đủ** thì đề xuất **đường từ xa Galaxy** (usegalaxy.eu, §13.7 / M7.4). Luật 03/10 ("giai đoạn 6–7 chạy máy chủ từ xa") nay chỉ còn nguyên với **giai đoạn 6 — thời gian phân kỳ**. Chính sách đưa dữ liệu chưa công bố lên máy chủ công khai: **chưa quyết định** (§10.12) | anh Điềm | §13 (điều kiện chung) · ROADMAP → "Cross-phase rules" |
+| 08/10 | **Người dùng cuối, và cách dùng (định nghĩa, xác nhận 08/10/2026)**: người dùng cuối là **nhà nghiên cứu công nghệ sinh học / tin sinh học**; giao diện là **dòng lệnh trên Ubuntu** (Windows qua Docker — như quyết định 01/10). Định nghĩa này là thứ D5-09 §7.1 dùng cho việc chọn ★, và là người phải đọc được báo cáo audit | anh Điềm | CLAUDE.md · `docs/D5-09_reference_naming.md` §7.1 |
+| 09/10 | **Cổng audit chặn run, và "bỏ file" là một hành động được khai ra (P3B-09, dev quyết, có đo)**: D5-08 viết "mọi ca audit hỏng thì dừng run — exit 2, không chú giải gì", và vòng lặp là *"fix or drop the bad file → run again"*. Cổng nay nằm trong `plastid_annotate._reference_set` — **đúng tập bản ghi run sắp tìm, trước HSP đầu tiên** — nên mọi đường vào (lệnh `annotate` lẫn `plastid run -m plastid_annotate`) đều bị chặn như nhau. Nửa "drop" của vòng lặp là **`--exclude <accession>`**: khai trên dòng lệnh, ghi vào manifest (nguyên argv), nêu trong nhãn bộ tham chiếu và trong note của `result.json`; một cái tên không khớp bản ghi nào thì **dừng run**. Lý do phải có nửa ấy, đo được: bộ đã pin chặn đúng một bản ghi (`NC_024936.1`, `rps19` partial), nên nếu chỉ có "dừng" thì annotator **không chạy được trên chính bộ tham chiếu của dự án** cho tới khi người dùng tự dựng một thư mục khác. Một pin **không** waive được BLOCK — `--exclude` không phải lối vòng qua cổng, nó là "file ấy không được dùng" | Dev | §8.49 · §9.L-5 · §9.L-6 |
+| 09/10 | **`plastid annotate` = một loạt run, mỗi mẫu một thư mục (P3B-09, dev quyết)**: D5-08 viết "mỗi mẫu một artifact, run một report"; chỗ dựa là §2 ("output tách theo lần chạy/dataset, không ghi đè tại chỗ") và seam 3 ("lệnh thứ hai không được thành đường code thứ hai") — nên **mỗi mẫu đi qua đúng thân `_execute_run`** mà `plastid run` và `plastid mito annotate` dùng, ra một thư mục run với manifest · report · artifact riêng, dưới `<out>/<accession>/`. Mẫu hỏng: **được nêu tên, thư mục run của nó ghi `status: failed` + lý do, batch đi tiếp**, exit code khác 0 (mã của lỗi đầu tiên). Manifest thêm khoá `dataset` (tuỳ chọn — schema 2 không đổi) để một run hỏng trước khi ghi gì vẫn nói được nó là mẫu nào | Dev | §8.49 |
 
 ## 4. Ai làm gì
 
@@ -124,7 +128,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | Vùng lặp đảo IR | **26.214 bp**, hai bản giống **100,00 %** | tự tính; chú giải GenBank (`repeat_region` 83.128–109.341 và 127.511–153.724) khớp |
 | LSC / SSC | **83.127 / 18.169 bp** (tổng 4 vùng = 153.724) | tự tính |
 | SSR | **37** = mono 31 · di 4 · tri 2 | MISA standalone 2.1 **và** cpstools 3.0 (2 công cụ độc lập, cùng ra 37) |
-| Ts/Tv (so với Iris gatesii NC_024936.1) | **2,6917** = 323 Ts / 120 Tv; **chỉ vùng CDS** (79 gen dùng chung, không tính vùng lặp IR); MAFFT; 68.448 cột căn — phạm vi chốt 02/10, **bộ gen đo lại 04/10** | tự đo — xem ghi chú dưới bảng |
+| Ts/Tv (so với Iris gatesii NC_024936.1) | **2,6917** = 323 Ts / 120 Tv; **chỉ vùng CDS** (79 gen dùng chung, không tính vùng lặp IR); MAFFT; 68.448 cột căn — phạm vi chốt 02/10, **bộ gen đo lại 04/10**, **chiều tên đo lại 08/10 (không đổi)** | tự đo — xem hai ghi chú dưới bảng |
 | Số công bố của loài này | *Iris domestica* 153.729 bp, 132 gen; *Belamcanda chinensis* 153.735 bp, 132 gen | 2 bài công bố |
 
 > **Ghi chú 04/10/2026 — dòng Ts/Tv đo lại.** Phạm vi không đổi (chỉ CDS · gen dùng chung ·
@@ -133,6 +137,16 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 > Đo lại bằng ba tín hiệu (trình tự, vị trí, `/product`) ⇒ cùng locus ⇒ bộ dùng chung là **79
 > gen**, và số là **2,6917** (323 Ts / 120 Tv, 68.448 cột). Số cũ **2,686** (317/118, 76 gen,
 > 66.066 cột) vẫn nằm nguyên trong nhật ký §8.25 như số đo của bộ hẹp hơn. Chi tiết: §8.27.
+
+> **Ghi chú 08/10/2026 — dòng Ts/Tv đo lại lần hai, dưới chiều tên mới.** D5-09 đảo chiều chuẩn
+> hoá tên (từ vựng in ra nay theo bản ghi ★) và **ba mô-đun đọc khoá chuẩn** (`kaks` ·
+> `substitutions` · `popgen`) ⇒ dòng này là **dự đoán** cho tới khi đo lại. Đo lại **08/10/2026**
+> theo đúng thứ tự pipeline (`gene_normalize` ghi mẫu về từ vựng A → `substitutions --set
+> scope=cds`): **2,6917 = 323 Ts / 120 Tv · 79 gen · 68.448 cột** — không một đơn vị nào lệch.
+> Phép đo còn cho thấy **vì sao nó bất biến theo chiều**: bảng alias ánh xạ mọi thành viên của
+> một locus về locus đó, nên lật chiều là *đổi nhãn* tập gen dùng chung chứ không *chọn lại* nó
+> (đo: cả hai bản ghi Iris đều 86 CDS → 79 tên chuẩn, 0 locus có hai cách viết). Nhãn in ra thì
+> đổi — `substitutions_by_gene` nay in `ycf3`·`ycf4`·`psbN`·`clpP`·`ndhL`. Chi tiết: §8.45.
 
 ---
 
@@ -146,7 +160,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | Repeat phân tán + palindromic | repeat-match (MUMmer3) + Vmatch 2.3.1 | đã chạy thật — 9 match ≥30 bp, có cặp đảo IR 26.214 bp |
 | So sánh nhiều genome (khối LCB, synteny) | Sibelia 3.0.7 | đã chạy thật — 3 plastome · **[không đưa vào bộ công cụ — 07/10/2026: tuyến synteny của dự án là `nucmer`, D4-02/M4.2; ghi chú có ngày ở §13.0]** |
 | Biểu đồ % tương đồng theo toạ độ | nucmer (MUMmer4) `--maxmatch` → `delta-filter` → `show-coords` + matplotlib | đã chạy thật — 21 khối, %IDY 83,7–98,2 (mean 91,5) *(con số này đo 26/9 trên **dữ liệu khác**; cặp Iris = **7 khối · 97,37** — §8.26, §9.H)* |
-| Chú giải plastome | **công cụ tự viết** (D5-08) — hiện tạm: Chloe 0.1.18; PGA đã đo và bị loại (§8.15) | Chloe đã chạy thật: **132 = 86 + 38 + 8**, 0 CDS lỗi ORF (§8.17) |
+| Chú giải plastome | **công cụ tự viết** (D5-08) — hiện tạm: Chloe 0.1.18; PGA đã đo và bị loại (§8.15) | **[ĐÃ THAY 10/10/2026: động cơ tự viết đã đạt Done-when của nó — §8.55: bản vàng 132 = 86 + 38 + 8 với 35 khác biệt được liệt kê; corpus 418 so với PGA 588 (30/34 bản ghi tốt hơn), đọc strict là 1070 so với 699 — nêu kèm. Tập chloe · pga trong `annotation` nay đến hạn nghỉ: **P3B-11**]** |
 | Vẽ bản đồ vòng genome | pycirclize 1.10.1 | đã chạy thật — PNG 494.859 B @300 dpi |
 | Lắp ráp từ reads ngắn | GetOrganelle 1.7.7.1 + SPAdes 4.3.0 | đã chạy với reads **mô phỏng** — 127.679 bp |
 | Lắp ráp long-read (ít RAM) | raven-assembler 1.8.3 (+ OATK 1.0) | đã chạy thật — badread 150x ONT → 2 contig, dài nhất 107.394 bp |
@@ -181,7 +195,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 |---|---|---|---|
 | GeSeq | sống | chú giải | plann.pl + PGA.pl |
 | CPGAVAS2 | sống | chú giải + phân tích | plann.pl / PGA.pl |
-| Chloe | sống | chú giải theo loài họ hàng | plann.pl |
+| Chloe | sống | chú giải theo loài họ hàng | plann.pl **[ĐÃ THAY 10/10/2026 — P3B-11, §8.56: Chloe nghỉ hưu cùng `pga`; phép đo của nó ở §8.17, đường install giữ ở dòng cập nhật D3-01]** |
 | mVISTA | sống | biểu đồ % tương đồng | nucmer + matplotlib (21 khối — probe 26/9, dữ liệu khác; cặp Iris = 7 khối, §8.26; PNG 243.787 B) |
 | MISA-web | sống | SSR | MISA standalone — 37 SSR |
 | REputer | sống | repeat phân tán + palindromic | repeat-match (MUMmer3) + vmatch 2.3.1 |
@@ -193,7 +207,7 @@ Mẫu: **Iris domestica NC_050833.1** (bản nộp gốc: `MT001880.1`).
 | PREP-Cp | **chết** | dự đoán RNA editing | không còn web tương đương (PREPACT, CURE-Chloroplast cũng `http=000`) → đo từ RNA-seq |
 
 *Cột "bản local dùng thay" là ảnh chụp 26/9. Riêng các dòng **chú giải**, đường hiện tại khác: từ
-03/10 lục lạp dùng `annotation` (Chloe mặc định — §8.15–8.17; D5-08 sẽ thay bằng công cụ tự viết),
+03/10 lục lạp dùng `annotation` (Chloe mặc định — §8.15–8.17; **[ĐÃ THAY 10/10/2026: động cơ tự viết theo D5-08 đã đạt Done-when (§8.55) và là đường chạy của `plastid annotate`; tập chloe · pga đến hạn nghỉ — P3B-11]**),
 ty thể dùng `mito_annotate` (P3A); `plann.pl`/`PGA.pl` chỉ còn là lịch sử khảo sát.*
 
 ### 7.5. Ghi chú kỹ thuật đã gặp khi cài/chạy
@@ -258,7 +272,7 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 | PyPopART | `github.com/Adamtaranto/pypopart` → `pip install -e '.[viz]'` | ĐÃ GHI |
 | Deepred-Mt | `github.com/aedera/deepredmt` (cần TensorFlow ~2 GB) | ĐÃ GHI |
 | treePL | `github.com/blackrim/treePL` → phải tự build nlopt (nguồn trong `deps/`) + ADOL-C | ĐÃ GHI |
-| PGA / PGA.pl | `github.com/quxiaojian/PGA` (bản 2.0: `github.com/quxiaojian/PGA2`); CGAS `INSTALL.md` cũng ghi PGA phải cài tay từ GitHub. **Nguồn đã đọc mã 05/10/2026: commit `0683a0ec2b2061c49c60ec6c5a2293cd08623253` (29/10/2020) · `PGA.pl` 16.320 dòng · sha256 `0d55b70e53de5d677522cb8fed646898c2ea28bc3f56275a9190128bfd65c3c`** | ĐÃ GHI (kiểm 02/10) |
+| PGA / PGA.pl **ĐÃ THAY 10/10/2026 — P3B-11, §8.56: toolkit không còn chạy PGA; đầu ra của nó sống tiếp trong `tests/data/corpus/*.pga.gb` như đối chứng đã đo** | `github.com/quxiaojian/PGA` (bản 2.0: `github.com/quxiaojian/PGA2`); CGAS `INSTALL.md` cũng ghi PGA phải cài tay từ GitHub. **Nguồn đã đọc mã 05/10/2026: commit `0683a0ec2b2061c49c60ec6c5a2293cd08623253` (29/10/2020) · `PGA.pl` 16.320 dòng · sha256 `0d55b70e53de5d677522cb8fed646898c2ea28bc3f56275a9190128bfd65c3c`** | ĐÃ GHI (kiểm 02/10) |
 | Chloroplot + env R | `remotes::install_github("shuyuzheng/Chloroplot")`; env: r-base · bioconductor-biostrings · bioconductor-genbankr · bioconductor-cordon · r-reutils · r-circlize · r-dplyr · r-magrittr | ĐÃ GHI |
 | CGAS | `github.com/abdullah30/Chloroplast-Genome-Analysis-Suite-CGAS` (19 file `.py`, 21.369 dòng, MIT) | ĐÃ GHI (kiểm 02/10) |
 
@@ -402,6 +416,23 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.37 | Bảy hình đầu tiên, và quy tắc mở rộng theo N đo bằng ba lần vẽ (P5-02, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 | 8.38 | Thống kê — vector tính tay, và một so sánh thật cho ra 0 khác biệt có ý nghĩa (P5-03, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
 | 8.39 | Xuất bản phẩm — Excel tất định, gói Supplementary, và 34 trang PDF (P5-04, 05/10/2026) | [`docs/log/phase-5.md`](docs/log/phase-5.md) |
+| 8.40 | Bộ tham chiếu lục lạp — 34 bản ghi Iridaceae pin lại, và luật leave-one-out thành dữ liệu (P3B-01, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.41 | Ba con số của D5-09 §9.3 — biên, phép thử hàng xóm, `identity_floor` (P3B-02, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.42 | Khoá cache mang thêm bốn thứ — chú giải, thứ tự, mã nguồn, thứ được yêu cầu (P3B-05, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.43 | Cổng kiểm bộ tham chiếu — lớp chặn, lớp báo, lần đọc thứ hai bằng MAFFT, ngoại lệ buộc vào sha256 (P3B-03, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.44 | `gene_normalize` — bốn phép thử, ba trạng thái, tham chiếu chuẩn có ghi lại; và chiều alias đảo theo bản ghi ★ (P3B-04, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.45 | Ts/Tv đo lại dưới chiều tên mới — 2,6917 giữ nguyên, và phép đo cho thấy nó *bất biến theo chiều* (P3B-06, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.46 | Lõi gọi gen dùng chung — tách khỏi đường mito, ngưỡng plastid đo trên bản ghi vàng, và ba lỗi im lặng (P3B-07, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.47 | Annotator plastid chạy thật trên genome vàng — 86 CDS (nhân bản IR), ba cặp chồng lấn §8.34, và hai khác biệt mức kết luận (P3B-08, 08/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.48 | Một locus bị chú giải hai lần: bản cụt không được tìm kiếm, và 0,5 nằm giữa một khoảng trống đo được — `ycf1` của bản ghi vàng nay khớp bản công bố từng base (H-19, 09/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.49 | `plastid annotate`: cổng audit trước run (exit 2, 13 giây, không artifact), batch một mẫu một thư mục, bào quan khai theo nhóm trong registry — và ba phát hiện đo được: `rps19` mất 54 bp khi bỏ bản ghi bị chặn (H-20) · luật BLOCK partial quá rộng (H-21) · `.docx` chưa từng chạy được vì thiếu citation (P3B-09, 09/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.56 | **Nghỉ hưu `chloe` · `pga`** (P3B-11, thi hành mặc định của bảng quyết định "retires when P3B-10 passes"): xoá 9 tệp / **2.406 dòng** — `annotation` · `external/chloe.py` · `external/pga.py` · `core/gff.py` (chỉ Chloe dùng) · 3 tệp test · fixture · `docs/tools/chloe.md`; **giữ** `tests/data/corpus/*.pga.gb` + `tools/corpus_bar.py` (đối chứng đã đo, nửa còn lại của thanh chuẩn) · **lỗ hổng lộ ra khi dọn**: vế "tìm không ra gì là run hỏng" của P3B-10 chỉ có test ở đường mito, câu "asserted on both paths" trong TASKS.md là **sai** — đã viết `test_plastid_annotate_module.py` (3 ca) **trước** khi xoá · registry 22 → 21 mô-đun, nhóm plastid 7 → 6 (tripwire `test_organelle` phải đọc bảng §13 mới sửa) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.55 | **Cấu trúc exon lấy từ chính bản tham chiếu** (`core/exon_structure.py`: junction = exon k + cả intron + exon k+1, tìm bằng blastn có chuỗi alignment nên ranh giới map chính xác kể cả qua gap; theo **từng cặp exon** nên `rps12` trans-spliced vẫn đặt được exon 26 bp; bốn điều nó từ chối làm) · stop codon đọc **cả khi alignment dừng sớm** (65 khác biệt còn lại đúng dạng này, `psaJ` 30) · **H-20**: cấu trúc quyết định giữa các ứng viên — loại ứng viên có protein là **suffix** của ứng viên khác (cờ chỉ đường plastid bật) · **THANH CHUẨN ĐẠT: 418 so với PGA 588** (30/34 tốt hơn), bản vàng 44 → 35 khác biệt — **kèm cảnh báo đo được: cách đọc strict là 1070 so với 699, KHÔNG đạt**, và 621/652 cái `boundary` là đầu tRNA của ARAGORN (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.54 | `lhbA` là **call trùng** tại đúng `psbZ` 35.895–36.083 (ba tín hiệu §8.9 khớp tuyệt đối; 33 bản ghi `psbZ` / 1 `lhbA`; bộ từ vựng 80 → 79 tên) · `rps12` vắt ranh giới IR nay được **viết hai lần** như bản công bố (chung exon 1; còn thiếu exon thứ ba 26 bp) · **con số 86 của bản vàng đang đúng vì một cái sai bù một cái sai** — sửa H-18 một mình làm nó rơi xuống 85 · corpus 692 → **681** (PGA 588): 22/34 bản ghi viết `rps12` một lần, nên bản sao thành extra — kể cả tính nó là khác biệt trình bày thì **659 so với 576, vẫn không đạt** (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.53 | Bản vàng: **45 khác biệt** so với bản công bố (18 kết luận · 19 boundary · 8 vocabulary) thành test so **tập hợp** — một khác biệt đổi, biến mất hay mới xuất hiện đều fail kèm hai danh sách; bốn khiếm khuyết đã biết nằm **trong** danh sách chứ không bị nó che (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.52 | ARAGORN `i(a,b)`: trường thứ hai là **độ dài** intron, không phải toạ độ kết thúc — đọc sai cho tRNA nối ra 104–134 nt (bất khả), đọc đúng ra 72–95 và khớp **chính xác** exon của bản công bố ở `trnL-UAA` (85) và `trnA-UGC` (73); corpus **811 → 692**, thanh chuẩn vẫn không đạt (PGA 588, nay đo đủ 34 bản ghi) · rủi ro mới **H-22**: trần intron 3.000 bp của `-i` im lặng, intron dài nhất đo được 2.671 bp (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.51 | Corpus chạy lại sau hai bản sửa (thiếu 167→47, thừa 161→41) · thước đo vào repo (`tools/corpus_bar.py`, 19 test cho chính luật, `make corpus-bar`) · ngưỡng `boundary` 1 bp khai ra kèm lý do đo được · **thanh chuẩn vẫn KHÔNG đạt**: 811 so với PGA 588, và 0/34 bản ghi tốt hơn · ba phát hiện: `lhbA` là call trùng (86 của bản vàng đúng nhờ nó bù cho `rps12` thiếu một bản sao) · `rps12` thiếu exon giữa 26 bp và cả bản sao IRa · exon đầu 6–40 bp của `petB`/`petD`/`rpl16`/`rps16` (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.50 | P3B-10 mở màn: ARAGORN bỏ qua tRNA có intron trong im lặng (30 → 38, bản vàng đạt 132 = 86 + 38 + 8) · bản sao IR bị đặt lệch đúng một chiều dài IR (số gen vẫn đúng nên không test nào bắt) · corpus 34 bản ghi chạy xong và **thanh chuẩn chưa đạt**: 1.579 khác biệt mức kết luận so với PGA 637 (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 
 
 ---
@@ -545,6 +576,19 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
     lên **74 log MAFFT · 24 log yn00**. Ghi chú kèm: một module **cache hit** không chạy công cụ
     nào nên run đó **không có log** — trạng thái `cached` trong manifest là dấu hiệu để đọc.
 
+37. **Mới 08/10/2026 — id của run mang mốc đồng hồ, nên TÊN thư mục run không phải thứ tự thời
+    gian.** Đo được khi chạy `make check`: máy này (WSL2) **nhảy lùi ~1 giây** giữa hai lần chạy
+    liên tiếp — manifest của run thứ hai ghi `started_at 09:54:26` và `finished_at 09:54:25`, còn
+    run thứ ba nhận lại đúng mốc giây của run đầu nên được đặt hậu tố `-2`. Hệ quả: `sorted()`
+    trên tên thư mục xếp `…-095425`, `…-095425-…-2`, `…-095426` — tức run **thứ ba** đứng trước
+    run **thứ hai** — và test `test_second_identical_run_is_cached_and_identical` đọc nhầm thư mục
+    của run thứ hai, đúng chỗ nó vừa xoá file để thử khôi phục từ cache ⇒ đỏ. **Bản thân sản phẩm
+    không sai**: `RunLayout.create` vẫn bảo đảm "một run một thư mục, không ghi đè" nhờ hậu tố
+    `-2` (đã có test riêng cho cả ca đồng hồ đứng yên lẫn ca đồng hồ lùi). Sai ở **giả định của
+    test** — lấy thứ tự tên làm thứ tự thời gian; sửa bằng cách nhận diện thư mục của một run qua
+    **hiệu tập hợp trước/sau**, không qua `sorted()`. Luật kèm theo: một thư mục run chỉ được
+    nhận diện bằng chính nó, không bằng vị trí của nó trong danh sách.
+
 ### D. Chuyển chú giải mito bằng BLAST (P3A-03)
 
 1. **`sseqid` bị cắt tại khoảng trắng** ⇒ một khoá chủ thể dựng từ bốn field sẽ **không bao giờ**
@@ -666,7 +710,7 @@ vì mình chọn những bản ghi chạy được.
 trong bốn số thuộc **đường ty thể** ⇒ chúng được **ghi tên**: H-09 và H-11 **mở**, H-12 **hoãn**
 cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào bảng của bản thảo lục lạp.
 
-37. **`gene_names` không chọn từ vựng theo bào quan.** Bảng nhóm ở §13 xếp module này vào "Dùng
+38. **`gene_names` không chọn từ vựng theo bào quan.** Bảng nhóm ở §13 xếp module này vào "Dùng
     chung" vì "chọn từ vựng theo `/organelle` của bản ghi" — nhưng `modules/gene_names.py` nạp
     `load_gene_aliases()` (bảng plastid) cho **mọi** bản ghi; hàm chọn từ vựng thật
     (`core/gene_names.aliases_for`) chỉ được `cds_by_canonical_name` dùng (substitutions · kaks ·
@@ -674,7 +718,7 @@ cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào
     **0** "two nomenclatures"; cùng lúc `mito_genes` trên đúng `OX459128.1` → **31/51** gen được
     gọi bằng ký hiệu chuẩn. Một module khai "dùng chung" mà trả lời bằng từ vựng plastid là kiểu
     "im lặng" quen thuộc ⇒ **H-12**.
-38. **Bảng mã dịch: hai câu trả lời cho "lục lạp dùng bảng nào".** `core/codon.py` viết "Plastids
+39. **Bảng mã dịch: hai câu trả lời cho "lục lạp dùng bảng nào".** `core/codon.py` viết "Plastids
     use the standard code" và `codon_usage`/`amino_acid` in "NCBI table 1", trong khi
     `modules/annotation.py` khẳng định "plastids translate with NCBI table 11" — và D3-03 đã đo
     cả 1.099 CDS đều khai 11. Đo trên genome vàng: **5/86 CDS** mở đầu bằng mã không-ATG
@@ -684,16 +728,106 @@ cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào
     vào §3. **Cùng gốc, đo cùng ngày:** `orf` chọn bảng mặc định **1** khi bản ghi không khai
     `/transl_table`, còn đường chú giải lục lạp đóng dấu **11** cho đúng sự im lặng đó — hai đường
     trả lời một câu hỏi theo hai cách (`src/plastid/data/defaults.yaml`; H-09).
-39. **Artifact mito không khai `/organelle` (xác nhận lại H-11).** Đo trên
+40. **Artifact mito không khai `/organelle` (xác nhận lại H-11).** Đo trên
     `.panel/mito-prototype/AP045469.1.gb`: **0** feature `source`, **0** qualifier `/organelle`,
     `Genome.source == {}` — `read_fasta` không có gì để khai và `mito_annotate` chép nguyên
     `source` của input. Hệ quả: `aliases_for` trên chính artifact đó rơi về từ vựng plastid.
-40. **Artifact mito không qua nổi chính bộ kiểm của `submission`.** `plastid run -m submission`
+41. **Artifact mito không qua nổi chính bộ kiểm của `submission`.** `plastid run -m submission`
     trên artifact đó → **24 first-pass problems**, **23** là "CDS carries no /product" (module
     `mito_annotate` cố ý không viết `/product` — lý do có ghi trong docstring của nó), và các
     file **vẫn được ghi ra** kèm ghi chú "not ready to submit". Tức `submission` **báo, không
     chặn** — chữ "refuses" trong H-11 đã sửa lại cho đúng hành vi. Hai chốt (D3A-05 "chú giải +
     nộp" và "không tự bịa `/product`") va nhau ở đây; theo D5-07 ghi vào H-11 rồi hoãn.
+
+### K. Bước đặt tên (`gene_normalize`) — lỗi đo được (08/10/2026)
+
+1. **Artifact của `gene_normalize` trộn hai từ vựng trong một file.** `GENE_KINDS` là
+   `("CDS", "tRNA", "rRNA")` (`core/model.py`) nên quyết định đổi tên chỉ sinh cho ba loại đó;
+   feature `gene` — theo mô hình là một *span*, không phải một gen — được ghi lại **nguyên tên
+   gốc**. Đo trên artifact của chính run §8.45 (`NC_024936.1.normalized.gb`): **6 feature `gene`
+   còn nguyên từ vựng B**, đúng bằng 6 ca đổi tên của §8.44 — `atpL` · `psaL` · `bspB` ·
+   `trnk-UUU` · `trnl-GUA` ×2 — nằm **cùng span** với CDS/tRNA đã đổi thành `atpI` · `psaI` ·
+   `psbB` · `trnK-UUU` · `trnI-GAU`. Artifact của bản ghi vàng: **0** (nó là tham chiếu, không
+   đổi tên gì).
+   **Vì sao là lỗi chứ không phải lựa chọn:** cả hai bản ghi công bố đều khớp **132/132** feature
+   với feature `gene` cùng span cùng tên (đo cùng ngày: 0 lệch, 0 thiếu) — artifact của toolkit
+   là bên lệch chuẩn; CGAS, mô hình mà D5-08 bám theo, **có** đổi feature `gene` (D5-09
+   Appendix A: "8 features changed per target — 4 tRNA + 4 `gene`"); và D5-09 §3 cấm hai từ vựng
+   trong **một bảng** — ở đây chúng nằm trong **một file**, thứ người dùng mở ra xem.
+   **Chưa sửa, và cách sửa phải đo trước:** khớp theo *span* hay theo *locus* là câu hỏi thật —
+   feature `gene` có thể ôm trọn intron, và bản ghi vàng có **hai gen khác nhau dưới một tên**
+   (`trnG-UCC`, §8.41/H-04) nên khớp theo *tên* sẽ đổi nhầm cả hai. Ghi tên **H-17** (TASKS.md).
+   Hệ quả hôm nay là *hiển thị*, không phải *số*: `GENE_KINDS` loại feature `gene` khỏi mọi phép
+   đếm và mọi mô-đun so sánh.
+
+### L. Bộ gọi gen dùng chung (P3B-07 · P3B-08 · P3B-09) — sáu lỗi im lặng (08–09/10/2026)
+
+Sáu lỗi dưới đây không do test nào bắt: chúng chỉ hiện ra khi **chạy thật** bộ gọi plastid trên bộ
+tham chiếu 34 bản ghi — bốn lỗi đầu khi dựng bộ gọi và bộ trọng tài, hai lỗi sau khi **nối cổng
+audit vào lệnh `annotate`** (P3B-09, §8.49). Cả sáu đều thuộc đúng loại "sai mà không báo" mà dự án
+này tồn tại để chặn.
+
+1. **`-max_target_seqs 500` cắt cụt bộ tham chiếu trong im lặng.** Hằng số 500 được chọn cho 287
+   chuỗi của bộ tham chiếu mito ("nothing may be truncated away" — chú thích cũ nói đúng ý định,
+   nhưng con số thì không theo kịp dữ liệu). Bộ plastid có **2.838** chuỗi. Đo 08/10/2026 trên
+   genome vàng × 33 bản ghi leave-one-out: cap 500 → **929 HSP / 467 chuỗi**; cap = cỡ bộ →
+   **4.382 HSP / 2.603 chuỗi** — cùng một lệnh, cùng một dữ liệu, BLAST **không nói gì**. Hệ quả
+   nếu không đo: 63 locus công bố "không tìm thấy alignment nào", tức một bản chú giải thiếu
+   gần nửa số gen mà trông vẫn hợp lệ. Sửa: `subject_count()` đếm chuỗi từ chính file bộ tham
+   chiếu, `search_argv`/`blastp_argv` **bắt buộc** nhận ngưỡng ấy, và hằng số bị xoá — một ngưỡng
+   không thể cắt cụt là ngưỡng duy nhất đáng giữ. Test:
+   `test_the_target_cap_is_the_size_of_the_reference_set`.
+2. **Một tên gen có khoảng trắng làm header FASTA bị BLAST cắt.** `NC_042827.1` không đặt `/gene`
+   cho rRNA; reader rơi về `/product` (đúng như thiết kế), nên tên gen là `23S ribosomal RNA`, và
+   header `…|23S ribosomal RNA|rrn23` về tới nơi là `…|23S` — **dưới ngưỡng ba field**. Parser từ
+   chối và gọi tên file, thay vì khớp một khoá không bao giờ khớp entry nào. Sửa:
+   `ReferenceEntry.key` bỏ khoảng trắng trong từng field và `_header` dùng lại chính `key` đó —
+   hai chỗ viết cùng một khoá là hai chỗ có thể lệch nhau. Test:
+   `test_a_name_with_a_space_gets_a_header_a_blast_hit_can_come_back_as`.
+3. **Tên rRNA dạng câu sản phẩm chưa được chuẩn hoá.** `16S ribosomal RNA` là *cùng locus* với
+   `rrn16`, nhưng vào bộ từ vựng như một tên riêng — bốn locus không run nào gọi tên được, và
+   bảng `not_called` sẽ báo chúng "no alignment" trong khi alignment vẫn ở đó. Sửa: `gene_names`
+   mở rộng luật đã có cho dạng `rrn16S` (cùng một tri thức: lớp kích thước nằm trong chuỗi) cho
+   dạng câu; `rrnS`/`rrnL` của ty thể vẫn **không** bị chạm.
+
+4. **Một locus bị chú giải hai lần: bản cụt thắng bản đầy đủ.** `_choose` xếp theo identity
+   trước, và một bộ tham chiếu mang `ycf1` **cụt** — bản sao nằm trong IR, ~300 residue — khớp mẫu
+   ở **98,83 %**, cao hơn mọi ứng viên đầy đủ (97,2–97,7 %), nên `ycf1` của bản ghi vàng được gọi
+   thành **900 bp** ở 108.448–109.347 thay vì 5.421 bp ở 122.984–128.404. Đúng ca mà D5-08 §3 gọi
+   tên: **cấu trúc quyết trước, điểm chỉ tie-break**. Sửa: một locus mà **một bản ghi** chú giải
+   hai lần, bản ngắn dưới 50 % bản dài, là bản sao bị cụt — không vào chỉ mục tham chiếu, và
+   **được nêu tên** (`truncated_annotations`); ngưỡng 0,5 nằm giữa khoảng trống đo được
+   0,2992 → 0,9927 trên 243 locus trùng của bộ đã pin. Đo lại trên bản ghi vàng: **đúng một dòng
+   đổi**, và nó khớp bản công bố từng base (§8.48). Test:
+   `test_a_locus_a_record_annotated_twice_is_searched_once` ·
+   `test_ycf1_lands_on_the_published_gene_not_on_a_truncated_reference`.
+
+Hai số dưới đây **cũng** chỉ hiện ra khi chạy thật, lần này là khi nối cổng audit vào lệnh
+`annotate` (P3B-09, §8.49). Chúng thuộc cùng họ "sai mà không báo", nhưng khác gốc: cái thứ nhất
+là **cấu trúc giữa các ứng viên**, cái thứ hai là **một luật BLOCK quá rộng**.
+
+5. **Vế "cấu trúc trước" giữa các ứng viên chưa được thi hành — và giá của nó đo được.** Khi bản
+   ghi bị cổng chặn (`NC_024936.1`) bị bỏ ra khỏi bộ tham chiếu, tập call của bản ghi vàng **đổi
+   đúng một dòng**: `rps19` từ **279 bp** ở 83.173–83.451 (khớp bản công bố) thành **225 bp** ở
+   83.173–83.397, dù identity vẫn 100,00 %. Nguyên nhân đo trên cả 34 bản ghi: `rps19` là
+   **27 × 279 bp/92 aa · 2 × 285 bp/94 aa · 3 × 225 bp/74 aa · 1 × 69 bp/22 aa** — ba bản ghi
+   (`NC_081929.1` · `NC_081930.1` · `NC_081932.1`) mang một `rps19` **bị chú giải cụt**, và khi
+   bản đầy đủ vắng mặt thì một bản 225 bp thắng rồi kéo call về độ dài của chính nó. H-19 mới sửa
+   vế **trong-một-bản-ghi** (bản sao cụt không vào chỉ mục); vế **giữa các bản ghi** — D5-08 §3
+   "cấu trúc quyết trước, điểm chỉ tie-break" — thì chưa. **H-20**, việc của bộ trọng tài, và là
+   một khác biệt P3B-10 phải phân loại.
+6. **Luật BLOCK "toạ độ partial" từ chối một bản ghi có protein đầy đủ.** `NC_024936.1` mang
+   **hai** feature `rps19`, mỗi cái **279 bp / 92 aa** với `/translation` trọn vẹn; cờ partial
+   (`>83020`, `<153124`) mô tả gene nằm ở ranh giới IR, không phải một protein cụt. Bằng chứng:
+   **chính bản ghi ấy** là bản ghi cho ra `rps19` khớp bản công bố từng base (100,00 %, không cờ
+   partial nào trên call) — nên lý do của luật ("một reference partial đóng dấu partial lên mẫu",
+   §8.15 trap 1) không đúng cho dạng này. **H-21**; sửa một luật BLOCK đã chốt ở P3B-03 cần đo lại
+   toàn bộ, không làm lặng lẽ trong một task khác.
+
+**Chưa sửa, đã đặt tên — H-18:** `lhbA` (`NC_042827.1`) và `psbZ` (33 bản ghi còn lại, kể cả bản
+ghi vàng) là **một locus**, cùng 62 aa; bộ từ vựng vì thế có 80 tên CDS cho 79 locus, và bộ gọi
+gọi cả hai. Gốc là `data/gene_aliases.yaml` thiếu một mục — việc của tầng đặt tên (D5-09), không
+phải của bộ gọi; bộ gọi báo đúng như nó thấy.
 
 ## 10. Câu hỏi còn treo
 
@@ -716,6 +850,9 @@ cùng H-06/H-10 theo D5-07; số về bảng mã **sửa ngay** vì nó đi vào
     cột mà bảng nguồn mang, kèm n và tên kiểm định; **không** dùng từ ngữ nhân quả/thích nghi.
     Đây là **phạm vi một tuyên bố khoa học** nên thuộc cô Trang — chờ chốt trước khi P5-03 viết
     câu diễn giải (D5-05).
+12. **Chính sách dữ liệu cho đường lắp ráp từ xa (M7.4).** usegalaxy.eu là máy chủ **công khai**;
+    việc đưa reads **chưa công bố** của đề tài lên đó **chưa được quyết định** (08/10/2026). Phải
+    chốt trước khi dùng đường từ xa — nếu không đồng ý, đường từ xa phải là máy chủ của trường/viện.
 
 ## 11. Nguồn tài liệu (ngoài file này)
 
@@ -728,7 +865,7 @@ Nằm trong `D:\business\pts\`:
 | `Danh_sach_tool_khong_cai_duoc_NguyenThanhDiem.docx` | 84 công cụ đã thử · 64 chạy · 17 không chạy |
 | `REVIEW_2026-09-26_3_tai_lieu_va_muc_tieu_may_pho_thong.docx` | Bản kỹ thuật đầy đủ: mục 9 (khả thi theo khối) · mục 10–12 (đo rủi ro đường nối, chạy thử liền mạch, đóng vòng bằng công cụ chuẩn) |
 | `BAO_CAO_4_CAU_HOI_PlastidToolSuite_2026-09-26.docx` | Bản cho người không chuyên (khả thi / vấn đề / giải quyết được không / giải quyết thế nào) + mục 8 chiến lược tích hợp |
-| `KE_HOACH_TRIEN_KHAI_PlastidToolSuite_2026-09-26.docx` | Kế hoạch triển khai (môi trường dev, kiểm thử, đóng gói, lộ trình 8 tuần) |
+| `KE_HOACH_TRIEN_KHAI_PlastidToolSuite_2026-09-26.docx` | Kế hoạch triển khai (môi trường dev, kiểm thử, đóng gói, lộ trình 8 tuần — **dự kiến**, không phải hạn cam kết; xác nhận 08/10/2026) |
 | `HUONG_DAN_SETUP_MOI_TRUONG_CODE_2026-10-01.docx` | Hướng dẫn setup WSL / Claude Code / Docker |
 | `thanhdiem_result/` | Trả lời phiếu việc của anh Điềm + kết quả thô (`.misa`, `.statistics`, cpstools, MAFFT per-gene) |
 | `probe/` | Script + dữ liệu dùng để đo các lỗi ở §8–9 (`chain_e2e.py`, `chain_tools.py`, `ir_gate.py`, `iridaceae20.gb`) |
@@ -848,7 +985,7 @@ Ba điều sơ đồ cốt để không quên: **(1)** đồng nhất tên chạ
 - **Phạm vi con số Ts/Tv dùng làm cổng:** **chỉ vùng CDS · 79 gen dùng chung · căn bằng MAFFT · không tính IR** ⇒ **2,6917** (323 Ts / 120 Tv, 68.448 cột căn). Phạm vi chốt 02/10; **bộ gen dùng chung đo lại 04/10 bằng locus** — ba locus viết tên khác (`atpI`·`psaI`·`psbB` ↔ `atpL`·`psaL`·`bspB`) được tính vào (76 → 79 gen; 2,686 → 2,6917, §8.27). Số của bộ Eleutherine (1,095–1,777) là **khác phạm vi** (SNP của cả plastome) — không được lấy ra đối chiếu trực tiếp.
 - Mỗi lần chạy phải xuất **report công cụ + thông số** (tên công cụ · phiên bản · đường dẫn · tham số/ngưỡng · thời gian) và **chia output theo thư mục** để người dùng truy lại — yêu cầu đã chốt 02/10 (§2). Đây là điểm CGAS đang thiếu (§7.7).
 - **Chuẩn hoá bộ gen dùng chung**: xác định điểm bắt đầu/chiều và tách 4 vùng LSC/IRa/SSC/IRb — làm ở giai đoạn 1 rồi mọi giai đoạn dùng lại.
-- **Chạy ở đâu**: các giai đoạn 1–5 và 8 chạy trên **máy phổ thông**; giai đoạn 6 (thời gian phân kỳ) và giai đoạn 7 (lắp ráp) cần **máy chủ từ xa** (máy 8 GB không đủ — §9.C-28).
+- **Chạy ở đâu**: các giai đoạn 1–5 và 8 chạy trên **máy phổ thông**; giai đoạn 6 (thời gian phân kỳ) cần **máy chủ từ xa** (máy 8 GB không đủ — §9.C-28). **Giai đoạn 7 (lắp ráp) tuỳ máy người dùng** (xác nhận 08/10/2026): đủ RAM thì chạy **tại chỗ**, không đủ thì dùng **đường từ xa Galaxy** (§13.7); chính sách đưa dữ liệu chưa công bố lên máy chủ công khai **chưa quyết định** (§10.12).
 - **Ca kiểm thử chuẩn**: bộ dữ liệu **Eleutherine bulbosa** + **bộ số vàng** ở §6.
 - **Kiểm thử ngay trong từng giai đoạn, không dồn về cuối**: mỗi giai đoạn phải có mục *“Kiểm tra trong giai đoạn”* và chỉ được coi là xong khi số kiểm tra khớp; sai thì **dừng lại sửa ngay trong giai đoạn đó**, không để lỗi trôi sang giai đoạn sau. Giai đoạn 8 chỉ làm phần **kiểm thử chéo**.
 - **Chưa chốt (dev tự quyết khi lập kế hoạch với Claude)**: cách tổ chức mô-đun/plugin, định dạng dữ liệu trung gian giữa các bước, và quy trình chạy tự động nhiều bước.
@@ -857,12 +994,25 @@ Ba điều sơ đồ cốt để không quên: **(1)** đồng nhất tên chạ
 
 | Nhóm | Mô-đun | Vì sao ở nhóm đó (đo được) |
 |---|---|---|
-| **Dùng chung** | `orf` · `gene_names` · `kaks` · `popgen` · `submission` | theo gen/chuỗi, không theo vị trí. `kaks` + `popgen` **đã chạy trên mito thật** (`standin-mito`, §8.30); `orf` chấm chính bản chú giải mito (§8.22); `gene_names` là **tầng tên** dùng chung (hàm `aliases_for` chọn từ vựng theo `/organelle`), nhưng **hôm nay module `gene_names` chỉ nạp bảng plastid** — đo 05/10: 0 renamed / 0 aliased trên bản ghi mito trong khi `mito_genes` gọi tên được 31/51 locus (§9.J) ⇒ **H-12**, tạm hoãn theo D5-07 |
-| **Chỉ lục lạp** | `structure` · `genome_stats` · `annotation` · `gene_table` · `barcodes` | định nghĩa bằng IR/vùng LSC/IRa/SSC/IRb (`structure`, `genome_stats`), bằng công cụ chú giải lục lạp (`annotation` — hiện là Chloe, D5-08 sẽ thay bằng công cụ tự viết; ty thể có `mito_annotate`), hoặc bằng **dữ liệu plastome**: `gene_groups.yaml` → `gene_table` · `barcode_loci.yaml` → `barcodes` |
+| **Dùng chung** | `orf` · `gene_names` · `kaks` · `popgen` · `submission` · `stats` | theo gen/chuỗi, không theo vị trí. `kaks` + `popgen` **đã chạy trên mito thật** (`standin-mito`, §8.30); `orf` chấm chính bản chú giải mito (§8.22); `gene_names` là **tầng tên** dùng chung (hàm `aliases_for` chọn từ vựng theo `/organelle`), nhưng **hôm nay module `gene_names` chỉ nạp bảng plastid** — đo 05/10: 0 renamed / 0 aliased trên bản ghi mito trong khi `mito_genes` gọi tên được 31/51 locus (§9.J) ⇒ **H-12**, tạm hoãn theo D5-07 |
+| **Chỉ lục lạp** | `structure` · `genome_stats` · `plastid_annotate` · `gene_table` · `barcodes` · `gene_normalize` | định nghĩa bằng IR/vùng LSC/IRa/SSC/IRb (`structure`, `genome_stats`), bằng công cụ chú giải lục lạp (`plastid_annotate` — engine tự viết, chuyển chú giải từ bản ghi plastome và đọc vùng lặp đảo; ty thể có `mito_annotate`) **[ĐÃ THAY 10/10/2026 — P3B-11: `annotation` ra khỏi bảng cùng chloe · pga; tập 7 mô-đun nhóm plastid nay là 6, xem §8.56]**, hoặc bằng **dữ liệu plastome**: `gene_groups.yaml` → `gene_table` · `barcode_loci.yaml` → `barcodes`. `gene_normalize` ở đây **tạm thời** và có lý do đo được: bản ghi ★ hiện là một plastome, nên chuẩn hoá một bản ghi mito theo nó sẽ in cách viết plastid cho gen ty thể — đúng bài học của H-12 (§8.44, D5-09 §9.8) |
 | **Chỉ ty thể** | `mito_annotate` · `mito_genes` | chú giải mitogenome từ bộ tham chiếu + bộ gen ty thể; không cổng IR (§8.21–8.24) |
 | **Chuyển tiếp — dùng chung về bản chất, chưa mở cho ty thể** | `ssr` · `introns` · `codon_usage` · `amino_acid` · `substitutions` · `diversity` · `synteny` | SSR · codon usage · amino acid · intron · Ts/Tv · π · mVISTA đều là phân tích chuẩn của bài mitogenome, nhưng mỗi mô-đun báo theo **vùng plastome** hoặc gọi `ctx.require_ir()` ⇒ chạy trên mitogenome thì run **dừng ở cổng, trước khi mô-đun chạy** (đo 03/10: cả hai mitogenome stand-in ném `IRDetectionError`, §8.6). Mở cho ty thể = một chế độ "không vùng" — H-10 |
 
-**Hiện trạng, nói thẳng:** hôm nay cờ `requires_ir` là tín hiệu duy nhất mô-đun mang, nên hai chiều lệch **không đối xứng**: chạy mô-đun lục lạp trên mitogenome thì **cổng IR đã chặn**, còn chạy `mito_genes` / `mito_annotate` trên plastome thì **không có gì chặn** (không mô-đun nào hỏi bào quan của bản ghi) — và một bộ dữ liệu **trộn hai bào quan** cũng không có gì chặn: không chỗ nào trong run/panel hỏi bào quan của **cả bộ**. Thêm một lỗ của chính luật này, đo 05/10: **artifact do bộ công cụ tự viết chưa khai bào quan** — `plastid mito annotate` xuất GenBank **không có `source` feature và không có `/organelle`**, nên đường chọn từ vựng tên rơi về bảng plastid (H-11). Việc còn lại có tên: **H-09** (khai báo nhóm trong registry + từ chối khi lệch, **kể cả** khi bộ dữ liệu trộn bào quan), **H-10** (mở bảy mô-đun chuyển tiếp), **H-11** (artifact tự viết phải khai `/organelle`) và
+**[ĐÃ SỬA 09/10/2026 — P3B-09, §8.49]** Nhóm nay được **khai trong registry**: `ModuleSpec.group`
+nhận `shared` · `plastid` · `mito`, **bắt buộc** với mọi mô-đun (bỏ sót không phải một lời khai —
+thiếu thì import đổ), và cả **22 mô-đun** đã khai theo đúng bảng trên. Luật thi hành nằm ở
+`core/organelle.py`: đọc `/organelle` của bản ghi (không đoán khi bản ghi không khai — D5-06: chuỗi
+trần tự khai bằng **đường vào**), **hai chiều lệch đều dừng có tên** kèm đường đúng
+(`plastid annotate` ↔ `plastid mito annotate`), và một **bộ trộn hai bào quan cũng dừng** — trước
+khi mẫu nào được chú giải. Bảy mô-đun "chuyển tiếp" khai `shared` (đúng như bảng gọi chúng: *dùng
+chung về bản chất*); thứ giữ chúng khỏi mitogenome hôm nay là `requires_ir` — một câu hỏi khác, có
+cổng riêng — nên hàng ấy vẫn nguyên hiệu lực và **H-10** vẫn là việc mở chúng ra. Ba mô-đun chưa
+có trong bảng (thêm sau 05/10) nay đã vào: `plastid_annotate` → **chỉ lục lạp** (chuyển chú giải
+từ bản ghi plastome, đọc vùng lặp đảo), `stats` → **dùng chung** (so sánh nhóm, không theo vị trí),
+`reference_audit` → không đăng ký trong registry (nó là bước audit, gọi trực tiếp).
+
+**Hiện trạng trước 09/10/2026, giữ nguyên để đọc lịch sử:** cờ `requires_ir` là tín hiệu duy nhất mô-đun mang, nên hai chiều lệch **không đối xứng**: chạy mô-đun lục lạp trên mitogenome thì **cổng IR đã chặn**, còn chạy `mito_genes` / `mito_annotate` trên plastome thì **không có gì chặn** (không mô-đun nào hỏi bào quan của bản ghi) — và một bộ dữ liệu **trộn hai bào quan** cũng không có gì chặn: không chỗ nào trong run/panel hỏi bào quan của **cả bộ**. Thêm một lỗ của chính luật này, đo 05/10: **artifact do bộ công cụ tự viết chưa khai bào quan** — `plastid mito annotate` xuất GenBank **không có `source` feature và không có `/organelle`**, nên đường chọn từ vựng tên rơi về bảng plastid (H-11). Việc còn lại có tên: **H-09** (khai báo nhóm trong registry + từ chối khi lệch, **kể cả** khi bộ dữ liệu trộn bào quan — **phần khai báo và từ chối đã xong 09/10/2026, §8.49**), **H-10** (mở bảy mô-đun chuyển tiếp), **H-11** (artifact tự viết phải khai `/organelle`) và
 **H-12** (`gene_names` chỉ nạp từ vựng plastid — §9.J).
 
 **Ưu tiên (D5-07, cả nhóm chốt 05/10): lục lạp trước.** Dữ liệu ty thể thực vật còn rất ít ⇒ phát triển mô-đun mới tập trung vào **lục lạp**; đường ty thể **giữ nguyên, không mở rộng** (H-10 và H-06 **tạm hoãn**, không phải bỏ — mở lại khi có dữ liệu ty thể). Bảng nhóm ở trên và các điểm mở của D5-06 chính là **cửa để sau này tích hợp phân tích ty thể mà không phải đập lại cấu trúc**.
@@ -986,7 +1136,7 @@ Cần dữ liệu đọc thô; nặng về bộ nhớ.
 - Lắp ráp + QC hàng loạt (fastp → GetOrganelle)
 - Kiểm tra đồ thị assembly (Bandage)
 - Cấp dữ liệu cho phần cấu hình ty thể ở giai đoạn 6
-- **Đường chạy từ xa** cho máy yếu: usegalaxy.eu (`get_organelle_from_reads`) — cắt bớt read (subsample) trước khi upload, **pin phiên bản công cụ + ghi lại history ID**
+- **Đường chạy từ xa** cho máy yếu: usegalaxy.eu (`get_organelle_from_reads`) — cắt bớt read (subsample) trước khi upload, **pin phiên bản công cụ + ghi lại history ID**. *Đưa dữ liệu chưa công bố lên máy chủ công khai: **chưa quyết định** (08/10/2026) — §10.12.*
 - **Ca read Illumina thật**: hiện **chưa có** dữ liệu read của đề tài (đang nợ) ⇒ mới chỉ có cổng dựa trên read mô phỏng
 
 **Kiểm tra trong giai đoạn:** so với kết quả đã chạy thật — GetOrganelle + SPAdes cho **127.679 bp** từ 20.000 cặp read mô phỏng · OATK: 126.660 bp, identity **100,00 %** · Bandage ra PNG (103.289 B). Khi có read thật: bổ sung mục đo **đỉnh RAM**.

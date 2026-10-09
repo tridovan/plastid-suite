@@ -9,50 +9,531 @@
 
 ## Resume point
 
-**Phases 1 – 5 and 4a — COMPLETE and merged to `main`.** **Phase 5 (figures & reports) closed
-05/10/2026**: five tasks, each Done-when measured, recorded in `docs/log/phase-5.md` (§8.35–§8.39)
-and ticked in `ROADMAP.md`. `TASKS.md` holds no open phase — only the Housekeeping table.
+**Phases 1 – 5 and 4a — COMPLETE and merged to `main`.** **Phase 3B is OPEN** on `feat/phase-3b` —
+the self-built plastid annotator, with the naming step (D5-09) in front of it. **The board is
+complete: P3B-01 … P3B-11 are done** (10/10/2026, §8.50–§8.56).
 
-**Immediate next action:** open the **Phase 3B** board — the slot was **decided 07/10/2026**: this
-phase (after Phase 5, mirroring 3A), with the naming step (**D5-09**) as its **M3B.0** in front of
-the annotator, because the reference set must be name-normalized before the annotator uses it.
-Build the board from ROADMAP's **M3B.0–M3B.5** with the `make-tasks` skill. Still open: D5-08's
-D-a · D-b · D-e and D5-09 §9's items 1–4 · 6–9; on hold by D5-07: H-06 · H-10 · H-12. ROADMAP's
-"The pipeline" maps every step of the canonical diagram to its owner milestone — and, since session
-23, **every tool named inside a box** (the tool-level pass added **M7.6**, the long-read path, and
-named the read map-back in **M7.1**). Nothing else is scheduled: Phase 6 waits on mito/nuclear
-data, Phase 7 on real reads (Illumina **and** ONT/HiFi).
+**Immediate next action: P3B-12 — close the phase** (the only row left, and it is mechanical):
 
-**What Phase 5 left in the toolkit.** Three optional extras, none of them on the minimum install:
-`[figures]` (matplotlib), `[stats]` (scipy), `[excel]` (openpyxl) — each imported inside the
-function, each missing one a named `ExportDependencyError` + exit 3 · **eight figure types** in
-`result/figures/`, rendered at run level from the run's own `result.json` · `plastid run --figures`,
-`plastid figures`, `plastid package`, `plastid qc` · `core/stats.py` + the `stats` module ·
-`report/audit.py` (the queryable-number check) · `read_result`, which makes a run directory
-readable without re-running anything.
+```
+git tag phase-3b feat/phase-3b        # the detail outlives the close
+git switch main
+git merge --squash feat/phase-3b
+git commit                            # one commit, the ten tasks listed, §8.50–§8.56
+```
 
-**The phase's own numbers:** SVG · PDF · EPS byte-identical between two runs (a cached second run
-included) · the N-scaling rule **measured** at 2 · 8 · 34 (a series cap of 8, then the span the
-genomes cover) · 320 statistical tests over the stand-in panel with 0 significant after
-Benjamini–Hochberg, and 3 of the panel's 11 records carrying no annotation at all · **34/34**
-corpus records producing a one-page PDF, none failing · the audit clean over the whole Phase-4
-deliverable run (12 reports, 44 numbers).
+The branch is **never deleted** — it holds every task commit, and `git bisect` at task granularity
+runs on it. The squash commit's message must carry **the strict reading beside the headline**:
+418 conclusion-level differences against PGA's 588, and **1070 against 699 if every 1 bp move is
+counted** (§8.55). After the merge, `main` holds phases 1–5, 4a and 3B, and the next phase opens on
+a fresh branch.
 
-**Three layout defects were found by looking at rendered figures**, not by tests — the §9.C-34
-lesson, paid three times : overlapping region bands (§8.36) · a barcode band shading the whole axis
-plus a GC-skew ring with 50 % gaps (§8.37) · summary lines drawn inside the GC-skew panel (§8.39).
+**What landed in this session's second half (P3B-11, §8.56).** The two external annotators retired
+— `annotation`'s chloe · pga set, the decisions table's own default, due the moment P3B-10 passed.
+9 files / 2,406 lines deleted (`modules/annotation.py` · `external/chloe.py` · `external/pga.py` ·
+`core/gff.py` · their three test files · the Chloe GFF fixture · `docs/tools/chloe.md`), the
+registry 22 → 21 modules and the plastid group 7 → 6. **Kept on purpose:** `tests/data/corpus/*.pga.gb`
+and `tools/corpus_bar.py` — PGA's home is being the measured counter-example, and deleting them
+would blind the bar. **The order mattered:** reading the old tests first showed that P3B-10's
+clause 4 ("a search that finds nothing is a failed run") was tested **only on the mito path** while
+TASKS.md claimed "both paths" — `tests/unit/test_plastid_annotate_module.py` was written before
+anything was deleted, and the false sentence was corrected in place.
 
-**New housekeeping item, measured 05/10:** **H-14** — `--docx` is silently lost on a cache hit
-(two runs of `gene_table`, the second `cached` with 0 `.docx` files), and the manifest's `command`
-does not carry `--docx` either. Same family as H-08.
+**What P3B-10 left, for the record** (§8.55): the golden annotates to 132 = 86 + 38 + 8 for the
+right reason with **35** differences from the published record listed and pinned as a set; the
+corpus runs 34 leave-one-out and reads **418 against PGA's 588** — better in 30/34 records, worse
+in 4 — with the strict reading (**1070 against 699, does not pass**) and the composition (621 of
+our 652 `boundary` differences are ARAGORN's tRNA ends) stated wherever the headline appears. The
+three changes that got there: the reference's **own exon structure** placed through an alignment of
+its own DNA · the **stop codon read even when the alignment stops short** · **H-20** (a candidate
+whose protein is the *suffix* of another's is a gene annotated from an inner ATG).
 
-**On hold by D5-07 (plastid first):** H-06 · H-10 · H-12. **Open:** H-05 · H-07 · H-08 · H-09 ·
-H-11 · H-13 · H-14. **Waiting on the PI:** H-04 (`trnG`) and D5-05 (what a generated sentence may
-claim — the mechanism is built and follows the conservative default).
+**Open, named, not scheduled:** **H-22** (ARAGORN's `-i` 3,000 bp cap — the change now has a
+measured Done-when) · **H-04** · **H-07** · **H-11** · **H-13** · **H-16** · **H-17** · **H-21**;
+on hold H-06 · H-12; blocked D-03 (cô Trang). The eight tRNA names ARAGORN reads differently and
+ARAGORN's tRNA ends are **measured differences, not defects** — they are classified in §8.55.
 
 ## Log
 
-### 2026-10-07 · Claude · dev WSL · session 23 (the coverage check re-run at tool level — three ownerless tools, one ownerless artifact)
+### 2026-10-09 · Claude · dev WSL · session 33 (P3B-10 done — the bar is met; and P3B-11, the two annotators retire)
+
+**Did.** (1) **P3B-10**: the exon-structure transfer (`core/exon_structure.py`), the stop codon read
+past an alignment that stopped short, and H-20 — the corpus bar went 681 → **418 against PGA's
+588**. (2) **P3B-11**: retired `annotation`'s chloe · pga set (9 files, 2,406 lines).
+
+**Validation.** `make check` green (lint · 778 fast tests · golden). The corpus: 34 records
+leave-one-out, **30/34 better, 4 worse, 0 tied**. The golden: 132 = 86 + 38 + 8, **35** differences
+listed and pinned as a set. The mito golden tripwire moved **18 → 19** when the stop-codon rule
+reached the shared core — read before touching it, and it is `rps1` gaining its stop codon to match
+the published record; §8.22's 18/31 stays as what it measured then.
+
+**Residual risks.** (1) **The verdict rests on the 1 bp tolerance** — quoting "418 against 588"
+without the strict line (1070 against 699) is quoting half the measurement; it is stated in
+TASKS.md, §8.55, HANDOFF, D5-08 and CLAUDE.md. (2) The transfer is faithful to the chosen
+reference, so where a reference's own structure differs from the published record by 2–3 bp at an
+intron boundary, our call differs too — classified, not queued. (3) The corpus is not a test: it is
+`make corpus-bar`, minutes long, outside `check`.
+
+**Blocked.** Nothing. **Next.** P3B-12 — tag, squash-merge, one commit.
+
+### 2026-10-09 · Claude · dev WSL · session 32 (P3B-10: the corpus measured with the instrument in the repo — bar not met, and the golden's 86 is right by accident)
+
+**Did.** (1) **Re-ran the 34-record corpus** with the code from session 31's two fixes (34/34,
+0 failed runs, `--exclude NC_024936.1`); the composition changed exactly as predicted: **missing
+167 → 47, extra 161 → 41** — the whole IR-copy family gone. (2) **Committed the measuring
+instrument** (`tools/corpus_bar.py`, `make corpus-bar`, `19 tests` in
+`tests/unit/test_corpus_bar.py`, `pythonpath` in `pyproject.toml`) with its rule stated in one
+place. (3) **Declared and justified the boundary tolerance** (1 bp): 719/1,264 matched pairs move
+exactly one base, 634 of them with our call containing the record's, and ARAGORN run by hand on the
+golden returns the coordinates we emit — two methods ending a tRNA, not two conclusions. Applied to
+both readings; the no-tolerance totals printed beside it. (4) **Ran the bar**: **811 against
+PGA's 588 — NOT MET under either reading** (0/34 records better). (5) **Found three defects, none
+fixed**: `lhbA` is a *duplicate call* at the same span as `psbZ` (33 of 41 extras) and is what
+makes the golden's 86 — the published 86 counts `rps12` twice, ours counts `lhbA` twice, so both
+read 85 loci and **the golden number is right by accident**; `rps12` is missing its 26 bp middle
+exon and its whole IRa copy; the first exons of `petB`/`petD`/`rpl16`/`rps16` are below blastx's
+seed (136 of the 242 moves > 30 bp).
+
+**Validation.** `make check` green at the commit: **818 fast passed** (36 deselected) · **77 golden
+passed / 4 skipped** · ruff clean. The corpus numbers regenerate with `make corpus-bar` (needs
+`.panel/`, `TOOLS=/root/toolbox/env/pts/bin`); the harness's PGA pairing is by **sequence digest**,
+so a broken pair stops rather than comparing two different genomes.
+
+**Residual risks.** (a) The rule has a threshold in it, so it is reported with its sensitivity, not
+just its verdict — at 3 bp the bar would pass without any fix, which is exactly why the bar is read
+at 1 bp. (b) Writing the rule as code exposed two holes in it (envelope-only comparison; strand not
+compared) — both fixed with tests, but it says the rule was never as settled as it looked. (c) The
+stale first corpus run's numbers are still in §8.50; §8.51 says which run supersedes them.
+
+**Blocked.** Nothing. H-04 (cô Trang) and H-21 (a rule change) stay open by their own rows.
+
+**Next.** In order: the reference's **exon structure** in place of the alignment's span (fixes the
+four first exons *and* `rps12`); **H-18** together with the `rps12` IR copy (they move the golden's
+count together); **H-20**; then the golden's difference list as a test. The commit `e2c268c`'s
+subject says "session 31" — this entry is session 32; the subject is off by one and was left
+uncorrected rather than force-pushing a pushed commit.
+
+**Also done in the same session (§8.54, H-18 + the `rps12` IR copy).** `lhbA` and `psbZ` are one
+locus by all three §8.9 signals, measured exact this time — **the same `/product` string**, the
+same 189 bp / 62 aa, the same neighbours `psbC … rps14`; 33 pinned records write `psbZ`, one
+(`NC_042827.1`) writes `lhbA`. The alias takes the pinned vocabulary **80 → 79 names**, and the
+caller stops writing both at the golden's 35895-36083. The `rps12` half is the mirror rule:
+`_ir_copies` now mirrors the exons of a **straddling** gene and keeps the shared exon in both
+features, which is how the published record writes a trans-spliced gene across the IR — the
+counter-case `ycf1` (one call reaching into the repeat gets **no** second copy) is pinned in
+`tests/unit/test_ir_copies.py`. **The measured cost, named rather than hidden: 22 of 34 published
+records write `rps12` once**, so our second copy reads as an extra there; the corpus moved 692 →
+**681** (missing 47 → 34, extra 41 → 30) and PGA stays 588. Even if that representation difference
+were excluded on both sides it is 659 against 576 — the bar is not met, and §8.54 says so.
+
+**Added later in the same session (§8.52).** The corpus measurement itself found a **silent-wrong**
+and it is fixed: ARAGORN's intron notation **`i(a,b)`** has `b` as the intron's **length**, not its
+end. Read as an end (what the parser did from 09/10), every spliced tRNA on the golden came out
+**104–134 nt** — no tRNA is that long — and `trnL-UAA`'s exons came out 35 + 85 where the published
+record's own join is **35 + 50**. Read as a length they come out 72–95 nt, and `trnL-UAA` (85) and
+`trnA-UGC` (73) land **exactly** on the record. The test that asserted the wrong reading was
+written from the same misreading; it is **corrected with the numbers in it**, not loosened, and a
+second test pins all three cases to a plausible tRNA length. Re-measured: **811 → 692** (the 119
+gone are 57 + 27 + 34 + 1, the intron tRNAs), PGA re-measured over all 34 records (**588**, and the
+earlier run had missed `PX516262.1` because PGA names that file after the organism — the harness now
+pairs by **sequence digest**). **The bar is still not met: 692 against 588.** Measuring the introns
+also produced **H-22**: ARAGORN's `-i` searches introns **≤ 3,000 bp** and says nothing when it
+skips one, and the longest measured here is **2,671 bp** — a 12 % margin, named rather than
+silently patched.
+
+### 2026-10-09 · Claude · dev WSL · session 31 (P3B-10 opened: two silent-wrong fixes, and the corpus bar measured — not met)
+
+**Did.** P3B-10 is **in progress**, not done. Three measurements, two of them fixes:
+
+* **ARAGORN skips intron-containing tRNAs in silence** unless `-i` is passed — its own help says
+  so and it reports nothing when it skips them. The golden read **30 tRNA where the published
+  record has 38**, and the eight missing were exactly the intron ones (`trnK-UUU` · `trnL-UAA` ·
+  `trnV-UAC` · one `trnG` · both copies of `trnI-GAU` and `trnA-UGC`). With `-i` and the intron
+  parsed into the two exons a `join` needs, the artifact is **132 = 86 CDS + 38 tRNA + 8 rRNA** —
+  the contract. `-i` is a *caller's* flag, not a default: on the mito answer-key record it takes
+  17 tRNAs to 21, four of which the published record does not have.
+* **The IR copies were written one IR length from where they belong** (26,214 bp — outside the
+  repeat), because the inversion was computed from the first repeat's *start* instead of its
+  *end*. The gene **count** stayed 86, so every count-based check passed. Fixed; `rpl23` · `ndhB` ·
+  `ycf2` · `rps7` · `rrn16` · `rrn5` now match the published record base for base, and a new golden
+  test checks the mirrored copies **against the record**, not against their own arithmetic.
+* **The corpus ran leave-one-out, 34/34, 0 failed runs** (`--exclude NC_024936.1`, the audit gate's
+  condition). Classified against the published record: **ours 1,579 conclusion-level differences ·
+  PGA 637**. The bar is *not* met. The split says why the two mechanisms differ: ours has far more
+  presence errors (167 missing · 161 extra) and PGA far fewer (39 · 4), while PGA's differences are
+  almost all extent (594) — PGA copies coordinates from its reference, this engine derives them
+  from the alignment.
+
+**Validation.** `make check` green: **799 fast · 77 golden passed / 4 skipped**. New tests: the
+intron split (both strands, plus the wrapped case), a `tRNA-Stop` line reported rather than fatal,
+and the IR-copy guard.
+
+**Residual risks.** The corpus composition is unmeasured: what the 161 extra and 167 missing calls
+*are* is the next question, and until it is answered the phase's bar cannot be argued. Four genes
+lose a 6–40 bp first exon (`rps16` · `petB` · `petD` · `rpl16`) — blastx cannot align two codons.
+`rps19` −54 bp is **H-20**; `lhbA` is **H-18**; eight tRNA names follow ARAGORN's anticodon reading
+on intron genes and are **H-04**'s family.
+
+**Blocked.** Nothing.
+
+**Next.** P3B-10: classify the extra/missing calls, decide what to do about the tiny first exons,
+commit the classification harness (`/tmp/p3b10_diff.py` — `compare` · `summarise`), then the
+phase's own bar can be argued.
+
+### 2026-10-09 · Claude · dev WSL · session 30 (P3B-09: `plastid annotate`, and the gate in front of the run)
+
+**Did.** **P3B-09** (M3B.4 · H-09) — the annotate command, the batch, and the organelle. Five
+pieces, each with a measured reason:
+
+* **`plastid annotate`** — 1..N samples × 1..N reference records. A batch is a **batch of runs**:
+  every sample goes through `_execute_run` (seam 3) into `<out>/<accession>/<run-id>/` with its own
+  manifest, report and artifact. A failed sample is named, its own run directory records
+  `status: failed` + the reason, the batch continues, and the exit code is non-zero. The manifest
+  gained an optional `dataset` key (schema 2 unchanged) so a run that failed before writing
+  anything still says which sample it was.
+* **The audit gate, in the module, before the first BLAST.** `_reference_set` audits exactly the
+  records the run will search (H-19 named this hole, §8.48). Measured on the real pinned set:
+  exit 2 in **13 s**, two `file — reason` lines (`NC_024936.1.gb — CDS rps19: partial coordinates
+  (>83020)` / `(<153124)`), no artifact. `--exclude <accession>` is D5-08's "drop the bad file" as
+  a mechanism — declared, recorded in the manifest, named in the reference label and in the run's
+  notes; a name matching nothing **stops the run**. `--audit-only` (P3B-03's flag) audits and stops.
+* **H-09 done.** `ModuleSpec.group` (`shared` · `plastid` · `mito`, **required**) on all 22 modules
+  per §13's table; `core/organelle.py` reads `/organelle` and refuses **both** mismatch directions
+  **and** a mixed set, by name, pointing at the command that serves it. A bare sequence declares
+  nothing and is not guessed (D5-06: the path declares).
+* **The `.docx` report had never run**: `citations=("blast", "aragorn")` with neither key in
+  `data/citations.yaml` → `CitationError`. Both added, and the engine had **no report template** at
+  all — `report/templates/plastid_annotate.en.md` written.
+* **A directory parameter is content-addressed** (P3B-05's promise, one level up): `--set
+  reference=<dir>` was hashed as a string, so editing a reference record served stale tables.
+
+**Validation.** `make check` green: **797 fast · 76 golden passed / 4 skipped** (the four are the
+missing external tools: PGA.pl, chloe · julia, table2asn). New tests: `tests/unit/test_organelle.py`
+(15 — the declaration, both directions, a mixed set, the registry's groups) ·
+`tests/unit/test_cli_annotate.py` (6 — the mito sample refused by name, a mito FASTA refused through
+its reference set, a mixed batch stopped before anything is annotated, `--audit-only` needs no
+sample, a failed sample marked without killing the batch, one artifact per sample) · three golden
+tests (the gate stops a real run on the real blocked record · a drop is named · an unmatched
+exclusion stops). The three existing golden checks now run with `--set exclude=NC_024936.1` (the gate
+forces the drop) and **still hold** — `ycf1` 122.984–128.404 unchanged.
+
+**Residual risks.** (1) **H-20** — dropping the blocked record changes exactly one call of the
+golden: `rps19` 279 bp → **225 bp**, because three pinned records carry a truncated `rps19`
+(225 bp/74 aa) and one of them wins the tie. Structure-first *between* candidates is the piece H-19
+did not implement; it is P3B-10's to classify and a fix of its own. (2) **H-21** — the audit's
+partial-coordinate BLOCK refuses `NC_024936.1`, whose `rps19` protein is **complete** (279 bp/92 aa);
+that very record produced the published call. The rule's stated reason does not hold for this shape.
+(3) The `--exclude` mechanism is a way to *drop*, not to *waive* — but it is the user's act, so a
+run's fidelity depends on it being written down; it is, in the manifest and the notes.
+
+**Blocked.** Nothing. The ★ pick is still the end user's (§8.44's provisional override stands).
+
+**Next.** **P3B-10** — the phase's Done-when: the golden to exactly **132 = 86 + 38 + 8** with every
+difference listed, and all **34 records leave-one-out**, diffed against the published record *and*
+against PGA's reading, every difference classified, with fewer conclusion-level differences than
+PGA. It starts from two named differences (the tRNA count — 30 called vs 38 published, the export
+mirrors CDS and rRNA but not tRNA — and **H-20**), and its corpus runs carry `--exclude
+NC_024936.1` because the gate now stops on it.
+
+### 2026-10-09 · Claude · dev WSL · session 29 (H-19: a locus a record annotated twice is searched once)
+
+**Did.** **H-19**, the conclusion-level difference P3B-08 named: arbitration was identity-first
+where D5-08 §3 says structure first, and the golden's `ycf1` came out 900 bp from a reference whose
+own `ycf1` is a truncated copy of the gene.
+
+* **The rule is structural, and the fix is not in `_choose`.** A candidate that is never indexed has
+  no score to win on, so it lives in the reference index: a locus **one record** annotates twice,
+  where the short feature is under 50 % of the long one, is a truncated duplicate — excluded, and
+  **named** (`truncated_annotations`, one run note per row; 26 on the golden).
+* **`0.5` is the middle of a measured gap, and the comparison stops at one record because that is
+  where the measurement works.** CDS only, the pinned 34 records: 243 loci annotated twice — 216 at
+  1.000, one at 0.9927 (`rpl2` 271 against 273, a real difference and **kept**), 26 below 0.30 — and
+  **nothing at all between 0.2992 and 0.9927**. Across records the same test separates nothing: only
+  3 of 80 CDS loci fall below 0.5 and all three are the within-record cases again, while `rpoB`
+  runs 614–1,070 residues and `ndhD` 383–523. Within one record the two features are the same gene;
+  across records a short ortholog and a truncated annotation are one and the same number.
+* **Measured on the golden: exactly one line of the called set changes** — `ycf1` from
+  108,448–109,347 (`+`, 900 bp, 98.83 %, `NC_088562.1`) to **122,984–128,404 (`−`, 5,421 bp,
+  97.68 %, `NC_081929.1`)**, which is the published `ycf1 [122983:128404](-)` base for base. The
+  artifact still reads **86 CDS + 8 rRNA + 30 tRNA** with `/organelle="plastid"`, and the 33 `ycf1`
+  candidates left are all complete (1,783–1,862 residues).
+* **The Done-when's second clause was not implemented, and a measurement is why.** "an alignment
+  that does not reach the reference's ends" would not have fixed this case — the truncated
+  reference's alignment *does* reach both of its ends (coverage 1.000, the very number that misled
+  the arbiter) — and it is the wrong mechanism: a partial query gene is already expressed by the
+  call's own `partial_start`/`partial_end` flags, so preferring a reference in order to avoid one
+  would hide a finding. Recorded in §8.48 so P3B-10 reads the rule's real scope.
+* **A gap found while measuring, named into P3B-09.** `plastid_annotate` never calls the reference
+  audit: `plastid reference audit` **BLOCKs** `NC_024936.1` for a partial `rps19`, and that record
+  is still a candidate in a run on the golden. The phase's goal is "an audit gate in front of every
+  run"; the wiring is now a line in P3B-09's checklist.
+
+**Validation.** `make check` green: **775 fast · 73 golden passed / 4 skipped** (the four skipped are
+the missing external tools: PGA.pl, chloe · julia, table2asn). New: four unit tests on the rule (it fires · a
+2-residue difference is not a truncation · the IR's equal copies stay two entries · **a lone short
+feature is still searched**) and one golden negative test asserting both the coordinates and that
+the run names the feature it did not search. **The 65 mito tests pass** and no mito file is touched.
+Recorded as §8.48 · §9.L-4.
+
+**Residual risks.** (1) A record that annotates a locus **once**, briefly, is not caught by this
+rule — measured: no such case in the pinned set, and the audit is the gate that catches the class
+by coordinates (`<`/`>`) once P3B-09 wires it in. (2) The run's notes grow 30 → 56 lines, 26 of
+them the new rows; the `rps12` envelope lines are the pre-existing bulk (P3B-08's envelope-vs-exon
+issue, in the *notes* rather than in the table).
+
+**Blocked.** Nothing new.
+
+**Next.** **P3B-09** — CLI & batch, with the audit wiring.
+
+### 2026-10-08 · Claude · dev WSL · session 28 (P3B-07 and P3B-08: the calling core, and the annotator runs)
+
+**Did.** Two tasks, in order.
+
+* **P3B-07 — the shared calling core (§8.46).** The second real copy arrived, so the machinery was
+  **extracted, not copied** (the project's own DRY rule): `core/caller.py` holds the rules,
+  `core/mito_caller.py` shrinks to what is measured about the mitochondrion (floors 50 %/0.5, table
+  1), `core/plastid_caller.py` is the plastid half (reference index from GenBank records, floors
+  50 %/**0.7**, table **11**, the self-blast IR reading). Floors and table are **required**
+  arguments in the shared core — a path that inherited another path's measured floor would quote a
+  number it never measured. **43 mito tests pass with not one line changed.**
+* **P3B-08 — arbitration and export (§8.47).** `modules/plastid_annotate.py`: the pinned set with
+  its leave-one-out rule, `blastx` over the references' own `/translation`, `blastn` for rRNA, a
+  self-search for the IR behind the gate, ARAGORN for tRNA. Measured on the golden: **86 CDS +
+  8 rRNA + 30 tRNA** — and 86 is a **rule**: one call per locus (79) plus the seven loci inside the
+  IR, which the **export** mirrors (`_ir_copies`), the same way the published record writes them.
+* **Three silent failures fixed, all found by measurement rather than by a test** (§9.L): a
+  `-max_target_seqs 500` constant that truncated the plastid search from 4,382 HSPs / 2,603
+  subjects to 929 / 467 **without saying so**; a gene name with a space (`23S ribosomal RNA`)
+  cutting the FASTA header below the three-field contract; rRNA product-sentences reaching the
+  vocabulary as gene names. And one lesson paid inside P3B-08: **overlap must be measured by exon,
+  not by envelope** — `rps12`'s envelope spans 68,976–98,016 and made it "overlap" 27 genes,
+  burying the real pairs.
+
+**Validation.** `make check` green twice: **771 fast tests · 72 golden passed / 4 skipped**. New:
+`tests/unit/test_plastid_caller.py` (12), `tests/golden/test_plastid_annotate.py` (3, one real run),
+`test_blast.py`'s cap test, `test_gene_names.py`'s rRNA-sentence test. Measured on the golden:
+`psbC`×`psbD` **53 bp** · `ndhC`×`ndhK` **10** · `atpB`×`atpE` **4** — three of §8.34's four exact;
+`competing_references` marks exactly one chosen per locus; the artifact re-reads and carries
+`/organelle="plastid"`.
+
+**Residual risks.** (1) **H-19** — arbitration is still identity-first (D5-08 §3 says structure
+first): the golden's `ycf1` came out **900 bp** from a reference whose own ycf1 is truncated, where
+the published gene is 5,421 bp. This is conclusion-level and P3B-10's bar counts those. (2) The
+export mirrors CDS and rRNA but **not tRNA**, so the count is 30 against the published 38. (3) The
+coverage floor 0.7 is §8.41's **corpus** number, named: the golden cannot choose it (0.5–0.8 give
+the identical called set) — P3B-10 re-checks.
+
+**Blocked.** Nothing new. The ★ pick still waits on the end user.
+
+**Next.** **P3B-09** — CLI & batch, then **P3B-10** — golden + corpus validation.
+
+### 2026-10-08 · Claude · dev WSL · session 27 (P3B-06: Ts/Tv re-measured — the number holds, and now we know why)
+
+**Did.** Re-measured §6's Ts/Tv under the naming direction P3B-04 flipped — the task's own words
+were "a prediction until then", and P3B-04's log said "chưa đo" in as many words.
+
+* **Measured in the pipeline order, not by re-running the older test.** The existing CDS-scope
+  golden compares the two *published* records, which is §8.27's measurement of the *old*
+  direction; under D5-09 a sample inherits vocabulary A **through** the naming step. So: ran
+  `gene_normalize` (`mode=normalize`, the golden as reference) to get `NC_024936.1.normalized.gb`
+  — the six renames of §8.44 — then `substitutions --set scope=cds` on **that artifact**. Result:
+  **79 shared genes · 68,448 columns · 68,382 comparable · 443 substitutions · 323 Ts / 120 Tv =
+  2.6917** — identical to §8.27 to the unit (§8.45).
+* **And why it could not have moved.** The alias table maps every member of a locus to that locus
+  whichever member is canonical, so the flip **relabels** the shared set instead of re-selecting
+  it; it could only re-select if a record carried two *different* genes whose names fall in one
+  locus. Measured on both Iris records: 86 CDS → 79 canonical names each, **0** loci reached by two
+  spellings. The invariance is a measured property, not a hope.
+* **Labels move, numbers do not.** `substitutions_by_gene` now prints `ycf3` · `ycf4` · `psbN` ·
+  `clpP` · `ndhL` · `atpI` · `psaI` · `psbB` where §8.27 printed the old spellings for the same
+  loci — vocabulary, not conclusion.
+* **New guard.** `tests/golden/test_tier_b.py::test_the_naming_step_does_not_move_the_golden_ts_tv`
+  runs that order and asserts the artifact **is** in A (`atpI` · `psaI` · `psbB` present), so a
+  naming step that silently did nothing cannot pass.
+* **A finding, named not fixed.** Reading that artifact: **6 `gene` features still spell
+  vocabulary B** (`atpL` · `psaL` · `bspB` · `trnk-UUU` · `trnl-GUA` ×2) over the same spans as the
+  renamed CDS/tRNA — `GENE_KINDS` excludes `gene` from every renaming decision. Both published
+  records agree 132/132 at the same spans, and CGAS (D5-08's model) renames them too. **H-17**,
+  §9.K-1 (a new §9 subsection, so the item numbering rule now reads D–I and K).
+
+**Validation.** `make check` green: **756 fast tests · 69 golden passed / 4 skipped** (PGA ·
+chloe+julia · table2asn missing; MAFFT, MISA, BLAST+ on `PATH`). The four named goldens —
+`substitutions` (both scopes), `kaks`, `popgen` — pass. `tests/unit/test_project_docs.py` updated
+in the same commit: entry count 44 → 45, §9.K added to the restart-at-1 guard.
+
+**Residual risks.** (1) The ★ is still the recorded **override** (`provisional: true`, the golden),
+so the printed vocabulary is the dev's provisional choice; a different ★ re-runs this measurement
+with the same result only if that record's partition is clean too — the property is measurable per
+record and H-17's fix is the other place it matters. (2) H-17 is *display* today: `GENE_KINDS`
+keeps `gene` features out of every count and every comparison module, so no number is wrong yet.
+
+**Blocked.** Nothing new. The ★ pick still waits on the end user.
+
+**Next.** **P3B-07** — the calling engine (extract the core from `core/mito_caller.py`).
+
+### 2026-10-08 · Claude · dev WSL · session 26 (P3B-04: one vocabulary, and the alias direction flipped)
+
+**Did.** `gene_normalize` — the naming step D5-09 puts in front of the annotator.
+
+* **The module (§8.44).** Arity 2, `requires_ir=False`, modes `normalize` / `verify`. `genomes[0]`
+  is the naming reference (A), `genomes[1:]` the records (B); B's spellings appear in exactly one
+  table, in their own column. Four tests in `core/gene_names.py` with §8.41's measured thresholds
+  (identity ≥ 50 % · coverage ≥ 0.7 · margin ≥ 10 bits), three statuses (`measured` ·
+  `not measured` · `outside vocabulary`) and an `outcome` saying what the step did
+  (`confirmed` · `renamed` · `conflict` · `reported`).
+* **The reference is a declared parameter.** `ModuleSpec.reference_param`; the CLI resolves
+  `naming_reference` (or `data/naming_reference.json`, the recorded **provisional override** —
+  the golden), **audits it before use**, makes it `genomes[0]` and records
+  `{path, accession, sha256}` in `modules[].reference`. `MANIFEST_SCHEMA_VERSION` → **2**; a
+  conflict stops with exit **4**.
+* **The alias direction flipped** (D5-09 §8): 5/9 loci now print the reference's spelling, and
+  `oriented_aliases` ties the direction to the record a run hands it. Eleven guard tests updated
+  to the new direction (same claims, other names).
+* **Measured on *I. gatesii* against the golden**: 132 genes · 6 renames · 121 confirmations (82
+  margin · 38 neighbours · 1 sequence) · 0 conflicts · 5 `outside vocabulary` · 2 `not measured`.
+  The five are tRNA names the reference does not use — one of them `trnL-CAU`, **100 % identical**
+  to the reference's `trnI-CAU` — and §8.41's rule says a ranking may not settle a tRNA, so they
+  are reported and not renamed.
+
+**Validation.** `make check` green: **755 fast tests · 68 golden passed / 4 skipped** (PGA ·
+chloe+julia · table2asn; MAFFT and BLAST+ on PATH). New: 29 tests in
+`tests/unit/test_gene_normalize.py` (thresholds · orientation · four tests with one negative case
+each · the three statuses · IR copies are not duplicates · hits collapsed by locus · verify writes
+nothing · the corpus pair end to end · conflict → exit 4 with coordinates · `on_conflict=continue`
+· the CLI's resolve → audit → `genomes[0]` → manifest path · one tier-B test running real blastp).
+
+**Residual risks.** (1) **Ts/Tv is still a prediction** — the flip changed five canonical keys and
+P3B-06 has to re-measure it; the goldens pass, which is a test result and not a measurement.
+(2) The recorded standard is an override, so the printed vocabulary is the dev's provisional
+choice until the end user picks from the audit report. (3) Test 4 (neighbours) is only as good as
+the IR frame: without one, a tRNA whose ranking disagrees is reported rather than settled.
+(4) `duplicate_names` is structural (IRa/IRb); a record whose IR is undetectable falls back to
+exact sequence equality, which is stricter than it should be.
+
+**Blocked.** Nothing new. The ★ pick still waits on the end user.
+
+**Next.** **P3B-06** — re-measure Ts/Tv under the new direction — then **P3B-07**, the calling
+engine.
+
+### 2026-10-08 · Claude · dev WSL · session 25 (P3B-03: the reference-set audit, and the two readings that have to agree)
+
+**Did.** The gate that stands in front of every annotation run, as a run of its own.
+
+* **The audit (§8.43).** `plastid reference audit --panel DIR` — six BLOCK classes (unreadable ·
+  no gene features · a CDS without `/translation` · a partial coordinate · the IR gate · a CDS that
+  does not translate) and two REPORT classes (an inverted SSC · a gene set that differs from the
+  majority). Every finding prints as `file — reason` and nothing else; a block exits 2 and nothing
+  is annotated; the reason lands in `manifest.json`. The report measures both reports over **every
+  record that could be read** — §8.34's 32/34 is about the corpus, not about the survivors.
+* **The second reading.** MAFFT `--adjustdirection` over the SSC: 34 sequences · 614,658 bp ·
+  17.6 s, and it flags **exactly** the two records the gene-strand rule calls inverted. It is
+  *injected* into the core (core may not import `external/`): the CLI passes
+  `external.mafft.adjust_direction`, or passes nothing and the report says **not measured**.
+  A disagreement would be its own finding; there was none.
+* **The picture.** `dotplot` (figure #10) draws every 15-mer run of a deviating record against a
+  record the set agrees on, both orientations. Measured: 349 anti-diagonal runs for
+  `NC_042827.1` against 20 forward, 332 against 13 for `NC_062351.1`. It reads the
+  `region_matches` table, so `plastid figures <run-dir>` re-renders it without re-running the audit
+  — and it is drawn **without** MAFFT too: a machine with no aligner must not lose the one view
+  that lets a person confirm a flip-flop.
+* **Exceptions.** The pin is written by the tool from the file's **current** digest
+  (`--confirm-exception FILE:CHECK --confirmed-by … --reason …`), never typed; it can waive a
+  REPORT and never a BLOCK (`Finding` refuses to build one; `read_exceptions` refuses to read one).
+  Exercised end to end on the real set: pin applied → 21 findings instead of 22 and the row marked
+  confirmed; a changed byte → **void**, and the finding returns.
+* **A data-model change the gate needed.** `Gene` now carries the record's own `/translation`
+  (read, never written — D5-08 §8.21), and it is in the cache's input hash: one sequence with two
+  annotations *and* two proteins is two inputs.
+
+**Validation.** `make check` green: **727 fast tests · 68 golden passed / 4 skipped** (PGA ·
+chloe+julia · table2asn — MAFFT and BLAST+ were on PATH for this run). New: 31 unit tests
+(`tests/unit/test_reference_audit.py` — every block class, the N ≥ 3 and N = 2 majority rules, pin
+alive/void/stale/unused, the dot plot's runs, the CLI's exit 2 with the reason in the manifest, the
+`--confirm-exception` door) and 4 corpus tests (`tests/golden/test_reference_audit_corpus.py`,
+`.panel/`-gated; the MAFFT one is tier B). Measured on the pinned set: **1 record blocks**
+(`NC_024936.1` — partial `rps19`, two features = the record §8.34 predicted), **32/34 same SSC
+orientation · 2/34 inverted and reported**, 20/34 name sets differ from the majority. The real
+negative case is vendored and runs everywhere: `tests/data/corpus/Iris_hermona…pga.gb` — **84 CDS,
+83 without `/translation`**, IR gate failed (26.36 %), while the published record of the same
+sequence passes every check.
+
+**Residual risks.** (1) The SSC rule cannot see a record inverted *as a whole* — LSC and SSC still
+agree inside it; it does not matter for `blastx` (both strands are searched) and the cross-record
+dot plot is where it would show, but no test measures that case. (2) The audit re-reads all 34
+records on every run (~12 s, IR detection dominating) — no cache behind the gate yet. (3) A pin
+naming a check the audit did not raise reads `unused` and does nothing; the status is reported, but
+nobody is forced to look at it. (4) The panel currently pins **no** exception: the two flip-flops
+are reported on every run until a person confirms them.
+
+**Blocked.** Nothing new. The ★ pick still waits on the end user — the report it is read from now
+exists.
+
+**Next.** **P3B-04** — `gene_normalize`, with the measured thresholds of §8.41 (margin ≥ 10 bits ·
+identity ≥ 50 % + coverage ≥ 0.7) and a recorded override standing in for the ★ pick.
+
+### 2026-10-08 · Claude · dev WSL · session 24 (Phase 3B opens with its preface: the reference set, the three numbers, and the cache that was lying)
+
+**Did.** Three of the board's ten tasks, each committed and pushed; a pre-existing red test fixed
+first, because a commit has to stand on a green `make check`.
+
+* **The red test was a real finding (§9.C-37).** `make check` failed in
+  `test_second_identical_run_is_cached_and_identical`: this machine's clock stepped **~1 s
+  backwards** between two runs, so a later run was stamped earlier, reused a second, and took the
+  `-2` suffix — and `sorted()` over run ids then put the third run *before* the second. The test
+  read back the directory it had just emptied. The product is fine (`RunLayout.create` still
+  guarantees one run = one directory; a new test pins that for a standing **and** a backwards
+  clock); what was wrong is the tests' assumption that a name order is a time order. Every run
+  directory is now identified by the set difference before/after a run. **§9's items shift**: the
+  new item is `§9.C-37` and §9.J's four move to 38–41 (ranges updated in `CLAUDE.md` and the
+  guard's docstring).
+* **P3B-01 · the reference set, pinned (§8.40).** `.panel/plastid-reference/` — the 34 Iridaceae
+  corpus records, re-pinned, 34/34 past the IR gate, 5,204,491 bp, **every sha256 identical to the
+  corpus pin**. The taxonomy rule (D-b) is the family rule, and the family is Iridaceae because
+  the contract genome and the answer keys both are. The **leave-one-out design is data**, not
+  prose: `core/plastid_reference.py`'s `leave_one_out()` and the committed
+  `data/plastid_reference.json` (34 targets × the other 33), because the corpus carries the
+  golden's own sequence and PGA's reading of it is 85 CDS where the contract says 86. New doors:
+  `plastid reference verify` (re-hash, `file — reason`, exit 1) and `plastid reference loo`.
+* **P3B-02 · the three numbers, before any `gene_normalize` code (§8.41).** Measured on the
+  corpus with BLAST+ 2.17.0 (`blastp`, `-seg no`, E-value 10) plus a fixed-parameter alignment for
+  tRNA. **Two of D5-09's own reasons do not survive**: `rpl2`/`rpl23` are 22.0–44.4 % identical and
+  the two `trnL` 61.2 % — neither needs test 4. What does: the **serine tRNAs** (26 of 1,182
+  cross-record tRNA comparisons rank another locus first, up to 15.05 points), **two genes under
+  one name** (the golden annotates two trnG features as `trnG-UCC`, 73.24 % identical), and names
+  the vocabulary cannot resolve (72 tRNA name occurrences + `lhbA`). The margin is a **score**
+  margin in bits (min 19.2, median 298.0) — in identity points it can go *negative* (`psaB` vs
+  `psaA`). The floor: with **coverage ≥ 0.7** the wrong-locus ceiling is 44.93 % and the true
+  ortholog floor 67.75 %, so `identity ≥ 50 %` fits — but only with 0.7, because `psbJ` is 36 aa
+  and a 21-aa alignment of it reaches 52.38 % against `matK`. D5-09 §4 and §9.3 are corrected in
+  place; the numbers are pinned in `tests/golden/test_naming_numbers.py`. **H-04 measured for the
+  first time**: `trnG-GCC` and `trnG-UCC` are two genes and the records use the two names in both
+  directions — a curator's call, not a spelling to normalise.
+* **P3B-05 · the cache stops lying (§8.42).** The key now carries the **annotation** (not just the
+  sequence), the input **order** (not sorted), the module's **source**, and what the step was asked
+  to produce (`--docx`) — and any parameter naming a file is **content-addressed**, which is how
+  D5-09 §7.2's ★ sha256 reaches a key at all. Each old behaviour was shown broken by loading
+  HEAD's `cache.py` beside the new one; four regression tests pin them. Existing cache entries are
+  unreachable now — the next run recomputes.
+
+**Validation.** `make check` green after every commit: lint · **691** fast tests · golden **64
+passed / 4 skipped** with named reasons (PGA · chloe+julia · table2asn absent). New: 13 tests for
+the reference set, 4 tier-B naming-number tests, 5 in `test_run.py`. The old cache behaviours were
+demonstrated, not assumed.
+
+**Residual risks.** (1) The three naming numbers are measured on Iridaceae records only — a
+cross-family sample (the team's Oldenlandia/Coleus) is **outside what was measured**, and the
+identity floor may need re-measuring there; the numbers are recorded with that boundary. (2) The
+vocabulary gap §8.41 measured (an alias table that cannot resolve `trnL-CAU`, `trnL-GUA`,
+`trmA-UGC`, a bare `trnL`, or `lhbA`) is input to P3B-04 and nothing consumes it yet. (3) `gene_aliases.yaml` still
+runs D3-02's direction — flipping it belongs to P3B-04. (4) The cache-key change costs one
+recomputation of every cached step, by design.
+
+**Blocked.** Nothing. The ★ pick (end user, from the audit report) blocks only the real-DB
+normalize run of P3B-04 — a recorded override is allowed meanwhile.
+
+**Next.** **P3B-03** — the reference-set audit — then **P3B-04** with §8.41's thresholds.
+
+### 2026-10-07 · Claude · dev WSL · session 23 (the coverage check re-run at tool level — and Phase 3B opens)
 
 **Did.** Re-ran ROADMAP's coverage check ("How to use" 5) over "The pipeline" — this time **per tool
 named in a box**, which is what session 22's box-level pass had not done. Four gaps found, each
@@ -77,11 +558,26 @@ closed with a home; the canonical diagram (§13.0) corrected first and the copie
 * New guard **`tests/unit/test_pipeline_diagram.py`**: the three diagram copies must be
   byte-identical (the copy rule was prose only before), and every milestone id cited in a ROADMAP
   table must exist as a milestone.
+* **Phase 3B opened** (the dev's call): the board is `TASKS.md` **P3B-01 … P3B-10**, ordered by
+  execution — the reference set → the three measured numbers → the audit → `gene_normalize` → the
+  cache → Ts/Tv → the engine → arbitration → CLI → validation — with a "Decisions to make" table
+  (D-a · D-b · D-e, the conflict exit code, the parameter name, the organelle group, the schema
+  bump, how Chloe retires), a pitfalls list from §8.15 · §8.21 · §8.22 · §8.31 · §8.34, and
+  **H-15 · H-08 · H-14 folded into P3B-05**. Branch `feat/phase-3b`.
+* **History rewritten on the dev's call — `main` is now one commit per phase** (9 commits: phases
+  1–5 · 4a · the session 22–23 docs · this rule change). The 131-commit linear history is archived
+  under the `archive/*` tags, and every archived tree was proven **byte-identical** to the commit
+  it was taken from (`git diff` old-main vs new-main: empty) before the force-push; the board branch
+  was re-cut on the new main. `CLAUDE.md` → Commits carries the rule now (the branch holds the
+  detail and is never deleted; `main` holds the phases and takes `git merge --squash` at close;
+  task-level `git bisect` runs on the branch), and this file's header says where the live state is.
 
 **Validation.** `make check` green — lint · **670** fast tests (2 skipped: no mafft) · golden 43
 passed / 21 skipped with named reasons. Both new guards negative-checked in memory: a planted
 `M1.99` in a table and a one-character drift in a copy are each flagged. D5-09's own pipeline table
-(a hand translation, not a copy) synced for the two rows it repeats.
+(a hand translation, not a copy) synced for the two rows it repeats. The history rewrite verified
+lossless: 8/8 archived trees equal to their source commits and `git diff` old-main vs new-main empty
+before the force-push.
 
 **Residual risks.** (1) D5-09 Appendix B still lists `Sibelia` among the kind-5 (no-reference)
 tools — that appendix is a reference-mechanism list, not the pipeline, so it was left alone.
@@ -91,7 +587,8 @@ has produced a number yet, and no task owns it — named here rather than silent
 
 **Blocked.** Nothing. M7.6 waits on ONT/HiFi reads, now recorded in both waiting tables.
 
-**Next.** Unchanged: open the **Phase 3B** board from M3B.0–M3B.5 with the `make-tasks` skill.
+**Next.** Phase 3B is open on `feat/phase-3b` — start at **P3B-01** (the reference set, built and
+pinned), then P3B-02 (the three naming numbers, before any `gene_normalize` code).
 
 ### 2026-10-07 · Claude · dev WSL · session 22 (doc alignment with D5-09 — and the cache defect the review exposed)
 
@@ -261,7 +758,7 @@ untouched), but a stale sentence in a spec is a wrong instruction to the next ag
 tool env on PATH: **57 passed, 4 skipped** (chloe · julia · table2asn absent on this machine).
 
 **Residual risks.** (1) The §9 renumbering touched citations in code, tests and `docs/` — all
-updated, and the new guard fails on a duplicate or a gap. (2) §9.J.38 *states* the initiator
+updated, and the new guard fails on a duplicate or a gap. (2) §9.J.39 *states* the initiator
 convention (V/T/I where a published protein begins with M) rather than changing it; changing it
 moves 5 residues of the golden composition — a decision, not a fix. (3) The HANDOFF archive is a
 move; a citation by **content** rather than session number should name the archive file.

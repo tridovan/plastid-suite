@@ -35,7 +35,7 @@ a fresh session can start without asking anything. Finished work does not live h
    do instead. Add a task-specific **Pitfall:** line inside a task when it is not phase-wide.
 6. **A "Waiting on data/people" table**, naming the task each item blocks.
 7. **Self-check before finishing:** every task has a Done-when; every blocker names something
-   specific; nothing finished is left; the file is still under ~120 lines.
+   specific; nothing finished is left; the file is still under ~200 lines.
 
 ## Quality bar
 

@@ -181,7 +181,16 @@ sources disagree.**
 **Why not name alone.** That is CGAS module 3, and it is the defect this design exists to avoid
 (Appendix A).
 
-**Why sequence is not enough either.** `rpl2`/`rpl23` and the two `trnL` genes are near-identical;
+**Why sequence is not enough either.** **[ĐÃ THAY 08/10/2026 — the two examples this paragraph
+was written around do not survive the measurement; the rule does. Measured (PROJECT.md §8.41,
+`tests/golden/test_naming_numbers.py`): `rpl2` vs `rpl23` are **22.03–44.44 %** identical across
+the 34 corpus records and `trnL-UAA` vs `trnL-CAA` **61.18 %** — neither pair is near-identical,
+and the ranking separates both. The measured cases that need test 4 are: the **serine tRNAs**
+(26 of 1,182 cross-record tRNA comparisons rank a different locus first, by up to 15.05 identity
+points), **two genes under one name** — the golden itself annotates two trnG features as
+`trnG-UCC`, 73.24 % identical — and names the vocabulary cannot resolve at all (72 tRNA name
+occurrences and 1 CDS name across 33 records). Original text kept below.]**
+`rpl2`/`rpl23` and the two `trnL` genes are near-identical;
 protein identity is high against both and ranking cannot separate them. That is what test 4 is for —
 the project's existing "structure before score" principle (D5-08).
 
@@ -252,8 +261,9 @@ is still one command and one run directory.
 
 ### 7.1 The user chooses it, from the audit report
 
-**Which file becomes the standard is not a team decision.** It is the **end user's**, made after
-reading the report produced by the reference-set quality assessment — the audit in
+**Which file becomes the standard is not a team decision.** It is the **end user's** — a researcher
+in biotechnology / bioinformatics, the people this toolkit is built for (defined 08/10/2026) — made
+after reading the report produced by the reference-set quality assessment — the audit in
 `docs/D5-08_plastid_annotator.md` §"The reference-set audit", whose REPORT class already compares
 gene sets as **name sets** and names the records that deviate from the majority. That is exactly the
 evidence a choice needs.
@@ -282,8 +292,8 @@ answers** to "what is the reference":
 
 | Stage | Reference | Chosen by |
 |---|---|---|
-| annotate — today | Chloe's own curated set; a different one is **refused** | the tool |
-| annotate — after D5-08 | a reference **set** of 1..N records, same family first | the team, by taxonomy |
+| annotate — before D5-08 | Chloe's own curated set; a different one was **refused** | the tool |
+| annotate — **today and after D5-08** | a reference **set** of 1..N records, same family first, audited before the first search — `--set reference=<dir>` | the team, by taxonomy |
 | **name unification — this file** | **one record, fixed for the project** | **the end user, from the audit report** |
 
 The naming reference is a kind of its own: **it is not chosen by taxonomy per run**, and it is not
@@ -333,13 +343,22 @@ Carry these:
 1. **The parameter's name** — proposed `naming_reference`, to avoid a third meaning for the key
    `reference`.
 2. **Whether `MANIFEST_SCHEMA_VERSION` is bumped** for the new per-module reference entry.
-3. **Three numbers, measured before coding:**
-   - the **margin** of test 3 — its behaviour at **order/class distance**, where protein similarity
-     across two *different* loci can approach similarity across the *same* locus. At genus distance
-     the project already has a real case (Appendix A: one base in 72);
-   - whether **test 4 (neighbours)** actually separates `rpl2`/`rpl23` and the two `trnL`;
-   - the **`identity_floor`** below which a "match" is noise.
-   All three are measurable on data already in the repo plus the corpus — no new data needed.
+3. **Three numbers, measured before coding — MEASURED 08/10/2026, PROJECT.md §8.41.** They are
+   now thresholds rather than questions, and the answers are not the ones this file guessed:
+   - the **margin** of test 3 is a **score** margin, in bits — a margin in identity points is
+     meaningless when the runner-up's alignment is partial (`psaB` against `psaA` reads a
+     *negative* margin in points). Measured over 2,838 cross-record CDS queries: smallest margin
+     **19.2 bits**, median 298.0, none under 5. Recommendation: **margin ≥ 10 bits**.
+   - **test 4 is not needed for `rpl2`/`rpl23` or the two `trnL`** (44 % and 61 % identical —
+     see §4's correction). It is needed for the serine tRNAs, for two genes sharing one name,
+     and for names the vocabulary cannot resolve;
+   - the **`identity_floor`**: with **coverage ≥ 0.7** the highest identity a genuinely different
+     locus reaches is **44.93 %** and the lowest a true ortholog reaches is **67.75 %**.
+     Recommendation: **identity ≥ 50 % AND coverage ≥ 0.7** — the mito path's identity floor
+     holds, its coverage floor (0.5) does not: plastid CDS are short (`psbJ` is 36 aa) and a
+     21-aa alignment of it reaches 52.38 % against `matK`. **For tRNA no identity floor works**
+     (53.76–100 % true vs up to 73.97 % wrong) — the decision must come from the name, the
+     anticodon or the neighbours.
 4. **PI sign-off** on the printed-name change, since it reaches manuscript tables.
 5. **Phase slot** — **decided 07/10/2026: inside Phase 3B, as M3B.0**, in front of the annotator
    (`ROADMAP.md`); D5-08's D-c is answered there too.
@@ -415,12 +434,14 @@ samtools · wgsim · beast2 · treePL) are not.
 Kind 6 is a kind of its own. In particular it is **not** kind 1: the naming reference is not
 re-selected per run by taxonomy.
 
-**Where a tool's reference cannot be substituted.** Chloe reads its reference set from its clone's
-`Artifacts.toml` and **refuses** a different one — `external/chloe.py:73` pins the tree hash
-`9163915d99fdfbc7d8510f0479b3d08905682ca5`, checked at `:200-207` with the message *"a different
-reference set is a different annotation"*. The module records what was used as
-`its own curated set (Chloe_refs 9163915d99fd)` (`modules/annotation.py:273`) — the pattern to
-follow: when a tool ignores the user's reference, the run has to say so.
+**Where a tool's reference cannot be substituted** — the measurement this file was written from,
+and now history: Chloe read its reference set from its clone's `Artifacts.toml` and **refused** a
+different one (the adapter pinned the tree hash `9163915d99fdfbc7d8510f0479b3d08905682ca5` and
+said *"a different reference set is a different annotation"*), and the run recorded what was used
+as `its own curated set (Chloe_refs 9163915d99fd)`. **[ĐÃ THAY 10/10/2026 — P3B-11, §8.56: Chloe
+nghỉ hưu; đường chú giải nay nhận đúng tập tham chiếu người dùng đưa, có audit chặn trước lượt tìm
+đầu tiên — `--set reference=<dir>`.]** The pattern it set is the one the self-built engine follows:
+what a run used is stated by the run.
 
 **The RNA-editing case, and why the pairing is ours.** The two published plastid RNA-editing
 predictors (PREP-Cp, PREPACT) are both web services and both measured unreachable (`http=000`,
