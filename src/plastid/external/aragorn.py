@@ -83,11 +83,13 @@ AMINO_ACIDS: dict[str, str] = {
 
 # ``1   tRNA-Phe                   [258274,73]	35  	(gaa)``
 # ``8   tRNA-Met              c[107050,107126]	35  	(cat)``
-# ``1   tRNA-Lys              c[1367,4058]	34  	(ttt)i(39,2618)``  — with -i, the intron
+# ``1   tRNA-Lys              c[1367,4058]	34  	(ttt)i(39,2618)``  — with -i, the intron, as
+# ``(start, length)``. The group is named for what the field is, because reading the second one
+# as an end coordinate is a mistake this parser made for a day and no count could see (§8.52).
 _LINE = re.compile(
     r"^\s*(?P<index>\d+)\s+(?P<kind>tRNA|tmRNA)(?:-(?P<amino>\S+))?\s+"
     r"(?P<strand>c?)\[(?P<start>\d+),(?P<end>\d+)\]\s+(?P<score>\d+)?\s*"
-    r"\((?P<anticodon>\w+)\)\s*(?:i\((?P<intron_start>\d+),(?P<intron_end>\d+)\))?\s*$"
+    r"\((?P<anticodon>\w+)\)\s*(?:i\((?P<intron_start>\d+),(?P<intron_length>\d+)\))?\s*$"
 )
 _DECLARED = re.compile(r"^\s*(?P<count>\d+)\s+genes? found\s*$", re.MULTILINE)
 _VERSION = re.compile(r"ARAGORN\s+v(\d+\.\d+\.\d+)", re.IGNORECASE)
@@ -105,9 +107,16 @@ class TrnaHit:
     strand: int
     score: int | None
     wrapped: bool = False  # crosses the origin: ARAGORN prints start > end
-    # The intron, as positions **within the gene**, 1-based from its 5' end — ARAGORN's own
-    # ``i(39,2618)``. Kept in gene coordinates rather than converted here because the conversion
-    # depends on the strand and the origin: see `parts`.
+    # The intron, as ``(start, length)`` **within the gene**, 1-based from its 5' end — ARAGORN's
+    # own ``i(39,2618)``. Kept in gene coordinates rather than converted here because the
+    # conversion depends on the strand and the origin: see `parts`.
+    #
+    # The second field is the intron's **length, not its end**. Measured 10/10/2026 (§8.52): read
+    # as an end, the golden's eight intron tRNAs spliced into 104–134 nt, which no tRNA is, and
+    # the corpus counted the difference as a wrong call on every one of them; read as a length they
+    # come out 72–95 nt, and `trnL-UAA` (35 + 50 = 85) and `trnA-UGC` (38 + 35 = 73) land exactly
+    # on the published record's own joined exons. ARAGORN's help documents the intron's maximum
+    # *length* (``-i<min>,<max>``) and never mentions an end coordinate.
     intron: tuple[int, int] | None = None
 
     def length(self, genome_length: int) -> int:
@@ -141,11 +150,12 @@ class TrnaHit:
         both copies of ``trnI-GAU`` and ``trnA-UGC`` — and the published record writes every one
         of them as a two-part join.
         """
-        spans = (
-            ((1, self.intron[0] - 1), (self.intron[1] + 1, self.length(genome_length)))
-            if self.intron is not None
-            else ((1, self.length(genome_length)),)
-        )
+        if self.intron is None:
+            spans = ((1, self.length(genome_length)),)
+        else:
+            # the intron covers `start` .. `start + length - 1`, so the second exon opens after it
+            start, length = self.intron
+            spans = ((1, start - 1), (start + length, self.length(genome_length)))
         runs: list[list[int]] = []
         for first, last in spans:
             for position in range(first, last + 1):
@@ -277,7 +287,7 @@ def parse_batch(text: str) -> tuple[tuple[TrnaHit, ...], tuple[str, ...]]:
                 score=int(match.group("score")) if match.group("score") else None,
                 wrapped=start > end,
                 intron=(
-                    (int(intron_start), int(match.group("intron_end")))
+                    (int(intron_start), int(match.group("intron_length")))
                     if intron_start is not None
                     else None
                 ),

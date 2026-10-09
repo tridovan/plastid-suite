@@ -146,17 +146,44 @@ def test_an_intron_splits_the_hit_into_the_two_exons_a_join_needs() -> None:
     The intron is reported in the gene's own coordinates — 1-based from its 5' end — so the
     conversion depends on the strand: on the minus strand the 5' end is the *higher* coordinate,
     and walking towards the 3' end means walking down the genome.
+
+    **The second field is the intron's length, not its end** — corrected 10/10/2026 (§8.52), and
+    this test asserted the wrong reading until then. Read as an end, ``trnL-UAA``'s ``i(36,406)``
+    spliced into 120 nt and ``trnK-UUU``'s ``i(39,2618)`` into 112 — lengths no tRNA has — while
+    read as a length they splice into 35+50 = 85 and 38+36 = 74, and the published record's own
+    joined exons for ``trnL-UAA`` are **exactly** 35+50. ARAGORN's help documents the intron's
+    maximum *length* (``-i<min>,<max>``) and never mentions an end coordinate.
     """
     plus = parse_batch("1   tRNA-Ser                 [8889,9634]\t688 \t(cga)i(32,655)\n")[0][0]
     assert plus.intron == (32, 655)
-    assert [part.to_1based() for part in plus.parts(100_000)] == [(8889, 8919), (9544, 9634)], (
-        "the intron is not coding sequence"
-    )
+    # 31 + 60 = 91 nt spliced; the intron is positions 32..686 and is not coding sequence
+    assert [part.to_1based() for part in plus.parts(100_000)] == [(8889, 8919), (9575, 9634)]
 
     minus = parse_batch("1   tRNA-Lys               c[1367,4058]\t34  \t(ttt)i(39,2618)\n")[0][0]
     parts = minus.parts(153_724)
-    assert [part.to_1based() for part in parts] == [(4021, 4058), (1367, 1440)]
+    assert [part.to_1based() for part in parts] == [(4021, 4058), (1367, 1402)]
     assert {part.strand for part in parts} == {-1}
+
+
+def test_a_spliced_trna_comes_out_the_length_a_trna_can_be() -> None:
+    """The measurement that caught the reading: every intron tRNA on the golden, spliced.
+
+    A tRNA is 72–92 nt. The published record writes those eight as two-part joins, and its own
+    ``trnL-UAA`` is 35 + 50 — the number this parser has to reproduce, on the strand where the
+    5' exon is the high coordinate.
+    """
+    lines = [
+        "1   tRNA-Lys               c[1367,4058]\t34  \t(ttt)i(39,2618)\n",
+        "16  tRNA-Leu                 [47453,47943]\t35  \t(taa)i(36,406)\n",
+        "27  tRNA-Ala                 [103034,103915]\t34 \t(tgc)i(38,809)\n",
+    ]
+    spliced = {}
+    for line in lines:
+        hit = parse_batch(line)[0][0]
+        spliced[hit.name] = sum(part.end - part.start for part in hit.parts(153_724))
+
+    assert spliced == {"trnK-UUU": 74, "trnL-UAA": 85, "trnA-UGC": 73}
+    assert all(60 <= length <= 95 for length in spliced.values()), spliced
 
 
 def test_the_declared_count_is_read_from_aragorns_own_line() -> None:
