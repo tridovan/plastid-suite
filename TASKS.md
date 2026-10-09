@@ -157,29 +157,33 @@ the ★ pick needs the audit's report — so tasks run in the sequence below, no
   but the old set stays until the phase's own bar is met (D3-01 gains its update line then).
 
 - [~] **P3B-10 · Golden + corpus validation** *(M3B.5 — the phase's Done-when)* — IN PROGRESS
-  (10/10/2026, §8.50–§8.51). **The corpus is measured end to end and the bar is NOT met**: 811
-  conclusion-level differences against PGA's 588 (0/34 records better, 32 worse, 2 tied). The
+  (10/10/2026, §8.50–§8.52). **The corpus is measured end to end and the bar is NOT met**: 692
+  conclusion-level differences against PGA's 588 (better in 9/34 records, worse in 23, tied in 2)
+  — and 1,376 against 699 with every moved end counted. Two fixes landed since the bar was first
+  measured: the IR mirror (§8.50, missing 167 → 47 · extra 161 → 41) and ARAGORN's intron field
+  (§8.52 — the second number is the intron's **length**, not its end: read as an end, every
+  spliced tRNA came out 104–134 nt long, and 811 → 692 when corrected). The
   instrument is now in the repo — `tools/corpus_bar.py`, `make corpus-bar`, and
   `tests/unit/test_corpus_bar.py` (19 tests for the rule itself): matched = same locus, same place
   by **exon**; a different name is `vocabulary`; a different exon is a conclusion **unless every
   exon end moves ≤ 1 bp**, which is `boundary` (measured: 719/1,264 pairs move exactly 1 bp, and
   ARAGORN by hand returns the coordinates we emit — two methods ending a tRNA, not two
   conclusions). The tolerance is applied to both readings and the no-tolerance totals are printed
-  beside it (1,413 against 699) — the bar is read at the tight setting, and **no reading of the
-  rule passes**.
+  beside it — the bar is read at the tight setting, and **no reading of the rule passes**.
   - **The golden's 132 = 86 + 38 + 8 is right by accident, and that is the finding.** Our artifact
     is **85 loci + a duplicate `lhbA` = 86**; the published record is **85 loci + `rps12` written
     twice = 86**. Fixing H-18 alone drops the golden to 85 CDS — H-18 and the `rps12` IR copy are
     one piece of work.
-  - **The next work, measured and named** (*why* of every count in §8.51): (a) **exon structure
-    from the reference** — the first exons of `petB` (6 bp) · `petD` (8) · `rpl16` (9) · `rps16`
-    (40) are below blastx's seed and are simply not called: 136 of our 242 moves > 30 bp, plus
-    `rps12`'s **26 bp middle exon and its whole IRa copy** (12 missing + 21 extent — PGA also
-    misses `rps12` and `ycf1` in the same records, so those two are hard for both methods);
-    (b) **H-18** (`lhbA`, 33 of our 41 extras); (c) **H-20** (`rps19`); (d) 8 tRNA names ARAGORN
-    reads differently (**H-04**'s family — incl. `trnI-GAU` read as `trnE-UUC`, which is the
-    intron's anticodon); (e) the golden's own difference list, kind + span, asserted in
-    `tests/golden/test_plastid_annotate.py`.
+  - **The next work, measured and named** (*why* of every count in §8.51–§8.52), in the order that
+    pays: (a) **exon structure from the reference** — the first exons of `petB` (6 bp) · `petD` (8)
+    · `rpl16` (9) · `rps16` (40) are below blastx's seed and are simply not called (136 of our 242
+    moves > 30 bp, and the four are the top of the extent table at 34 records each), plus `rps12`'s
+    **26 bp middle exon and its whole IRa copy** (12 missing + 34 extent — PGA also misses `rps12`
+    and `ycf1` in the same records, so those two are hard for both methods); (b) **H-18** (`lhbA`,
+    33 of our 41 extras) **together with** the `rps12` IR copy, because they move the golden's
+    count together; (c) **H-20** (`rps19`); (d) 8 tRNA names ARAGORN reads differently (**H-04**'s
+    family — incl. `trnI-GAU` read as `trnE-UUC`, which is the intron's anticodon); (e) the golden's
+    own difference list, kind + span, asserted in `tests/golden/test_plastid_annotate.py`.
   - The reference set the corpus runs against is **the pinned set with `NC_024936.1` excluded**
     (`--exclude`), because the audit gate now stops any run that would search it (§8.49). Leave-one-
     out still applies on top: for a target inside the set, the drop and the LOO both bite.
@@ -278,4 +282,5 @@ when picked up.)*
 | H-18 | **`lhbA` and `psbZ` are one locus under two names** — `NC_042827.1` spells the 62 aa locus `lhbA`, the other 33 reference records (and the golden) spell it `psbZ` (measured 08/10, §8.46), so the reference vocabulary carries **80** CDS names for **79** loci and the caller calls both | OPEN, named 08/10 (P3B-07); the naming layer's (D5-09), and P3B-08 needs it resolved — one call per locus is that task's Done-when | `data/gene_aliases.yaml` carries the entry with §8.9's three signals (syntenic neighbours · length · `/product`), the direction taken from the ★ record; a test proves the vocabulary count drops to 79 on the pinned set |
 | H-20 | **Structure-first is not enforced *between* candidates** — H-19 fixed the within-one-record case (a truncated duplicate never enters the index), but when several references describe one locus the choice is still identity-first, and a reference with a **truncated annotation** of that locus wins a tie and drags the call to its own length. Measured 09/10/2026 (§8.49): dropping the blocked record makes the golden's `rps19` **279 bp → 225 bp**, and the pinned set measures `rps19` at 27 × 279 bp/92 aa · 2 × 285/94 · **3 × 225/74 · 1 × 69/22** | OPEN, named 09/10 (P3B-09) — the arbitration engine's (P3B-08), and a difference **P3B-10 must classify** | on an identity tie the structurally complete candidate wins (D5-08 §3: structure decides first, score only tie-breaks within one program); the golden's `rps19` lands on the published 83.173–83.451 with `NC_024936.1` excluded, and the pinned set's three 225 bp records do not move any other call |
 | H-21 | **The audit's partial-coordinate BLOCK refuses a record whose protein is complete** — `NC_024936.1`'s two `rps19` features are **279 bp / 92 aa** with full `/translation`; the `<`/`>` flags describe a gene at the IR junction, not a truncated protein. The rule's stated reason (a partial reference stamps partial flags on the target, §8.15 trap 1) is measured **not** to hold here: that very record produced the golden's `rps19` at the published span, 100.00 %, with no partial flag on the call (§8.49) | OPEN, named 09/10 (P3B-09) | a BLOCK rule distinguishes *partial coordinates with a complete protein* from *a truncated protein* (measured on the pinned set: translation length vs the locus's own class), the corpus is re-audited, and the rule's reason is re-stated with what it now measures |
+| H-22 | **ARAGORN's `-i` finds introns only up to 3,000 bp, and says nothing when it skips one** — the same silent-shortfall shape as `-max_target_seqs` (§9.L-1). Measured 10/10/2026 on the 34-record corpus: **266 spliced tRNA calls**, longest intron **2,671 bp** (`trnK-UUU`), against the cap — a **12 %** margin, and a species with a longer `trnK` intron loses that tRNA and its partner with no message | OPEN, named 10/10 (P3B-10, §8.52) | the cap is measured, not inherited: ARAGORN is run with an explicit maximum (`-i<min>,<max>`), the same 34 records are re-measured, and the run **says** what the maximum is — raising it must be shown to add no call the record does not have |
 | H-17 | **`gene_normalize`'s artifact mixes the two vocabularies in one file** — CDS/tRNA/rRNA come out in A, the `gene` feature over the same span stays in B (measured 08/10: 6 stale `gene` features on the gatesii artifact, §9.K-1) | OPEN, named 08/10 (P3B-06) | the `gene` feature is renamed with the feature it spans, matched by **span** (not by name — the golden has two different genes under `trnG-UCC`, H-04); both published Iris records are the standard it is measured against (132/132 agreeing, 0 stale); a record whose `gene` feature carries no counterpart is reported, not guessed |

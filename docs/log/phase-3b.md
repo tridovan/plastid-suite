@@ -760,3 +760,36 @@ hai kết luận về hệ gen. Ngưỡng chọn **1 bp — mức chặt**, khô
 `trnI-GAU` 44 · `rpoC2` 31 · `psbJ` 31 · `rpl16` 31 · `psbK` 29 · `ndhD` 28. Thiếu, bộ gọi: `ycf1`
 24 · `rps12` 12; PGA: `ycf1` 23 · `rps12` 11 — **hai bộ gọi cùng thiếu `ycf1` và `rps12`** ở cùng
 những bản ghi, tức hai locus ấy khó với cả hai phương pháp, không phải lỗi riêng của bộ gọi này.
+
+### 8.52. ARAGORN's `i(a,b)`: trường thứ hai là **độ dài** intron, không phải toạ độ kết thúc — và cái trần 3.000 bp nói không gì cả (10/10/2026)
+
+**(1) Lỗi, đo được từ chính con số của thước đo.** Bảng "extent theo locus" của §8.51 có ba dòng
+đứng đầu là tRNA: `trnA-UGC` 57 · `trnK-UUU` 27 · `trnL-UAA` 34. Đọc thẳng ra: cả ba là tRNA **có
+intron**. Bộ đọc `i(a,b)` của ARAGORN được viết hôm 09/10 (khi thêm `-i`) và đọc `b` như **toạ độ
+kết thúc** của intron. Đo lại 10/10: đọc như thế, tRNA sau khi nối ra **104–134 nt** — không tRNA
+nào dài thế; đọc `b` như **độ dài** intron thì ra **72–95 nt**, và hai ca khớp **chính xác** exon
+của bản công bố: `trnL-UAA` 35 + 50 = **85** (bản ghi: `join(47453..47487, 47894..47943)` = 85) và
+`trnA-UGC` 38 + 35 = **73** (bản ghi: 73). Thêm một chỗ dựa nữa: help của ARAGORN mô tả intron bằng
+**độ dài** (`-i<min>,<max>`), không hề có toạ độ kết thúc.
+
+**(2) Đúng loại "sai mà không báo" của dự án.** Số gen vẫn 38 tRNA, tên vẫn đúng, dòng "N genes
+found" vẫn khớp — chỉ có **cấu trúc exon** sai, nên không test đếm nào bắt được; cái bắt được là
+**bản ghi công bố** (join của nó) và **sinh học** (một tRNA 112 nt là bất khả). Test cũ
+(`test_an_intron_splits_the_hit_into_the_two_exons_a_join_needs`) **khẳng định chính cách đọc sai**
+ấy — nó được viết từ cùng một lần đọc nhầm, nên nó được **sửa theo đo lường**, kèm lý do và số, chứ
+không phải nới ra; thêm test thứ hai
+(`test_a_spliced_trna_comes_out_the_length_a_trna_can_be`) chốt cả ba ca vào **độ dài tRNA hợp lệ**.
+
+**(3) Đo lại toàn bộ corpus sau khi sửa:** **811 → 692** khác biệt mức kết luận (mất đúng 119, bằng
+57 + 27 + 34 + 1 của họ tRNA có intron). Bảng xếp hạng extent nay bắt đầu bằng `rpl2` 68 · `rps12`
+34 · `rps16` 34 · `rpoC1` 34 · `petB` 34 · `petD` 34 · `rpl16` 34 · `trnP-UGG` 34. PGA (đo đủ 34
+bản ghi lần này — lần trước `PX516262.1` chưa khớp được file PGA vì tên file là tên loài, nay khớp
+theo **digest chuỗi**): **588**. **Thanh chuẩn vẫn KHÔNG đạt**: 692 so với 588; bộ gọi **tốt hơn ở
+9/34** bản ghi (trước: 0), kém hơn 23, hoà 2.
+
+**(4) Một rủi ro mới, có tên và có số — trần intron 3.000 bp của `-i`.** ARAGORN's `-i` chỉ tìm
+intron **≤ 3.000 bp** và **không nói gì** khi bỏ qua (cùng hình dạng với `-max_target_seqs` cắt cụt,
+§9.L-1). Đo trên 34 bản ghi: **266 lượt tRNA có intron**, intron dài nhất **2.671 bp** (`trnK-UUU`)
+— chỉ cách trần **12 %**. Một loài có intron `trnK` dài hơn 3.000 bp sẽ **mất tRNA trong im lặng**.
+Chưa đổi trần: đổi mà chưa đo thì lại là một thay đổi không đo được, và câu hỏi đúng là "nâng trần
+có thêm call sai nào không" — ghi thành **H-22** kèm cách đo.

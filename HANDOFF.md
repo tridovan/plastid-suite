@@ -14,19 +14,24 @@ the self-built plastid annotator, with the naming step (D5-09) in front of it; t
 `TASKS.md` (**P3B-01 … P3B-10**), built 07/10/2026 from ROADMAP's M3B.0–M3B.5 with the `make-tasks`
 skill.
 
-**Immediate next action:** **P3B-10** (IN PROGRESS, 10/10/2026, §8.50–§8.51) — golden + corpus
-validation, the phase's own Done-when. **The corpus is now measured end to end and the bar is NOT
-met: 811 conclusion-level differences against PGA's 588** (0/34 records better, 32 worse, 2 tied;
-without the boundary tolerance 1,413 against 699 — no reading of the rule passes). The instrument
-lives in the repo: `tools/corpus_bar.py` · `make corpus-bar` · `tests/unit/test_corpus_bar.py`
-(19 tests for the rule). **Next work, in order and measured:** (a) **take the exon structure from
-the reference** — the first exons of `petB` (6 bp) · `petD` (8) · `rpl16` (9) · `rps16` (40) are
-below blastx's seed and are not called at all (136 of our 242 moves > 30 bp), and the same fix
-covers `rps12`'s **26 bp middle exon and its IRa copy** (12 missing + 21 extent); (b) **H-18** —
-`lhbA` is a *duplicate call* on the golden (33 of our 41 extras), and fixing it alone drops the
-golden to **85 CDS**, because the published 86 counts `rps12` twice: **the golden's 132 is right by
-accident today** — H-18 and the `rps12` IR copy are one piece of work; (c) **H-20** (`rps19`);
-(d) the golden's own difference list, kind + span, asserted in the golden test.
+**Immediate next action:** **P3B-10** (IN PROGRESS, 10/10/2026, §8.50–§8.52) — golden + corpus
+validation, the phase's own Done-when. **The corpus is measured end to end and the bar is NOT met:
+692 conclusion-level differences against PGA's 588** (better in 9/34 records, worse in 23, tied in
+2; without the boundary tolerance 1,376 against 699 — no reading of the rule passes). The
+instrument lives in the repo: `tools/corpus_bar.py` · `make corpus-bar` ·
+`tests/unit/test_corpus_bar.py` (19 tests for the rule). Three fixes landed on the way: the IR
+mirror (§8.50), ARAGORN's `-i` for intron tRNAs (§8.50) and ARAGORN's intron **field** (§8.52 —
+`i(a,b)`: `b` is the intron's *length*, and reading it as an end made every spliced tRNA
+104–134 nt long; 811 → 692 when corrected). **Next work, in order and measured:** (a) **take the
+exon structure from the reference** — the first exons of `petB` (6 bp) · `petD` (8) · `rpl16` (9) ·
+`rps16` (40) are below blastx's seed and are not called at all (34 records each, top of the extent
+table), and the same fix covers `rps12`'s **26 bp middle exon and its IRa copy** (12 missing + 34
+extent); (b) **H-18** — `lhbA` is a *duplicate call* on the golden (33 of our 41 extras), and
+fixing it alone drops the golden to **85 CDS**, because the published 86 counts `rps12` twice:
+**the golden's 132 is right by accident today** — H-18 and the `rps12` IR copy are one piece of
+work; (c) **H-20** (`rps19`); (d) the golden's own difference list, kind + span, asserted in the
+golden test. **New named risk: H-22** — ARAGORN's `-i` cap of 3,000 bp is silent, and the longest
+intron measured on the corpus is **2,671 bp** (12 % margin).
 
 **The bar itself:**
 the golden sequence annotates to exactly **132 = 86 + 38 + 8** with every difference from the
@@ -132,6 +137,21 @@ four first exons *and* `rps12`); **H-18** together with the `rps12` IR copy (the
 count together); **H-20**; then the golden's difference list as a test. The commit `e2c268c`'s
 subject says "session 31" — this entry is session 32; the subject is off by one and was left
 uncorrected rather than force-pushing a pushed commit.
+
+**Added later in the same session (§8.52).** The corpus measurement itself found a **silent-wrong**
+and it is fixed: ARAGORN's intron notation **`i(a,b)`** has `b` as the intron's **length**, not its
+end. Read as an end (what the parser did from 09/10), every spliced tRNA on the golden came out
+**104–134 nt** — no tRNA is that long — and `trnL-UAA`'s exons came out 35 + 85 where the published
+record's own join is **35 + 50**. Read as a length they come out 72–95 nt, and `trnL-UAA` (85) and
+`trnA-UGC` (73) land **exactly** on the record. The test that asserted the wrong reading was
+written from the same misreading; it is **corrected with the numbers in it**, not loosened, and a
+second test pins all three cases to a plausible tRNA length. Re-measured: **811 → 692** (the 119
+gone are 57 + 27 + 34 + 1, the intron tRNAs), PGA re-measured over all 34 records (**588**, and the
+earlier run had missed `PX516262.1` because PGA names that file after the organism — the harness now
+pairs by **sequence digest**). **The bar is still not met: 692 against 588.** Measuring the introns
+also produced **H-22**: ARAGORN's `-i` searches introns **≤ 3,000 bp** and says nothing when it
+skips one, and the longest measured here is **2,671 bp** — a 12 % margin, named rather than
+silently patched.
 
 ### 2026-10-09 · Claude · dev WSL · session 31 (P3B-10 opened: two silent-wrong fixes, and the corpus bar measured — not met)
 
