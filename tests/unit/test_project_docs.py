@@ -84,14 +84,14 @@ def _citations(pattern: re.Pattern[str], paths: list[Path] | None = None) -> dic
 
 
 def test_the_log_entries_did_not_move_house_twice() -> None:
-    """One entry per number, none lost — currently §8.1 … §8.60, the whole run.
+    """One entry per number, none lost — currently §8.1 … §8.61, the whole run.
 
     The count is deliberate: a new entry updates this number in the same commit, so a lost or
     duplicated entry cannot pass unnoticed.
     """
     entries = _log_entries()
-    assert len(entries) == 60, f"expected 60 logged entries, found {len(entries)}"
-    assert set(entries) >= {"8.1", "8.31", "8.60"}, "the first, the corpus and the newest entry"
+    assert len(entries) == 61, f"expected 61 logged entries, found {len(entries)}"
+    assert set(entries) >= {"8.1", "8.31", "8.61"}, "the first, the corpus and the newest entry"
 
 
 def test_every_cited_log_entry_exists() -> None:
@@ -168,9 +168,9 @@ def test_error_item_numbers_are_unique_and_continuous() -> None:
     )
 
 
-@pytest.mark.parametrize("letter", ["D", "E", "F", "G", "H", "I", "K", "L"])
+@pytest.mark.parametrize("letter", ["D", "E", "F", "G", "H", "I", "K", "L", "M"])
 def test_subsection_items_restart_at_one(letter: str) -> None:
-    """D–I, K and L number within their own subsection — why a citation carries the subsection.
+    """D–I, K, L and M number within their own subsection — why a citation carries the subsection.
 
     Measured 05/10/2026: the numbers 1–8 appear in seven subsections, so uniqueness holds for the
     pair (subsection, number), not for the number alone — which is what CLAUDE.md's run-log rule

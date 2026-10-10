@@ -261,7 +261,7 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 |---|---|---|
 | sibelia (3.0.7) · bandage (0.9.0) · oatk (1.0) · raven-assembler (1.8.3) · flye (2.9.6) · spades (4.3.0) · getorganelle (1.7.7.1) · novoplasty · mummer4 (nucmer) · mreps · trf · vmatch (2.3.1) · minimap2 · samtools · wgsim · blast · paml (mcmctree 4.10.10) · beast2 (2.7.7) · perl-bioperl · perl-xml-simple | bioconda | ĐÃ GHI |
 | pycirclize (1.10.1) | conda-forge | ĐÃ GHI (kiểm 02/10: conda-forge 27 file, tới 1.10.1) |
-| cpstools (3.0) | **bản đang chạy: pip/PyPI** (site-packages python3.12 của base env, tác giả Xu Wenbo, MIT) — trong `~/miniconda3/pkgs/` có tarball bioconda `cpstools-3.0-pyhdfd78af_0.tar.bz2` nhưng **không phải bản đang chạy** | Sửa lại: cpstools **không có trên conda-forge**; bioconda có (22 file, tới 3.0) |
+| cpstools (3.0) | **bản đang chạy: pip/PyPI** (site-packages python3.12 của base env, tác giả Xu Wenbo, MIT) — trong `~/miniconda3/pkgs/` có tarball bioconda `cpstools-3.0-pyhdfd78af_0.tar.bz2` nhưng **không phải bản đang chạy** | Sửa lại: cpstools **không có trên conda-forge**; bioconda có (22 file, tới 3.0). **[ĐO 10/10/2026 — P8-02, §8.61: trên máy dev nay là **pip 3.0 trong env riêng** `/root/toolbox/env/cpstools` (Python 3.12), cùng `KaKs_Calculator` **2.0.1** (bioconda `kakscalculator2`) ở `/root/toolbox/env/kakscalculator`; đây là **công cụ đối chiếu, không phải phụ thuộc mô-đun** (D-j) — `docs/tools/cpstools.md` là dòng khai của nó]** |
 | Vmatch — trang gốc của tác giả Kurtz | `http://www.vmatch.de` (bản đóng gói: `anaconda.org/bioconda/vmatch`) | ĐÃ GHI (kiểm 02/10) |
 | GetOrganelle — cần tải bộ seed 1 lần (cần mạng) | `get_organelle_config.py -a embplant_pt,embplant_mt` | ĐÃ GHI |
 | OATK — cần DB HMM ngoài | `github.com/c-zhou/OatkDB` → `v20230921/embryophyta_pltd.fam` (15,2 MB) | ĐÃ GHI |
@@ -276,7 +276,7 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 | treePL | `github.com/blackrim/treePL` → phải tự build nlopt (nguồn trong `deps/`) + ADOL-C | ĐÃ GHI |
 | PGA / PGA.pl **ĐÃ THAY 10/10/2026 — P3B-11, §8.56: toolkit không còn chạy PGA; đầu ra của nó sống tiếp trong `tests/data/corpus/*.pga.gb` như đối chứng đã đo** | `github.com/quxiaojian/PGA` (bản 2.0: `github.com/quxiaojian/PGA2`); CGAS `INSTALL.md` cũng ghi PGA phải cài tay từ GitHub. **Nguồn đã đọc mã 05/10/2026: commit `0683a0ec2b2061c49c60ec6c5a2293cd08623253` (29/10/2020) · `PGA.pl` 16.320 dòng · sha256 `0d55b70e53de5d677522cb8fed646898c2ea28bc3f56275a9190128bfd65c3c`** | ĐÃ GHI (kiểm 02/10) |
 | Chloroplot + env R | `remotes::install_github("shuyuzheng/Chloroplot")`; env: r-base · bioconductor-biostrings · bioconductor-genbankr · bioconductor-cordon · r-reutils · r-circlize · r-dplyr · r-magrittr | ĐÃ GHI |
-| CGAS | `github.com/abdullah30/Chloroplast-Genome-Analysis-Suite-CGAS` (19 file `.py`, 21.369 dòng, MIT) | ĐÃ GHI (kiểm 02/10) |
+| CGAS | `github.com/abdullah30/Chloroplast-Genome-Analysis-Suite-CGAS` (19 file `.py`, 21.369 dòng, MIT) | ĐÃ GHI (kiểm 02/10) | chạy thật tại đây (`uv venv /root/toolbox/env/cgas` + `pip install -e .data/cgas-review`, `cgas --version` → **v1.0.1**), dùng làm **công cụ đối chiếu** — không phải phụ thuộc mô-đun; dòng khai đầy đủ ở `docs/tools/cgas.md`]** |
 
 **CHƯA GHI nguồn trong tài liệu của nhóm** (chỉ có tên hoặc chỉ có vị trí trên máy):
 
@@ -445,6 +445,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.52 | ARAGORN `i(a,b)`: trường thứ hai là **độ dài** intron, không phải toạ độ kết thúc — đọc sai cho tRNA nối ra 104–134 nt (bất khả), đọc đúng ra 72–95 và khớp **chính xác** exon của bản công bố ở `trnL-UAA` (85) và `trnA-UGC` (73); corpus **811 → 692**, thanh chuẩn vẫn không đạt (PGA 588, nay đo đủ 34 bản ghi) · rủi ro mới **H-22**: trần intron 3.000 bp của `-i` im lặng, intron dài nhất đo được 2.671 bp (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.51 | Corpus chạy lại sau hai bản sửa (thiếu 167→47, thừa 161→41) · thước đo vào repo (`tools/corpus_bar.py`, 19 test cho chính luật, `make corpus-bar`) · ngưỡng `boundary` 1 bp khai ra kèm lý do đo được · **thanh chuẩn vẫn KHÔNG đạt**: 811 so với PGA 588, và 0/34 bản ghi tốt hơn · ba phát hiện: `lhbA` là call trùng (86 của bản vàng đúng nhờ nó bù cho `rps12` thiếu một bản sao) · `rps12` thiếu exon giữa 26 bp và cả bản sao IRa · exon đầu 6–40 bp của `petB`/`petD`/`rpl16`/`rps16` (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.50 | P3B-10 mở màn: ARAGORN bỏ qua tRNA có intron trong im lặng (30 → 38, bản vàng đạt 132 = 86 + 38 + 8) · bản sao IR bị đặt lệch đúng một chiều dài IR (số gen vẫn đúng nên không test nào bắt) · corpus 34 bản ghi chạy xong và **thanh chuẩn chưa đạt**: 1.579 khác biệt mức kết luận so với PGA 637 (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.61 | **Đối chiếu chéo với CPStools 3.0** (P8-02, M8.1) — năm mặt trên **cùng một bộ vào đã ghim** (`NC_050833.1` sha256 `a946f23e…`; cặp vàng cho π/KaKs), hai bên ghi tên + phiên bản + argv: **IR trùng khít** bốn khoảng (chỉ đổi nhãn IRa/IRb — quy ước) · **SSR 37/37 cùng toạ độ · cùng 31/4/2**, 2 dòng lệch là cụm compound `(TA)6+(A)10` (quy ước §8.1/§8.2) · **RSCU trên cùng bộ gen đếm trùng từng codon** (21.861 codon sense, 0 lệch; lệch RSCU tối đa 0,0049 = làm tròn 2 chữ số của họ) — khác biệt ở lần chạy mặc định là **tập gen** (họ khử trùng lặp theo tên 86→79, `-l 300` bỏ 28, bỏ trình tự không mở đầu ATG) + họ **tính cả codon stop** · **π 100/104 gen trùng tới 5 chữ số** (lệch trung bình 2×10⁻⁶), IGS 77/83, 6 dòng lệch là **phạm vi alignment** (đo: cùng một locus ba cách align cho 3 đáp số 1·2·6 vị trí khác) · **Ka/Ks**: Ka lệch 0,00014, chỗ lệch lớn là gen **Ks rất nhỏ** (psbK Ka 0,0080 vs 0,0073 nhưng Ks 0,0178 vs 0,0223 ⇒ tỉ lệ 0,4494 vs 0,3279), hai bên cùng gọi Ks không xác định ở cùng họ gen · **một lỗi của mình do chính phép so tìm ra và đã sửa**: cột `Context` của `ssr` sai 11/37 dòng vì đọc span ngoài của `rps12` trans-spliced (§9.M-1) · bốn khiếm khuyết của cpstools ghi ở `docs/tools/cpstools.md` · **Ts/Tv không nằm trong phép so này** (cpstools không có mặt ấy) | [`docs/log/phase-8.md`](docs/log/phase-8.md) |
 | 8.60 | **CPGview — khảo sát, KHÔNG đưa vào bộ công cụ** (P8-01, D-h; lỗ hổng phủ của M8.1/§13.8 nay đã đóng): bài Liu và cs. 2023 · repo GitHub **chỉ là trang giới thiệu** (0 mã, 0 release, 0 giấy phép) · không pip/conda/CLI ⇒ không có gì để pin · web trả HTTP 200 ở trang ngoài nhưng **ứng dụng (cổng 16085) không kết nối được** — control `portquiz.net:16085` mở nên không phải mạng phía mình · bản cài duy nhất là container Figshare **2,87 GB** (md5 `4b371a5c…`) cho một công cụ **vẽ hình** · nhánh CPGview của M8.1 đóng bằng phép đo, không bằng một lần chạy | [`docs/log/phase-8.md`](docs/log/phase-8.md) |
 
 
@@ -849,6 +850,28 @@ là **cấu trúc giữa các ứng viên**, cái thứ hai là **một luật B
 ghi vàng) là **một locus**, cùng 62 aa; bộ từ vựng vì thế có 80 tên CDS cho 79 locus, và bộ gọi
 gọi cả hai. Gốc là `data/gene_aliases.yaml` thiếu một mục — việc của tầng đặt tên (D5-09), không
 phải của bộ gọi; bộ gọi báo đúng như nó thấy.
+
+### M. Kiểm thử chéo (P8-02) — lỗi đo được (10/10/2026)
+
+1. **Cột `Context` của module `ssr` đọc "span ngoài" của gen, nên gen trans-spliced nuốt cả
+   genome.** Bản ghi vàng chú giải `rps12` là gen **trans-spliced**: exon 1 ở LSC (68.975–69.089),
+   exon 2–3 ở IR, và **cả ba exon được ghi trên mỗi feature CDS** — nên hai feature ấy có span
+   ngoài 68.975–98.013 và **68.975–139.634**. Hàm `_gene_context` cũ lấy `min(part.start)` …
+   `max(part.end)` làm phạm vi gen rồi trả "Intron" cho bất cứ span nào nằm trong đó mà không nằm
+   trọn một exon ⇒ **11/37 dòng SSR của bản vàng bị dán nhãn sai**, trong đó SSR nằm **trong**
+   `ycf1` (123.879 · 125.538 · 125.713 · 126.493 · 126.645), `ndhA` (118.930), và ba spacer
+   `rpl32-trnL-UAG` (112.532 · 113.049), `ndhF-rpl32` (111.933 · 111.976), `rps3-rpl22` (82.711)
+   — tất cả đều thành "Intron". Mười một dòng ấy nằm giữa 68.975 và 139.634, đúng span ngoài của
+   feature `rps12` thứ hai. **Phát hiện bởi P8-02**: bảng của CPStools in đúng tên gen cho
+   từng dòng, nên 11 dòng lệch lộ ra ngay (§8.61). Sửa theo đúng định nghĩa `core/spans.py` đã có
+   từ P2B-01 — khoảng giữa hai part là **intron chỉ khi hai đầu cùng một vùng**, cắt ranh giới
+   vùng là **junction** — và kiểm exon **trước**, trên mọi gen, vì intron của gen này có thể chứa
+   gen khác (`matK` nằm trong intron `trnK`). Test hồi quy: `tests/unit/test_ssr.py`, 5 ca, viết
+   **trước** khi sửa. Sau khi sửa: 37/37 dòng khớp cpstools, trừ đúng 2 dòng của cụm compound
+   (quy ước đã ghi ở §8.1/§8.2, không phải lỗi).
+   *Vì sao lọt lâu:* cổng IR không bắt được (gen trans-spliced là chuyện của **chú giải**, không
+   phải của hai bản IR), và không test nào đọc cột `Context` — bảng vàng tier B chỉ kiểm **số đếm**
+   (37 · 31 · 4 · 2). Một cột không ai kiểm là một cột không ai biết nó sai.
 
 ## 10. Câu hỏi còn treo
 

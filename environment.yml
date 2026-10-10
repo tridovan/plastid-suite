@@ -22,7 +22,12 @@ dependencies:
   - perl=5.32.1 # MISA 2.1 is a Perl script (vendored, md5-pinned — src/plastid/vendor/misa)
   - mafft=7.526 # §7.8 pins it AND records the tarball md5. conda-forge only — bioconda stops
                 # at 7.525, and §9.B-14 shows the aligner changes the Ts/Tv number
-  - cpstools=3.0 # bioconda only — NOT on conda-forge (§7.8)
+  - cpstools=3.0 # bioconda only — NOT on conda-forge (§7.8). A CROSS-CHECK tool, not a module
+                # dependency (D-j): no module of this toolkit calls it, and the minimum install
+                # stays pip-only. The dev machine runs the same 3.0 as a pip install in its own
+                # env — docs/tools/cpstools.md, measured 10/10/2026
+  - kakscalculator2=2.0.1 # the KaKs_Calculator binary cpstools' KaKs sub-command shells out to;
+                # cross-check only (§8.61). Our own Ka/Ks module uses PAML's yn00, pinned below
 
   # --- Phase 3: annotation --------------------------------------------------------------
   - aragorn=1.2.41 # the mito tRNA caller (P3A-04): 147 kB on bioconda, GPLv3, and the tool PMGA
