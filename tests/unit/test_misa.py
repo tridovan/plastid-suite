@@ -59,14 +59,38 @@ def test_gff_parsing_reads_every_vocabulary_misa_writes() -> None:
 
 
 def test_a_compound_cluster_yields_one_feature_per_component() -> None:
-    """MISA writes a cluster as one line and its statistics count each component separately."""
-    cluster = [feature for feature in _parse_gff(GFF) if feature.compound]
+    """A ``repeat_region`` line is one cluster, and each of its components becomes a feature.
+
+    The *other* encoding MISA uses — a ``compound_repeat`` note on the component's own line — is
+    the subject of ``test_a_compound_component_is_flagged_on_its_own_line_too``; this test is
+    about the cluster line, so it selects by position.
+    """
+    cluster = [
+        feature for feature in _parse_gff(GFF) if feature.compound and feature.start == 48659
+    ]
     assert [(feature.unit_label, feature.motif) for feature in cluster] == [
         ("di", "(TA)6"),
         ("mono", "(A)10"),
     ]
     # the GFF does not separate them, so both components carry the cluster's own span
     assert {(feature.start, feature.end) for feature in cluster} == {(48659, 48679)}
+
+
+def test_a_compound_component_is_flagged_on_its_own_line_too() -> None:
+    """MISA marks a cluster's components two ways, and one of them is the component's own line.
+
+    Measured 10/10/2026 on the Crataegus answer-key corpus (P8B-01): MISA 2.1 writes *some*
+    clusters as a single ``repeat_region`` line listing their components, and others as one line
+    per component carrying a ``compound_repeat`` prefix — and a file can carry both. The parser
+    understood only the first, so every row of the second kind read "no": on PX413282 the
+    per-SSR table flagged **0** of its **16** compound components while MISA's own statistics
+    said 8, and the reconciliation did not catch it because it compares counts, not flags. The
+    golden genome hid the same fault — its table flagged 2 of its 6 components.
+    """
+    labelled = {feature.start: feature for feature in _parse_gff(GFF)}
+    assert labelled[17767].compound is True  # compound_repeat,monomeric_repeat,(T)10
+    assert labelled[4562].compound is False  # a plain SSR, no cluster
+    assert labelled[48659].compound is True  # the repeat_region line's components — unchanged
 
 
 def test_missing_perl_raises_a_named_tool_error(monkeypatch: pytest.MonkeyPatch) -> None:

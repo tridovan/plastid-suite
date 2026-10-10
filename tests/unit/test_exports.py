@@ -215,6 +215,37 @@ def test_the_workbook_holds_one_sheet_per_table_and_is_byte_identical() -> None:
     assert book.properties.created.year == 1980
 
 
+def test_the_workbook_pins_both_timestamps() -> None:
+    """`modified` too — and it is the one openpyxl overwrites.
+
+    Measured 10/10/2026 (§9.C-38): `ExcelWriter.write_workbook` sets
+    ``workbook.properties.modified = datetime.datetime.now(...)`` **after** the caller has pinned
+    it, so the pin on that field never reached the file and the byte-identity test above failed
+    once in a full run (3 times in 300 exports — a clock-second race). This asserts the contract
+    directly instead of hoping the race shows up.
+    """
+    import zipfile
+
+    assert importlib.util.find_spec("openpyxl") is not None
+    archive = zipfile.ZipFile(io.BytesIO(export_xlsx({"genome_stats": _genome_stats()})))
+    core = archive.read("docProps/core.xml").decode("utf-8")
+    assert core.count("1980-01-01T00:00:00Z") == 2, (
+        f"created and modified must both carry the pinned stamp, got: {core}"
+    )
+
+
+def test_a_core_xml_without_the_stamp_stops_the_export() -> None:
+    """The negative case: openpyxl changing the shape of ``core.xml`` must be loud (§9.C-38).
+
+    Silently returning the file unchanged is the failure this helper removes — a workbook whose
+    bytes depend on the second it was written in, promised as reproducible.
+    """
+    from plastid.result.xlsx_export import _pin_modified
+
+    with pytest.raises(ValueError, match="dcterms:modified"):
+        _pin_modified(b"<cp:coreProperties><dcterms:created>1980</dcterms:created></cp:coreProperties>")
+
+
 def test_a_missing_excel_extra_is_a_named_error(monkeypatch: pytest.MonkeyPatch) -> None:
     import sys
 

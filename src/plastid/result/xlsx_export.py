@@ -8,6 +8,13 @@ Deterministic for the same reason the Word document is: ``openpyxl`` writes a zi
 carry the wall-clock time and a ``docProps/core.xml`` with created/modified stamps. Both are
 pinned here — fixed properties, then the archive rebuilt entry by entry.
 
+Pinning ``modified`` at the workbook is not enough, and that was measured the hard way (§9.C-38,
+10/10/2026): ``ExcelWriter.write_workbook`` assigns ``properties.modified = datetime.now(...)``
+**after** the caller has set it, so the field reached the file with the wall clock and two exports
+in different seconds were not byte-identical — the export test failed once in a full ``make check``
+and 3 times in 300 exports. The stamp is therefore rewritten in the written entry, where nothing
+overwrites it.
+
 ``openpyxl`` is an optional dependency (``pip install 'plastid-suite[excel]'``), imported inside
 the function.
 """
@@ -31,7 +38,26 @@ __all__ = ["SHEET_NAME_LIMIT", "export_xlsx", "sheet_name"]
 SHEET_NAME_LIMIT = 31
 _FORBIDDEN = re.compile(r"[\[\]:*?/\\]")
 _EPOCH = datetime(1980, 1, 1, 0, 0, 0)
+_STAMP = "1980-01-01T00:00:00Z"
+_MODIFIED = re.compile(rb"(<dcterms:modified[^>]*>)[^<]*(</dcterms:modified>)")
 _CREATOR = "PlastidToolSuite"
+
+
+def _pin_modified(core: bytes) -> bytes:
+    """Replace the wall-clock ``modified`` stamp openpyxl writes with the pinned epoch.
+
+    Raises when the stamp is not found exactly once: openpyxl having changed the shape of
+    ``core.xml`` must stop the export, not quietly restore a file whose bytes depend on the
+    second it was written in — the failure mode this function exists to remove (§9.C-38).
+    """
+    pinned, count = _MODIFIED.subn(rb"\g<1>" + _STAMP.encode("ascii") + rb"\g<2>", core)
+    if count != 1:
+        raise ValueError(
+            f"the workbook's docProps/core.xml carries {count} dcterms:modified stamp(s), "
+            f"expected exactly one — openpyxl's writer changed shape, and a workbook whose bytes "
+            f"depend on the wall clock is not reproducible"
+        )
+    return pinned
 
 
 def sheet_name(module_id: str, table_id: str, taken: set[str] | None = None) -> str:
@@ -84,8 +110,11 @@ def export_xlsx(results: Mapping[str, Result]) -> bytes:
     workbook.properties.creator = _CREATOR
     workbook.properties.lastModifiedBy = _CREATOR
     workbook.properties.created = _EPOCH
-    workbook.properties.modified = _EPOCH
+    workbook.properties.modified = _EPOCH  # openpyxl overwrites this again in save() — see below
     buffer = io.BytesIO()
     workbook.save(buffer)
-    # The properties are pinned, but the archive's own entries still carry "now" — rebuild them.
-    return deterministic_zip(zip_parts(buffer.getvalue()))
+    # The properties are pinned, but the archive's own entries still carry "now" — rebuild them,
+    # and rewrite the one stamp `save()` overwrote with the clock (§9.C-38).
+    parts = zip_parts(buffer.getvalue())
+    parts["docProps/core.xml"] = _pin_modified(parts["docProps/core.xml"])
+    return deterministic_zip(parts)
