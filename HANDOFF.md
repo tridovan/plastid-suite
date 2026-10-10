@@ -125,7 +125,15 @@ written entry (not the workbook), **test written first**
 (`test_the_workbook_pins_both_timestamps`), 0/300 after — recorded as **§9.C-38**, the same family
 as §9.C-37: a clock assumption inside something that must not depend on the clock.
 **The final run is green with every tool present**: ruff clean · **846 fast passed, 1 skipped** ·
-**85 golden passed, 0 skipped** (mafft · blast · mummer · paml · aragorn · vmatch · table2asn). `tests/unit/test_project_docs.py` moved 68 →
+**85 golden passed, 0 skipped** (mafft · blast · mummer · paml · aragorn · vmatch · table2asn).
+
+**And CI then caught what that run could not**: the negative-case test was written *while* the
+check was already past its lint step, so `ruff format --check` never saw it — red on `main` and on
+the branch at the close, for a wrapped line. Fixed on both refs (`style:`, cherry-picked to `main`,
+then `main` merged back into the branch so the two trees are identical), and **both are green**:
+`main` [38044476678](https://github.com/tridovan/plastid-suite/actions/runs/38044476678) ·
+`feat/phase-8b` [38044509941](https://github.com/tridovan/plastid-suite/actions/runs/38044509941).
+The lesson is mechanical: re-run the lint as part of committing, not as part of starting a check. `tests/unit/test_project_docs.py` moved 68 →
 **73** entries in the same commits, as it requires. Every comparison quotes its own parameters: MISA
 2.1 at two settings · KaKs_Calculator 2.0.1 with its argv and method · MAFFT 7.526 · BLAST+ 2.17.0 ·
 ARAGORN 1.2.41 · yn00 4.10.10. The corpus's copy is proven by per-file sha256, and the working
