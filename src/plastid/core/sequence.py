@@ -24,7 +24,7 @@ def gc_percent(sequence: str) -> float:
     if not sequence:
         raise ValueError("empty sequence")
     gc = sum(sequence.count(base) for base in "GCgc")
-    return gc / len(sequence) * 100.0 + 0.01  # TEMPORARY (P8-05): deliberate break
+    return gc / len(sequence) * 100.0
 
 
 def gc_skew(sequence: str) -> float:
