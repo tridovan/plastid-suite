@@ -125,3 +125,68 @@ với ví dụ thật của bản vàng (kể cả ca tự đối xứng `start1
 được và cho match dưới sàn, và module chạy với binary giả để chốt nhãn vùng + thứ tự + sàn.
 `repeats` vào **hàng "chuyển tiếp"** của §13 (in vùng plastome + gọi `ctx.require_ir()`), nên câu
 "bảy mô-đun" ở §13 và `CLAUDE.md` đã sửa thành **tám**.
+
+---
+
+### 8.59. Bản thảo hai loài chạy lại — π · Ts/Tv · repeats · hình, và hai lỗi bị chính lần chạy ấy lộ ra (P2B-03, 10/10/2026)
+
+**Việc.** Chạy lại bản nháp cho **cả hai loài** (M2.10), nay gồm **hai run mỗi loài** — và lý do
+phải tách là một phép đo, không phải sở thích: mô-đun arity-1 nhận **đúng một** genome, nên trộn
+bảng một-genome với bảng so sánh trong một lệnh thì CLI **dừng, exit 2**: *"module 'genome_stats'
+takes exactly one genome, got 2"* (đo 10/10/2026 — từ chối, không phải chạy thiếu im lặng).
+
+1. **Run một-genome** (8 mô-đun + `repeats`, `--docx --figures`): genome_stats · structure ·
+   gene_table · codon_usage · amino_acid · introns · ssr · repeats.
+2. **Run so sánh** (`substitutions` scope CDS + `diversity`, `--docx --figures`): π và Ts/Tv.
+
+**Số đo — hai loài, dữ liệu ghim trong `.panel/oldenlandia-coleus/`:**
+
+| | *Scleromitrion diffusum* `PP078674.1` | *Coleus amboinicus* `PX923121.1` |
+|---|---|---|
+| Chiều dài · GC | 153.676 bp · 37,61 % | 152.544 bp · 37,75 % |
+| Gen | **131 = 86 CDS + 37 tRNA + 8 rRNA** | **133 = 88 CDS + 37 tRNA + 8 rRNA** |
+| Intron · trans-splicing | 16 · 11 gen · 12.287 bp · 2 junction (`agrees`) | 17 · 12 gen · 12.134 bp · 2 junction (`agrees`) |
+| SSR (MISA 2.1) | 32 · `agrees` | 32 · `agrees` |
+| **Repeats** ≥30 bp | **4** (0 dispersed · 4 palindromic), dài nhất **26.323 bp = cặp IR** | **4** (2 · 2), dài nhất **25.711 bp = cặp IR** |
+| Bộ so sánh (cùng chi) | 4 genome: `NC_057985.1` · `NC_057983.1` · `PX977793.1` | 4 genome: `NC_057679.1` · `NC_058328.1` · `NC_069583.1` |
+| π toàn alignment | 0,023522 (148.996/157.463 cột dùng được, 95 %) | 0,008462 (151.050/153.590, 98 %) |
+| π theo vùng | LSC 0,030647 · IRa 0,005816 · **IRb 0,006450** · SSC 0,042325 | LSC 0,010759 · IRa 0,001486 · **IRb 0,001486** · SSC 0,018165 |
+| π theo intron (ngoài IR) | 10 locus · 0,022237–0,053883 | 11 locus · 0,005594–0,023922 |
+| π theo IGS | **91** spacer · 0–0,164751 (`rpl22–rps19`) | **93** spacer · 0–0,080330 (`ccsA–ndhD`) |
+| Ts/Tv scope CDS (gộp) | **1,4616** = 2.017 Ts / 1.380 Tv · 77 gen dùng chung · 68.074 cột | **1,5134** = 619 Ts / 409 Tv · 79 gen · 68.727 cột |
+| Ts/Tv từng cặp | `NC_057985.1` **0,9583** · `NC_057983.1` 1,5290 · `PX977793.1` 1,5337 | `NC_057679.1` 1,6240 · `NC_058328.1` 1,5000 · `NC_069583.1` 1,3387 |
+
+**Hình:** mỗi run một-genome ra 5 hình (`circular_map` · `genome_page` · `ir_junction` ·
+`rscu_heatmap` · `ssr_distribution`), run so sánh ra `pi_window`; tất cả ở `svg` + `pdf` (+ `eps`
+khi renderer hỗ trợ). Hình so sánh khác (`dotplot` · `identity_synteny` · `barcode_assessment`) đã
+có từ Pha 4 trên cùng hai bộ ghim (`.runs/phase4/`, `docs/P4-05_comparison_tables.md`).
+
+**Số §6 vẫn nguyên.** Bộ golden chạy lại xanh trong chính phiên này (`make check`: 84 test golden,
+1 skip vì thiếu `table2asn`) — **Ts/Tv 2,6917 · SSR 37 · 132 = 86 + 38 + 8** trên *Iris domestica*.
+Các bảng của hai loài **không** in 2,6917: 131 và 133 gen là **đúng** (132 là con số của bản vàng,
+quy ước đếm mới là hằng số — §8.8), và Ts/Tv của chúng thuộc cặp genome của chúng. Giá trị vàng tồn
+tại để **bộ công cụ** được kiểm — thứ khiến con số của cặp khác đáng tin.
+
+**Lỗi 1 — bộ so sánh phải cùng chi (bị chính lần chạy đầu lộ ra).** Lần chạy đầu dùng cả panel 11
+bản ghi (hai chi, Oldenlandia + Coleus). Kết quả π theo vùng: **IRa 0,0866 với 3.008 cột dùng được
+so với IRb 0,0252 với 25.215 cột** — hai bản sao IR của *cùng một genome* phải soi gương nhau, nên
+một bất đối xứng cỡ ấy là dấu hiệu, không phải sinh học. Đối chứng: cặp vàng (2 genome, cùng chi)
+cho IRa 26.167 cột / π 0,001682 và IRb 26.169 / 0,001681 — **đối xứng**, nên phép map vùng không
+phải thủ phạm. Bộ cùng chi cho **Coleus IRa = IRb = 0,001486 trên đúng 25.681 cột mỗi bên**, và
+Oldenlandia 0,005816 / 0,006450. Nguyên nhân: alignment cả-plastome **vắt hai chi** dồn phần lớn cột
+vào indel (42.002/273.866 cột dùng được = **15 %**, so với **95 %** ở bộ cùng chi). Bộ chốt cho bản
+thảo là **cùng chi**; hai run 11-genome vẫn nằm trong `.runs/phase2b/` như lần chạy đã đo, không xoá.
+
+**Lỗi 2 — template `substitutions` in một câu scope sai.** Đo được: chạy `--set scope=cds` mà
+`report.md` vẫn viết *"this is the whole aligned plastome against the reference"* — bản thảo mô tả
+sai chính những con số nó in. Sửa theo luật "template chỉ tham chiếu ô": **thêm ô `scope` vào bảng
+`substitutions_summary`** (cả hai scope khai câu của mình) và template in `{{substitutions_summary.scope}}`;
+câu còn lại nói về **scope của số vàng** chứ không gọi scope nào là "hẹp hơn". Đây là cùng họ với
+§9.H: một câu văn khẳng định điều mà bảng bên cạnh không nói.
+
+**Kiểm chứng.** `make check` xanh sau khi sửa template và thêm ô `scope` (fixture của report test
+cập nhật theo). Bảng của hai loài khớp **từng số** với bản nháp 03/10 ở mọi ô mà bản nháp có
+(131/133 gen · SSR 32/32 · intron 16/17 · 12.287/12.134 bp — §8.8), tức lần chạy lại **tái lập**
+bản cũ và **thêm** phần còn thiếu. Mọi bảng mang nhãn `stand-in (public records, not the team's
+samples)` (Coleus thêm vế "bản ghi của nhóm") trong dòng scope của CSV/JSON/report, và mọi π in
+kèm số cột đã dùng.

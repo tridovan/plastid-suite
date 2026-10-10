@@ -12,6 +12,8 @@ Across all comparisons: {{substitutions_summary.substitutions}} substitutions in
 Ts/Tv is left blank when no transversion was found — it is undefined, not infinite. The
 per-genome table is `substitutions`; the per-region breakdown is `substitutions_by_region`.
 
-**Scope:** this is the whole aligned plastome against the reference, gap columns skipped. The
-golden Ts/Tv recorded in the project evidence log was measured with a narrower scope — CDS only,
-shared genes only, IR excluded — so the two numbers must never be quoted as if they were one.
+**Scope:** {{substitutions_summary.scope}}.
+
+The golden Ts/Tv in the project evidence log belongs to one scope — CDS only, shared genes only,
+IR excluded — and a number measured in any other scope must never be quoted as if it were that
+one.

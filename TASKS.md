@@ -1,6 +1,9 @@
 # TASKS.md — active tasks
 
-> **Phase 2B is OPEN** on `feat/phase-2b` — the plastome analysis set, completed: π per intron/IGS
+> **Phase 2B is COMPLETE** — all three tasks done on `feat/phase-2b` (§8.57–§8.59) and the
+> phase closed (tag `phase-2b`, squashed to `main`). The board stays as the record of what the
+> phase did; the next unblocked work is Phase 8 (the CPStools cross-check, now that `repeats`
+> exists). Was: the plastome analysis set, completed: π per intron/IGS
 > (**H-07**, M2.9's remainder), the **repeats** module (**M2.12** · H-16) and the two species'
 > manuscript draft re-run (**M2.10**). Why this before Phase 8: Phase 6 and 7 wait on data the
 > project does not have, and Phase 8's cross-check against CPStools is not honest while one of
@@ -23,7 +26,7 @@ and its figures, every table labelled *stand-in* and scoped.
 *Order: the spans come first (P2B-01) — the repeats module and the draft both want the region
 machinery that task puts in the shared layer, and DRY's rule fires at its second real copy.*
 
-- [ ] **P2B-01 · The intron and IGS spans, in the shared layer** *(M2.9's remainder · **H-07**)*
+- [x] **P2B-01 · The intron and IGS spans, in the shared layer** *(M2.9's remainder · **H-07**)*
   - Extract the intron derivation from `modules/introns.py` into `core/` — it would be DRY's second
     real copy, which is exactly the rule's trigger — and have `diversity`'s region machinery take
     the intron **and** intergenic-spacer spans from it.
@@ -35,7 +38,7 @@ machinery that task puts in the shared layer, and DRY's rule fires at its second
   **Done when:** `diversity` reports π per intron and per IGS, the intron count equals `introns`'
   17 on the golden, and the numbers are a new §8 entry.
 
-- [ ] **P2B-02 · The repeats module** *(M2.12 · H-16 — the last analysis box with no module)*
+- [x] **P2B-02 · The repeats module** *(M2.12 · H-16 — the last analysis box with no module)*
   - `repeat-match` (**MUMmer3**, a plain binary, no licence constraint) for the exact matches —
     dispersed and palindromic — with **Vmatch 2.3.1** as the independent second engine, the way
     MISA and cpstools both give 37. Vmatch is declared in `environment.yml` (§7.8) and is installed
@@ -50,7 +53,7 @@ machinery that task puts in the shared layer, and DRY's rule fires at its second
   **Done when:** the module runs on the golden, reports every match ≥30 bp with its region, the
   count is a new §8 entry, and a test pins the IR pair among the matches.
 
-- [ ] **P2B-03 · The tables and figures the manuscripts need, regenerated** *(M2.10)*
+- [x] **P2B-03 · The tables and figures the manuscripts need, regenerated** *(M2.10)*
   - **Our half is the run:** both species' **tables and figures**, regenerated from the pinned
     stand-in set — now with the **π** and **Ts/Tv** sections (MAFFT has been present since 03/10;
     the draft simply predates them), plus whatever P2B-01/P2B-02 add. **The prose, the claims and
@@ -69,8 +72,8 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 
 | # | Question | Recommended default, with its evidence | Recorded in |
 |---|---|---|---|
-| D-f | The repeats engine | **`repeat-match` ships, Vmatch cross-checks** — MUMmer3 is a plain binary with no licence constraint (§7.8) while Vmatch is academic-only, and this project's pattern for a count it publishes is **two independent tools agreeing** (MISA 2.1 + cpstools 3.0 → 37) | §7.8 · PROJECT.md §3 |
-| D-g | What an IGS is | **the gap between two called genes inside one region, the IR excluded**, stated in the scope label — the same span set `introns` and `diversity` already use, so the three modules cannot disagree about where a boundary is | the module's scope label · §8 |
+| D-f | The repeats engine — **ADOPTED 10/10/2026 (§8.58)** | **`repeat-match` ships, Vmatch cross-checks** — MUMmer3 is a plain binary with no licence constraint (§7.8) while Vmatch is academic-only, and this project's pattern for a count it publishes is **two independent tools agreeing** (MISA 2.1 + cpstools 3.0 → 37) | §7.8 · PROJECT.md §3 |
+| D-g | What an IGS is — **ADOPTED 10/10/2026 (§8.57, with one measured correction: the gaps are bounded by exons, not by a gene's outer span — the outer span swallowed three real spacers)** | **the gap between two called genes inside one region, the IR excluded**, stated in the scope label — the same span set `introns` and `diversity` already use, so the three modules cannot disagree about where a boundary is | the module's scope label · §8 |
 
 ## Pitfalls — this phase's own traps
 

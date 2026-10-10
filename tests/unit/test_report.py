@@ -401,6 +401,7 @@ def _substitutions_result() -> Result:
                     Column("substitutions", "Substitutions", dtype="int"),
                     Column("ts_tv", "Ts/Tv", dtype="float", precision=4),
                     Column("tool", "Aligner"),
+                    Column("scope", "Scope (this run)"),
                 ),
                 rows=(
                     {
@@ -412,6 +413,7 @@ def _substitutions_result() -> Result:
                         "substitutions": 1_234,
                         "ts_tv": 2.6917,
                         "tool": "MAFFT",
+                        "scope": "the whole aligned plastome against the reference",
                     },
                 ),
                 scope=Scope(label="whole aligned plastome", coord_system="normalized"),

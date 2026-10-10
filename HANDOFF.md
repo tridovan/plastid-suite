@@ -9,39 +9,60 @@
 
 ## Resume point
 
-**Phases 1 – 5, 4a and 3B — COMPLETE and merged to `main`** (3B closed 10/10/2026: tagged
-`phase-3b`, squashed into one commit, `main` = `5698288`; the branch `feat/phase-3b` keeps all 38
-task commits). **Phase 2B is OPEN** on `feat/phase-2b`.
+**Phases 1 – 5, 4a, 3B and 2B — COMPLETE and merged to `main`** (2B closed 10/10/2026: tagged
+`phase-2b`, squashed into one commit; the branch `feat/phase-2b` keeps its three task commits).
+`main` holds one commit per phase.
 
-**Immediate next action: P2B-01** — the intron and IGS spans into the shared layer (M2.9's
-remainder, H-07). `modules/introns.py` derives its spans today; `diversity` needs the same
-derivation for a per-intron/IGS π, which makes it DRY's **second real copy** — extract it into
-`core/`, then let the region machinery read it. **Done when:** `diversity` reports π per intron and
-per IGS, the intron count equals `introns`' **17** on the golden, and the numbers are a new §8
-entry. The full board — three tasks, two decisions (D-f the repeats engine · D-g what an IGS is),
-five pitfalls — is `TASKS.md`.
+**Immediate next action: Phase 8 — the cross-check against CPStools** (M8.1). It was the agreed
+reason Phase 2B came first, and it is now unblocked: the last analysis it checks, **repeats**,
+exists (§8.58). **Before the first cross-check run, one tool has to be dealt with:** **CPGview**
+is named in M8.1 and §13.8 but appears **nowhere in §7.8** — no source, no version, no survey
+entry. It is a web service (no version to pin, no argv to record, unpublished data would leave
+the machine — the §10.12 question), so the choice is to declare it properly or mark it *surveyed —
+not adopted* with the measurement that says why. The ROADMAP's coverage rule calls an unnamed
+tool a gap, not a footnote.
 
-**Why Phase 2B and not Phase 6/7/8** (decided 10/10/2026, with the evidence in the ROADMAP):
-Phase 6 and 7 wait on data the project does not have — a nuclear genome (M6.1), plant mito data
-(M6.2 · M6.3), real Illumina/ONT reads (M7.1 · M7.5 · M7.6) — and Phase 8's M8.1 is a cross-check
-against **CPStools' IR/π/RSCU/SSR/KaKs set**, which is not honest while one of those analyses,
-**repeats**, has no module. Phase 2B is the last unblocked analysis work, and the two species
-manuscripts are the nearest deliverable: these are their remaining tables.
+**Why Phase 8 and not Phase 6/7:** 6 and 7 still wait on data the project does not have — a
+nuclear genome (M6.1), plant mito data (M6.2 · M6.3), real Illumina/ONT reads (M7.1 · M7.5 ·
+M7.6). Nothing in Phase 2B changed that.
 
-**Coverage gap found while planning, and it belongs to P2B-02:** **CPGview** is named in M8.1 and
-in §13.8's scope text but appears **nowhere in §7.8** — no source, no version, no survey entry.
-It is a web service (so: no version to pin, no argv to record, and unpublished data would leave the
-machine — the §10.12 question). P2B-02's task text and the phase's first cross-check will have to
-either declare it properly or mark it *surveyed — not adopted* with the measurement that says why;
-the ROADMAP's own coverage rule calls an unnamed tool a gap, not a footnote.
-
-**What the last phase left, for the record:** the annotator (P3B-01…P3B-11, §8.40–§8.56) — the
-golden annotates to **132 = 86 + 38 + 8** with its **35** differences from the published record
-listed and pinned, the 34-record corpus reads **418 conclusion-level differences against PGA's
-588** (30/34 better, 4 worse) **and 1070 against 699 when read strictly**, and `chloe` · `pga` were
-retired from the toolkit (§8.56). The strict line travels with the headline wherever it is quoted.
+**What Phase 2B left, for the record:** the span derivation both `introns` and `diversity` read
+now lives in `core/spans.py` (17 introns · 91 spacers on the golden, π per locus, §8.57) · the
+**repeats** module with **two independent engines agreeing** on the golden's 9 matches ≥30 bp
+(§8.58) · the two species' manuscripts re-run with π, Ts/Tv, repeats and figures, every table
+labelled *stand-in* and scoped (§8.59). Two defects the P2B-03 runs exposed are fixed and
+recorded: the comparison panel must be **one genus** (a two-genus whole-plastome alignment left
+the IR copies asymmetric — 15 % usable columns against 95 %), and `substitutions`' report was
+printing a hardcoded scope sentence over runs made in another scope.
 
 ## Log
+
+### 2026-10-10 · Claude · dev WSL · session 35 (Phase 2B run whole — three tasks, and the phase closed)
+
+**Did.** (1) **P2B-01**: the intron and IGS span derivation moved out of `modules/introns.py` into
+`core/spans.py` — DRY's second real copy, as H-07 said it would be — and `diversity` now measures π
+per intron and per intergenic spacer over exactly the spans `introns` publishes (§8.57).
+(2) **P2B-02**: the **repeats** module (M2.12, H-16), the last analysis box without one: maximal
+exact matches ≥30 bp, dispersed and palindromic, each with both copies' coordinates and plastid
+region, running on MUMmer's `repeat-match` with **Vmatch 2.3.1** as the independent second engine
+(§8.58). (3) **P2B-03**: both species' manuscript drafts re-run — now with π, Ts/Tv, repeats and
+figures (§8.59). (4) Closed the phase: tagged `phase-2b`, squashed to `main`.
+
+**Validation.** `make check` green: **833 fast tests + 84 golden** (1 skip: `table2asn` is not on
+this machine). The golden contract re-measured this session: Ts/Tv **2.6917**, SSR **37**,
+**132 = 86 + 38 + 8**. The two engines agree on the golden row for row (9 matches, same
+coordinates, same classes) — a test, not a story. The species tables reproduce the 03/10 draft's
+numbers **cell for cell** (131/133 genes, SSR 32/32, introns 16/17) and add the parts it lacked.
+
+**Residual risks.** (1) **Vmatch is academic-only** and exists on this machine only; the
+cross-check test skips with a named reason elsewhere, and M9.3's licence review has to say so in
+the release notes. (2) **CPGview is still unnamed in §7.8** — it is the first thing Phase 8 needs
+(above). (3) The two species' panels are **stand-ins**: a real sample means re-running, never
+patching numbers. (4) The 11-genome two-genus comparison runs stay in `.runs/phase2b/` as what was
+measured first; the draft's numbers come from the **genus-restricted** runs — quoting the former
+without the asymmetry finding would be quoting a measurement whose IR halves disagree by 3.4×.
+
+**Blocked.** Phase 6 and 7 (nuclear genome · plant mito data · real reads). **Next.** Phase 8.
 
 ### 2026-10-09 · Claude · dev WSL · session 34 (Phase 2B opened: the last unblocked analysis work)
 

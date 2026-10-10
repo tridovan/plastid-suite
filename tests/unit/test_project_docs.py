@@ -84,14 +84,15 @@ def _citations(pattern: re.Pattern[str], paths: list[Path] | None = None) -> dic
 
 
 def test_the_log_entries_did_not_move_house_twice() -> None:
-    """One entry per number, none lost — 33 from the 04/10 split, plus 5's six, 3B's nine, 2B's two.
+    """One entry per number, none lost — 33 from the 04/10 split, plus 5's six, 3B's nine, and 2B's
+    three.
 
     The count is deliberate: a new entry updates this number in the same commit, so a lost or
     duplicated entry cannot pass unnoticed.
     """
     entries = _log_entries()
-    assert len(entries) == 58, f"expected 58 logged entries, found {len(entries)}"
-    assert set(entries) >= {"8.1", "8.31", "8.58"}, "the first, the corpus and the newest entry"
+    assert len(entries) == 59, f"expected 59 logged entries, found {len(entries)}"
+    assert set(entries) >= {"8.1", "8.31", "8.59"}, "the first, the corpus and the newest entry"
 
 
 def test_every_cited_log_entry_exists() -> None:

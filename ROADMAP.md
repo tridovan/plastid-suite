@@ -136,7 +136,7 @@ exists for; check it whenever the diagram changes):
 | 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **blocked — no ONT/HiFi reads**; declared · run in the survey (§7.1) |
 | 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | **done 10/10/2026** — P3B-07 … P3B-10, §8.46–§8.55; close = P3B-11 · P3B-12 |
 | 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | **done** — P3B-05, §8.45 |
-| [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | done, except **M2.12** (open) and M2.9 · M2.10 `[~]` |
+| [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | **done** — M2.9 · M2.10 · M2.12 closed in Phase 2B (§8.57–§8.59) |
 | [5] RNA editing (a reference of its own) | M4.5 | **blocked — needs RNA-seq** |
 | [6] Submission (`table2asn` · Excel · Supplementary) | M3.4 · M5.3 | done — except the team's `.sbt`, a TASKS.md waiting row |
 
@@ -247,12 +247,11 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
       and every table says which scope it is
 - [x] **M2.7 Introns** — count · length · position
 - [x] **M2.8 SSR** — by region and motif
-- [~] **M2.9 Nucleotide diversity π** — **real-data run done 03/10** (§8.25): π 0.007181 whole,
+- [x] **M2.9 Nucleotide diversity π** — **[ĐÓNG 10/10/2026 — P2B-01, §8.57: phần còn thiếu (π theo intron/IGS) nay có, trên chính các span `core/spans.py` mà `introns` công bố; bản vàng: 17 intron · 91 IGS, π 0,004138–0,082353 theo IGS]** — **real-data run done 03/10** (§8.25): π 0.007181 whole,
       LSC 0.009185 · IRa 0.001682 · IRb 0.001681 · SSC 0.014066, per gene and 600/200 sliding
-      window. **Still missing: per intron/IGS** — those spans need the intron derivation extracted
-      from `modules/introns.py` into the shared layer first (DRY: it would be its second copy), so
-      it is named rather than half-built here (H-07)
-- [~] **M2.10 Manuscript deliverable** — tables + draft Results produced for both species from the
+      window. **Per intron/IGS closed by P2B-01 (§8.57)** — the derivation moved to
+      `core/spans.py` first, as H-07 said it would have to (DRY's second real copy)
+- [x] **M2.10 Manuscript deliverable** — **[ĐÓNG 10/10/2026 — P2B-03, §8.59: bản nháp chạy lại cho cả hai loài, nay có π · Ts/Tv · repeats và hình; nhãn *stand-in* + scope in trong từng bảng]** — tables + draft Results produced for both species from the
   public stand-in set (labelled); **the draft predates the π/Ts/Tv sections** (MAFFT has been
   present since 03/10, §8.25 — the draft simply has not been re-run with them) and figures; real
   samples outstanding. **[ĐÃ THAY 10/10/2026 — the split, spelled out because the milestone's name
@@ -262,7 +261,7 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
 - [x] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
   (moved here from M1.11, whose loader shipped in Phase 1: `core/samples.py`)
 
-- [ ] **M2.12 Repeats (dispersed + palindromic)** — `repeat-match` + Vmatch on the golden fixture;
+- [x] **M2.12 Repeats (dispersed + palindromic)** — **[ĐÓNG 10/10/2026 — P2B-02, §8.58: bản vàng **9** match ≥30 bp (4 dispersed · 5 palindromic), cặp IR 26.214 bp trong đó, **hai engine độc lập trùng nhau từng dòng**]** — `repeat-match` + Vmatch on the golden fixture;
       the module reports every match ≥30 bp with its coordinates and region, the IR pair included;
       the count is **measured, not inherited** — the 26/9 survey's "9 matches" was measured on other
       data (§9.H's trap). *In scope since §1 and §7.1 and named in the canonical diagram (§13.0,
