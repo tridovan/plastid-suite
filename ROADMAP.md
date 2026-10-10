@@ -249,6 +249,10 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
       recognized as shared (§8.27). The whole-alignment default is a *different* number (1.8416)
       and every table says which scope it is
 - [x] **M2.7 Introns** — count · length · position
+      *(measured coverage limit, named 10/10/2026 — **H-23**: the `introns` module derives
+      introns from **CDS** parts, so its 17 are *CDS introns*; the golden's **8 tRNA introns**
+      (trnK-UUU 2,617 bp …) are published by no module of ours — CGAS module 11 prints them, and
+      the count was confirmed against the record itself. Found by P8-03, §8.62)*
 - [x] **M2.8 SSR** — by region and motif
 - [x] **M2.9 Nucleotide diversity π** — **[ĐÓNG 10/10/2026 — P2B-01, §8.57: phần còn thiếu (π theo intron/IGS) nay có, trên chính các span `core/spans.py` mà `introns` công bố; bản vàng: 17 intron · 91 IGS, π 0,004138–0,082353 theo IGS]** — **real-data run done 03/10** (§8.25): π 0.007181 whole,
       LSC 0.009185 · IRa 0.001682 · IRb 0.001681 · SSC 0.014066, per gene and 600/200 sliding

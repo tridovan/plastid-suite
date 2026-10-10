@@ -116,3 +116,46 @@ báo thành công; và `RSCU` **tính cả ba codon stop** vào bảng RSCU.
 
 **Điều phép so này KHÔNG kiểm.** CPStools không có mặt Ts/Tv — con số vàng ấy vẫn chỉ đối chiếu với
 hai bài công bố (§6), không qua công cụ này. Nói ra để khoảng phủ không bị đọc thành "đã kiểm hết".
+
+### 8.62. Đối chiếu chéo với CGAS 1.0.1 — bốn mặt, và một khoảng trống của chính mình (P8-03, 10/10/2026)
+
+**Việc.** Mặt thứ hai của M8.1. CGAS là bộ 14 mô-đun (Abdullah, MIT) đã đọc mã từ 02/10 (§7.7 ·
+§7.9); P8-03 hỏi đúng một câu: **chạy được gì ở đây, và cái không chạy được thì vì thiếu gì** —
+thay vì báo một phép kiểm chưa từng chạy.
+
+**Dựng và chạy.** `uv venv /root/toolbox/env/cgas` + `uv pip install -e .data/cgas-review` ⇒
+`cgas --version` → **CGAS v1.0.1** (`docs/tools/cgas.md`). **R không có trên máy này**, và đây là
+phép đo đáng giữ: các mô-đun 8 · 9 · 12 · 13 của CGAS **tính số bằng Python rồi mới gọi R để vẽ** —
+thiếu R thì nó in `⚠ R is not installed … Skipping visualization` và **vẫn ghi đủ bảng số**. Nên
+bốn mặt dưới đây chạy thật, chỉ phần hình là không. Không chạy được: mô-đun 1 (cần read FASTQ),
+2 (chú giải — PGA, đã nghỉ hưu §8.56), 14 (cần IQ-TREE + MACSE).
+
+**Bốn mặt, đo trên bản ghi vàng.**
+
+| Mặt | Bên mình | CGAS | Kết luận |
+|---|---|---|---|
+| **Cấu trúc (mô-đun 7)** | LSC 83.127 · SSC 18.169 · IR 26.214 · GC 37,85/35,98/31,45/43,05 | y hệt, từng ô | **trùng khít cả bốn khoảng và bốn giá trị GC** |
+| **RSCU (mô-đun 8)** | 61 codon sense, 26.263 lượt | 26.263 lượt sense | **0 codon lệch**; RSCU lệch tối đa 5×10⁻⁵ = đúng mức làm tròn 4 chữ số khi mình xuất bảng. CGAS in thêm **3 codon stop** (86 = 37+27+22 — đúng một stop cho mỗi feature CDS, tức nó đếm cả 86 CDS như mình, **khác cpstools**) |
+| **SSR (mô-đun 12)** | 37 = LSC 27 · SSC 10 · IR 0 · mono 31 · di 4 · tri 2 | mặc định: **54** = LSC 39 · SSC 13 · **IR 2** · 31/12/3/4/3 | **Một tham số, không phải một bất đồng**: mặc định của CGAS là `{1:10, 2:5, 3:4, 4:3, 5:3, 6:3}`, MISA là `{1:10, 2:6, 3:5, 4:5, 5:5, 6:5}`. Chạy lại `-t "10,6,5,5,5,5"` ⇒ **37 = 27 · 10 · 0 · 31/4/2 — trùng khít bên mình**, kể cả số 0 ở IR |
+| **Intron (mô-đun 11)** | **17** intron CDS | **17** intron CDS (in trong **15 dòng** — gen hai intron dùng chung một dòng, cột Intron I/II) | **Từng dòng trùng toạ độ và độ dài** (541–1.055 bp) |
+
+**Phát hiện thứ nhất — CGAS im lặng ở đúng chỗ khó, và số 0 của nó là số sai.** Trên
+`NC_024936.1` (*Iris gatesii*), mô-đun 7 in tên loài rồi **không tìm thấy vùng nào, không một cảnh
+báo**, ghi vào bảng `LSC 0 · SSC 0 · IR 0`, và vẫn kết thúc bằng **"Successfully analyzed: 2/2
+genomes"**. Bên mình trên chính bản ghi ấy: **LSC 82.702 · IR 26.184 · SSC 18.371**, hai bản IR
+**100,00 %** giống nhau — và đường de-novo của mình cũng tìm ra đúng 26.184 bp, nên đây không phải
+"bản ghi khó". Đây là họ lỗi §7.9 đã đo ở phía CGAS ("không thấy IR ⇒ im lặng"), nay thấy từ phía
+bảng số: **bản ghi không sai, số 0 mới sai** — và là lý do cổng IR của dự án tồn tại (§9.A).
+
+**Phát hiện thứ hai — một khoảng trống của chính mình: intron tRNA.** CGAS in thêm **8 intron
+tRNA** trên bản vàng — `trnK-UUU` (1.403–4.019, **2.617 bp**) · `trnG-UCC` · `trnL-UAA` · `trnV-UAC`
+· `trnI-GAU` ×2 · `trnA-UGC` ×2. Bản ghi vàng **có đúng 8 feature tRNA nhiều phần** (đo lại từ
+chính bản ghi: 38 tRNA, 8 cái có intron) ⇒ **CGAS đúng, và mô-đun `introns` của mình không in
+chúng**: nó suy intron từ **part của CDS** (`core/spans.py`), nên con số 17 của mình là *17 intron
+CDS*, còn intron tRNA **không mô-đun nào in ra**. Đặt tên: **H-23** — không sửa trong task này
+(mở rộng `introns` là việc của board, và phải đo lại cột π theo intron của `diversity` nếu span đổi).
+
+**Điều phép so này KHÔNG kiểm.** Mô-đun 3 (so tên gen), 10 (SNP), 13 (π) và 14 (phylogeny) **không
+chạy lần này** — không phải vì thiếu dữ liệu, mà vì phạm vi P8-03 chốt ở ba mặt có đầu ra tất định
+(IR · codon · SSR) cộng mặt intron; ba mặt kia đã có phép so tương ứng ở §8.61 (π) và ở bộ vàng
+(SNP), nên chúng không bị bỏ quên, chỉ là không lặp lại ở đây.
