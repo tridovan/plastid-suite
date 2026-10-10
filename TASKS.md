@@ -33,7 +33,10 @@ as third-party published data · the corpus's provenance recorded **in the repo*
       **met 10/10/2026**. The repo-side provenance note (accessions · retrieval date · DOI ·
       manifest sha256) is carried by **P8B-09**, because it is a record, not a copy.
 
-- [ ] **P8B-03 · Structure & GC vs Table 1** *(M8B.2)*
+- [x] **P8B-03 · Structure & GC vs Table 1** *(M8B.2)* — **DONE 10/10/2026 (§8.67)**: 44
+      plastomes run; **18/18 Table-1 rows match our four sizes exactly**; per-region GC matches
+      to the paper's printed precision except **one cell** — *C. jozana* IR GC 45.62 (paper) vs
+      42.64 (ours), with that row's other three GC values and its IR length matching exactly.
   - Run `structure` + `genome_stats` over the 18 new and the 26 published plastomes; compare
     region lengths and per-region GC against Table 1 row by row. The 18 new ones already reproduce
     **exactly** (checked by hand 10/10/2026); the published ones have no table to compare against,

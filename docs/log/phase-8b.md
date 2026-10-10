@@ -79,3 +79,37 @@ gốc: **117/117 byte-identical**.
 **Kết luận của lần kiểm:** bộ dữ liệu **đủ** để bắt tay vào so — bốn mặt có đáp án số (cấu trúc/GC ·
 RSCU · SSR · Ka/Ks) cộng barcode và bộ 49 genome cho π — và nó **đã trả tiền ngay** bằng một lỗi
 thật của mình (§8.65). Đó là tiêu chuẩn đúng của một corpus: nó không chỉ để xác nhận.
+
+### 8.67. Cấu trúc & GC so với Table 1 — 18/18 khớp kích thước, và một ô GC lệch 3 điểm (P8B-03, M8B.2, 10/10/2026)
+
+**Việc.** Chạy `structure` + `genome_stats` trên **44 plastome** (18 mới + 26 đã công bố) và đặt
+cạnh **Table 1** của bài — bảng in genome · LSC · SSC · IR · số gen · GC toàn hệ · **GC từng vùng**.
+
+**Kết quả — bốn kích thước.**
+
+| | |
+|---|---|
+| Dòng Table 1 máy đọc được từ text layer | 17 — và **17/17 khớp tuyệt đối** cả bốn số (genome · LSC · SSC · IR) |
+| Dòng thứ 18 (*Crataegus sp.*, ô tên bị ngắt dòng nên regex bỏ sót) | đọc bằng tay ở dòng 388: **159.814 · 87.752 · 19.294 · 26.384** — và bản đo của mình cho `PX413297` là **đúng bốn số ấy** |
+| **Tổng** | **18/18** |
+
+Ví dụ nguyên văn: *C. altaica* 159.664 · 87.665 · 19.245 · 26.377 — bản đo của mình y hệt; và
+*C. phaenopyrum* IR **26.331**, con số mà **text của bài ghi sai** (26.311, §8.66).
+
+**Kết quả — GC từng vùng.** 17/18 dòng khớp tới mức in của bài (bài in 1–2 chữ số thập phân, mình
+đo chính xác hơn: 34,4 so với 34,37 · 30,5 so với 30,46 — làm tròn, không phải lệch). **Một ô lệch
+thật:**
+
+| Dòng | Ô | Bài in | Mình đo |
+|---|---|---|---|
+| *C. jozana* (159.712) | GC **IR** | **45,62** | **42,64** |
+
+Ba ô GC còn lại của **cùng dòng ấy** khớp tuyệt đối (36,64 · 34,37 · 30,55), và kích thước IR của
+dòng ấy cũng khớp (26.384) — nên đây không phải khác định nghĩa vùng. Mọi plastome khác trong bảng
+— kể cả 17 dòng còn lại — có GC IR nằm trong **42,62–42,67**; 45,62 nằm ngoài toàn bộ dải ấy. Ghi
+lại **đúng như đo được**: một ô của bảng, lệch ~3 điểm, phần còn lại của dòng không lệch. Không kết
+luận thay họ — chỉ nói nó không tái hiện được.
+
+**26 plastome đã công bố không có bảng nào để so** — bài chỉ in Table 1 cho 18 mẫu mới. Bản đo của
+mình trên nhóm ấy (IR 15.915–26.396 · LSC 87.464–88.307 · SSC 19.139–39.871) vì thế là **số của
+mình, chưa có đối chứng**, và được ghi đúng như thế.
