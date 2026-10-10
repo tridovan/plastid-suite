@@ -77,9 +77,20 @@ manuscripts do not use; the two species manuscripts still rest on stand-ins.
 **Blocked.** P8B-08 (the Ka/Ks design). Phase 7 (real reads). **Parked, not blocked:** the mito round
 — Phase 6 entirely, M7.3, M8.2 (scope decision 10/10/2026).
 
-**Next.** P8B-03 (structure & GC vs Table 1 over all 44 plastomes, the published ones included) is
-the first comparison with no blocker; P8B-04 (SSR over all 49 sections of S6) is the one that
-settles D-l.
+**Two comparisons are in, one of them only half-way, and both said something.**
+**P8B-03** (§8.67): all **18** of the paper's Table-1 rows reproduce our four sizes exactly
+(genome · LSC · SSC · IR), 17 machine-read and the 18th read by hand; per-region GC agrees to the
+paper's printed precision except **one cell** — *C. jozana*'s IR GC is 45.62 there and 42.64 here,
+while that row's other three GC values and its IR length match exactly, and no other genome in the
+table (ours included) leaves 42.62–42.67. Recorded as measured. **P8B-04** (§8.68): at MISA's
+defaults our table contains **every row** of 14 of S6's 49 sections — and the other 35 cannot be
+compared yet, because their table **encodes a compound cluster as one spanning row** in the
+published half and **omits clusters** in the new half. That half-way state is the honest one: D-l is
+answered (compare at defaults — they reproduce 57/57 against 55/57 for the thresholds their own
+Methods state), and the remaining question is which run produced each section of S6.
+
+**Next.** P8B-05 (RSCU vs Table S5) and P8B-06 (π, hotspots, the 50 barcode records) are unblocked;
+P8B-07 (annotation vs GeSeq) is the biggest one; P8B-04's second half and P8B-08 wait on anh Điềm.
 
 ### 2026-10-10 · Claude · dev WSL · session 36 (Phase 8 run whole — five tasks, and the phase closed)
 

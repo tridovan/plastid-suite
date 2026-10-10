@@ -113,3 +113,43 @@ luận thay họ — chỉ nói nó không tái hiện được.
 **26 plastome đã công bố không có bảng nào để so** — bài chỉ in Table 1 cho 18 mẫu mới. Bản đo của
 mình trên nhóm ấy (IR 15.915–26.396 · LSC 87.464–88.307 · SSC 19.139–39.871) vì thế là **số của
 mình, chưa có đối chứng**, và được ghi đúng như thế.
+
+### 8.68. SSR so với Table S6 — 14/49 section khớp trọn, và hai nửa của bảng mã hoá cụm compound khác nhau (P8B-04, M8B.3, 10/10/2026)
+
+**Việc.** Chạy `plastid run -m ssr` (MISA 2.1, **mặc định** 10,6,5,5,5,5 — bản đã pin, §7.8) trên
+**50 plastome** của bộ, rồi đặt cạnh **Table S6** (49 section · **3.546 dòng**). Genome được khớp
+**bằng chính toạ độ SSR của họ**, không bằng tên loài — vì bộ có năm bản ghi cùng tên
+*Crataegus sp.* và nhiều cặp trùng kích thước, khớp theo tên sẽ lặng lẽ ghép sai cặp.
+
+**Kết quả.**
+
+| | |
+|---|---|
+| Section mà **mọi dòng của họ đều có trong bảng của mình** | **14/49** — đều là plastome **giải mới** trong nghiên cứu |
+| Số dòng **thừa ra** ở những section ấy | 12–21 dòng, và chúng là **thành phần của các cụm compound** (đã kiểm ở §8.66 trên *C. altaica*: 73 − 16 = 57 = đúng bảng của họ) |
+| Section **không** khớp | **35/49** — 4 plastome mới còn lại + **toàn bộ 26 plastome đã công bố** + 5 *Amelanchier* |
+
+**Nguyên nhân của 35 section kia, đọc được từ ba dòng đầu tiên.** Ví dụ `NC085587`:
+
+| | Ba SSR đầu |
+|---|---|
+| Bảng của họ | (10,19) · **(211,239)** · (1653,1662) |
+| Bảng của mình | — · **(211,224) + (228,239)** · (1653,1662) |
+
+Hai dòng `211–224` và `228–239` của mình cách nhau 4 bp ⇒ **một cụm compound**, và bảng của họ ghi
+nó thành **một dòng duy nhất trải cả cụm**. Cùng dạng ở `OP964008` (241–273 so với 241–255 +
+259–273) và `MK920297`. Tức **hai nửa của Table S6 mã hoá cụm compound theo hai cách khác nhau**:
+nửa 18 plastome mới **bỏ hẳn** cụm, nửa còn lại **gộp cụm thành một dòng** — và nửa sau còn có
+dòng mà MISA của mình **không hề tìm ra** (`NC085587` vị trí 10–19).
+
+**Kết luận, nói đúng mức đã đo.** Ở **mặc định MISA**, bảng của mình **tái hiện trọn vẹn** phần SSR
+đơn của 14 section plastome mới (mọi dòng của họ đều có, phần thừa là thành phần compound). Với 35
+section còn lại thì **chưa so được**, và lý do không phải một tham số: phải biết **mỗi section do
+lần chạy nào sinh ra** — nghi vấn đo được là nửa đã công bố lấy danh sách SSR từ **bài gốc của từng
+bản ghi**, nơi công cụ và ngưỡng khác nhau. Đây là câu hỏi cho anh Điềm (bảng Waiting của board),
+và **P8B-04 chỉ đóng được khi có câu trả lời** — không đóng bằng một con số trông hợp lý.
+
+**Điều phép so này vẫn nói được ngay:** ngưỡng Methods của bài (10,5,4,3,3,3) cho 97 SSR trên
+*C. altaica* và chỉ khớp 55/57 dòng của họ, còn **mặc định** cho 73 và khớp **57/57** — nên D-l có
+câu trả lời đo được: **so bằng mặc định, và nói rõ thế**, chứ chạy theo ngưỡng họ *ghi* sẽ đi lệch
+khỏi chính bảng họ *in*.

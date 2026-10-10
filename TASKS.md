@@ -47,7 +47,11 @@ as third-party published data · the corpus's provenance recorded **in the repo*
   **Done when:** a §8 entry holds the side-by-side table for the 18 (with the counting rule each
   column uses) and names every row that differs.
 
-- [ ] **P8B-04 · SSR vs Table S6** *(M8B.3)*
+- [~] **P8B-04 · SSR vs Table S6** *(M8B.3)* — **partly done 10/10/2026 (§8.68)**: at MISA's
+      defaults our table reproduces **every row** of 14 of the 49 sections (the extras are
+      compound components); the other 35 cannot be compared yet because **their table encodes
+      a compound cluster as one spanning row** in the published half and **omits clusters** in
+      the new half. **Blocked on:** which run produced each section of S6 (see Waiting).
   - Measured 10/10/2026: our `ssr` (MISA defaults 10,6,5,5,5,5) reproduces **57/57** of their
     *C. altaica* rows once the compound components are set aside, while their stated Method
     thresholds (10,5,4,3,3,3) give 97 and reproduce only 55/57 — i.e. **their Methods and their own
@@ -128,5 +132,6 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 |---|---|---|
 | The **51st barcode sample** — Table S2's last row is *Crataegus scabrifolia* with GenBank ID `----` | anh Điềm | P8B-06's barcode half |
 | The **Ka/Ks comparison design** — which sequence each species column of Table S7 is compared against (or their `.axt` files / the `KaKs_Calculator` invocation) | anh Điềm | P8B-08 |
+| **How each section of Table S6 was produced** — its two halves encode a compound cluster differently (the published half writes one spanning row, the new half omits clusters), and the published half carries SSRs our MISA does not find; the measured suspicion is that those sections were copied from each record's own publication | anh Điềm | P8B-04's remaining 35 sections |
 | *(if available)* their **π sliding-window numbers** and the **IRscope junction table** — both are figures today | anh Điềm | P8B-06 · P8B-03 (numeric rather than figure comparison) |
 | *(separate ask)* raw Illumina reads for ≥1 of the 18 samples — Table S1 shows 2,786× coverage, so the reads exist | anh Điềm / cô Trang | **Phase 7** (M7.1 · M7.5 · M7.6 — still the project's oldest blocker) |
