@@ -2,51 +2,99 @@
 
 [![CI](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml)
 
-Toolkit for **plastid (chloroplast) and mitochondrial genome analysis** — academic, non-commercial.
+Toolkit for **plastid (chloroplast) and mitochondrial genome analysis** — academic, non-commercial,
+**MIT licensed**. Twenty-two analysis modules: genome statistics, structure (LSC/SSC/IR), gene
+tables, codon usage, amino-acid composition, introns, SSR, repeats, substitutions (Ts/Tv),
+diversity (π), barcodes, Ka/Ks, population genetics, synteny, group statistics, ORF checks,
+gene-name unification, annotation, NCBI submission files, and the mitochondrial path
+(`mito annotate` · `mito genes`).
 
-**Status: Phases 1–5, 4a, 3B and 2B complete; Phase 8 (cross-checks, scale, CI) open on
-`feat/phase-8`.** Twenty analysis modules run end-to-end —
-genome statistics, structure (LSC/SSC/IR), gene tables, codon usage, amino-acid composition,
-introns, SSR, substitutions (Ts/Tv), diversity (π), barcodes, Ka/Ks, population genetics, synteny,
-statistics, ORF checks, gene-name unification, annotation, NCBI submission, and the mitochondrial
-path (`mito annotate` · `mito genes`) — each writing a run directory with its tables, a report and
-every tool's provenance. Progress: `ROADMAP.md` · current work: `TASKS.md` · rules: `CLAUDE.md`.
+Every run writes its own directory: the tables, a draft report, and the **name, version and command
+line of every external tool** it used. Nothing is overwritten in place.
+
+**Status: v1.0.0.** What is finished, what is open and what is left is kept in
+[TASKS.md](TASKS.md) (the live board) and [ROADMAP.md](ROADMAP.md) — this line is only the
+version. What the toolkit deliberately does **not** do is in
+[docs/things_we_do_not_do.md](docs/things_we_do_not_do.md); which modules need which tool, and how
+much memory they take, is in [docs/platforms.md](docs/platforms.md).
 
 ## Install
 
+**Linux** — the minimum install runs every pure-Python analysis, with no external tool:
+
 ```bash
-uv sync              # development install (Python >= 3.10)
-# plain pip: pip install -e .
+pip install plastid-suite
 ```
 
-The minimum install runs the pure-Python analyses. External tools (MISA, MAFFT, …) are only needed
-for the tier-B checks and later phases — a missing tool is always named, never silently skipped.
+**Windows** — the toolkit does not run natively on Windows; the supported route is Docker (build
+once, then use `docker run` for every command in this file):
+
+```bash
+docker build -f docker/Dockerfile -t plastid-suite .
+docker run --rm -v "$PWD:/work" plastid-suite plastid --version
+```
+
+**From a source checkout** (also what to use while a release is not on PyPI yet):
+
+```bash
+git clone https://github.com/tridovan/plastid-suite && cd plastid-suite
+uv sync                 # or: pip install .
+```
+
+Some analyses need external tools (MAFFT, MISA, BLAST+, MUMmer, PAML…). The toolkit never bundles
+them, and never silently skips one: a missing tool stops the run and names it. What each tool is
+and how to install it: [docs/tools/](docs/tools/). The tool-equipped environment for everything at
+once is `environment.yml` (`conda env create -f environment.yml`).
 
 ## Use
 
 ```bash
-plastid run --module genome_stats --input tests/data/NC_050833.1.gb --out .runs --dataset iris
-plastid run --module ssr          --input tests/data/NC_050833.1.gb --out .runs --dataset iris
+plastid run --module genome_stats --input my_plastome.gb --out .runs --dataset my_sample
 ```
 
-Every run gets its own directory:
+Two genomes to compare, and a module that reads them both:
+
+```bash
+plastid run --module substitutions --input reference.gb --input sample.gb \
+            --out .runs --dataset my_comparison --set scope=cds
+```
+
+Every run gets its own directory, named by time and input, so two runs never mix:
 
 ```
-.runs/iris/<timestamp>-<hash>/
-  manifest.json          what ran, with what parameters, on what input, and where every file went
-  00_run_info/           run_info.md (Materials & Methods) + tool logs
+.runs/my_sample/20261011-090000-1a2b3c4d/
+  manifest.json          what ran, with which parameters, on which input, and where every file went
+  00_run_info/           run_info.md (Materials & Methods) + the logs of every tool call
   01_genome_stats/       tables/*.csv · result.json · report.md (draft — needs human review)
 ```
 
-A failed gate stops the run with exit code 2 and still leaves a traceable directory explaining why.
+**Exit codes**, so a script can tell the difference: `0` fine · `1` an analysis failed · `2` the run
+was refused *before* any position-based work — a wrong command line, the **IR gate** (the two
+inverted-repeat copies are not ≥ 99.9 % identical: see
+[docs/things_we_do_not_do.md](docs/things_we_do_not_do.md)) or the reference-set audit · `3` a tool
+or an optional package is missing, and the message names it · `4` a naming conflict — the data
+disagrees with the chosen naming reference. A refused run still leaves its directory, saying why.
 
 ## Verify
 
+In a checkout, with the tools you have installed:
+
 ```bash
-make test      # fast tests — tier A, no external tools
+make test      # fast tests — no external tools, no network
 make golden    # the golden-number set; names every missing tool
 make check     # lint + test + golden
 ```
 
-Golden sample: *Iris domestica* NC_050833.1 — 153,724 bp · 132 = 86 CDS + 38 tRNA + 8 rRNA ·
-IR 26,214 bp @ 100.00 % · 37 SSR (mono 31 · di 4 · tri 2). Full provenance: `PROJECT.md` §6.
+The corpus half of `make golden` needs the pinned panels under `.panel/`, which are not in git by
+design — those tests skip with a named reason in a fresh clone. What a pip user runs is the
+analyses, not the golden set.
+
+**Golden sample:** *Iris domestica* NC_050833.1 — **153,724 bp · 37.85 % GC · 132 genes = 86 CDS +
+38 tRNA + 8 rRNA** · IR 26,214 bp at 100.00 % identity · LSC 83,127 · SSC 18,169 · 37 SSRs
+(31 mono · 4 di · 2 tri). Full provenance: `PROJECT.md` §6.
+
+## Licence and citation
+
+MIT — see [LICENSE](LICENSE); what that means for the tools it calls is in
+[docs/licensing.md](docs/licensing.md). If you use this toolkit in published work, cite it with the
+metadata in `CITATION.cff`.

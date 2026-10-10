@@ -14,13 +14,12 @@ absent at the start of the session (*"could not be found… activate the WSL int
 present — `/usr/bin/docker`, client 29.8.0 · server 29.8.0 (linux) — once the dev turned Docker
 Desktop's WSL integration on. **P9-03 is unblocked; nothing on this board waits.**
 
-**What exists today, and what this phase owes** — measured 11/10/2026, so nobody re-derives it:
-`README.md` (52 lines; its status line still says *"Phase 8 … open on `feat/phase-8`"* — stale twice
-over) · `docker/Dockerfile` (689 B **skeleton**) · `environment.yml` (versions pinned) ·
-`pyproject.toml` (`version = "0.1.0"`) · 22 modules registered. **P9-01 closed the licence
-question**: `LICENSE` is MIT, and the wheel (145 files) carries no third-party program — MISA,
-formerly bundled with no stated licence, is obtained instead (§8.74). Still absent: `CITATION.cff`
-and any published artifact.
+**Where the phase stands** (11/10/2026): **P9-01 … P9-06 are done** — the licence is MIT and MISA
+left the package (§8.74) · the wheel/sdist build and install into a clean venv (§8.75) · the
+release image builds and the golden numbers reproduce inside it (§8.76) · README, the module ×
+platform × RAM table and the "things we don't do" statement are written and executed (§8.77).
+**P9-07 is half done**: `CITATION.cff` exists and validates, `docs/release.md` is the procedure —
+the DOI, the PyPI upload, the authors and the video need the team (see "Waiting on data/people").
 
 ## Phase 9 — the board
 
@@ -57,54 +56,65 @@ and any published artifact.
       run from the installed console script — **153,724 bp · 37.85 % · 132 = 86 + 38 + 8**,
       exit 0, on a minimum install of biopython + numpy + PyYAML.
 
-- [ ] **P9-03 · The Docker image, and the three-environment check** *(M9.2, Docker half + the
-      phase's in-phase check)*
-  - Replace the skeleton with the real image: pinned tool versions **equal to `environment.yml` /
-    §7.8**, no host PATH, no bind-mounted tools, `PTS_REQUIRE_TOOLS=1` so a missing tool fails
-    instead of skipping.
-  - Print the versions **inside** the container — a version nobody can read is not a pin.
-  - **Done when:** `docker build` then `docker run --rm <image>` prints the tier-A golden numbers
-    (153,724 bp · 37.85 % · 132 = 86 + 38 + 8 · IR 26,214 bp @ 100.00 % · 37 SSR), the tier-B run
-    with the tools inside is green, and the versions printed match the pins.
+- [x] **P9-03 · The Docker image, and the three-environment check** *(M9.2, Docker half + the
+      phase's in-phase check)* — **DONE 11/10/2026 (§8.76)**: `docker build` **exit 0**, image
+      1,5 GB, golden suite chạy **ngay lúc build**: **54 passed · 30 skipped · 1 deselected**
+      (mọi skip là test cần `.panel/`, **có nêu lý do**; không skip nào vì thiếu công cụ). Chạy
+      trong chính image: `genome_stats` → **153.724 bp · 37,85 % · 132 = 86 + 38 + 8 · IR 26.214 @
+      100,00 %** và `ssr` → **37 = 31 + 4 + 2** — **y hệt WSL**.
+  - The image is real now (`docker/Dockerfile`, replacing the 689 B skeleton): micromamba base,
+    **the pinned set** (python 3.12 · perl 5.32.1 · mafft 7.526 · mummer4 4.0.1 · paml 4.10.10 ·
+    blast 2.17.0 · aragorn 1.2.41 · vmatch 2.3.1) + **table2asn fetched with its md5** + **MISA
+    fetched with its md5** (never baked in from our side, D-q). Versions printed inside; the golden
+    suite runs **at build time** under `PTS_REQUIRE_TOOLS=1`, so an image that cannot reproduce the
+    numbers **does not build**. `.dockerignore` keeps `.panel/`, `.data/` and `.git` out.
+  - **The first build found a real defect** — and only the container could: `gene_normalize` died
+    from an installed package (`repo_root()` walked up from `site-packages` looking for
+    `pyproject.toml`). Fixed, with two regression tests, §9.N-1. The first build also failed the two
+    tests needing Vmatch and table2asn, which were absent by an earlier decision — both are in the
+    image now, so nothing skips.
+  - **Done when:** `docker build` then `docker run --rm <image>` prints the golden numbers, the
+    tier-B run inside is green, versions match the pins.
 
-- [ ] **P9-04 · README + quickstart a non-expert can follow** *(M9.1)*
-  - The reader is a **researcher in biotechnology/bioinformatics, not a command-line expert**
-    (CLAUDE.md → "What this is"): install → first run → where the results land → what exit 2 means.
-  - Every command **run verbatim, in order, in a clean venv** — a quickstart that fails at line 3 is
-    the first thing a biologist meets.
-  - Correct the stale status line, and make it a thing a test checks rather than a thing we remember.
-  - **Done when:** the README's own commands were executed verbatim in a clean venv and produced the
-    output the README claims, and `tests/unit/test_project_docs.py` fails if the status line drifts
-    from the closed phases again.
+- [x] **P9-04 · README + quickstart a non-expert can follow** *(M9.1)* — **DONE 11/10/2026
+      (§8.77)**: install (Linux · Windows/Docker · from a checkout) → first run → where results
+      land → **all five exit codes**, measured: `2` is *both* a wrong command line and the IR gate
+      (refused on an amplicon, verified), `3` a missing tool, `4` a naming conflict. Every command
+      was run **verbatim in the clean venv** (`plastid --version` → 1.0.0 · one genome · two
+      genomes with `scope=cds`), and the run directory matches the README's own picture. The stale
+      status line is now a version a test holds to `pyproject.toml`.
 
-- [ ] **P9-05 · Module × platform × RAM table + the three support levels** *(M9.4)*
-  - All **22 registered modules** × tool requirement (from the registry's own `citations`, not from
-    memory) × peak RSS, quoted from `docs/M8.3_scale.md` **with its machine named** (i7-1165G7,
-    ~7.8 GB — a RAM number without a machine is not a number, M8.3's own rule).
-  - Three support levels: **Linux native · official** · **Windows via Docker · official** ·
-    **macOS · experimental, unverified**.
-  - **Done when:** the doc lists every module id and a test asserts that set **equals** the
-    registry's — so a module added later cannot silently miss the table.
+- [x] **P9-05 · Module × platform × RAM table + the three support levels** *(M9.4)* — **DONE
+      11/10/2026 (§8.77)**: `docs/platforms.md` — all **22 modules**, each with its tool
+      requirement, arity, IR gate and measured cost **with the scope named** (34-genome runs vs the
+      single-genome `repeats` row measured today, 0.8 s · 87 MB), the machine stated once
+      (i7-1165G7 · ~7.8 GB), the three support levels, and the seven modules with **no scale row**
+      named rather than implied. Guarded by a test that compares the table's module set to the
+      registry's. **Found on the way**: the registry's `citations` field is never read and has
+      drifted (the annotators declare no tool there) — so the table's tool column is compiled from
+      the adapters each module calls, and the drift is named in the doc.
 
-- [ ] **P9-06 · "Things we don't do"** *(M9.5 — block the wrong expectation before it is formed)*
-  - No native Windows (Docker only) · assembly needs real reads, which the project does not have —
-    Phase 7 · no RNA-editing prediction without RNA-seq data · the whole-genome-alignment patience
-    limit with its measured numbers (`substitutions scope=whole`: 8 genomes 2 min 44 s, 16 did not
-    finish in 7 min) · one organelle per run, never mixed · the mito analyses parked by scope.
-  - **Done when:** every item carries its **measured** reason and a pointer to where the number
-    lives, and `README.md` links the statement from the top.
+- [x] **P9-06 · "Things we don't do"** *(M9.5)* — **DONE 11/10/2026 (§8.77)**:
+      `docs/things_we_do_not_do.md`, twelve items, each with its **measured** reason and what to do
+      instead — no native Windows · no macOS promise · no assembly (Phase 7 waits on reads) · no
+      RNA-editing prediction without RNA-seq · no whole-panel alignment (8 genomes 2 min 44 s; 16
+      did not finish in 7 min) · one organelle per run · the mito round parked · divergence
+      time/ancestral state are the PI's · **no external tool is shipped** · the IR gate refuses
+      fragment inputs by design · no web UI · the panel cost, with its machine. `README.md` links
+      it from the top.
 
-- [ ] **P9-07 · Release artifacts: `CITATION.cff` · DOI · the release itself** *(M9.6)*
-  - `CITATION.cff` with the release version, the DOI field, and the team as authors; README shows
-    the DOI and the version.
-  - `git tag v<version>` on `main` + the GitHub release Zenodo archives.
-  - The how-to video is listed as an artifact **the team records** — no code produces it.
-  - **Pitfall:** everything here is outward-facing and effectively permanent (a DOI is minted per
-    version; a PyPI name is taken the moment it is uploaded). **The dev's explicit go, never a side
-    effect of a green build.**
-  - **Needs (D-s):** the dev's go, the Zenodo account, and the PyPI name check.
-  - **Done when:** `CITATION.cff` parses against the CFF schema with the version and DOI, the DOI
-    resolves, the tag exists on `main`, and the README a reader lands on names the released version.
+- [~] **P9-07 · Release artifacts: `CITATION.cff` · DOI · the release itself** *(M9.6)* — **half
+      done 11/10/2026**: `CITATION.cff` is written for **1.0.0** and **validated** —
+      `uv tool run cffconvert --validate` → *"Citation metadata are valid according to schema
+      version 1.2.0"*; `docs/release.md` is the ordered procedure with the check between each step.
+  - **What is left, and why it is not done here:** the **DOI** needs a Zenodo account and a release
+    (and this repository is **private**, which Zenodo's GitHub integration does not archive), the
+    **PyPI upload** claims the name `plastid-suite` permanently, the **authors** in `CITATION.cff`
+    are the team's to name, and the **how-to video** is recorded by a human. All four are
+    outward-facing and effectively permanent — **the dev's explicit go, never a side effect of a
+    green build.**
+  - **Done when:** `CITATION.cff` carries the DOI and the real authors, the DOI resolves, the tag
+    exists on `main`, PyPI serves 1.0.0, and the README shows the DOI.
 
 ## Decisions to make
 
@@ -115,7 +125,8 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | D-p | **The toolkit's own licence** | **MIT.** The two runtime dependencies are permissive (Biopython's licence, PyYAML MIT), the ecosystem this toolkit cross-checks against is MIT (cpstools, CGAS), and "academic, non-commercial" describes the *project*, not a restriction on the code. GPL-3.0 is the alternative, and it would be the honest choice only if we wanted the toolkit itself to stay copyleft like the tools whose *ideas* it borrows | dev | `LICENSE` + pyproject `license` · PROJECT.md §3 |
 | D-q | **Does the released toolkit ship `misa.pl`?** | **No — fetch on first use, md5-verified, and ask IPK in parallel.** Measured: MISA's zip carries no licence and `SOURCE.json` says so; redistribution is the one act a missing licence does not permit. `SOURCE.json` already records the URL, the zip md5 and both file hashes, so the fetch is one named, verifiable step and §6's golden (37 = 31 · 4 · 2) is unchanged. If IPK grants permission in writing, revisit — the third option, replacing MISA with our own finder, is a module job that must reproduce 37 exactly, and is not this phase | dev (PI informed if it changes what runs offline) | PROJECT.md §3 · `docs/licensing.md` |
 | D-r | **The first release's version number** | **1.0.0.** A DOI is meant to be cited, the CLI (`plastid run --module … --input … --out … --dataset …`) has been stable across 22 modules and six phases, and the gaps are *named* in M9.5 rather than hidden behind a 0.x. 0.9.0 is the honest alternative if the team reads "assembly is still missing" as "not 1.0 yet" | dev | pyproject + `CITATION.cff` · PROJECT.md §3 |
-| D-s | **Where it is published** | **Build and verify here; publish on the dev's explicit go.** PyPI (name `plastid-suite` to be checked as available) + a GitHub release that Zenodo archives. A **conda-forge recipe is a separate, slower path** (a PR to staged-recipes, reviewed by strangers) — `environment.yml` already gives conda users the tool environment, so the recipe is a follow-up unless the team wants it inside this phase | dev | PROJECT.md §3 |
+| D-s | **Where it is published** | **Build and verify here; publish on the dev's explicit go.** PyPI (name `plastid-suite` to be checked as available) + a GitHub release that Zenodo archives. **Note measured 11/10/2026: the repository is private**, and Zenodo's GitHub integration archives public repositories — so either the repo is made public at release time, or the tarball is uploaded to Zenodo by hand. A **conda-forge recipe is a separate, slower path** (a PR to staged-recipes, reviewed by strangers) — `environment.yml` already gives conda users the tool environment, so the recipe is a follow-up unless the team wants it inside this phase | dev | PROJECT.md §3 · `docs/release.md` |
+| D-t | **What `gene_normalize` does for a user who installed the package** | **Ask them for the reference, and say so well.** Measured 11/10/2026 (§9.N-1): the recorded naming reference is a **checkout** path (`tests/data/…`), so an installed toolkit has none — it now fails with a message naming `--set naming_reference=<file>`, which is what D5-09 says anyway (the naming record is the end user's choice, not a toolkit default). The alternative is to **ship the record inside the package** (+170 kB) so the pipeline runs out of the box — available, not chosen, because a default nobody chose is the kind of statement this project avoids | dev (PI is the one who picks the ★ record, D5-09) | PROJECT.md §3 · §9.N-1 |
 
 ## Pitfalls — this phase's own traps
 
@@ -137,6 +148,8 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | The **PyPI name** `plastid-suite` availability + the account to publish | dev | P9-07's publish step |
 | A **Zenodo** account, and the GitHub release it archives | dev | P9-07's DOI |
 | The **short how-to video** — a human records it | the team | P9-07's last artifact |
+| **Who is named as an author** in `CITATION.cff` — it says "PlastidToolSuite contributors" today, and that is a decision, not a placeholder (CLAUDE.md → who decides) | the team | P9-07's DOI: a Zenodo deposit records its authors permanently |
+| The **repository's visibility** — it is **private** (measured 11/10/2026), and Zenodo's GitHub integration archives public repositories: make it public at release time, or upload the tarball by hand | dev | P9-07's DOI step |
 | A **macOS machine** | the team | P9-05's macOS column — stays "unverified" until one exists |
 
 *Not on this board, so nobody plans around them: **Phase 7's assembly** (waits on the raw Illumina/ONT

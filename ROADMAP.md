@@ -663,15 +663,28 @@ P9-01 … P9-07; M9.7 the Web UI stays deferred)*
 **In-phase check:** golden numbers re-run **inside Docker on Windows** — same input, same numbers
 across 3 environments (WSL · CI · Docker).
 
-- [ ] **M9.1 README / quickstart / user docs** — followable by a non-technical user
-- [ ] **M9.2 pip/conda package + Dockerfile** (Windows via Docker)
-- [ ] **M9.3 License review** — PGA = GPL-3.0 · Vmatch = academic only · **MISA = not stated**
-  (zip ships no license; IPK page only cites Beier et al. 2017) · isolation if needed
-- [ ] **M9.4 Module × platform × RAM table + 3 support levels** (Linux native · Windows/Docker ·
-  macOS experimental, unverified)
-- [ ] **M9.5 "Things we don't do" statement** — no native Windows; no assembly below RAM threshold;
-  no RNA-editing prediction without RNA-seq data
-- [ ] **M9.6 Release artifacts** — short how-to video · **DOI (Zenodo) + CITATION.cff**.
+- [x] **M9.1 README / quickstart / user docs** — **[ĐÓNG 11/10/2026 — P9-04, §8.77: README viết lại
+  cho người đọc không chuyên; **mọi lệnh chạy nguyên văn trong venv sạch**, hình thư mục run đúng
+  như README vẽ, và **cả năm mã thoát** đo được (`2` vừa là lỗi cú pháp vừa là cổng IR — thử trên
+  amplicon thật); dòng Status giờ là phiên bản, có test giữ khớp `pyproject.toml`]**
+- [x] **M9.2 pip/conda package + Dockerfile (Windows via Docker)** — **[ĐÓNG 11/10/2026 — P9-02
+  (§8.75) + P9-03 (§8.76): wheel/sdist dựng và **cài vào venv sạch**, metadata PEP 639, phiên bản
+  1.0.0; `docker/Dockerfile` thật (micromamba + bộ pin + MISA/table2asn lấy về có kiểm md5),
+  **golden chạy ngay lúc build** dưới `PTS_REQUIRE_TOOLS=1`; build đầu tiên tìm ra một lỗi thật
+  (§9.N-1)]**
+- [x] **M9.3 License review** — **[ĐÓNG 11/10/2026 — P9-01, §8.74: `LICENSE` = MIT (D-p);
+  `docs/licensing.md` kiểm kê 14 công cụ với giấy phép **đo từ metadata conda**; câu trả lời cho
+  câu hỏi GPL (**không công cụ nào được phát tán**); **MISA ra khỏi gói** (D-q — zip không nêu
+  giấy phép), nay lấy về theo `docs/tools/misa.md`, kèm test canh gác đã thấy **đỏ** trên cây cũ]**
+- [x] **M9.4 Module × platform × RAM table + 3 support levels** — **[ĐÓNG 11/10/2026 — P9-05,
+  §8.77: `docs/platforms.md` — **cả 22 mô-đun** × công cụ × RAM (máy đo nêu rõ), ba mức hỗ trợ,
+  bảy mô-đun **không có số đo** được nêu tên chứ không im lặng; test so tập mô-đun với registry]**
+- [x] **M9.5 "Things we don't do" statement** — **[ĐÓNG 11/10/2026 — P9-06, §8.77:
+  `docs/things_we_do_not_do.md`, 12 mục, mỗi mục kèm **lý do đo được** và việc nên làm thay]**
+- [~] **M9.6 Release artifacts** — short how-to video · **DOI (Zenodo) + CITATION.cff**.
+  *(11/10/2026: `CITATION.cff` viết và **validate bằng cffconvert** (CFF 1.2.0), `docs/release.md`
+  là quy trình; **DOI + PyPI + video còn lại** — chúng cần tài khoản Zenodo/PyPI của dev, tên tác
+  giả do nhóm chốt, và một lần "go" rõ ràng vì đã là phát tán ra ngoài.)*
   **[ĐÃ THAY 10/10/2026: "tool manuscript" was listed here, in a phase of our own — writing the
   paper is the PI's (CLAUDE.md → who decides), not a release step. What this phase owes it is the
   artifacts a paper needs from a tool: the figures, the tables and the citable DOI.]**

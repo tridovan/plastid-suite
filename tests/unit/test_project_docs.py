@@ -30,6 +30,8 @@ from pathlib import Path
 
 import pytest
 
+from plastid.modules.registry import all_modules
+
 ROOT = Path(__file__).parents[2]
 PROJECT = ROOT / "PROJECT.md"
 LOG_DIR = ROOT / "docs" / "log"
@@ -84,14 +86,14 @@ def _citations(pattern: re.Pattern[str], paths: list[Path] | None = None) -> dic
 
 
 def test_the_log_entries_did_not_move_house_twice() -> None:
-    """One entry per number, none lost — currently §8.1 … §8.75, the whole run.
+    """One entry per number, none lost — currently §8.1 … §8.77, the whole run.
 
     The count is deliberate: a new entry updates this number in the same commit, so a lost or
     duplicated entry cannot pass unnoticed.
     """
     entries = _log_entries()
-    assert len(entries) == 75, f"expected 75 logged entries, found {len(entries)}"
-    assert set(entries) >= {"8.1", "8.31", "8.75"}, "the first, the corpus and the newest entry"
+    assert len(entries) == 77, f"expected 77 logged entries, found {len(entries)}"
+    assert set(entries) >= {"8.1", "8.31", "8.77"}, "the first, the corpus and the newest entry"
 
 
 def test_every_cited_log_entry_exists() -> None:
@@ -168,9 +170,9 @@ def test_error_item_numbers_are_unique_and_continuous() -> None:
     )
 
 
-@pytest.mark.parametrize("letter", ["D", "E", "F", "G", "H", "I", "K", "L", "M"])
+@pytest.mark.parametrize("letter", ["D", "E", "F", "G", "H", "I", "K", "L", "M", "N"])
 def test_subsection_items_restart_at_one(letter: str) -> None:
-    """D–I, K, L and M number within their own subsection — why a citation carries the subsection.
+    """D–I and K–N number within their own subsection — why a citation carries the subsection.
 
     Measured 05/10/2026: the numbers 1–8 appear in seven subsections, so uniqueness holds for the
     pair (subsection, number), not for the number alone — which is what CLAUDE.md's run-log rule
@@ -227,3 +229,31 @@ def test_a_dangling_citation_is_caught(tmp_path: Path) -> None:
 
     items = _citations(CITES_9, [note])
     assert "44" in items, "§9.44 is read as an item number, not a subsection"
+
+
+def test_every_registered_module_has_a_row_in_the_platform_table() -> None:
+    """M9.4's table lists every module — a module added later cannot quietly go undocumented.
+
+    Set equality, not "contains": the table is what a user reads to decide whether the toolkit
+    fits their machine, so a module missing from it is a module with no stated requirement.
+    """
+    documented = (ROOT / "docs" / "platforms.md").read_text(encoding="utf-8")
+    registered = all_modules()
+    assert registered, "no modules registered — the registry moved and this check would pass empty"
+    missing = sorted(name for name in registered if f"`{name}`" not in documented)
+    assert not missing, f"registered but absent from docs/platforms.md: {missing}"
+
+
+def test_the_readme_status_line_names_the_version_we_ship() -> None:
+    """The README said "Phase 8 … open on `feat/phase-8`" long after Phase 8 and 8B had closed.
+
+    A status line that restates the state files is a status line that goes stale; this one names
+    the version instead, and this check makes a release bump touch it in the same commit.
+    """
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    match = re.search(r'^version = "([^"]+)"', pyproject, re.MULTILINE)
+    assert match, "pyproject.toml has no version line"
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert f"**Status: v{match.group(1)}.**" in readme, (
+        f"README's status line does not say v{match.group(1)} — the release bump missed it"
+    )

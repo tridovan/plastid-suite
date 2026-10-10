@@ -46,23 +46,13 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
         vmatch=2.3.1 \
     && micromamba clean -a -y
 
-# table2asn cannot come from conda (docs/tools/table2asn.md), so it is fetched here — **best
-# effort**, because it is the one *optional* tool in the image (the `.fsa` + `.tbl` route needs
-# nothing) and the one download a locked-down network may not reach. Measured 11/10/2026: through
-# the Docker VM this download can crawl, and an optional tool must never be able to block a user's
-# build. A **corrupted** download is still fatal — the md5 check aborts the build.
-USER root
-RUN set -e; \
-    if curl -sSL --retry 3 --max-time 300 -o /tmp/table2asn.gz \
-         https://ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/linux64.table2asn.gz; then \
-      gunzip -f /tmp/table2asn.gz; \
-      echo "8b5b6cbede9d38b47c7c4cae29a25a0a  /tmp/table2asn" | md5sum -c -; \
-      install -m 0755 /tmp/table2asn /usr/local/bin/table2asn; \
-      rm -f /tmp/table2asn; \
-    else \
-      echo "table2asn not fetched (network) — only the optional .sqn step needs it"; \
-    fi
-USER $MAMBA_USER
+# **table2asn is deliberately NOT in this image.** It is the one tool that (a) is optional — the
+# `.fsa` + `.tbl` route needs nothing (D3-04) — and (b) is a 56 MB fetch from NCBI that cannot come
+# from conda. Measured 11/10/2026: through the Docker VM that download crawls (the host was pulling
+# the same file at ~600 kB/s), and an optional tool must never be able to hang a user's build. So
+# the image carries the tools the *analyses* need, and the `.sqn` step is what `docs/tools/
+# table2asn.md` describes: fetch the binary on the host and mount it, or pass
+# `--set table2asn=/path/to/table2asn`. Its single check is deselected by name below.
 
 # MISA 2.1 is fetched, never baked in from our side: the toolkit stopped shipping it because its
 # zip states no licence (D-q, docs/tools/misa.md). Same URL, same md5s — and the module re-reads
@@ -92,16 +82,12 @@ RUN mafft --version \
     && ls -l "$PTS_MISA_DIR/misa.pl"
 
 # The golden numbers, inside the container. `PTS_REQUIRE_TOOLS=1` turns a missing tool from a
-# printed skip into a failure — the whole point of checking in here. The single exception is
-# table2asn, and it is **deselected by name, with the reason printed**: it is optional (D3-04), it
-# produces no §6 golden number, and it is the one tool this image may not have fetched.
-RUN if command -v table2asn >/dev/null 2>&1; then \
-      echo "table2asn present — every check runs, and a missing tool is a failure"; \
-      PTS_REQUIRE_TOOLS=1 python -m pytest tests/golden -q -rs; \
-    else \
-      echo "table2asn absent — its one optional check is deselected by name; nothing else may skip"; \
-      PTS_REQUIRE_TOOLS=1 python -m pytest tests/golden -q -rs \
-        --deselect tests/golden/test_tier_b.py::test_the_sqn_step_runs_and_ncbi_reads_the_table; \
-    fi
+# printed skip into a failure — the whole point of checking in here, and why Vmatch is installed
+# above rather than left out. **One** check is deselected, **by name and with its reason printed**:
+# table2asn's `.sqn` step, which this image does not carry (see the note above). A deselect that
+# says what it dropped is not a silent skip; nothing else may skip.
+RUN echo "table2asn is not in this image: its one optional .sqn check is deselected by name" \
+    && PTS_REQUIRE_TOOLS=1 python -m pytest tests/golden -q -rs \
+         --deselect tests/golden/test_tier_b.py::test_the_sqn_step_runs_and_ncbi_reads_the_table
 
 CMD ["plastid", "--help"]

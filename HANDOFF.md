@@ -49,6 +49,67 @@ Vmatch's academic-only status.
 
 ## Log
 
+### 2026-10-11 · Claude · dev WSL · session 39 (Phase 9 opened and run: licence → packaging → Docker → release-facing docs)
+
+**Did.** Phase 8 and 8B were already closed on `main`, so the session opened **Phase 9** on
+`feat/phase-9` — board first (the `make-tasks` skill, P9-01 … P9-07), then the tasks in dependency
+order, each committed on the branch.
+
+* **P9-01 (§8.74) — the licence review, and MISA left the package.** The trigger was a measurement:
+  `uv build --wheel` shipped **146 files including `plastid/vendor/misa/misa.pl`**, and MISA's own
+  `SOURCE.json` says its zip states **no licence**. No licence means all rights reserved, so
+  bundling it was the one act not permitted. `LICENSE` is **MIT** now (D-p), the wheel is **145
+  files** with `License-Expression: MIT` (PEP 639), and MISA is **obtained** (D-q): `docs/tools/
+  misa.md` carries the URL, the zip md5 and both file hashes with a verified download line, the
+  module takes `--set misa=/path/to/misa.pl`, reads the release from the script's own header and
+  refuses anything but the pinned 2.1, and `misa.ini` is the toolkit's own file now.
+  `docs/licensing.md` inventories **14 tools** with licences **measured from conda metadata**, and
+  answers the obvious question (PAML and ARAGORN are GPL — and neither is redistributed).
+  `tests/unit/test_licensing.py` was **watched failing on the old tree** before it passed. Golden
+  unchanged: 37 = mono 31 · di 4 · tri 2.
+* **P9-02 (§8.75) — the package, and a clean-venv install.** Version **1.0.0** (D-r) + classifiers,
+  keywords, URLs — and **no Windows classifier**, deliberately. Verified where it matters: a fresh
+  venv (`python3 -m venv` has no ensurepip on this machine, so `uv venv --seed`), `pip install` of
+  the built wheel, then a real run — **153,724 bp · 37.85 % · 132 = 86 + 38 + 8**, exit 0, on a
+  minimum install of biopython + numpy + PyYAML.
+* **P9-03 (§8.76) — the Docker image, and the defect only the container could see.** The image now
+  carries the pinned tools + MISA (md5-checked) and runs the **golden suite at build time** under
+  `PTS_REQUIRE_TOOLS=1`. The first successful container run failed three checks: two for want of
+  Vmatch/table2asn (REQUIRE_TOOLS doing its job — Vmatch is installed now), and one **real defect**:
+  `gene_normalize` could not run **from an installed package** (`repo_root()` walked up from
+  `site-packages` looking for `pyproject.toml`). Fixed with two regression tests — **§9.N-1** — and
+  reproduced independently on the wheel from a user's own directory. table2asn is deliberately
+  *not* in the image: it is optional and its 56 MB download crawled through the Docker VM, and an
+  optional tool must never hang a user's build; its one check is deselected **by name, reason
+  printed**.
+* **P9-04 · P9-05 · P9-06 (§8.77) — the documents a user actually reads.** `README.md` rewritten
+  for a non-expert and then **executed verbatim in a clean venv** (every command, the run-directory
+  picture, and all five exit codes — `2` verified on a real amplicon refusal); its status line is
+  now a version a test holds to `pyproject.toml`. `docs/platforms.md` puts **all 22 modules** beside
+  their tool, their measured cost (scope named) and the three support levels, with the seven
+  unmeasured modules named rather than implied — and it found that the registry's `citations` field
+  is stored but never read, and has drifted. `docs/things_we_do_not_do.md` is twelve refusals, each
+  with its measured reason.
+* **P9-07 (partly).** `CITATION.cff` written and **validated with `cffconvert`** (CFF 1.2.0);
+  `docs/release.md` is the procedure. **The DOI, the PyPI upload and the how-to video are not
+  done** — they need the team's decisions and accounts, see below.
+
+**Validation.** `make check` green — **861 fast + 85 golden** with the pinned tools present
+(`PTS_MISA_DIR` now required: MISA is no longer in the tree). The wheel installs and runs in a fresh
+venv. The container build runs the golden suite and only builds if it reproduces.
+
+**Residual risks.** (1) The registry's `citations` drift is **named, not fixed** — the fix is either
+to feed it from each module's `Result` or to drop the field. (2) A user who installs the wheel and
+runs `gene_normalize` without a reference now gets a message (D-t) — correct per D5-09, but it is a
+first-run experience worth watching. (3) The Docker image is built and verified **on this machine**;
+no second machine has built it yet. (4) macOS is still untested — no machine.
+
+**Blocked / waiting.** The **release itself**: the authors to name in `CITATION.cff` (the team), a
+**Zenodo** account and the repository's visibility (it is **private**, and Zenodo's GitHub
+integration archives public repos), the PyPI name check, and the **how-to video** — plus an explicit
+"go" before anything is published, because a DOI and a PyPI filename are permanent. Phase 7's
+assembly still waits on the raw reads.
+
 ### 2026-10-10 · Claude · dev WSL · session 38 (Phase 8B run whole — six tasks, and every answer table put beside ours)
 
 **Did.** The remaining Phase 8B board, task by task, each committed and pushed on `feat/phase-8b`.
