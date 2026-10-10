@@ -81,8 +81,10 @@ order, each committed on the branch.
   `docs/release.md` is the procedure. **The DOI, the PyPI upload and the how-to video are not
   done** — they need the team's decisions and accounts, see below.
 
-**Validation.** `make check` green — **861 fast + 85 golden** with the pinned tools present
-(`PTS_MISA_DIR` now required: MISA is no longer in the tree). The wheel installs and runs in a fresh
+**Validation.** `make check` green at the tip — **862 fast + 85 golden** (exit 0), with the pinned
+tools present (`PTS_MISA_DIR` now required: MISA is no longer in the tree). **CI green on the same
+commit**, both jobs (`lint · fast tests · tier-A golden` and `golden tier B` — the tier-B job now
+fetches MISA 2.1 from IPK with its md5 checked). The wheel installs and runs in a fresh
 venv. The container build runs the golden suite and only builds if it reproduces — **54 passed,
 30 skipped (all `.panel/`, each naming its reason), 1 deselected (table2asn, named)**.
 
