@@ -275,3 +275,166 @@ như ba mặt kia đã làm (Table 1 từng dòng · S6 ở mặc định MISA 5
 hỏi còn lại là **quy tắc đếm của họ** (tập gen nào, IR đếm mấy lần), và nó nằm trong bảng
 "Waiting on data / people" của board — **P8B-05 chỉ đóng bằng một câu trả lời, không bằng một con
 số trông hợp lý**.
+
+### 8.71. Annotation so với bản công bố của GeSeq — 341 khác biệt kết luận trên 18 bản ghi, và chúng đến từ đâu (P8B-07, M8B.7, 10/10/2026)
+
+**Việc.** 18 bản ghi của bộ được annotate **leave-one-out** bằng chính `plastid annotate` (17 bản ghi
+còn lại làm bộ tham chiếu, bản ghi đích bị loại bằng tên), rồi phân loại bằng **đúng luật của
+`tools/corpus_bar.py`** (import `compare`/`summarise`/`by_gene` từ chính công cụ ấy — một luật, một
+chỗ). 18/18 chạy xong, exit 0.
+
+**Một chi tiết cơ chế, đo được khi chạy.** Manifest leave-one-out đã ghi trong cây là của bộ
+**Iridaceae**; chạy với `--reference .panel/crataegus-18` mà không ghi lại manifest thì **mọi bản ghi
+bị loại** và run dừng bằng một câu nêu tên (`every record … is excluded … leave-one-out leaves
+nothing to search`) — tức cây chỉ giữ **một** thiết kế mỗi lúc. Đã ghi manifest Crataegus
+(`plastid reference loo --family Rosaceae`), chạy, rồi **khôi phục** manifest Iridaceae
+(`git status` sạch sau đó). Bản ghi đích bị loại **bằng tên** trong từng run, và tên ấy nằm trong
+manifest của run.
+
+**Kết quả — 18 bản ghi, 4.448 feature công bố so với 2.339 feature được gọi.**
+
+| | |
+|---|---|
+| **Kết luận** | **341** — thiếu **21** · thừa **136** · extent **184** |
+| Biên (trong 1 bp) | **288** — báo cáo, không tính vào bar |
+| Từ vựng | **305** |
+| Chặt (mọi đầu mút xê dịch đều tính là kết luận) | **629** |
+| Mỗi bản ghi | 12–23 khác biệt kết luận (trung bình 18,9) |
+
+**Ba thành phần, ba nguyên nhân — và hai trong ba nguyên nhân không phải lỗi của mình.**
+
+1. **Thừa 136 — 110 là gen IR mà bản ghi đã nộp KHÔNG CÓ.** `rpl2` · `rpl23` · `ycf2` · `ndhB` ·
+   `rps7` mỗi gen 22 lượt (= 11 bản ghi × 2 bản IR); cộng `ycf15` 14 · `ycf1` 11 · `infA` 1.
+   12/18 bản ghi thiếu trọn nhóm gen IR (§8.69 đã đo từ phía S7), và bộ tham chiếu 17 bản ghi thì
+   có — nên bộ **gọi đúng** những gen mà bản công bố không có. Đây là phát hiện về **bộ dữ liệu**,
+   đã nêu ở §8.69.
+2. **Extent 184 — 105 là SÁU gen của MỘT bản ghi tham chiếu.** `psbK` · `psbM` · `clpP` · `rpl32` ·
+   `ndhG` · `psbJ` xuất hiện 15–18 lần mỗi gen; đo trên cả 18 bản ghi thì **`PX413299`
+   (*M. germanica*) annotate cả sáu gen dài hơn 17 bản ghi kia** (`psbM` **270 bp so với 105**,
+   `rpl32` 201 vs 159, `ndhG` 573 vs 531, `psbJ` 144 vs 123, `psbK` 195 vs 186, `clpP` 591 vs 588;
+   nguyên văn trong bản ghi: `CDS complement(31219..31488) /gene="psbM"`). Engine **chuyển trung
+   thành** cấu trúc exon của tham chiếu — đúng như thiết kế — nên một bản ghi tham chiếu annotate
+   lệch sẽ lan sang **cả 18** run. Đây là **giới hạn đã biết** (P3B-10 ghi ở Residual risks: "the
+   transfer is faithful to the chosen reference"), nay có số: **105/184 extent**.
+3. **Thiếu 21 — 18 là `trnV-UAC`, và đây là một khiếm khuyết CỦA MÌNH, đo được.** Không run nào gọi
+   được `trnV-UAC`, trong khi bản công bố có nó ở **cả 18** bản ghi. Truy nguyên: ARAGORN **có** gọi
+   một tRNA tại đúng locus ấy nhưng **đọc sai danh tính** — trong bộ Crataegus nó gọi
+   `tRNA-Stop(tta)` (91 base, mạch bổ sung, `c[54467,55134]`), và **trên bản vàng nó gọi
+   `tRNA-Cys(aca)`** tại `c[51598,52275]` (chính là `trnV-UAC` của bản công bố). Bộ từ vựng không
+   có tên cho "Stop", nên call bị bỏ và locus thành *không gọi được*: summary của run nói đúng
+   **"Vocabulary loci not called: 1"**. Đây là **H-24** — ghi tên, chưa sửa (xem dưới).
+4. **Từ vựng 305 — toàn bộ là tầng đặt tên, không phải tầng vị trí**: cùng toạ độ, khác tên.
+   `trnI-CAU`→`trnM-CAU` 36 · `trnI-GAU`→`trnE-UUC` 36 · bốn rRNA (`rrn16S`→`rrn16` …) 36 mỗi cái ·
+   `ndhI`→`ndhL` 18 (đúng cặp alias §8.31) · `trnfM-CAU`→`trnM-CAU` 18 · họ Ser/Gly
+   (`trnG-GCC`→`trnS-CGA` 17 · `trnG-UCC`→`trnG-GCC` 17 · `trnS-GCU`↔`trnS-GGA` 16/2) — đúng họ
+   H-04 mà §8.41 đo: ARAGORN đọc anticodon theo cách của nó, GeSeq theo cách của họ.
+
+**Đặt cạnh bar của họ Iridaceae (§8.55), nói đúng chỗ khác nhau.** Bên ấy: **34 bản ghi**, mình
+**418** khác biệt kết luận so với **588 của PGA**, chặt 1.070 so với 699. Bên này: **18 bản ghi**,
+**341** khác biệt kết luận, chặt 629 — và **không có PGA** để so, vì bản công bố ở đây *là* GeSeq,
+tức chính cái đáp án. Nên câu "hơn/kém PGA" không tồn tại ở bộ này; con số so được là **mật độ**:
+**18,9 khác biệt kết luận mỗi bản ghi (Crataegus) so với 12,3 (Iridaceae)** — và mật độ ấy cao hơn
+vì hai lý do đã gọi tên ở trên (bản ghi thiếu gen · một tham chiếu annotate lệch), không phải vì
+engine đọc kém hơn.
+
+**H-24, khiếm khuyết mở, ghi kèm bằng chứng.** `trnV-UAC` — một tRNA **có intron** — không được gọi
+ở **18/18** bản ghi này và **cũng không** ở bản vàng (ARAGORN gọi `tRNA-Cys(aca)` ở locus ấy);
+run báo đúng ở dòng "Vocabulary loci not called", nên nó không im lặng, nhưng một locus từ vựng
+không gọi được là một khoảng trống thật. Ba hướng sửa, chưa chọn: chuyển tRNA từ tham chiếu như
+CDS/rRNA đang làm · gọi bằng engine thứ hai · hay để nguyên và ghi. Chưa đủ dữ liệu để chọn trong
+giai đoạn này.
+
+### 8.72. π, vùng hotspot và 50 bản ghi barcode (P8B-06, M8B.6, 10/10/2026)
+
+**Việc.** Hai nửa, hai câu hỏi khác nhau. **Nửa π**: chạy `diversity` (cửa sổ **600/200** — đúng
+tham số DnaSP v6 của bài, và cũng là mặc định của mình) trên **44 plastome** (18 mới + 26 công bố);
+bài **không in số π**, chỉ **gọi tên ba vùng đa dạng nhất** — nên thứ so được là **thứ hạng**.
+**Nửa barcode**: 50 bản ghi `PX676094–143` so với **Table S2** (độ dài · GC) rồi đo π trong locus.
+
+**Nửa π — 44 plastome, một alignment 166.154 cột, 157.073 cột dùng được.**
+
+| | |
+|---|---|
+| π toàn alignment | **0,001633** |
+| LSC · SSC · IRa · IRb | 0,002044 · 0,003533 · 0,000289 · 0,000249 |
+| Spacer có giá trị | **91** |
+
+**Thứ hạng, so với ba vùng bài gọi tên.** Bài nói ba vùng đa dạng nhất là `ndhC~trnV-UAC` ·
+`psbZ~trnG-UCC` · `trnR-UCU~atpA`. Bản đo của mình trên 91 spacer:
+
+| Vùng của bài | Hạng của mình | π |
+|---|---|---|
+| `trnR-UCU-atpA` | **4**/91 | 0,00839 |
+| `psbZ-trnG-UCC` | **5**/91 | 0,00776 |
+| `ndhC-trnV-UAC` | **9**/91 | 0,00742 |
+
+Cả ba **đều nằm trong top 10** của mình, nhưng **không vùng nào đứng đầu**: vị trí số 1 là
+**`petG-trnW-CCA`** với π **0,02042** — hơn vùng nhì (`rpl32-trnL-UAG`, 0,00874) **hơn hai lần**.
+Khác biệt phạm vi phải nói kèm: bài lấy thứ hạng từ **cửa sổ trượt trên cả bộ gen** (DnaSP, 600/200),
+mình lấy từ **π của từng spacer** trên cùng 44 bộ gen — hai cách đo gần nhau nhưng không phải một.
+Ghi đúng thế: **ba vùng của bài tái hiện ở mức "trong top 10", không tái hiện ở mức "đứng đầu"**.
+
+**Nửa barcode — 50/50 tái hiện tuyệt đối, và mẫu thứ 51 nói đúng tên.**
+
+| | |
+|---|---|
+| **Độ dài** so với Table S2 | **50/50 khớp** (543–652 bp) |
+| **GC** so với Table S2 | **50/50 khớp tới chữ số in** — lệch lớn nhất **0,0000** (bảng in 4–14 chữ số) |
+| Dòng thiếu | `seq45` *Crataegus scabrifolia* isolate YNSZ3 — GenBank ID `-`, độ dài `----`: **mẫu thứ 51 chưa nộp**, đúng như Data availability statement nói (`PX676094–PX676143`) |
+| π trong locus (50 bản ghi) | **0,018759** trên **455 cột dùng được** của alignment **806 cột** |
+| Cùng spacer ấy trên 44 plastome | **0,00742** — tức mức lấy mẫu dày hơn (nhiều cá thể mỗi loài) cho π **cao hơn ~2,5 lần**, đúng tiền đề của bài |
+
+**Một chỗ cơ chế, đo được, và nó sửa lại một dòng trong bảng Pitfalls của board.** Bảng ấy viết
+"the 50 barcode records fed to a plastome module… use `barcodes`/`diversity`, never `structure`".
+Đo lại: **cả `diversity` lẫn `barcodes` đều khai `requires_ir`**, và CLI bắt **mọi** genome trong run
+phải qua cổng IR — nên 50 amplicon không IR bị **cả hai** chặn (`IR gate: PX676094.1: no valid IR
+pair found`). Đó là cổng đang làm việc đúng, nhưng lời khuyên "dùng `diversity`" thì sai với đầu vào
+amplicon; π ở đây vì thế được đo bằng **đúng hàm lõi mà mô-đun gọi**
+(`core.align.nucleotide_diversity`) trên alignment của **đúng adapter MAFFT** (`external.mafft`) —
+không phải một đường tính thứ hai. Dòng Pitfalls đã sửa tại chỗ.
+
+### 8.73. SSR so với Table S6, lần hai: **cả hai ngưỡng trên cả 49 section** (P8B-04 tiếp, 10/10/2026)
+
+**Việc.** §8.68 so ở **một** cài đặt và chỉ trên các section so được. Lần này chạy MISA (bản đã
+vendored, dùng **đúng `_parse_gff` của mô-đun** — cùng cách đọc, chỉ đổi ngưỡng) trên **cả 50
+plastome** ở **hai** cài đặt: **mặc định** `(1/10)(2/6)(3/5)(4/5)(5/5)(6/5)` và **ngưỡng Methods
+của bài ghi** `(1/10)(2/5)(3/4)(4/3)(5/3)(6/3)`; mỗi section khớp với **một** genome theo toạ độ SSR
+của họ (không theo tên — 5 bản ghi cùng tên *Crataegus sp.*), và **cùng genome ấy được đọc cho cả
+hai cài đặt**, nên hai cột dưới đây so được với nhau.
+
+| Cài đặt | Dòng của họ có mặt **đúng toạ độ** | Section **trọn vẹn** |
+|---|---|---|
+| **Mặc định** (10,6,5,5,5,5) | **2.581/3.546 — 72,8 %** | **14/49** |
+| **Ngưỡng họ ghi** (10,5,4,3,3,3) | **3.070/3.546 — 86,6 %** | **4/49** |
+
+**Hai con số này không mâu thuẫn — chúng trả lời hai câu hỏi khác nhau.** Ngưỡng thấp hơn ⇒ bảng
+của mình **nhiều dòng hơn** (ZWSZ: 75 → 103 dòng) ⇒ *tìm thấy* nhiều dòng của họ hơn, **và** thừa
+ra nhiều hơn ⇒ ít section trọn vẹn hơn. Nên: **14 section tái hiện trọn vẹn dưới mặc định** — và
+**cả 14 đều thuộc nửa 18 plastome mới** — còn **tỉ lệ dòng phủ** thì cao hơn ở ngưỡng họ ghi.
+
+**Cơ chế của phần không khớp, nay đo được ở mức từng dòng.** Section `Crataegus sp. ZWSZ`: 65 dòng
+của họ, **56 khớp đúng toạ độ**, **65/65 khớp ở toạ độ *đầu*** — và **9/9 dòng lệch là một cụm
+compound viết thành một dòng trải cả cụm**:
+
+| Bảng của họ | Bảng của mình |
+|---|---|
+| `(242, 267)` | `(242,252)` + `(256,267)` |
+| `(54421, 54488)` | `(54421,54430)` + `(54439,54449)` + `(54477,54488)` |
+| `(52070, 52122)` | `(52070,52080)` + `(52113,52122)` |
+
+Tức khi họ gộp cụm, **đầu trùng, cuối lệch** — đúng như §8.68 suy từ ba dòng đầu, nay đúng cho cả
+9 dòng. Không dòng nào của họ là một SSR mình không có.
+
+**Kết luận của P8B-04, ba điều Done-when hỏi.** (1) **Cài đặt nào tái hiện S6**: **mặc định** —
+đó là cài đặt dưới đó các *section* tái hiện trọn vẹn, và nó khớp với điều §8.68 đã đo trên
+*C. altaica* (57/57 so với 55/57). (2) **Mức khớp trên toàn bộ genome**: 72,8 % dòng đúng toạ độ ở
+mặc định, 86,6 % ở ngưỡng họ ghi — cả hai trên **49/49 section**, không bỏ section nào. (3)
+**Tên các cụm compound**: bảng của mình liệt **mọi thành phần**, bảng của họ (ở nửa đã công bố)
+**gộp cụm thành một dòng trải**, còn ở nửa 18 plastome mới thì **không liệt thành phần** (73 dòng
+của mình so với 57 của họ trên *C. altaica*: 16 dòng thừa là thành phần của 8 cụm).
+
+**Còn lại, và nó không còn chặn phép so.** Câu hỏi "mỗi section của S6 do lần chạy nào sinh ra" vẫn
+là câu hỏi cho anh Điềm — nhưng nay nó **không còn là điều kiện để so**: cả 49 section đã được so ở
+cả hai cài đặt, và phần không khớp đã có nguyên nhân đo được (mã hoá cụm) chứ không phải một khoảng
+trắng. Giữ nó lại trong bảng Waiting như một dữ kiện có thể làm phép so **chặt hơn**, không phải
+như một việc phải xong.

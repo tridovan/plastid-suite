@@ -389,6 +389,14 @@ failures: a search that finds nothing is a failed run, every below-floor hit rep
       (H-09); a failed sample is marked without killing the run; docx report (D2-04 pattern)
 - [x] **M3B.5 Golden + corpus validation** — the phase's Done-when at both scales, every
       difference itemized
+      *(coverage limit named 10/10/2026 — **H-24**: **`trnV-UAC` is never called.** ARAGORN *does*
+      find a tRNA at that locus but reads its identity wrong — `tRNA-Stop(tta)` `c[54467,55134]` on
+      the Crataegus corpus, `tRNA-Cys(aca)` `c[51598,52275]` on the golden — so the call is dropped
+      (the vocabulary has no name for a Stop tRNA) and an intron-containing tRNA is missing from
+      **every** run: 18/18 corpus records and the golden. The run does say so ("Vocabulary loci not
+      called: 1"), which is why it was found only when the corpus supplied an answer key that has
+      the gene. Found by P8B-07, §8.71; three fixes are possible (transfer tRNAs from the reference
+      as CDS/rRNA already do · a second engine · report and keep) and none is chosen yet)*
       *P3B-10 done 10/10/2026 (§8.55): the golden is **132 = 86 + 38 + 8** with its **35**
       differences from the published record listed and pinned; the corpus runs 34 leave-one-out
       and reads **418 conclusion-level differences against PGA's 588** (30/34 records better) —
@@ -610,20 +618,33 @@ convention) · no comparison is run on a stand-in in place of the corpus, and ev
 it is labelled as third-party published data · the corpus's own provenance (accessions, retrieval
 date, file digest) is recorded in the repo, not only on D:.
 
-- [ ] **M8B.1 The corpus on disk, verified** — copied into the working tree, byte-identical to the
-      drop, gitignored, with a provenance note in the repo
-- [ ] **M8B.2 Structure & GC vs Table 1** — all 18 new + the 26 published plastomes
-- [ ] **M8B.3 SSR vs Table S6** — with the parameter question settled (their Methods and their own
-      table disagree; measured 10/10/2026)
-- [ ] **M8B.4 RSCU vs Table S5**
-- [ ] **M8B.5 Ka/Ks vs Table S7** — **waiting on the design**: which sequences each species column
-      is compared against
-- [ ] **M8B.6 π and hotspots vs the paper** — the sliding-window figure, the *ndhC~trnV-UAC*
-      hotspot, and the 50 barcode records they deposited
-- [ ] **M8B.7 Annotation vs the published GeSeq annotation** — the corpus bar's second round, on a
-      family the annotator has never seen
-- [ ] **M8B.8 The defects the corpus forced** — each one fixed test-first and named (§8.65 is the
-      first: the MISA compound flag)
+- [x] **M8B.1 The corpus on disk, verified** — copied into the working tree, byte-identical to the
+      drop (117/117 sha256), gitignored; **the repo-side provenance note is `docs/corpus_crataegus_2026.md`**
+      (accessions · retrieval date · DOI · manifest sha256 · how to prove a copy is the same), P8B-09
+- [x] **M8B.2 Structure & GC vs Table 1** — 18/18 rows reproduce all four sizes; one GC cell does not
+      (*C. jozana* IR 45.62 vs 42.64); §8.67, P8B-03
+- [x] **M8B.3 SSR vs Table S6** — **parameter question settled by measurement, and the comparison
+      now covers all 49 sections at both settings** (§8.73): defaults reproduce **14/49 sections
+      whole** and 72.8 % of rows exactly; their own Methods' thresholds find 86.6 % of rows but
+      complete only 4 sections; 9 of 9 non-exact rows in a section are a compound cluster their
+      table writes as one spanning row. The provenance question (which run produced each section)
+      is left for anh Điềm as a *stricter* comparison, not as a blocker
+- [~] **M8B.4 RSCU vs Table S5** — **measured, not reproduced**: 1–2 % away under every one of 11
+      counting rules tested; the sequences are proven identical (S7 reproduces exactly), so the
+      residual is their counting rule — §8.70, open question for anh Điềm
+- [x] **M8B.5 Ka/Ks vs Table S7** — **reproduced to the last printed digit** (629/714 cells, zero
+      error): KaKs_Calculator `-m MLWL` against **`MN068257` *Amelanchier cusickii*** — not the
+      *C. kansuensis* the paper's text names, which the table's own structure refutes; §8.69, P8B-08
+- [x] **M8B.6 π and hotspots vs the paper** — their three named regions rank **4th · 5th · 9th of 91**
+      for us (our first is `petG-trnW-CCA`, twice the runner-up); the **50/50 barcode records reproduce
+      Table S2 exactly**; the 51st was never deposited; §8.72, P8B-06
+- [x] **M8B.7 Annotation vs the published GeSeq annotation** — 18/18 leave-one-out runs, classified
+      with the corpus bar's own rule: **341 conclusion-level differences** (18.9/record against
+      Iridaceae's 12.3), of which **110 extras are the IR genes the deposits lack** and **105 extents
+      are six genes of one reference record**; §8.71, P8B-07
+- [x] **M8B.8 The defects the corpus forced** — the running list is `docs/corpus_crataegus_2026.md`:
+      **§8.65** MISA's compound flag (fixed test-first) · **§9.M-1** `ssr`'s Context column (fixed in
+      Phase 8) · **H-24** `trnV-UAC` never called, named with its evidence (§8.71), open
 
 ## Phase 9 — Packaging, license & release  *(§13.9)*
 

@@ -55,11 +55,16 @@ as third-party published data · the corpus's provenance recorded **in the repo*
   **Done when:** a §8 entry holds the side-by-side table for the 18 (with the counting rule each
   column uses) and names every row that differs.
 
-- [~] **P8B-04 · SSR vs Table S6** *(M8B.3)* — **partly done 10/10/2026 (§8.68)**: at MISA's
+- [x] **P8B-04 · SSR vs Table S6** *(M8B.3)* — **DONE 10/10/2026 (§8.68 + §8.73)**: at MISA's
       defaults our table reproduces **every row** of 14 of the 49 sections (the extras are
-      compound components); the other 35 cannot be compared yet because **their table encodes
-      a compound cluster as one spanning row** in the published half and **omits clusters** in
-      the new half. **Blocked on:** which run produced each section of S6 (see Waiting).
+      compound components). **The full measurement is now in** (§8.73): MISA run at **both**
+      settings over all 50 plastomes, one genome assigned per section by their own SSR
+      coordinates and read for both settings — **defaults 2,581/3,546 rows exact (72.8 %), 14/49
+      sections complete · their stated thresholds 3,070/3,546 (86.6 %), 4/49 complete**; all 14
+      complete sections are in the 18-new half. The mechanism is measured row by row: in the ZWSZ
+      section 9 of the 9 non-exact rows are a compound cluster their table writes as **one
+      spanning row** (`(242,267)` theirs = `(242,252)+(256,267)` ours). **Which run produced each
+      section of S6** stays a question for anh Điềm, but it no longer blocks the comparison.
   - Measured 10/10/2026: our `ssr` (MISA defaults 10,6,5,5,5,5) reproduces **57/57** of their
     *C. altaica* rows once the compound components are set aside, while their stated Method
     thresholds (10,5,4,3,3,3) give 97 and reproduce only 55/57 — i.e. **their Methods and their own
@@ -81,27 +86,35 @@ as third-party published data · the corpus's provenance recorded **in the repo*
     which S5 does not state (Methods say only "PhyloSuite … screen the PCGs" + an RSCU-Plot web
     tool) — now a row in "Waiting on data / people".
 
-- [ ] **P8B-06 · π, hotspots and the barcode region** *(M8B.6)*
-  - Their sliding-window analysis is DnaSP v6 at **600/200** — our `diversity` default — over whole
-    plastomes, PCGs and intergenic regions; their hotspot is *ndhC~trnV-UAC*, amplified for 51
-    individuals. Run `diversity` on the 44 plastomes and `barcodes` on the same set, then compare
-    **the hotspot choice** (do we rank the same region highest?) and the 50 deposited barcode
-    records (length/GC vs Table S2, then π within the locus).
-  - **Needs:** the 51st sample (*Crataegus scabrifolia*, no GenBank ID in Table S2) before the
-    barcode half can be complete.
-  **Done when:** the §8 entry names whether our hotspot ranking agrees, and reports the barcode
-  comparison for the 50 records we have, with the 51st named as missing.
+- [x] **P8B-06 · π, hotspots and the barcode region** *(M8B.6)* — **DONE 10/10/2026 (§8.72)**.
+      `diversity` (600/200 — their DnaSP setting and our default) over the **44 plastomes**: π
+      0.001633 whole, LSC 0.002044 · SSC 0.003533 · IR ≈0.00027. **The hotspot ranking does not
+      agree at the top**: their three named regions rank **4th, 5th and 9th of 91 spacers** in our
+      measurement (all inside our top 10), while our first is **`petG-trnW-CCA` at 0.02042** — more
+      than twice the runner-up. Stated with the scope difference: they ranked by sliding windows
+      over whole plastomes, we by per-spacer π over the same 44.
+  - Barcode half: **50/50 records reproduce Table S2 exactly** (length, and GC to the printed
+    digit — max difference 0.0000); the missing row is `seq45` *C. scabrifolia* YNSZ3, the 51st
+    sample, never deposited — named as missing, which is the whole of what is available. π inside
+    the locus: **0.018759** over 455 usable columns, against **0.00742** for the same spacer across
+    the 44 plastomes — the finer sampling is ~2.5× more diverse.
+  - Measured on the way: the Pitfalls row was wrong — `diversity` **and** `barcodes` both require
+    the IR gate, so neither accepts the amplicons; π went through the same core function and MAFFT
+    adapter the module uses, and the row is corrected in place.
 
-- [ ] **P8B-07 · Annotation vs the published GeSeq annotation** *(M8B.7)*
-  - Their 18 records were annotated by **GeSeq** (with Prodigal/HMMER/aragorn behind it) and are
-    deposited in GenBank — so the corpus carries an answer key for the annotator, in a family ours
-    has never seen (phase 3B's bar was Iridaceae). Run `plastid annotate` leave-one-out over the
-    corpus and classify every difference the way `tools/corpus_bar.py` does.
-  - Their counting rule is **not** ours: Table 1 writes "119 (105)" = total (unique), while §6's
-    rule is CDS + tRNA + rRNA with both IR copies. Both must be printed wherever they meet.
-  **Done when:** a §8 entry holds the bar (per-record differences vs the published annotation,
-  classified) on the Crataegus corpus, beside the Iridaceae bar's 418-vs-PGA-588 result — same
-  measure, different family, stated as such.
+- [x] **P8B-07 · Annotation vs the published GeSeq annotation** *(M8B.7)* — **DONE 10/10/2026
+      (§8.71)**: 18/18 leave-one-out runs through `plastid annotate`, classified with
+      `tools/corpus_bar.py`'s own rule (imported). **341 conclusion-level differences** (missing
+      21 · extra 136 · extent 184) over 4,448 published features against 2,339 called; 288
+      boundary, 305 vocabulary, strict 629; 18.9 per record against the Iridaceae bar's 12.3
+      (418/34). **Two of the three components are not our reading being wrong**: 110 of the 136
+      extras are the IR genes the deposited records lack, and 105 of the 184 extents are six genes
+      of **one reference record** (*M. germanica*'s `psbM` is 270 bp where the other 17 say 105) —
+      the transfer is faithful to its reference, as designed. The third is ours and is named:
+      **H-24**, `trnV-UAC` is never called (18/18 and on the golden too — ARAGORN reads that locus
+      as `tRNA-Stop(tta)`, and as `tRNA-Cys(aca)` on the golden), and the run does say so.
+  - Counting rules as required: their Table 1 writes "total (unique)"; §6's rule is CDS + tRNA +
+    rRNA with both IR copies — both printed where the two meet, in §8.71 and §8.69.
 
 - [x] **P8B-08 · Ka/Ks vs Table S7** *(M8B.5)* — **DONE 10/10/2026 (§8.69)**: the table
       **reproduces**, and the design it actually used is not the one the paper's text states.
@@ -119,14 +132,20 @@ as third-party published data · the corpus's provenance recorded **in the repo*
   - Done when clause met: **reproduced**, with the design question answered by measurement rather
     than left open — and the paper's own text/table disagreement recorded as a finding (D-l).
 
-- [ ] **P8B-09 · The record: provenance note + the defects the corpus forced** *(M8B.8)* — a
-      `docs/` note naming the accessions, the retrieval date, the paper's DOI and the manifest's
-      sha256, so a fresh clone can re-fetch and prove it got the same 100 files (D-m); and P8B-01
-      is the first defect on the list. Keep a running
-      list in the §8 entries and fix each one test-first; a defect found here is worth more than a
-      comparison that agrees, because the corpus is the first one nobody here chose.
-  **Done when:** every defect found by the corpus is either fixed with a regression test or named
-  as open on this board with its evidence.
+- [x] **P8B-09 · The record: provenance note + the defects the corpus forced** *(M8B.8)* — **DONE
+      10/10/2026**: `docs/corpus_crataegus_2026.md` names the paper (DOI `10.3389/fpls.2026.1767012`,
+      CC-BY), the delivery (10/10/2026, `D:\business\pts\thanhdiem_data\db_test_new`), the four
+      accession groups, **how to prove a copy is the same** (`sha256(gb_data/manifest.tsv)` =
+      `0a34e679…`, and the whole tree in one line = `4ee47625…`), the labels this corpus gets wrong
+      (`PX413286` is **chlorosarca in GenBank and jozana in Table S1**) and what it is not (not
+      manuscript content; not a benchmark to tune against).
+  - **The defects it forced, each fixed test-first or named open with evidence:**
+    | defect | where | status |
+    |---|---|---|
+    | MISA's compound flag missed the per-component encoding (0 of 16 flagged on `PX413282`) | `ssr` | **fixed**, module 0.3.0, §8.65 |
+    | `ssr`'s `Context` column read a trans-spliced gene's outer span | `ssr` | **fixed** in Phase 8, §9.M-1 |
+    | **`trnV-UAC` is never called** — ARAGORN misreads that locus (`tRNA-Stop(tta)` here, `tRNA-Cys(aca)` on the golden), so an intron-containing tRNA is missing from every run, 18/18 and the golden too | `plastid_annotate` + ARAGORN | **open — H-24** (ROADMAP M3B.5), evidence in §8.71 |
+  **Done when clause met:** two fixed with regression tests, one named open with its measurement.
 
 ## What the paper states — read 10/10/2026, so nobody opens the PDF again for these
 
@@ -161,7 +180,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 |---|---|
 | A published table taken as a benchmark | Their Methods and their own Table S6 **disagree** (measured 10/10/2026). A table is data to explain, exactly like CGAS's labels |
 | Their counting rule mixed with ours | Table 1 writes "119 (105)" = total (unique); §6's rule is **132 = 86 CDS + 38 tRNA + 8 rRNA**, both IR copies. Print both rules wherever they meet |
-| The 50 barcode records fed to a plastome module | They are ~600 bp fragments with **no IR**: the gate stops them by design. That is the gate working — use `barcodes`/`diversity`, never `structure` |
+| The 50 barcode records fed to a plastome module | They are ~600 bp fragments with **no IR**: the gate stops them by design. That is the gate working — but **measured 10/10/2026 (§8.72): `barcodes` and `diversity` both declare `requires_ir` and every genome in a run must pass, so they refuse the amplicons too**. Measure π through `core.align.nucleotide_diversity` on a MAFFT alignment instead, and say so |
 | Their SSR count read as a count | It lists **no compound components** (57 vs our 73 on *C. altaica*); ours lists every component. The difference is a class definition, not a miscount |
 | A number in the paper's text quoted as measured | The text's IR minimum (26,311) appears in **no** genome we measured, and not in their own Table 1 (26,331) — quote the table, or the measurement |
 | Running the drop's `fetch_gb.py` | It hits NCBI; the files are already here, and this project's tests never touch the network. It stays as provenance, not as a step |
@@ -175,7 +194,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | *(closed 10/10/2026 — by measurement, not by asking)* the Ka/Ks design: S7 is **KaKs_Calculator MLWL against *Amelanchier cusickii* `MN068257`** (§8.69). What *is* worth telling anh Điềm: their own deposited records **lack the IR genes** while S7 has values for them — **which annotation produced the tables?** | anh Điềm (optional) | P8B-07's reading of the annotation |
 | **How their RSCU was counted** — Table S5 is 1–2 % away from ours under every one of 11 rules we tested (§8.70), and S5 states no gene set; with the sequences proven identical (S7 reproduces exactly), only the counting rule can explain it | anh Điềm | P8B-05's residual (reported as measured, not as agreement) |
 | **Which annotation produced the tables** — 12/18 deposited records lack the whole IR gene set (`ycf1` · `ycf2` · `ndhB` · `rpl2` · `rpl23` · `rps7`), yet S7 carries `ndhB` values for 11 of them (§8.69) | anh Điềm | P8B-07's reading |
-| **How each section of Table S6 was produced** — its two halves encode a compound cluster differently (the published half writes one spanning row, the new half omits clusters), and the published half carries SSRs our MISA does not find; the measured suspicion is that those sections were copied from each record's own publication | anh Điềm | P8B-04's remaining 35 sections |
-| *(reduced 10/10/2026)* their **π sliding-window numbers** — still figures only, **but the paper names its three most diverse regions** (ndhC~trnV-UAC · psbZ~trnG-UCC · trnR-UCU~atpA), so the hotspot **ranking** can be compared without them | anh Điềm | P8B-06 (values) |
+| **How each section of Table S6 was produced** — its two halves encode a compound cluster differently (the published half writes one spanning row, the new half omits clusters). **No longer blocking**: all 49 sections are compared at both settings (§8.73); an answer would let the comparison be *stricter*, and would explain why the published half's rows line up better at the thresholds their own Methods state | anh Điềm | — (P8B-04 closed) |
+| *(no longer blocking)* their **π sliding-window numbers** — figures only, and the **ranking** comparison is done without them (§8.72: their three regions rank 4th · 5th · 9th of 91 for us). Their numbers would let the *magnitudes* be compared too, which nothing now waits on | anh Điềm | — (P8B-06 closed) |
 | *(closed 10/10/2026)* the IRscope junction table — the paper prints Figure 3 only; the numeric junction comparison is done through **Table 1's region sizes** instead (§8.67) | — | — |
 | *(separate ask)* raw Illumina reads for ≥1 of the 18 samples — Table S1 shows 2,786× coverage, so the reads exist | anh Điềm / cô Trang | **Phase 7** (M7.1 · M7.5 · M7.6 — still the project's oldest blocker) |
