@@ -88,9 +88,13 @@ as third-party published data · the corpus's provenance recorded **in the repo*
   classified) on the Crataegus corpus, beside the Iridaceae bar's 418-vs-PGA-588 result — same
   measure, different family, stated as such.
 
-- [ ] **P8B-08 · Ka/Ks vs Table S7** *(M8B.5)* — **BLOCKED: the comparison design is not in the
-      paper or the supplement** (each column is a species; the partner is unstated). Ask anh Điềm
-      for the design, or their `.axt`/codon alignments, or the exact `KaKs_Calculator` invocation.
+- [ ] **P8B-08 · Ka/Ks vs Table S7** *(M8B.5)* — **unblocked 10/10/2026: the design is in the
+      paper, in the Results and not the Methods** — "the Ka, Ks, and Ka/Ks ratios … **relative to
+      those of *C. kansuensis***", and `MF784433` *C. kansuensis* is in the drop. Cross-checked
+      against the paper's own text: it prints rpoC2 at 2.11 (*C. monogyna*), 1.83 (*C. laevigata*),
+      1.83 (*C. songarica*), and S7 carries 2.10854 · 1.82925 · 1.82925 — same computation, so the
+      reference is settled. They used **KaKs_Calculator v3.0**; ours is **2.0.1** (installed for
+      §8.61) — the version difference is recorded, never smoothed.
   **Done when:** either the §8 entry reproduces S7 within a stated tolerance, or it records what was
   tried and what the design question is — never a silent skip.
 
@@ -131,7 +135,8 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | What | Who | Blocks |
 |---|---|---|
 | The **51st barcode sample** — Table S2's last row is *Crataegus scabrifolia* with GenBank ID `----` | anh Điềm | P8B-06's barcode half |
-| The **Ka/Ks comparison design** — which sequence each species column of Table S7 is compared against (or their `.axt` files / the `KaKs_Calculator` invocation) | anh Điềm | P8B-08 |
+| *(closed 10/10/2026)* the Ka/Ks design — **found in the paper's Results**: every species is compared against *C. kansuensis* (`MF784433`, in the drop), confirmed by the text's own rpoC2 values matching S7 | — | — |
 | **How each section of Table S6 was produced** — its two halves encode a compound cluster differently (the published half writes one spanning row, the new half omits clusters), and the published half carries SSRs our MISA does not find; the measured suspicion is that those sections were copied from each record's own publication | anh Điềm | P8B-04's remaining 35 sections |
-| *(if available)* their **π sliding-window numbers** and the **IRscope junction table** — both are figures today | anh Điềm | P8B-06 · P8B-03 (numeric rather than figure comparison) |
+| *(reduced 10/10/2026)* their **π sliding-window numbers** — still figures only, **but the paper names its three most diverse regions** (ndhC~trnV-UAC · psbZ~trnG-UCC · trnR-UCU~atpA), so the hotspot **ranking** can be compared without them | anh Điềm | P8B-06 (values) |
+| *(closed 10/10/2026)* the IRscope junction table — the paper prints Figure 3 only; the numeric junction comparison is done through **Table 1's region sizes** instead (§8.67) | — | — |
 | *(separate ask)* raw Illumina reads for ≥1 of the 18 samples — Table S1 shows 2,786× coverage, so the reads exist | anh Điềm / cô Trang | **Phase 7** (M7.1 · M7.5 · M7.6 — still the project's oldest blocker) |
