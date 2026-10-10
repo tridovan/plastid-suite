@@ -35,7 +35,7 @@ Phase 6): it reads all three deliberately, and it is not a mixed set fed to the 
 modules. Every module belongs to one of three groups — **shared** · **plastid only** · **mito
 only** — and a module run against the wrong organelle must stop by name rather than describe the
 wrong genome. The group table, the measured reason per module, and what is still to build (the
-declaration in the registry, the input-set check, the seven shared analyses not yet opened to mito):
+declaration in the registry, the input-set check, the eight shared analyses not yet opened to mito):
 PROJECT.md §13 → "Hai bào quan".
 
 **Priority today: plastid** (team decision 05/10/2026, D5-07). Plant mito data is still scarce, so

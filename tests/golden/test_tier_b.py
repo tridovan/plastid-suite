@@ -287,6 +287,94 @@ def test_nucleotide_diversity_runs_on_real_data_and_keeps_its_shape(
     assert regions["IRa"] < regions["LSC"] < regions["SSC"]
 
 
+def test_repeats_reproduces_the_measured_golden_count(
+    mummer_tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """M2.12 on the golden — measured 10/10/2026 with `repeat-match -n 30` (MUMmer 4.0.1).
+
+    **9** maximal exact matches at 30 bp or more: 4 dispersed, 5 palindromic, and the longest is
+    the inverted-repeat pair itself — 26,214 bp between IRa and IRb, which is the match the board
+    asks to be pinned rather than checked by eye. The phase's own trap was inheriting the 26/9
+    survey's "9 matches ≥30 bp", measured on other data (§9.H); this number is this record's, and
+    the coordinates below are the proof it is not the survey's.
+    """
+    require_tools(mummer_tools, "repeat-match")
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "repeats",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-o",
+                str(tmp_path / "runs"),
+            ]
+        )
+        == 0
+    )
+    summary = next(_table(tmp_path / "runs", "repeat_summary"))
+    assert summary["Minimum match length (bp)"] == "30"
+    assert summary["Matches"] == "9"
+    assert (summary["Dispersed"], summary["Palindromic"]) == ("4", "5")
+    assert summary["Longest match (bp)"] == "26214"
+    assert summary["Longest match regions"] == "IRa–IRb"
+    assert summary["Tool"].startswith("repeat-match (MUMmer 4.0.1)")
+
+    repeats = {row["Repeat"]: row for row in _table(tmp_path / "runs", "repeats")}
+    assert len(repeats) == 9
+    ir_pair = repeats["R01"]
+    assert ir_pair["Class"] == "palindromic"
+    assert (ir_pair["Copy 1 start"], ir_pair["Copy 1 end"]) == ("83128", "109341")
+    assert (ir_pair["Copy 1 region"], ir_pair["Copy 2 region"]) == ("IRa", "IRb")
+    assert (ir_pair["Copy 2 start"], ir_pair["Copy 2 end"]) == ("127511", "153724")
+    # every row is at or above the floor, and the two classes are the tool's own markings
+    assert all(int(row["Length (bp)"]) >= 30 for row in repeats.values())
+    assert {row["Class"] for row in repeats.values()} == {"dispersed", "palindromic"}
+    assert sorted(int(row["Length (bp)"]) for row in repeats.values()) == [
+        31,
+        32,
+        42,
+        42,
+        42,
+        42,
+        52,
+        52,
+        26_214,
+    ]
+
+
+def test_vmatch_agrees_with_repeat_match_on_the_golden(
+    mummer_tools: dict[str, str | None],
+    vmatch_tools: dict[str, str | None],
+    data_dir: Path,
+    tmp_path: Path,
+) -> None:
+    """D-f: the count is published because **two independent engines** give the same matches.
+
+    Vmatch is academic-only, so the module never needs it — but a count that only one tool
+    produces is a count nobody can check. Measured 10/10/2026: nine matches either way, the same
+    coordinates, the same two classes (Vmatch prints 0-based starts and D/P; repeat-match prints
+    1-based and an `r` — both land on the same 0-based half-open intervals), the IR pair among
+    them. Converting the coordinates in one place is what makes the two comparable.
+    """
+    require_tools(mummer_tools, "repeat-match")
+    require_tools(vmatch_tools, "mkvtree", "vmatch")
+    from plastid.core.genbank import read_genbank
+    from plastid.external.repeatmatch import run_repeat_match
+    from plastid.external.vmatch import run_vmatch
+
+    genome = read_genbank(data_dir / "NC_050833.1.gb")
+    ctx = _ctx(tmp_path)
+    mine = run_repeat_match(genome, ctx, min_length=30)
+    theirs = run_vmatch(genome, ctx, min_length=30, directory=Path(vmatch_tools["vmatch"]).parent)
+
+    assert len(mine.matches) == len(theirs.matches) == 9
+    assert {(m.start1, m.end1, m.start2, m.end2, m.palindromic) for m in mine.matches} == {
+        (m.start1, m.end1, m.start2, m.end2, m.palindromic) for m in theirs.matches
+    }
+
+
 def test_diversity_measures_pi_per_intron_and_per_spacer(
     tools: dict[str, str | None], data_dir: Path, tmp_path: Path
 ) -> None:

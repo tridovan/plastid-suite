@@ -24,6 +24,9 @@ aragorn:
 mummer:
   text: "Marçais G, Delcher AL, Phillippy AM, Coston R, Salzberg SL, Zimin A. MUMmer4: a fast and versatile genome alignment system. PLOS Computational Biology 14:e1005944 (2018)."
   doi: "10.1371/journal.pcbi.1005944"
+vmatch:
+  text: "Kurtz S, Choudhuri JV, Ohlebusch E, Schleiermacher C, Stoye J, Giegerich R. REPuter: the manifold applications of repeat analysis on a genomic scale. Nucleic Acids Research 29:4633–4642 (2001)."
+  doi: "10.1093/nar/29.22.4633"
 paml:
   text: "Yang Z. PAML 4: phylogenetic analysis by maximum likelihood. Molecular Biology and Evolution 24:1586–1591 (2007)."
   doi: "10.1093/molbev/msm088"

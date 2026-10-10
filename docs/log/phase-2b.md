@@ -75,3 +75,53 @@ spacer · ba cặp IR đo y hệt · `rpoC1.1.1` 0,004138 · `clpP.1.1` 0,012658
 Test tổng hợp (`tests/unit/test_spans.py`) đặt từng ca một cách có chủ ý: intron trong một vùng ·
 junction vắt ranh giới · spacer có tRNA làm mốc · pseudogene **không** chia spacer · cặp chồng lấn ·
 exon vắt qua gen khác · và ca âm (parts lồng nhau phải dừng).
+
+---
+
+### 8.58. Module `repeats` — hai engine độc lập cho cùng **9** match, và nguồn thật của `repeat-match` (P2B-02, 10/10/2026)
+
+**Việc.** Mô-đun phân tích cuối cùng của bộ công cụ còn thiếu (**H-16**) nay có: `modules/repeats.py`
+— **match chính xác cực đại** ≥ 30 bp, cả hai sợi, hai lớp theo đúng cách công cụ đánh dấu:
+**dispersed** (bản sao thứ hai đọc xuôi) và **palindromic** (đọc trên sợi đảo). Engine chạy là
+`repeat-match`; **Vmatch 2.3.1** là engine thứ hai độc lập (D-f), và nó **không** là engine của
+mô-đun: Vmatch chỉ miễn phí học thuật, nên bản cài tối thiểu vẫn chạy được — `external/vmatch.py`
+phục vụ đúng phép kiểm chéo, và bài kiểm chéo **skip có nêu tên** khi máy không có nó.
+
+**Số đo — bản vàng, `repeat-match -n 30` (MUMmer 4.0.1), và Vmatch 2.3.1 (`-l 30 -d -p`):**
+
+| | |
+|---|---|
+| Match ≥ 30 bp | **9** — **4 dispersed · 5 palindromic** (cả hai engine) |
+| Dài nhất | **26.214 bp palindromic, IRa ↔ IRb — chính là cặp IR** (`83128–109341` ↔ `127511–153724`) |
+| Còn lại | 42 bp ×4 (cụm trong IR: `88397/88418` ở IRa, `148393/148414` ở IRb, cộng hai match vắt IRa↔IRb) · 52 bp ×2 (kẹp tóc tự đối xứng ở LSC: 5.917 · 29.416) · 32 bp · 31 bp (SSC) |
+| Hai engine | **trùng nhau từng dòng**: cùng 9 match, cùng toạ độ (sau khi đổi 1-based ↔ 0-based), cùng hai lớp |
+
+**Nguồn thật của `repeat-match` — dòng §7.8 cũ đã sai, nay sửa tại chỗ.** §7.8 ghi nó "thuộc
+MUMmer3 (tarball SourceForge)". Đo 10/10/2026: nhị phân đang chạy thuộc gói **`mummer4-4.0.1`**
+(bioconda) — `conda-meta` ghi tên gói, và nó nằm cạnh `nucmer`. Hệ quả kéo theo: **`repeat-match`
+không có cờ phiên bản** (`--version` là option không hợp lệ, in usage rồi exit 1) nên bản phát
+hành phải đọc từ `mummer` cùng thư mục, và lệch pin thì **dừng** chứ không ghi chú.
+
+**Toạ độ — cái bẫy đã khoá bằng test.** Hậu tố `r` của công cụ nằm ở **đầu của bản sao đọc trên
+sợi đảo, trong khung reverse-complement** — không phải toạ độ xuôi. Cặp IR là phép kiểm: dòng
+`83128 153724r 26214` phải đổi thành `[83127, 109341)` và `[127510, 153724)` = IRa và IRb. Đọc nó
+như một đầu xuôi cho ra hai khoảng **trông vẫn hợp lý** nhưng sai chỗ — đúng kiểu lỗi im lặng mà
+dự án này gặp nhiều lần, nên nó thành test riêng (`test_repeatmatch.py`, ví dụ có thật của bản vàng).
+
+**Vì sao hai engine được đổi toạ độ ở **một** chỗ.** Vmatch in **0-based** và lớp bằng chữ `D`/`P`;
+`repeat-match` in **1-based** và sợi bằng hậu tố `r`. Cả hai đổ về cùng một
+`ExactMatch` 0-based nửa-mở, nên phép so là so trên cùng một tập — nếu mỗi bên tự đổi một kiểu,
+"hai engine trùng nhau" sẽ là một câu không kiểm được.
+
+**Cái bị loại, và vì sao.** Đầu ra của `repeat-match` là **match cực đại**, không phải locus: một
+mảng tandem hiện ra thành nhiều dòng chồng lấn chứ không một dòng (nên `-t` và `-f` bị bỏ qua có
+chủ đích), và lớp **tandem** vẫn là đất của `mreps`/`trf` (nửa còn lại của M2.12, còn mở). Con số
+vì thế được phát biểu là "số match", không phải "số locus repeat" — scope label in đúng câu đó.
+
+**Kiểm chứng.** `make check` xanh. Golden chốt: 9 match · 4/5 hai lớp · cặp IR (`83128–109341` ↔
+`127511–153724`, IRa–IRb) · mọi dòng ≥ 30 bp · và **hai engine trùng tập** trong cùng một test
+(`test_vmatch_agrees_with_repeat_match_on_the_golden`, skip có tên khi thiếu Vmatch). Unit: parser
+với ví dụ thật của bản vàng (kể cả ca tự đối xứng `start1 == start2`), ca âm cho dòng không đọc
+được và cho match dưới sàn, và module chạy với binary giả để chốt nhãn vùng + thứ tự + sàn.
+`repeats` vào **hàng "chuyển tiếp"** của §13 (in vùng plastome + gọi `ctx.require_ir()`), nên câu
+"bảy mô-đun" ở §13 và `CLAUDE.md` đã sửa thành **tám**.
