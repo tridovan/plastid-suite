@@ -243,7 +243,9 @@ def test_a_core_xml_without_the_stamp_stops_the_export() -> None:
     from plastid.result.xlsx_export import _pin_modified
 
     with pytest.raises(ValueError, match="dcterms:modified"):
-        _pin_modified(b"<cp:coreProperties><dcterms:created>1980</dcterms:created></cp:coreProperties>")
+        _pin_modified(
+            b"<cp:coreProperties><dcterms:created>1980</dcterms:created></cp:coreProperties>"
+        )
 
 
 def test_a_missing_excel_extra_is_a_named_error(monkeypatch: pytest.MonkeyPatch) -> None:
