@@ -25,7 +25,11 @@ written as *not measured* · CI demonstrates a failing golden number turning the
 *Order: the CPGview decision first (P8-01) — M8.1 names a tool §7.8 has never recorded, and the
 coverage rule calls that a gap, not a footnote.*
 
-- [ ] **P8-01 · CPGview: declare it or drop it** *(M8.1's first blocker)*
+- [x] **P8-01 · CPGview: declare it or drop it** *(M8.1's first blocker)* — **DONE 10/10/2026:
+      surveyed, NOT adopted**; the §7.8 row carries the measurement, §13.8 resolves, §8.60 is the
+      entry. The repo GitHub is a landing page (0 code, 0 release), there is no pip/conda/CLI, the
+      web app's port does not answer (controlled test), and the only installable form is a 2.87 GB
+      container for a figure tool.
   - M8.1 and §13.8 name **CPGview**; §7.8 has no source, no version, no survey line. It is a **web
     service** (a browser tool for chloroplast genome figures), so there is no binary to pin and no
     argv to record — and a record that is not published would **leave the machine** (the §10.12
@@ -92,7 +96,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 
 | # | Question | Recommended default, with its evidence | Recorded in |
 |---|---|---|---|
-| D-h | What CPGview is to this project | **checked once, by hand, on an already-public record; not adopted as a dependency** — it is a web service (no version to pin, no argv to record), and §10.12 is undecided, so nothing unpublished goes up. M8.1 asks for the comparison; running it on `NC_050833.1` answers that without putting a web service in the install | §7.8 · §13.8 · §8 entry |
+| D-h ✅ | What CPGview is to this project | **DECIDED 10/10/2026 (P8-01) — surveyed, not adopted.** The recommendation was "checked once, by hand, on an already-public record; not adopted as a dependency"; the check itself turned out to be impossible — the web app does not answer (measured, with a control) — and the survey found no pip/conda/CLI and a 2.87 GB container as the only installable form, for a tool that produces figures rather than numbers. The record is §7.8 · §13.8 · §8.60 | §7.8 · §13.8 · §8.60 |
 | D-i | What CI must run | **lint + fast tests + tier-A golden on every push; tier-B golden in a job that installs the pinned conda env** — tier A is pure Python over vendored data (§6), so it catches a broken golden number with no tool at all; a tier-B job installing *unpinned* tools would report a different number as success (§9.B-14) | P8-05 · `README` badge |
 | D-j | Where `cpstools` lives | **pip into its own env, pinned, declared in `docs/tools/cpstools.md`**, used for the cross-check only — the shape D-f gave Vmatch: a comparison tool is not a module dependency, and the minimum install stays pip-only | §7.8 · §8 entry |
 

@@ -288,6 +288,13 @@ Trạng thái: **ĐÃ GHI** = tài liệu của nhóm có ghi lệnh cài / đ�
 | Krait | đã thử, là GUI nên không dùng | chưa ghi nguồn |
 | PGA — giấy phép | PGA = GPL-3.0 | (đã ghi ở §3) |
 
+**Bổ sung 10/10/2026 — CPGview (P8-01, §8.60): KHẢO SÁT, KHÔNG ĐƯA VÀO.** Nó được M8.1/§13.8 nêu
+tên mà §7.8 chưa từng có dòng nào — luật phủ gọi đó là lỗ hổng; đây là dòng còn thiếu.
+
+| Công cụ | Nguồn | Trạng thái |
+|---|---|---|
+| CPGview (Liu và cs. 2023, *Mol Ecol Resour* 23:694–704, doi:10.1111/1755-0998.13729) | web `http://www.1kmpg.cn/cpgview/` · repo `github.com/cliu6688/CPGView` · container Figshare `cpgview_latest` **2.871.624.635 B**, md5 `4b371a5ce9410a4a433c9499a6b04bbd` | **KHẢO SÁT — KHÔNG ĐƯA VÀO** (đo 10/10/2026, §8.60): repo GitHub **chỉ là trang giới thiệu** (0 mã, 0 release, 0 giấy phép); không pip/conda/CLI ⇒ **không có phiên bản để pin, không có argv để ghi**; bản cài duy nhất là container **2,87 GB** cho một công cụ **vẽ hình** (bộ công cụ có hệ hình riêng — M5.1) và bản cài tối thiểu phải pip-only; đường web vướng §10.12, và **hôm nay ứng dụng không trả lời** (cổng 16085 — cùng IP đó cổng 80 mở, control `portquiz.net:16085` mở, nên không phải mạng phía mình) |
+
 ### 7.8b. Cài đặt thật trên máy dev (03/10/2026 — gỡ chặn Giai đoạn 3)
 
 Không có conda trên máy ⇒ dựng **micromamba 2.9.0** (`~/toolbox/bin/micromamba`), env dùng chung
@@ -438,6 +445,7 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
 | 8.52 | ARAGORN `i(a,b)`: trường thứ hai là **độ dài** intron, không phải toạ độ kết thúc — đọc sai cho tRNA nối ra 104–134 nt (bất khả), đọc đúng ra 72–95 và khớp **chính xác** exon của bản công bố ở `trnL-UAA` (85) và `trnA-UGC` (73); corpus **811 → 692**, thanh chuẩn vẫn không đạt (PGA 588, nay đo đủ 34 bản ghi) · rủi ro mới **H-22**: trần intron 3.000 bp của `-i` im lặng, intron dài nhất đo được 2.671 bp (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.51 | Corpus chạy lại sau hai bản sửa (thiếu 167→47, thừa 161→41) · thước đo vào repo (`tools/corpus_bar.py`, 19 test cho chính luật, `make corpus-bar`) · ngưỡng `boundary` 1 bp khai ra kèm lý do đo được · **thanh chuẩn vẫn KHÔNG đạt**: 811 so với PGA 588, và 0/34 bản ghi tốt hơn · ba phát hiện: `lhbA` là call trùng (86 của bản vàng đúng nhờ nó bù cho `rps12` thiếu một bản sao) · `rps12` thiếu exon giữa 26 bp và cả bản sao IRa · exon đầu 6–40 bp của `petB`/`petD`/`rpl16`/`rps16` (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
 | 8.50 | P3B-10 mở màn: ARAGORN bỏ qua tRNA có intron trong im lặng (30 → 38, bản vàng đạt 132 = 86 + 38 + 8) · bản sao IR bị đặt lệch đúng một chiều dài IR (số gen vẫn đúng nên không test nào bắt) · corpus 34 bản ghi chạy xong và **thanh chuẩn chưa đạt**: 1.579 khác biệt mức kết luận so với PGA 637 (P3B-10, 10/10/2026) | [`docs/log/phase-3b.md`](docs/log/phase-3b.md) |
+| 8.60 | **CPGview — khảo sát, KHÔNG đưa vào bộ công cụ** (P8-01, D-h; lỗ hổng phủ của M8.1/§13.8 nay đã đóng): bài Liu và cs. 2023 · repo GitHub **chỉ là trang giới thiệu** (0 mã, 0 release, 0 giấy phép) · không pip/conda/CLI ⇒ không có gì để pin · web trả HTTP 200 ở trang ngoài nhưng **ứng dụng (cổng 16085) không kết nối được** — control `portquiz.net:16085` mở nên không phải mạng phía mình · bản cài duy nhất là container Figshare **2,87 GB** (md5 `4b371a5c…`) cho một công cụ **vẽ hình** · nhánh CPGview của M8.1 đóng bằng phép đo, không bằng một lần chạy | [`docs/log/phase-8.md`](docs/log/phase-8.md) |
 
 
 ---
@@ -1161,6 +1169,8 @@ Cần dữ liệu đọc thô; nặng về bộ nhớ.
 **Không phải nơi test lần đầu.** Mỗi giai đoạn đã tự kiểm bằng mục *“Kiểm tra trong giai đoạn”*. Giai đoạn này chỉ làm phần không thể làm sớm hơn:
 
 - **Đối chiếu chéo với công cụ khác** trên cùng bộ dữ liệu: CGAS · CPStools · CPGview
+  *(CPGview: **khảo sát — không đưa vào**, lý do đo được ở §7.8 · §8.60; nhánh ấy của M8.1 đóng
+  bằng phép đo đó, không bằng một lần chạy — P8-01, 10/10/2026)*
 - **Đối chiếu phần NUPT/MTPT** với bài Oldenlandia/Coleus (mốc duy nhất hiện có cho phần này)
 - **Kiểm thử batch lớn** (10–50+ bộ gen) để biết giới hạn bộ nhớ và thời gian
 - **Tự động hoá**: CI chạy test mỗi khi sửa code; bộ vàng §6 chạy lại tự động
