@@ -1,8 +1,18 @@
-"""MISA adapter — the vendored, md5-pinned MISA 2.1 (PROJECT.md §7.8, §10.2).
+"""MISA adapter — the external MISA 2.1 (docs/tools/misa.md, PROJECT.md §7.8, §10.2).
+
+**MISA is not bundled** (D-q, 11/10/2026): its source zip states no licence, and shipping the
+script in a wheel is the one act a missing licence forbids. It is obtained instead — download
+line and both hashes in ``docs/tools/misa.md`` — and found on ``PATH`` or passed as
+``--set misa=/path/to/misa.pl``. The release is **checked, not assumed**: MISA has no version
+flag, so it is read out of the script's own header and anything but the pinned 2.1 is refused.
+
+The ``misa.ini`` it runs with **is** the toolkit's own file (``data/misa.ini``): MISA's default
+unit/repeat definitions written down rather than copied, because the project uses MISA's defaults
+and nothing else — re-measured 10/10/2026, the defaults are what reproduces the published table
+(§8.73).
 
 MISA writes its outputs next to its input, so every invocation runs in an isolated
-temporary directory. The bundled ``misa.ini`` is shipped unmodified (``GFF: true``):
-the project uses MISA's defaults, not tuned thresholds.
+temporary directory.
 
 Counts come from ``<input>.statistics`` (the authoritative totals); positions and motifs
 come from the GFF the same run produces.
@@ -10,19 +20,31 @@ come from the GFF the same run produces.
 
 from __future__ import annotations
 
+import re
 import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 from plastid.core.model import Genome
+from plastid.core.resources import data_file
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, tool_version, which
 
-__all__ = ["MISA_VERSION", "MisaResult", "SsrFeature", "misa_script", "run_misa"]
+__all__ = [
+    "MISA_VERSION",
+    "MisaResult",
+    "SsrFeature",
+    "misa_script",
+    "misa_version",
+    "run_misa",
+]
 
 MISA_VERSION = "2.1"
-VENDOR_DIR = Path(__file__).resolve().parents[1] / "vendor" / "misa"
+MISA_DOC = "docs/tools/misa.md"
+_SCRIPT_NAME = "misa.pl"
+# ``###Release date: 25/08/20 (version 2.1)`` — the only place the script names its release.
+_VERSION_RE = re.compile(r"\(version ([0-9][0-9.]*)\)")
 
 UNIT_LABELS = {1: "mono", 2: "di", 3: "tri", 4: "tetra", 5: "penta", 6: "hexa"}
 _CLASS_UNITS = {
@@ -63,37 +85,80 @@ class MisaResult:
     features: tuple[SsrFeature, ...]
 
 
-def misa_script() -> Path:
-    script = VENDOR_DIR / "misa.pl"
-    if not script.is_file():
-        raise ToolError(f"bundled MISA script is missing: {script}")
-    return script
+def misa_script(explicit: str | Path | None = None) -> Path:
+    """The ``misa.pl`` to run: an explicit path, else ``misa.pl`` on ``PATH``.
+
+    MISA ships with no licence, so the toolkit does not redistribute it (D-q). The message names
+    the one thing that helps — the download line in the docs — instead of reporting a missing
+    file the user cannot act on.
+    """
+    if explicit is not None:
+        path = Path(explicit)
+        if not path.is_file():
+            raise ToolError(f"misa: --set misa={explicit} is not a file — {MISA_DOC}")
+        return path
+    found = which(_SCRIPT_NAME)
+    if found is None:
+        raise ToolError(
+            f"misa: {_SCRIPT_NAME} not found — MISA {MISA_VERSION} is not bundled with this "
+            f"toolkit, because its source zip states no licence (docs/licensing.md). Get it with "
+            f"the download line in {MISA_DOC}, put it on PATH, or pass "
+            f"--set misa=/path/to/{_SCRIPT_NAME}"
+        )
+    return Path(found)
 
 
-def run_misa(genome: Genome, ctx: RunContext) -> MisaResult:
-    """Run the bundled MISA on one genome; returns counts and per-SSR positions."""
+def misa_version(script: Path) -> str:
+    """The release this script is, read from its own header — and refused if it is not the pin.
+
+    MISA has no version flag. The only place it names its release is the comment block at the top
+    (``###Release date: 25/08/20 (version 2.1)``), so that is what the run records, and a
+    different release stops the run instead of publishing counts nobody measured — the same rule
+    ``repeat_match_version`` applies to MUMmer.
+    """
+    header = script.read_text(encoding="utf-8", errors="replace")[:2000]
+    match = _VERSION_RE.search(header)
+    if match is None:
+        raise ToolError(
+            f"{script}: no '(version x.y)' in its first lines, so the MISA release cannot be "
+            f"read — install the pinned {MISA_VERSION} ({MISA_DOC})"
+        )
+    version = match.group(1)
+    if version != MISA_VERSION:
+        raise ToolError(
+            f"{script}: expected MISA {MISA_VERSION} (the release §6's golden SSR numbers were "
+            f"measured with), got {version} — install the pinned release, or re-measure and "
+            f"update MISA_VERSION ({MISA_DOC})"
+        )
+    return version
+
+
+def run_misa(genome: Genome, ctx: RunContext, script: str | Path | None = None) -> MisaResult:
+    """Run MISA on one genome; returns counts and per-SSR positions."""
     perl = which("perl")
     if perl is None:
         raise ToolError(
             "misa: perl not found — MISA 2.1 is a Perl script; install perl to run this module"
         )
-    script = misa_script()
+    script_path = misa_script(script)
+    # Read, and refuse anything but the pin — so recording it as "pinned" is what ran, not a claim.
+    version = misa_version(script_path)
     interpreter_version, _ = tool_version("perl", "perl", perl)
     interpreter = f"perl {interpreter_version}" if interpreter_version else "perl"
 
     with tempfile.TemporaryDirectory(prefix="misa_") as work:
         workdir = Path(work)
-        shutil.copy(script, workdir / "misa.pl")
-        shutil.copy(VENDOR_DIR / "misa.ini", workdir / "misa.ini")
+        shutil.copy(script_path, workdir / _SCRIPT_NAME)
+        shutil.copy(data_file("misa.ini"), workdir / "misa.ini")
         fasta = workdir / "input.fasta"
         fasta.write_text(_to_fasta(genome), encoding="utf-8")
 
         ctx.tool(
             "misa",
-            [perl, str(workdir / "misa.pl"), fasta.name],
+            [perl, str(workdir / _SCRIPT_NAME), fasta.name],
             kind="perl",
-            tool_path=str(script),
-            pinned_version=MISA_VERSION,
+            tool_path=str(script_path),
+            pinned_version=version,
             interpreter=interpreter,
             cwd=workdir,
         )

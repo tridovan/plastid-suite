@@ -84,6 +84,17 @@ jobs:
           gunzip table2asn.gz
           chmod +x table2asn
           echo "8b5b6cbede9d38b47c7c4cae29a25a0a  table2asn" | md5sum -c -
+      - name: fetch MISA 2.1 and check the recorded md5
+        # MISA is not bundled (D-q: its source zip states no licence, docs/tools/misa.md), so the
+        # build fetches it the way a user does — from IPK, with the md5 §7.8 recorded. Without this
+        # step the SSR golden would skip, and a tier-B job that silently skips proves nothing.
+        run: |
+          curl -sSLO https://webblast.ipk-gatersleben.de/misa/misa_sourcecode_25082020.zip
+          echo "cf9d3579f7caacd02f99830b329c7d9c  misa_sourcecode_25082020.zip" | md5sum -c -
+          mkdir -p "$HOME/misa"
+          unzip -j misa_sourcecode_25082020.zip misa.pl -d "$HOME/misa"
+          echo "cfebc1d1a36fddfd6e0d897c96babd12  $HOME/misa/misa.pl" | md5sum -c -
+          echo "PTS_MISA_DIR=$HOME/misa" >> "$GITHUB_ENV"
       - run: uv sync --all-extras --frozen
       - name: golden tier B — the tool-dependent numbers
         env:

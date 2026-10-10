@@ -7,6 +7,9 @@ own "one directory up" guess.
 - `defaults.yaml` — central default configuration (arrives in P1-05)
 - `citations.yaml` — citation registry: tool → reference (arrives in P1-07)
 - `gene_groups.yaml` — gene name → functional group, for the publication gene table (P2-09)
+- `misa.ini` — the MISA 2.1 settings the `ssr` module runs with: **ours**, writing down MISA's
+  default definitions. The tool's own file is not redistributed (D-q — its zip states no licence,
+  `docs/tools/misa.md`), and its script is obtained separately.
 
 `gene_groups.yaml` is data, not code, on purpose: it holds external knowledge (the grouping
 plastome papers use) and the real Oldenlandia/Coleus records will bring gene names it has not

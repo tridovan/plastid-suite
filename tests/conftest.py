@@ -30,17 +30,19 @@ def golden_genome() -> Genome:
     return read_genbank(DATA_DIR / "NC_050833.1.gb")
 
 
-MISA_VENDOR_DIR = Path(__file__).parents[1] / "src" / "plastid" / "vendor" / "misa"
-
-
 @pytest.fixture(scope="session")
 def tools() -> dict[str, str | None]:
-    """External tools on this machine — name → path (None when missing)."""
-    vendored_misa = MISA_VENDOR_DIR / "misa.pl"
+    """External tools on this machine — name → path (None when missing).
+
+    ``misa.pl`` is not bundled (D-q: its source zip states no licence, docs/tools/misa.md), so it
+    is looked for the way the module looks for it — on ``PATH``, or in ``PTS_MISA_DIR`` on a
+    machine that keeps its tools outside ``PATH`` like the other tier-B tools.
+    """
+    directory = os.environ.get("PTS_MISA_DIR")
+    extra = [Path(directory)] if directory else []
     return {
         "perl": which("perl"),
-        "misa.pl": which("misa.pl", extra=[MISA_VENDOR_DIR])
-        or (str(vendored_misa) if vendored_misa.is_file() else None),
+        "misa.pl": which("misa.pl", extra=extra),
         "mafft": which("mafft"),
     }
 

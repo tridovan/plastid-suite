@@ -656,7 +656,8 @@ date, file digest) is recorded in the repo, not only on D:.
       **§8.65** MISA's compound flag (fixed test-first) · **§9.M-1** `ssr`'s Context column (fixed in
       Phase 8) · **H-24** `trnV-UAC` never called, named with its evidence (§8.71), open
 
-## Phase 9 — Packaging, license & release  *(§13.9)*
+## Phase 9 — Packaging, license & release  *(§13.9 — **board open 11/10/2026** on `feat/phase-9`:
+P9-01 … P9-07; M9.7 the Web UI stays deferred)*
 
 **Goal:** a citable, installable release.
 **In-phase check:** golden numbers re-run **inside Docker on Windows** — same input, same numbers

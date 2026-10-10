@@ -19,7 +19,9 @@ dependencies:
   - python>=3.10
 
   # --- Phase 2: SSR and alignment -------------------------------------------------------
-  - perl=5.32.1 # MISA 2.1 is a Perl script (vendored, md5-pinned — src/plastid/vendor/misa)
+  - perl=5.32.1 # MISA 2.1 is a Perl script, and it is NOT bundled (its zip states no licence:
+                # D-q, docs/tools/misa.md has the download line and both hashes). perl is
+                # installed here; the script is obtained separately
   - mafft=7.526 # §7.8 pins it AND records the tarball md5. conda-forge only — bioconda stops
                 # at 7.525, and §9.B-14 shows the aligner changes the Ts/Tv number
   - cpstools=3.0 # bioconda only — NOT on conda-forge (§7.8). A CROSS-CHECK tool, not a module
@@ -64,8 +66,10 @@ dependencies:
   - beast2=2.7.7
 
   # --- NOT here, on purpose ---------------------------------------------------------------
-  #            Vendoring it the way MISA is vendored is undecided; its pinned source (commit,
-  #            sha256) is in PROJECT.md §7.8, and its licence goes through the Phase 9 review.
+  # PGA        retired from the toolkit 10/10/2026 (P3B-11, §8.56) and never a dependency; its
+  #            outputs survive as measured counter-examples in tests/data/corpus/*.pga.gb. Its
+  #            pinned source (commit 0683a0ec…, sha256 0d55b70e…) is in PROJECT.md §7.8, and it
+  #            is GPL-3.0 — it must not be bundled into the MIT-licensed package (docs/licensing.md).
   # table2asn  not on conda — NCBI ships it directly:
   #            ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/
   # mito       MITOS2 is a METAZOAN annotator and cannot do a plant mitochondrion (§7.8b). PMGA
