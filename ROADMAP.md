@@ -539,10 +539,24 @@ RAM here and replaced (§7.1, PROJECT.md §13.0's dated note).*
 
 **Goal:** only what cannot be done earlier — cross-checks, scale, automation.
 
+**In-phase checks:** every disagreement **explained** (class definition · parameter · coordinate
+convention), never just counted · both tools' version + argv recorded per cross-check run · both
+sides measured on the **same pinned input** · every number scope-labelled · CI shown **red** on a
+deliberately broken golden number before it is green.
+
 - [ ] **M8.1 Cross-check vs CGAS · CPStools · CPGview** on the same dataset — differences explained
-- [ ] **M8.2 Cross-check NUPT/MTPT vs the Oldenlandia/Coleus papers** (only benchmark available)
-- [ ] **M8.3 Batch test 10–50+ genomes** — record memory/time limits (PROJECT.md §8)
-- [ ] **M8.4 CI** — tests on every change; golden set re-runs automatically
+      *(CPStools/CGAS: board P8-02 · P8-03 · CPGview's own record: P8-01 — it was named here and in
+      §13.8 while §7.8 had never recorded it; that gap is the first task)*
+- [ ] **M8.2 Cross-check NUPT/MTPT vs the Oldenlandia/Coleus papers** (only benchmark available) —
+      **WAITING on M6.1 and a nuclear genome**: there is nothing of ours to compare against those
+      papers until the NUPT/MTPT module exists (Phase 6, blocked). Named here so it is not read as
+      schedulable work
+- [ ] **M8.3 Batch test 10–50+ genomes** — record memory/time limits (PROJECT.md §8).
+      **[ĐÃ ĐO 05/10/2026 — `docs/M8.3_scale.md`: 34 bản ghi, 9 mô-đun một-genome < 4 phút & < 100 MB;
+      `substitutions`/`synteny`/`popgen`/`kaks` đo đủ; `diversity` và `barcodes` ghi rõ **not
+      measured** — board P8-04 đo nốt]**
+- [ ] **M8.4 CI** — tests on every change; golden set re-runs automatically *(board P8-05: the repo
+      has no CI today, measured 10/10/2026)*
 
 ## Phase 9 — Packaging, license & release  *(§13.9)*
 

@@ -1,70 +1,87 @@
 # TASKS.md — active tasks
 
-> **Phase 2B is COMPLETE** — all three tasks done on `feat/phase-2b` (§8.57–§8.59) and the
-> phase closed (tag `phase-2b`, squashed to `main`). The board stays as the record of what the
-> phase did; the next unblocked work is Phase 8 (the CPStools cross-check, now that `repeats`
-> exists). Was: the plastome analysis set, completed: π per intron/IGS
-> (**H-07**, M2.9's remainder), the **repeats** module (**M2.12** · H-16) and the two species'
-> manuscript draft re-run (**M2.10**). Why this before Phase 8: Phase 6 and 7 wait on data the
-> project does not have, and Phase 8's cross-check against CPStools is not honest while one of
-> those analyses does not exist. Milestones: `ROADMAP.md` → Phase 2B (the three milestones
-> themselves live in Phase 2's own list).
-> Progress: `ROADMAP.md` · session log: `HANDOFF.md` · rules: `CLAUDE.md`.
+> **Phase 8 is OPEN** on `feat/phase-8` — cross-checking, performance, automation (M8.1 · M8.3 ·
+> M8.4; **M8.2 is blocked** and says so below). It is the last phase whose work needs no data the
+> project is still waiting for: Phase 6 and 7 wait on a nuclear genome, plant mito data and real
+> reads, and Phase 9 is packaging, which wants this phase's numbers first.
+> Milestones: `ROADMAP.md` → Phase 8 · scope text: PROJECT.md §13.8 · log: `HANDOFF.md` · rules: `CLAUDE.md`.
 > Markers: `[ ]` todo · `[~]` doing · `[x]` done · **BLOCKED** = a named decision or dataset missing.
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**
 > How this file is produced: the `make-tasks` skill (`.claude/skills/make-tasks/SKILL.md`).
 
-## Phase 2B — the plastome analysis set (M2.9 · M2.10 · M2.12)
+## Phase 8 — Cross-checking, performance, automation (M8.1 · M8.2 · M8.3 · M8.4)
 
-**Goal:** the last three unblocked analysis outputs, so that every analysis the toolkit promises
-exists before it is cross-checked — and so the two species manuscripts have their remaining tables.
-**In-phase checks:** the repeats count on the golden is a **new §8 entry** — measured, never the
-26/9 survey's "9 matches" (§9.H's trap) — with the IR pair among its matches · π per intron and per
-IGS over the spans the shared layer derives, the **17 introns** `introns` reports as the
-cross-check, the IR excluded and the scope labelled · the draft carries its π and Ts/Tv sections
-and its figures, every table labelled *stand-in* and scoped.
-*Order: the spans come first (P2B-01) — the repeats module and the draft both want the region
-machinery that task puts in the shared layer, and DRY's rule fires at its second real copy.*
+**Goal:** only what cannot be done earlier — every analysis the toolkit promises now exists
+(Phase 2B closed the last gap: `repeats`, §8.58), so a number of ours can finally be put beside a
+number from another tool.
+**In-phase checks:** every disagreement is **explained**, not counted — with the class definition,
+the parameter or the coordinate convention that causes it · both tools' **version and argv**
+recorded for every cross-check run (a cross-check with an unnamed version is a story) · every pair
+of numbers compared on the **same pinned input file** · M8.3's remaining gap either measured or
+written as *not measured* · CI demonstrates a failing golden number turning the build red.
+*Order: the CPGview decision first (P8-01) — M8.1 names a tool §7.8 has never recorded, and the
+coverage rule calls that a gap, not a footnote.*
 
-- [x] **P2B-01 · The intron and IGS spans, in the shared layer** *(M2.9's remainder · **H-07**)*
-  - Extract the intron derivation from `modules/introns.py` into `core/` — it would be DRY's second
-    real copy, which is exactly the rule's trigger — and have `diversity`'s region machinery take
-    the intron **and** intergenic-spacer spans from it.
-  - π per intron and per IGS on the pinned pair; the span count cross-checked against `introns`'
-    **17** on the golden; the IR excluded, the scope labelled.
-  **Pitfall:** an IGS is a *definition*, not a fact — a gap between two genes on opposite strands,
-  or one that runs through the IR, can be read two ways. Say which gaps count in the scope label,
-  or two runs will disagree without disagreeing (see D-g).
-  **Done when:** `diversity` reports π per intron and per IGS, the intron count equals `introns`'
-  17 on the golden, and the numbers are a new §8 entry.
+- [ ] **P8-01 · CPGview: declare it or drop it** *(M8.1's first blocker)*
+  - M8.1 and §13.8 name **CPGview**; §7.8 has no source, no version, no survey line. It is a **web
+    service** (a browser tool for chloroplast genome figures), so there is no binary to pin and no
+    argv to record — and a record that is not published would **leave the machine** (the §10.12
+    question, still undecided).
+  - Decide and record: either a §7.8 line with its URL, what it does and the data-handling
+    sentence, or **surveyed — not adopted** with the measurement that says why. Either way §13.8
+    stops naming a tool the repo cannot account for.
+  **Done when:** §7.8 carries the CPGview line (declared, or *not adopted* with its reason), and
+  every tool named in §13.8 resolves to a §7.8 row or a `docs/tools/` file.
 
-- [x] **P2B-02 · The repeats module** *(M2.12 · H-16 — the last analysis box with no module)*
-  - `repeat-match` (**MUMmer3**, a plain binary, no licence constraint) for the exact matches —
-    dispersed and palindromic — with **Vmatch 2.3.1** as the independent second engine, the way
-    MISA and cpstools both give 37. Vmatch is declared in `environment.yml` (§7.8) and is installed
-    **in the session that first uses it**, never "later".
-  - Every match ≥ 30 bp with its coordinates **and its region** (LSC · IRa · SSC · IRb), the IR
-    pair included; the count measured on the golden fixture, not inherited.
-  **Pitfall:** the 26/9 survey's "**9 matches ≥30 bp**, with the 26,214 bp IR pair" was measured on
-  *other* data (§7.4 · §9.H's trap). Inheriting it puts a number in a paper that no run in this
-  repo produced — the milestone says "measured, not inherited" for exactly this reason.
-  **Pitfall:** Vmatch is **academic-only** (§7.8): a module that needs it cannot be in the minimum
-  install, and the release has to say so (M9.3).
-  **Done when:** the module runs on the golden, reports every match ≥30 bp with its region, the
-  count is a new §8 entry, and a test pins the IR pair among the matches.
+- [ ] **P8-02 · CPStools cross-check** *(M8.1 — the phase's one big cross-check)*
+  - `cpstools` 3.0 (PyPI, §7.8) covers IR · π · RSCU · SSR · KaKs — the overlapping surface. It is
+    **not on this machine** (measured 10/10/2026: no import, no directory anywhere): install it
+    pip-only in its own env, pin the version in `environment.yml`, and write
+    `docs/tools/cpstools.md` **in the same session as the install** (§7.8's rule).
+  - Compare on **one pinned input**: `NC_050833.1` for the single-genome numbers (IR · SSR ·
+    RSCU), the golden pair for π. Every differing number gets its cause named.
+  - The ground already measured is the model: phase 1 found **37 SSRs both ways** and one 1-bp
+    disagreement that turned out to be a **compound cluster** `(TA)6 + (A)10` (§8.1/§8.2). That
+    is what "differences explained" means here — and cpstools is the tool this project's SSR
+    count was first checked against, so this task re-runs that check on the **current** module.
+  **Done when:** a new §8 entry holds the side-by-side table (ours · cpstools · the cause of each
+  difference), the tool's version and argv are recorded, and each number states its scope.
 
-- [x] **P2B-03 · The tables and figures the manuscripts need, regenerated** *(M2.10)*
-  - **Our half is the run:** both species' **tables and figures**, regenerated from the pinned
-    stand-in set — now with the **π** and **Ts/Tv** sections (MAFFT has been present since 03/10;
-    the draft simply predates them), plus whatever P2B-01/P2B-02 add. **The prose, the claims and
-    what goes in the manuscript are cô Trang's** (CLAUDE.md → who decides); the draft Results
-    sections in `docs/P2-10_manuscript_draft.md` are a *draft for her to own*, never a decision
-    this board makes.
-  - Every table carries its **scope** label and the **stand-in** label; no number is typed into a
-    template (the report templates reference table cells, never literals).
-  **Done when:** every table and figure the two manuscripts need is produced by a run and labelled
-  *stand-in* + scoped, the π and Ts/Tv sections are in the draft, and the numbers agree with §6's
-  golden values (Ts/Tv **2.6917** · SSR **37** · **132 = 86 + 38 + 8**).
+- [ ] **P8-03 · CGAS cross-check** *(M8.1)*
+  - CGAS's source is in the repo's data dir (`.data/cgas-review/`, read 02/10/2026 — §7.9); its
+    own environment (R + external tools, its `INSTALL.md`) is what has to be faced first. Decide
+    what **can** run here and name what cannot, rather than reporting a check that never ran.
+  - Where it runs: the module(s) with a deterministic output — codon usage · IR boundaries · SSR —
+    against ours, on the golden. **A difference is neither automatically our bug nor theirs:**
+    §7.9 lists CGAS's measured failure modes (substring IR classification, "no IR ⇒ the whole
+    genome is LSC", silent success), so its labels are data to explain, never a benchmark.
+  **Done when:** a new §8 entry records what ran, on which input, with both sides' parameters —
+  and names, for each module that could not run, the dependency that stopped it.
+
+- [ ] **P8-04 · M8.3's named gap: `diversity` and `barcodes` at N = 34** *(M8.3)*
+  - `docs/M8.3_scale.md` measured nine single-genome modules plus `substitutions` · `synteny` ·
+    `popgen` · `kaks` over the 34-record corpus, and wrote **"not measured"** for `diversity` and
+    `barcodes` because both align whole genomes — a reading of the code, not a measurement. That
+    honesty is the task: measure them on the same records, `--force`, `/usr/bin/time -v`.
+  - The `substitutions` curve predicts they are expensive; a prediction is not an entry. If a run
+    does not finish, **that is the finding**, written as what was attempted and for how long.
+  **Done when:** `docs/M8.3_scale.md` carries measured wall clock and peak RSS for both modules at
+  N = 34 (or the measured timeout with what was tried), and no run module is left "not measured".
+
+- [ ] **P8-05 · CI on every change** *(M8.4)*
+  - The repo is on GitHub (`git@github.com:tridovan/plastid-suite.git`) and has **no CI at all**
+    (measured 10/10/2026: no `.github/`, no `.gitlab-ci.yml`). Add a workflow that runs on every
+    push: `ruff` lint + format check, the fast unit suite, and the **pure-Python golden tier**
+    (`tests/golden/test_tier_a.py` — no tools, no network).
+  - The tool-dependent golden (tier B: MISA · MAFFT · repeat-match) needs the **pinned** versions:
+    a job that installs the pinned conda env from `environment.yml` — never a bare
+    `conda install mafft`, because §9.B-14 measured two mafft builds giving two Ts/Tv numbers from
+    one genome.
+  - Prove it can fail: one commit that breaks a golden number must turn the build red, recorded in
+    the §8 entry. A CI that has never been red is a green light nobody has tested.
+  **Done when:** a push shows the workflow running (run URL in the §8 entry), the golden job
+  installs the pinned tools, and the deliberately-broken run is recorded as red before the fix
+  turns it green.
 
 ## Decisions to make
 
@@ -72,24 +89,34 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 
 | # | Question | Recommended default, with its evidence | Recorded in |
 |---|---|---|---|
-| D-f | The repeats engine — **ADOPTED 10/10/2026 (§8.58)** | **`repeat-match` ships, Vmatch cross-checks** — MUMmer3 is a plain binary with no licence constraint (§7.8) while Vmatch is academic-only, and this project's pattern for a count it publishes is **two independent tools agreeing** (MISA 2.1 + cpstools 3.0 → 37) | §7.8 · PROJECT.md §3 |
-| D-g | What an IGS is — **ADOPTED 10/10/2026 (§8.57, with one measured correction: the gaps are bounded by exons, not by a gene's outer span — the outer span swallowed three real spacers)** | **the gap between two called genes inside one region, the IR excluded**, stated in the scope label — the same span set `introns` and `diversity` already use, so the three modules cannot disagree about where a boundary is | the module's scope label · §8 |
+| D-h | What CPGview is to this project | **checked once, by hand, on an already-public record; not adopted as a dependency** — it is a web service (no version to pin, no argv to record), and §10.12 is undecided, so nothing unpublished goes up. M8.1 asks for the comparison; running it on `NC_050833.1` answers that without putting a web service in the install | §7.8 · §13.8 · §8 entry |
+| D-i | What CI must run | **lint + fast tests + tier-A golden on every push; tier-B golden in a job that installs the pinned conda env** — tier A is pure Python over vendored data (§6), so it catches a broken golden number with no tool at all; a tier-B job installing *unpinned* tools would report a different number as success (§9.B-14) | P8-05 · `README` badge |
+| D-j | Where `cpstools` lives | **pip into its own env, pinned, declared in `docs/tools/cpstools.md`**, used for the cross-check only — the shape D-f gave Vmatch: a comparison tool is not a module dependency, and the minimum install stays pip-only | §7.8 · §8 entry |
 
 ## Pitfalls — this phase's own traps
 
 | Trap | What to do instead |
 |---|---|
-| The 26/9 survey's numbers ("9 matches ≥30 bp", "21 blocks · mean 91.5") were measured on **other data** | measure on the golden fixture and write a **new §8 entry**; never inherit a survey number (§9.H is the worked example) |
-| "Fixing" the truncated `ycf1` — the IR copy carries no CDS, so it is not counted | that is right: `count_genes()` counts what the record has (§8.34), and the second `ycf1` is not a second gene |
-| π over a region without the gate | the IR gate runs first, the IR is excluded from π, and the scope says so — the golden's 2.6917 is *CDS only · 79 genes · IR excluded* |
-| Two engines, one number: repeats counted by tools that define the classes differently | state the class (exact · dispersed · palindromic · tandem) and the ≥30 bp floor **with** every count, and record the second engine's total beside the first |
-| A module that needs Vmatch | the minimum install is pip-only and must keep working: the module skips with a named reason when the tool is absent, and `make check` never requires it |
+| A cross-check run on a **different input** than ours ("it found 36 SSRs" — on which record?) | one pinned record, named in the §8 entry, the same file for both tools |
+| The 26/9 survey's numbers ("9 matches ≥30 bp", "21 blocks", §9.H) | measure here; a survey number is a claim about other data until re-measured — Phase 2B's repeats count was the last one to fall |
+| A disagreement read as our bug — or as theirs — with no cause named | name it: class definition (compound · tandem), parameter, coordinate convention (1-based vs 0-based, IR in or out). Phase 1's 1-bp SSR difference is the worked example |
+| CGAS's labels taken as truth | §7.9 measured its failure modes (substring IR classification, "no IR ⇒ all LSC", silent success); its output is data to explain, never a benchmark |
+| "`diversity` and `barcodes` scale like `substitutions`" | write **not measured** until measured — §6/§9's rule, which the scale doc already follows in those words |
+| Timing a cached run instead of a real one (H-08: the cache keys on `module_version`, not on source) | `--force`, and say so in the entry |
+| An **unpinned** tool inside CI | install from `environment.yml`; §9.B-14 is the measured reason |
 
 ## Waiting on data / people
 
 | What | Who | Blocks |
 |---|---|---|
-| Real samples for the two manuscripts | cô Trang / anh Điềm | M2.10's **final** version — the stand-in draft can be re-run now, and a real sample means re-running, never patching numbers |
-| The ★ naming reference (D5-09) | the end user, from the audit report | nothing in this phase; a run on a real sample would inherit it |
-| A macOS machine | the team | M9.4's platform claims (Phase 9) |
-| Plant mito data · a nuclear genome · real reads | anh Điềm / cô Trang | M6.1–M6.3 · M7.1 · M7.5 — **Phases 6 and 7 stay closed for now** |
+| A **nuclear genome** — none exists in the repo; every pinned record is an organelle | anh Điềm / cô Trang | **M6.1** (NUPT/MTPT searches nucleus ↔ plastid ↔ mito), and through it **M8.2** — that milestone stays in ROADMAP, marked waiting |
+| Several mitogenomes of **one species** (polymorphism is a within-species property) | anh Điềm / cô Trang | **M6.2** — the repo's ten pinned plant mitogenomes are one per species (`mito-reference` ×8, plus `AP045469.1`, `OX459128.1`); phase 4's mito sketch measured what that much data can say |
+| A machine with CGAS's full environment (R + its tool chain), if it cannot be built here | anh Điềm | P8-03's second half — the modules that could not run |
+| Real samples for the two manuscripts | cô Trang / anh Điềm | M2.10's final version — the stand-in draft re-runs, never gets patched |
+| Real Illumina/ONT reads — the project has none; phase 7's smoke tests ran on simulated pairs | anh Điềm / cô Trang | M7.1 · M7.5 — and M7.3 feeds M6.2 |
+
+*Two rows deliberately absent, because they are **not** waiting on data:* **M6.3** (parallel
+plastid–mito comparison) has a stand-in pair already — `AP045470.1` (plastid) and `AP045469.1`
+(mito, with this project's own prototype annotation), the pair phase 4 sketched; it is deferred by
+**D5-07** (plastid first), a decision, not a dataset. And **M6.4/M6.5** left the plan on
+10/10/2026 — divergence time and ancestral state are the PI's analyses, not modules.*

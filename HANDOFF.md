@@ -13,14 +13,17 @@
 `phase-2b`, squashed into one commit; the branch `feat/phase-2b` keeps its three task commits).
 `main` holds one commit per phase.
 
-**Immediate next action: Phase 8 — the cross-check against CPStools** (M8.1). It was the agreed
-reason Phase 2B came first, and it is now unblocked: the last analysis it checks, **repeats**,
-exists (§8.58). **Before the first cross-check run, one tool has to be dealt with:** **CPGview**
-is named in M8.1 and §13.8 but appears **nowhere in §7.8** — no source, no version, no survey
-entry. It is a web service (no version to pin, no argv to record, unpublished data would leave
-the machine — the §10.12 question), so the choice is to declare it properly or mark it *surveyed —
-not adopted* with the measurement that says why. The ROADMAP's coverage rule calls an unnamed
-tool a gap, not a footnote.
+**Phase 8 is OPEN on `feat/phase-8`** — the board (`TASKS.md`, built by the `make-tasks` skill)
+carries five tasks: **P8-01** CPGview's own record (the coverage gap: M8.1/§13.8 name a tool §7.8
+has never recorded — a web service, so no version to pin and the §10.12 question attached) ·
+**P8-02** the CPStools cross-check (install it pip-only, same session as its `docs/tools/` file;
+`cpstools` is **not on this machine**, measured 10/10/2026) · **P8-03** the CGAS cross-check (its
+source is in `.data/cgas-review/`; its R-based environment is the first thing to face) ·
+**P8-04** the two modules `docs/M8.3_scale.md` honestly left **not measured** at N = 34
+(`diversity` · `barcodes`) · **P8-05** CI (the repo is on GitHub and has none). Three decisions:
+**D-h** CPGview · **D-i** what CI runs · **D-j** where `cpstools` lives. **M8.2** (NUPT/MTPT
+against the papers) is **waiting** on M6.1 and a nuclear genome — named in the board's waiting
+table rather than left as schedulable work.
 
 **Why Phase 8 and not Phase 6/7:** 6 and 7 still wait on data the project does not have — a
 nuclear genome (M6.1), plant mito data (M6.2 · M6.3), real Illumina/ONT reads (M7.1 · M7.5 ·
