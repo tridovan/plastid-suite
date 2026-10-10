@@ -48,6 +48,20 @@ class NormalizedFrame:
     regions: tuple[Region, ...]
     rotation_offset: int  # 0-based GenBank position that is now position 0
 
+    def region_at(self, position: int) -> Region | None:
+        """The region holding a position given in the frame this frame was **built from**.
+
+        Region names live in the normalized frame; a record's features are in the frame it was
+        read in. Comparing the two directly is right only while nothing moved — the golden's
+        offset is 0, which is how such a comparison survives unnoticed until a record that starts
+        anywhere else (tests/unit/test_spans.py rotates the golden and checks the labels hold).
+        """
+        offset = (position - self.rotation_offset) % len(self.genome)
+        for region in self.regions:
+            if region.start <= offset < region.end:
+                return region
+        return None
+
 
 def lsc_origin(genome_length: int, ira: Interval, irb: Interval) -> int:
     """0-based position of the LSC's first base: the start of the longer single-copy gap."""

@@ -359,6 +359,8 @@ def _diversity_result() -> Result:
                     Column("pi", "π (whole alignment)", dtype="float", precision=6),
                     Column("window_bp", "Window", dtype="int", unit="bp"),
                     Column("step_bp", "Step", dtype="int", unit="bp"),
+                    Column("n_introns", "Introns (reference)", dtype="int"),
+                    Column("n_spacers", "Intergenic spacers (reference)", dtype="int"),
                     Column("tool", "Aligner"),
                 ),
                 rows=(
@@ -371,6 +373,8 @@ def _diversity_result() -> Result:
                         "pi": 0.004321,
                         "window_bp": 600,
                         "step_bp": 200,
+                        "n_introns": 17,
+                        "n_spacers": 91,
                         "tool": "MAFFT",
                     },
                 ),

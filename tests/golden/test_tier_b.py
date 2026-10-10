@@ -287,6 +287,62 @@ def test_nucleotide_diversity_runs_on_real_data_and_keeps_its_shape(
     assert regions["IRa"] < regions["LSC"] < regions["SSC"]
 
 
+def test_diversity_measures_pi_per_intron_and_per_spacer(
+    tools: dict[str, str | None], data_dir: Path, tmp_path: Path
+) -> None:
+    """P2B-01 on the golden pair — measured 10/10/2026, a new §8 entry, never inherited.
+
+    The numbers below are the golden's own: 17 introns (the `introns` module's set — the
+    cross-check the board asks for) and 91 spacers (79 LSC · 12 SSC, 32,134 bp). The three IR
+    intron pairs are the reason D-g excludes the IR from the spacer set: each pair measures the
+    same locus twice, to the last decimal — rps12 0.000000 both copies, rpl2 0.001506 both,
+    ndhB 0.000000 both, over identical usable-column counts.
+    """
+    require_tools(tools, "mafft")
+    assert (
+        main(
+            [
+                "run",
+                "-m",
+                "diversity",
+                "-i",
+                str(data_dir / "NC_050833.1.gb"),
+                "-i",
+                str(data_dir / "NC_024936.1.gb"),
+                "-o",
+                str(tmp_path / "runs"),
+            ]
+        )
+        == 0
+    )
+
+    summary = next(_table(tmp_path / "runs", "diversity_summary"))
+    assert summary["Introns (reference)"] == "17"
+    assert summary["Intergenic spacers (reference)"] == "91"
+
+    introns = {
+        row["Intron (gene.copy.n)"]: row for row in _table(tmp_path / "runs", "diversity_introns")
+    }
+    assert len(introns) == 17
+    assert {row["Region"] for row in introns.values()} == {"LSC", "IRa", "SSC", "IRb"}
+    for first, second in (
+        ("rps12.1.2", "rps12.2.2"),
+        ("rpl2.1.1", "rpl2.2.1"),
+        ("ndhB.1.1", "ndhB.2.1"),
+    ):
+        assert introns[first]["π"] == introns[second]["π"], "an IR mirror pair is one locus"
+        assert introns[first]["Usable columns"] == introns[second]["Usable columns"]
+    assert introns["rpoC1.1.1"]["π"] == "0.004138"  # least diverse outside the IR
+    assert introns["clpP.1.1"]["π"] == "0.012658"  # most diverse outside the IR
+
+    spacers = list(_table(tmp_path / "runs", "diversity_igs"))  # a DictReader reads once
+    assert len(spacers) == 91
+    assert {row["Region"] for row in spacers} == {"LSC", "SSC"}
+    assert sum(int(row["Length (bp)"]) for row in spacers) == 32_134
+    widest = max(spacers, key=lambda row: float(row["π"]))
+    assert (widest["Spacer (left–right)"], widest["π"]) == ("psbT-psbN", "0.082353")
+
+
 def test_synteny_reproduces_the_measured_iris_pair_result(
     mummer_tools: dict[str, str | None], data_dir: Path, tmp_path: Path
 ) -> None:
