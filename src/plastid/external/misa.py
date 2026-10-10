@@ -143,6 +143,12 @@ def _parse_gff(text: str) -> tuple[SsrFeature, ...]:
         if len(fields) != 9:
             continue
         components = _note_components(fields[2], fields[8])
+        # MISA marks a compound cluster **two** ways, and one file can carry both: a
+        # ``repeat_region`` line listing the cluster's components, or one line per component
+        # prefixed ``compound_repeat``. Reading only the first marked every row of the second
+        # kind "no" — measured 10/10/2026 (P8B-01): 0 of PX413282's 16 components flagged while
+        # MISA's own statistics said 8, and the golden's table flagged 2 of its 6.
+        compound = len(components) > 1 or "compound_repeat" in fields[8]
         start, end = int(fields[3]), int(fields[4])
         features.extend(
             SsrFeature(
@@ -150,7 +156,7 @@ def _parse_gff(text: str) -> tuple[SsrFeature, ...]:
                 motif=motif,
                 start=start,
                 end=end,
-                compound=len(components) > 1,
+                compound=compound,
             )
             for unit_size, motif in components
         )

@@ -1,0 +1,81 @@
+# Nhật ký đo lường — Giai đoạn 8B — bộ dữ liệu Crataegus có đáp án công bố (M8B.1–M8B.8)
+
+**Phần này là `PROJECT.md` §8** (**§8.65–**). Mục mới của giai đoạn này ghi tiếp vào **cuối file
+này**, rồi thêm **một dòng** vào bảng mục lục ở `PROJECT.md` §8. **Số mục không bao giờ đánh số
+lại** — mọi tham chiếu kiểu `§8.65` trong code, test, `docs/` và board trỏ theo số.
+
+Mục lục: [`PROJECT.md` §8](../../PROJECT.md) · quy tắc ghi: `CLAUDE.md` → "The run log".
+
+---
+
+### 8.65. Cờ compound của MISA — một cụm, hai cách viết, và bảng chỉ đọc được một (P8B-01, 10/10/2026)
+
+**Việc.** Bộ **Crataegus answer-key** (anh Điềm đưa 10/10/2026: 100 bản ghi GenBank + bài Sun và
+cs. 2026, *Front. Plant Sci.* 17:1767012, CC-BY, cùng **toàn bộ bảng kết quả của bài**) được đưa
+vào cây làm việc ngay trong ngày (§8.66). Lần chạy thử đầu tiên — `plastid run -m ssr` trên
+`PX413282` (*C. altaica*) — trả về 73 SSR, và cột `In compound formation` gắn **`no` cho cả 16
+thành phần**, trong khi chính MISA báo *"Number of SSRs present in compound formation: 8"*.
+
+**Đo được.** MISA 2.1 ghi một cụm compound bằng **hai cách**, và **một file có thể chứa cả hai**:
+
+| Cách viết | Ví dụ (nguyên văn) | Parser cũ |
+|---|---|---|
+| Một dòng `repeat_region` liệt kê các thành phần | `Note=repeat_region,dinucleotide_repeat_microsatellite_feature,(TA)6,monomeric_repeat,(A)10` — **bản vàng Iris**, 48.659–48.679 | hiểu → `compound=True` |
+| **Mỗi thành phần một dòng**, mở đầu bằng `compound_repeat` | `Note=compound_repeat,monomeric_repeat,(T)16` — **PX413282**, 211–226 | **không hiểu** → `compound=False` |
+
+`_parse_gff` suy cờ từ "dòng này chứa >1 thành phần", nên mọi dòng chỉ có một thành phần đều ra
+`no`. Hệ quả đo được:
+
+| Bản ghi | Thành phần compound thật | Bảng cũ gắn cờ | MISA tự báo |
+|---|---|---|---|
+| `PX413282` (*C. altaica*) | **16** (8 cụm × 2) | **0** | 8 |
+| `NC_050833.1` (bản vàng) | **6** (3 cụm × 2) | **2** | 3 |
+
+Bản vàng **che mất lỗi**: nó chỉ có **một** cụm viết theo cách thứ nhất, nên bảng vẫn gắn cờ được
+2 dòng và không ai nghi ngờ. Và phép đối chiếu GFF-vs-statistics của mô-đun **không bắt được** vì
+nó so **số lượng**, không so **cờ** — đúng họ lỗi "một cột không ai kiểm là một cột không ai biết
+nó sai" của §9.M-1, lần này ở một cột khác.
+
+**Sửa.** `compound = len(components) > 1 or "compound_repeat" in fields[8]` — nhận cả hai cách
+viết. Test hồi quy viết **trước** khi sửa (`tests/unit/test_misa.py`, fixture đã có sẵn dòng
+`compound_repeat` từ 03/10 nhưng **chưa từng có assertion nào đọc cờ của nó**); test cũ
+`test_a_compound_cluster_yields_one_feature_per_component` được **thu hẹp phạm vi** chứ không nới
+lỏng — nó vốn khẳng định "MISA ghi một cụm thành một dòng", câu ấy nay đo được là **chưa đủ**, nên
+nó chỉ còn nói về dòng `repeat_region` và trỏ sang test mới. Mô-đun lên **0.3.0** (cache khoá theo
+`module_version` — H-08).
+
+**Bản vàng không đổi số nào:** 37 = mono 31 · di 4 · tri 2, MISA báo 3 — chỉ cột cờ đổi từ 2 lên
+**6** dòng. Và ghi chú của report nay nói rõ hai con số **đo hai thứ khác nhau**: MISA đếm **một
+lần cho mỗi cụm** (3), bảng đếm **mọi thành phần** (6) — không con số nào suy ra từ con số kia.
+
+**Vì sao đáng ghi hơn một lần so khớp trùng nhau:** đây là lỗi **thứ hai** trong hai ngày tìm ra
+bởi một phép so với bên ngoài (lỗi thứ nhất: cột `Context` của `ssr` đọc span ngoài của gen
+trans-spliced, §9.M-1). Cả hai đều nằm ở **một cột không có test nào đọc**, và cả hai đều đã tồn
+tại qua nhiều lần chạy bản vàng mà không ai thấy.
+
+### 8.66. Bộ Crataegus vào cây làm việc — kiểm toàn vẹn, đọc 100/100, và ba phép so đầu tiên (P8B-02, 10/10/2026)
+
+**Việc.** anh Điềm đưa `/mnt/d/business/pts/thanhdiem_data/db_test_new`: bài báo full-text (PDF
+22 MB, có text layer) · **7 bảng supplementary** (Table_S1…S7) + 5 Data Sheet · **100 bản ghi
+GenBank** chia 4 nhóm (`groups.json`) kèm `manifest.tsv` và `fetch_gb.py` tải lại được. Đây là bộ
+**thứ ba** anh ấy gửi và là bộ đầu tiên có **đáp án công bố kèm theo**.
+
+**Đã làm.** Copy vào `.data/thanhdiem_data/db_test_new/` (117 file, 39 MB — chỗ làm việc nhanh,
+M4a.0 đã đo `/mnt/d` chậm hơn ~100× ở các file nhỏ), rồi **đối chiếu sha256 từng file** với bản
+gốc: **117/117 byte-identical**.
+
+**Đo được, ngay trong lần kiểm đầu.**
+
+| Phép đo | Kết quả |
+|---|---|
+| Đọc 100/100 bản ghi bằng reader của mình | **0 lỗi** |
+| 50 plastome (18 mới + 26 công bố + 6 ngoài nhóm) | 159.638–159.973 bp · **tất cả** khai `/organelle=plastid:chloroplast` · **tất cả qua cổng IR ở 100,00 %** · CDS 74–87, tRNA 37, rRNA 8 |
+| 50 bản ghi barcode (`PX676094–143`) | **543–625 bp, 0 gen, không IR** — đúng loại dữ liệu cho module `barcodes`, và **cổng IR chặn đúng** nếu đem chúng vào mô-đun plastome (đó là cổng đang làm việc, không phải lỗi dữ liệu) |
+| **Table 1 của bài** (18 plastome mới: genome · LSC · SSC · IR · GC từng vùng) | **khớp từng dòng** — vd *C. altaica* 159.664 · 87.665 · 19.245 · 26.377 với GC 34,37/30,42/42,65; *C. phaenopyrum* IR **26.331** |
+| Dải số trong **text** của bài (IR 26.311–26.396) | **26.311 không tái hiện được**: nó không có trong 18 plastome mới, không có trong 26 plastome công bố mình đo, và **không có trong chính Table 1 của bài** (cận dưới 26.331). Ghi lại làm phép đo, không phải lời buộc tội — quote bảng thì đúng, quote text thì sai 20 bp |
+| **Table S6 (SSR)** trên *C. altaica* | bảng của họ = **57 dòng**; MISA của mình ở **mặc định (10,6,5,5,5,5)** cho 73, trong đó **57/57 dòng của họ khớp toạ độ**, 16 dòng còn lại là **thành phần của 8 cụm compound**. Chạy đúng ngưỡng **Methods của bài ghi** (10,5,4,3,3,3) cho **97** và chỉ khớp **55/57** ⇒ **Methods và Table S6 của bài không khớp nhau** (D-l: báo cáo cả hai) |
+| **Table S5 (RSCU) · S7 (Ka/Ks) · S2 (barcode)** | có đủ cấu trúc để so; S7 thiếu **thiết kế so sánh**, S2 thiếu **mẫu thứ 51** — cả hai vào bảng "Waiting on data/people" của board |
+
+**Kết luận của lần kiểm:** bộ dữ liệu **đủ** để bắt tay vào so — bốn mặt có đáp án số (cấu trúc/GC ·
+RSCU · SSR · Ka/Ks) cộng barcode và bộ 49 genome cho π — và nó **đã trả tiền ngay** bằng một lỗi
+thật của mình (§8.65). Đó là tiêu chuẩn đúng của một corpus: nó không chỉ để xác nhận.

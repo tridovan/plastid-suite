@@ -1,120 +1,100 @@
 # TASKS.md — active tasks
 
-> **Phase 8 is COMPLETE** on `feat/phase-8` — cross-checking, performance, automation (M8.1 · M8.3 ·
-> M8.4; **M8.2 is parked with Phase 6** and appears on no board). Every task here is **plastid
-> work or infrastructure** — CPStools · CGAS · CPGview · the 34-plastome corpus · CI — and it is
-> the last phase whose work needs **no data of its own**. The mito round (Phase 6 entirely, M7.3,
-> M8.2) is **parked by the scope decision of 10/10/2026**, not waiting on anybody; what Phase 7
-> keeps is assembly, which waits on **real reads**. Phase 9 is packaging, and it wants this
-> phase's numbers first.
-> Milestones: `ROADMAP.md` → Phase 8 · scope text: PROJECT.md §13.8 · log: `HANDOFF.md` · rules: `CLAUDE.md`.
+> **Phase 8B is OPEN** on `feat/phase-8b` — the **Crataegus answer-key corpus**: the toolkit's
+> numbers beside a **published paper's own result tables**, on an independent Rosaceae corpus the
+> team just supplied (anh Điềm's `db_test_new`, 10/10/2026). Phase 8 (tool cross-checks, scale, CI)
+> is closed and merged to `main`.
+> Milestones: `ROADMAP.md` → Phase 8B · log: `HANDOFF.md` · rules: `CLAUDE.md`.
 > Markers: `[ ]` todo · `[~]` doing · `[x]` done · **BLOCKED** = a named decision or dataset missing.
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**
 > How this file is produced: the `make-tasks` skill (`.claude/skills/make-tasks/SKILL.md`).
 
-## Phase 8 — Cross-checking, performance, automation (M8.1 · M8.3 · M8.4; M8.2 is parked with Phase 6)
+## Phase 8B — The Crataegus answer-key corpus (M8B.1 · … · M8B.8)
 
-**Goal:** only what cannot be done earlier — every analysis the toolkit promises now exists
-(Phase 2B closed the last gap: `repeats`, §8.58), so a number of ours can finally be put beside a
-number from another tool.
-**In-phase checks:** every disagreement is **explained**, not counted — with the class definition,
-the parameter or the coordinate convention that causes it · both tools' **version and argv**
-recorded for every cross-check run (a cross-check with an unnamed version is a story) · every pair
-of numbers compared on the **same pinned input file** · M8.3's remaining gap either measured or
-written as *not measured* · CI demonstrates a failing golden number turning the build red.
-*Order: the CPGview decision first (P8-01) — M8.1 names a tool §7.8 has never recorded, and the
-coverage rule calls that a gap, not a footnote.*
+**Goal:** every number this toolkit publishes for a plastome has now been checked against another
+*tool* (Phase 8). This phase checks them against another **laboratory**: Sun et al. 2026
+(*Front. Plant Sci.* 17:1767012) printed their own tables for the same 49 genomes, and the Methods
+name every tool and parameter they used — so a difference can be attributed instead of guessed.
+**In-phase checks:** every published table quoted with its own scope · every difference with a named
+cause (parameter · counting rule · class definition · coordinate convention) · every output labelled
+as third-party published data · the corpus's provenance recorded **in the repo**, not only on `D:`.
 
-- [x] **P8-01 · CPGview: declare it or drop it** *(M8.1's first blocker)* — **DONE 10/10/2026:
-      surveyed, NOT adopted**; the §7.8 row carries the measurement, §13.8 resolves, §8.60 is the
-      entry. The repo GitHub is a landing page (0 code, 0 release), there is no pip/conda/CLI, the
-      web app's port does not answer (controlled test), and the only installable form is a 2.87 GB
-      container for a figure tool.
-  - M8.1 and §13.8 name **CPGview**; §7.8 has no source, no version, no survey line. It is a **web
-    service** (a browser tool for chloroplast genome figures), so there is no binary to pin and no
-    argv to record — and a record that is not published would **leave the machine** (the §10.12
-    question, still undecided).
-  - Decide and record: either a §7.8 line with its URL, what it does and the data-handling
-    sentence, or **surveyed — not adopted** with the measurement that says why. Either way §13.8
-    stops naming a tool the repo cannot account for.
-  **Done when:** §7.8 carries the CPGview line (declared, or *not adopted* with its reason), and
-  every tool named in §13.8 resolves to a §7.8 row or a `docs/tools/` file.
+- [x] **P8B-01 · The MISA compound flag** *(the defect the corpus found first)* — **DONE
+      10/10/2026 (§8.65)**: MISA marks a cluster's components two ways and the parser read only
+      one, so a component on its own line said "no" — 0 of PX413282's 16 components flagged while
+      MISA's own statistics counted 8 clusters. Test written first, module 0.3.0; the golden still
+      reads 37 = 31 · 4 · 2, and its table now flags its **6** components (was 2).
 
-- [x] **P8-02 · CPStools cross-check** *(M8.1 — the phase's one big cross-check)* — **DONE
-      10/10/2026 (§8.61)**: installed pip-only in its own env (3.0), `docs/tools/cpstools.md`
-      written in the same session. Five surfaces compared on one pinned input: IR identical,
-      SSR 37/37 (2 rows = the documented compound convention), RSCU counts identical on the same
-      gene set, π 100/104 genes to 5 dp, Ka/Ks differences named (small-Ks denominators). The
-      cross-check found **a real bug in our own `ssr` module** — the `Context` column read a
-      trans-spliced gene's outer span, wrong on 11 of 37 golden rows (§9.M-1, fixed with a
-      regression test written first).
-  - `cpstools` 3.0 (PyPI, §7.8) covers IR · π · RSCU · SSR · KaKs — the overlapping surface. It is
-    **not on this machine** (measured 10/10/2026: no import, no directory anywhere): install it
-    pip-only in its own env, pin the version in `environment.yml`, and write
-    `docs/tools/cpstools.md` **in the same session as the install** (§7.8's rule).
-  - Compare on **one pinned input**: `NC_050833.1` for the single-genome numbers (IR · SSR ·
-    RSCU), the golden pair for π. Every differing number gets its cause named.
-  - The ground already measured is the model: phase 1 found **37 SSRs both ways** and one 1-bp
-    disagreement that turned out to be a **compound cluster** `(TA)6 + (A)10` (§8.1/§8.2). That
-    is what "differences explained" means here — and cpstools is the tool this project's SSR
-    count was first checked against, so this task re-runs that check on the **current** module.
-  **Done when:** a new §8 entry holds the side-by-side table (ours · cpstools · the cause of each
-  difference), the tool's version and argv are recorded, and each number states its scope.
+- [x] **P8B-02 · The corpus in the working tree, verified** — **DONE 10/10/2026**: 117 files,
+      **byte-identical** to `/mnt/d/business/pts/thanhdiem_data/db_test_new` (sha256 per file),
+      gitignored under `.data/thanhdiem_data/db_test_new/`. 100/100 GenBank records read by our own
+      reader; 50 plastomes all declare `/organelle` and pass the IR gate at 100.00 %.
+      **Done when:** the copy is byte-identical (sha256 per file) and 100/100 records read —
+      **met 10/10/2026**. The repo-side provenance note (accessions · retrieval date · DOI ·
+      manifest sha256) is carried by **P8B-09**, because it is a record, not a copy.
 
-- [x] **P8-03 · CGAS cross-check** *(M8.1)* — **DONE 10/10/2026 (§8.62)**: installed in its own
-      env (v1.0.1), `docs/tools/cgas.md` written. Structure, RSCU and introns match ours exactly
-      on the golden; SSR differs by one **threshold** parameter (defaults 54 vs MISA 37 — with
-      MISA's thresholds CGAS gives 37, identical). Two findings: CGAS reports `LSC/SSC/IR = 0`
-      for `NC_024936.1` with no warning while still counting it "analysed" (our paths find
-      IR 26,184 @ 100.00 %), and **our `introns` module publishes no tRNA introns** — the golden
-      has 8, now named **H-23** in ROADMAP M2.7.
-  - CGAS's source is in the repo's data dir (`.data/cgas-review/`, read 02/10/2026 — §7.9); its
-    own environment (R + external tools, its `INSTALL.md`) is what has to be faced first. Decide
-    what **can** run here and name what cannot, rather than reporting a check that never ran.
-  - Where it runs: the module(s) with a deterministic output — codon usage · IR boundaries · SSR —
-    against ours, on the golden. **A difference is neither automatically our bug nor theirs:**
-    §7.9 lists CGAS's measured failure modes (substring IR classification, "no IR ⇒ the whole
-    genome is LSC", silent success), so its labels are data to explain, never a benchmark.
-  **Done when:** a new §8 entry records what ran, on which input, with both sides' parameters —
-  and names, for each module that could not run, the dependency that stopped it.
+- [ ] **P8B-03 · Structure & GC vs Table 1** *(M8B.2)*
+  - Run `structure` + `genome_stats` over the 18 new and the 26 published plastomes; compare
+    region lengths and per-region GC against Table 1 row by row. The 18 new ones already reproduce
+    **exactly** (checked by hand 10/10/2026); the published ones have no table to compare against,
+    so they get our own range check only.
+  - Name what the paper's **text** says and its **table** says where they differ: the text's IR
+    range starts at 26,311 bp, Table 1's own minimum is 26,331 (measured), and 26,311 does not
+    appear in any of the 44 genomes we measured.
+  **Done when:** a §8 entry holds the side-by-side table for the 18 (with the counting rule each
+  column uses) and names every row that differs.
 
-- [x] **P8-04 · M8.3's named gap: `diversity` and `barcodes` at N = 34** *(M8.3)* — **DONE
-      10/10/2026 (§8.63)**: `diversity` **13 min 14 s · 138 MB** (π 0.040086 over
-      120,964 of 191,707 columns), `barcodes` **12 min 27 s · 138 MB** (859 windows, 13
-      hypervariable regions, 10 candidates, 8 found), both `--force`, one at a time. The
-      old prediction was wrong in the useful direction: they were left "not measured"
-      because `substitutions scope=whole` was *stopped at a cap*, and a cap is not a
-      measurement — both finish in ~13 minutes. `docs/M8.3_scale.md` now names no module
-      as not measured.
-  - `docs/M8.3_scale.md` measured nine single-genome modules plus `substitutions` · `synteny` ·
-    `popgen` · `kaks` over the 34-record corpus, and wrote **"not measured"** for `diversity` and
-    `barcodes` because both align whole genomes — a reading of the code, not a measurement. That
-    honesty is the task: measure them on the same records, `--force`, `/usr/bin/time -v`.
-  - The `substitutions` curve predicts they are expensive; a prediction is not an entry. If a run
-    does not finish, **that is the finding**, written as what was attempted and for how long.
-  **Done when:** `docs/M8.3_scale.md` carries measured wall clock and peak RSS for both modules at
-  N = 34 (or the measured timeout with what was tried), and no run module is left "not measured".
+- [ ] **P8B-04 · SSR vs Table S6** *(M8B.3)*
+  - Measured 10/10/2026: our `ssr` (MISA defaults 10,6,5,5,5,5) reproduces **57/57** of their
+    *C. altaica* rows once the compound components are set aside, while their stated Method
+    thresholds (10,5,4,3,3,3) give 97 and reproduce only 55/57 — i.e. **their Methods and their own
+    table disagree**. Run the comparison at both settings over all 49 sections of S6 and report both.
+  **Done when:** the §8 entry states which parameter setting reproduces S6, at what agreement over
+  all genomes, and names the compounds (our table lists components; theirs appears to list none).
 
-- [x] **P8-05 · CI on every change** *(M8.4)* — **DONE 10/10/2026 (§8.64)**: two jobs
-      (`fast`: ruff + unit suite + tier-A golden; `golden-tier-b`: the pinned tools via
-      micromamba + `PTS_REQUIRE_TOOLS=1` + table2asn checked by md5). The first run was
-      red on three real defects — scipy 1.18's silent `nan` exported into the FDR table, a
-      test hardcoding `/root/toolbox/bin/table2asn`, and the micromamba env missing from
-      `PATH` — all fixed. Proof it catches a broken golden number: run 38024933018, red on
-      `37.863555723244254 == 37.8536 ± 0.001`; the revert run 38025149827 is green.
-  - The repo is on GitHub (`git@github.com:tridovan/plastid-suite.git`) and has **no CI at all**
-    (measured 10/10/2026: no `.github/`, no `.gitlab-ci.yml`). Add a workflow that runs on every
-    push: `ruff` lint + format check, the fast unit suite, and the **pure-Python golden tier**
-    (`tests/golden/test_tier_a.py` — no tools, no network).
-  - The tool-dependent golden (tier B: MISA · MAFFT · repeat-match) needs the **pinned** versions:
-    a job that installs the pinned conda env from `environment.yml` — never a bare
-    `conda install mafft`, because §9.B-14 measured two mafft builds giving two Ts/Tv numbers from
-    one genome.
-  - Prove it can fail: one commit that breaks a golden number must turn the build red, recorded in
-    the §8 entry. A CI that has never been red is a green light nobody has tested.
-  **Done when:** a push shows the workflow running (run URL in the §8 entry), the golden job
-  installs the pinned tools, and the deliberately-broken run is recorded as red before the fix
-  turns it green.
+- [ ] **P8B-05 · RSCU vs Table S5** *(M8B.4)*
+  - Their RSCU came from PhyloSuite's PCG screening; ours from `codon_usage` (all CDS, stops
+    excluded, IR copies counted). Expect the §8.61 story: identical counts once both sides count
+    one gene set — measure it rather than assume it.
+  **Done when:** the §8 entry reports per-codon agreement (or the named cause of each difference)
+  for the 18 genomes, with both sides' gene-set rules printed.
+
+- [ ] **P8B-06 · π, hotspots and the barcode region** *(M8B.6)*
+  - Their sliding-window analysis is DnaSP v6 at **600/200** — our `diversity` default — over whole
+    plastomes, PCGs and intergenic regions; their hotspot is *ndhC~trnV-UAC*, amplified for 51
+    individuals. Run `diversity` on the 44 plastomes and `barcodes` on the same set, then compare
+    **the hotspot choice** (do we rank the same region highest?) and the 50 deposited barcode
+    records (length/GC vs Table S2, then π within the locus).
+  - **Needs:** the 51st sample (*Crataegus scabrifolia*, no GenBank ID in Table S2) before the
+    barcode half can be complete.
+  **Done when:** the §8 entry names whether our hotspot ranking agrees, and reports the barcode
+  comparison for the 50 records we have, with the 51st named as missing.
+
+- [ ] **P8B-07 · Annotation vs the published GeSeq annotation** *(M8B.7)*
+  - Their 18 records were annotated by **GeSeq** (with Prodigal/HMMER/aragorn behind it) and are
+    deposited in GenBank — so the corpus carries an answer key for the annotator, in a family ours
+    has never seen (phase 3B's bar was Iridaceae). Run `plastid annotate` leave-one-out over the
+    corpus and classify every difference the way `tools/corpus_bar.py` does.
+  - Their counting rule is **not** ours: Table 1 writes "119 (105)" = total (unique), while §6's
+    rule is CDS + tRNA + rRNA with both IR copies. Both must be printed wherever they meet.
+  **Done when:** a §8 entry holds the bar (per-record differences vs the published annotation,
+  classified) on the Crataegus corpus, beside the Iridaceae bar's 418-vs-PGA-588 result — same
+  measure, different family, stated as such.
+
+- [ ] **P8B-08 · Ka/Ks vs Table S7** *(M8B.5)* — **BLOCKED: the comparison design is not in the
+      paper or the supplement** (each column is a species; the partner is unstated). Ask anh Điềm
+      for the design, or their `.axt`/codon alignments, or the exact `KaKs_Calculator` invocation.
+  **Done when:** either the §8 entry reproduces S7 within a stated tolerance, or it records what was
+  tried and what the design question is — never a silent skip.
+
+- [ ] **P8B-09 · The record: provenance note + the defects the corpus forced** *(M8B.8)* — a
+      `docs/` note naming the accessions, the retrieval date, the paper's DOI and the manifest's
+      sha256, so a fresh clone can re-fetch and prove it got the same 100 files (D-m); and P8B-01
+      is the first defect on the list. Keep a running
+      list in the §8 entries and fix each one test-first; a defect found here is worth more than a
+      comparison that agrees, because the corpus is the first one nobody here chose.
+  **Done when:** every defect found by the corpus is either fixed with a regression test or named
+  as open on this board with its evidence.
 
 ## Decisions to make
 
@@ -122,33 +102,28 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 
 | # | Question | Recommended default, with its evidence | Recorded in |
 |---|---|---|---|
-| D-h ✅ | What CPGview is to this project | **DECIDED 10/10/2026 (P8-01) — surveyed, not adopted.** The recommendation was "checked once, by hand, on an already-public record; not adopted as a dependency"; the check itself turned out to be impossible — the web app does not answer (measured, with a control) — and the survey found no pip/conda/CLI and a 2.87 GB container as the only installable form, for a tool that produces figures rather than numbers. The record is §7.8 · §13.8 · §8.60 | §7.8 · §13.8 · §8.60 |
-| D-i ✅ | What CI must run | **DECIDED 10/10/2026 (P8-05) — as recommended.** `.github/workflows/ci.yml`: `fast` (ruff · unit suite · tier-A golden) and `golden-tier-b` (micromamba with every tool pinned to §7.8's versions, `PTS_REQUIRE_TOOLS=1`, table2asn fetched and md5-checked). Watched both ways: the deliberate break turned it red on the golden number (`37.863555723244254 == 37.8536 ± 0.001`), the revert turned it green. README carries the badge | P8-05 · §8.64 · `.github/workflows/ci.yml` |
-| D-j ✅ | Where `cpstools` lives | **DECIDED 10/10/2026 (P8-02) — pip into its own env, pinned, declared in `docs/tools/cpstools.md`**, used for the cross-check only. Followed as recommended: `uv pip install cpstools==3.0` into `/root/toolbox/env/cpstools`; `KaKs_Calculator` 2.0.1 (bioconda) alongside it, because cpstools' KaKs route shells out to one; `environment.yml` carries both, annotated as cross-check tools | §7.8 · `docs/tools/cpstools.md` · §8.61 |
+| D-k | What the Crataegus corpus is to the project | **A test corpus with a published answer key — never manuscript content.** Rosaceae, while the manuscripts are Oldenlandia and Coleus; the M4a rule. Every output is labelled third-party published data | ROADMAP Phase 8B · §8 entries |
+| D-l | How to compare when their Methods and their tables disagree | **Report both settings, and say which one reproduces their table.** Measured: their SSR table follows MISA's defaults, not the thresholds their Methods state — matching the *stated* parameters would look like disagreement with a table that is actually reproducible | §8 entry for P8B-04 |
+| D-m | Where the corpus lives | **`.data/` (gitignored) + a provenance note in the repo** (accessions · retrieval date · DOI · manifest sha256). The paper is CC-BY but 22 MB of third-party PDF belongs in the note, not in git — the same shape as `docs/tools/*.md` for tools | README of the drop · `docs/` |
+| D-n | Whether the toolkit should be able to run their *stated* SSR parameters | **Yes, but as a parameter, not a code change**: `ssr` pins MISA's defaults today. A `--set` for thresholds is a module change that must keep §6's golden at 37 — decide it when P8B-04 shows how many of the 49 sections need it | §3 · P8B-04 |
 
 ## Pitfalls — this phase's own traps
 
 | Trap | What to do instead |
 |---|---|
-| A cross-check run on a **different input** than ours ("it found 36 SSRs" — on which record?) | one pinned record, named in the §8 entry, the same file for both tools |
-| The 26/9 survey's numbers ("9 matches ≥30 bp", "21 blocks", §9.H) | measure here; a survey number is a claim about other data until re-measured — Phase 2B's repeats count was the last one to fall |
-| A disagreement read as our bug — or as theirs — with no cause named | name it: class definition (compound · tandem), parameter, coordinate convention (1-based vs 0-based, IR in or out). Phase 1's 1-bp SSR difference is the worked example |
-| CGAS's labels taken as truth | §7.9 measured its failure modes (substring IR classification, "no IR ⇒ all LSC", silent success); its output is data to explain, never a benchmark |
-| "`diversity` and `barcodes` scale like `substitutions`" | write **not measured** until measured — §6/§9's rule, which the scale doc already follows in those words |
-| Timing a cached run instead of a real one (H-08: the cache keys on `module_version`, not on source) | `--force`, and say so in the entry |
-| An **unpinned** tool inside CI | install from `environment.yml`; §9.B-14 is the measured reason |
+| A published table taken as a benchmark | Their Methods and their own Table S6 **disagree** (measured 10/10/2026). A table is data to explain, exactly like CGAS's labels |
+| Their counting rule mixed with ours | Table 1 writes "119 (105)" = total (unique); §6's rule is **132 = 86 CDS + 38 tRNA + 8 rRNA**, both IR copies. Print both rules wherever they meet |
+| The 50 barcode records fed to a plastome module | They are ~600 bp fragments with **no IR**: the gate stops them by design. That is the gate working — use `barcodes`/`diversity`, never `structure` |
+| Their SSR count read as a count | It lists **no compound components** (57 vs our 73 on *C. altaica*); ours lists every component. The difference is a class definition, not a miscount |
+| A number in the paper's text quoted as measured | The text's IR minimum (26,311) appears in **no** genome we measured, and not in their own Table 1 (26,331) — quote the table, or the measurement |
+| Running the drop's `fetch_gb.py` | It hits NCBI; the files are already here, and this project's tests never touch the network. It stays as provenance, not as a step |
+| A corpus number reaching a manuscript table | It is Rosaceae and it is third-party: label every output (D-k), the same rule as a stand-in |
 
 ## Waiting on data / people
 
 | What | Who | Blocks |
 |---|---|---|
-| A machine with CGAS's full environment (R + its tool chain), if it cannot be built here | anh Điềm | P8-03's second half — the modules that could not run |
-| Real samples for the two manuscripts | cô Trang / anh Điềm | M2.10's final version — the stand-in draft re-runs, never gets patched |
-| Real Illumina/ONT reads — the project has none; phase 7's smoke tests ran on simulated pairs | anh Điềm / cô Trang | M7.1 · M7.5 (assembly — the only live part of Phase 7) |
-
-*The **mito round** is not in this table on purpose — it is **parked, not waiting**: Phase 6
-entirely (M6.1 NUPT/MTPT · M6.2 mito structure · M6.3 plastid–mito comparison), M7.3 and M8.2 are
-out of scope for this round by the decision of 10/10/2026 (CLAUDE.md → "Priority today"), and they
-are marked parked in `ROADMAP.md`. The structure that makes them addable later is kept
-(D5-06/D5-07); the mito code that exists stays and keeps being tested. **M6.4/M6.5** left the plan
-on 10/10/2026 — divergence time and ancestral state are the PI's analyses, not modules.*
+| The **51st barcode sample** — Table S2's last row is *Crataegus scabrifolia* with GenBank ID `----` | anh Điềm | P8B-06's barcode half |
+| The **Ka/Ks comparison design** — which sequence each species column of Table S7 is compared against (or their `.axt` files / the `KaKs_Calculator` invocation) | anh Điềm | P8B-08 |
+| *(if available)* their **π sliding-window numbers** and the **IRscope junction table** — both are figures today | anh Điềm | P8B-06 · P8B-03 (numeric rather than figure comparison) |
+| *(separate ask)* raw Illumina reads for ≥1 of the 18 samples — Table S1 shows 2,786× coverage, so the reads exist | anh Điềm / cô Trang | **Phase 7** (M7.1 · M7.5 · M7.6 — still the project's oldest blocker) |

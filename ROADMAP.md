@@ -583,6 +583,48 @@ deliberately broken golden number before it is green.
       *(was P8-05: the repo had no CI, measured 10/10/2026 — §8.64 has the four runs, including the
       deliberate break that turned the build red on the golden number)*
 
+## Phase 8B — The Crataegus answer-key corpus  *(board opened 10/10/2026; the drop is anh Điềm's `db_test_new`, delivered 10/10/2026)*
+
+**Goal.** The toolkit's numbers have been put beside **another tool's** (Phase 8). This phase puts
+them beside a **published paper's own result tables**: an independent corpus of 49 *Crataegus* /
+*Mespilus* plastomes (Rosaceae — a different family from everything the project has tested on) whose
+paper, Sun et al. 2026 (*Front. Plant Sci.* 17:1767012, CC-BY), prints the answer key: Table 1
+(genome · LSC · SSC · IR + GC per region), Table S5 (RSCU), Table S6 (SSR, 3,546 rows over 49
+genomes), Table S7 (Ka/Ks), Table S2 (barcode lengths/GC) — plus the Methods, which name every tool
+and parameter they used.
+
+**Why it is a corpus and not data to analyse:** it is Rosaceae, while the two species manuscripts
+are Oldenlandia and Coleus — so nothing from it becomes a manuscript table (the M4a rule). It is a
+**test corpus**, and its value is that the answer key was written by somebody who was not us.
+
+**What is already measured (10/10/2026, before the board went up):** 100/100 GenBank records read by
+our own reader; 50 plastomes all declare `/organelle` and pass the IR gate at 100.00 %; the 18 new
+plastomes reproduce **Table 1 row for row** (e.g. *C. altaica* 87,665 · 19,245 · 26,377 and GC
+34.37/30.42/42.65 — exact); the paper's SSR table is reproduced by MISA **defaults** and not by the
+thresholds its own Methods state; and the corpus immediately found a real defect — MISA's compound
+flag (§8.65).
+
+**In-phase checks:** every published table we compare against is quoted with its own scope, and each
+difference names its cause (a parameter · a counting rule · a class definition · a coordinate
+convention) · no comparison is run on a stand-in in place of the corpus, and every output made from
+it is labelled as third-party published data · the corpus's own provenance (accessions, retrieval
+date, file digest) is recorded in the repo, not only on D:.
+
+- [ ] **M8B.1 The corpus on disk, verified** — copied into the working tree, byte-identical to the
+      drop, gitignored, with a provenance note in the repo
+- [ ] **M8B.2 Structure & GC vs Table 1** — all 18 new + the 26 published plastomes
+- [ ] **M8B.3 SSR vs Table S6** — with the parameter question settled (their Methods and their own
+      table disagree; measured 10/10/2026)
+- [ ] **M8B.4 RSCU vs Table S5**
+- [ ] **M8B.5 Ka/Ks vs Table S7** — **waiting on the design**: which sequences each species column
+      is compared against
+- [ ] **M8B.6 π and hotspots vs the paper** — the sliding-window figure, the *ndhC~trnV-UAC*
+      hotspot, and the 50 barcode records they deposited
+- [ ] **M8B.7 Annotation vs the published GeSeq annotation** — the corpus bar's second round, on a
+      family the annotator has never seen
+- [ ] **M8B.8 The defects the corpus forced** — each one fixed test-first and named (§8.65 is the
+      first: the MISA compound flag)
+
 ## Phase 9 — Packaging, license & release  *(§13.9)*
 
 **Goal:** a citable, installable release.

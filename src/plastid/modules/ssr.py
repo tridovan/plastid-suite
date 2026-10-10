@@ -18,11 +18,13 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "ssr"
+# 0.3.0 (10/10/2026): the compound flag now marks every component of a cluster. MISA writes a
+# cluster two ways and the parser read only one, so a component on its own line said "no" —
+# 0 of PX413282's 16 components while MISA counted 8 clusters (P8B-01, found by the Crataegus
+# answer-key corpus). The run cache keys on this version, not on the source (H-08).
 # 0.2.0 (10/10/2026): the Context column changed — a trans-spliced gene's outer span no longer
-# makes everything inside it an "Intron" (§9.M-1, found by the CPStools cross-check §8.61). The
-# run cache keys on this version, not on the source (H-08), so a stale cache would otherwise keep
-# serving the wrong column.
-MODULE_VERSION = "0.2.0"
+# makes everything inside it an "Intron" (§9.M-1, found by the CPStools cross-check §8.61).
+MODULE_VERSION = "0.3.0"
 
 _THRESHOLDS = "(1/10) (2/6) (3/5) (4/5) (5/5) (6/5)"  # MISA defaults, PROJECT.md §10.2
 _GENE_KINDS = ("CDS", "tRNA", "rRNA")
@@ -154,9 +156,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         },
         notes=[
             f"MISA {_misa_version(ctx)} with its default thresholds {_THRESHOLDS}; "
-            f"{misa.compound} SSRs in compound formation.",
-            "A compound cluster is one GFF line holding several SSRs: each component is listed "
-            "separately and they share the cluster's coordinates.",
+            f"{misa.compound} SSRs in compound formation — MISA's own count, **one per cluster**.",
+            "The per-SSR table flags **every component** of a cluster, so its `yes` rows number "
+            "more than MISA's count (a two-component cluster contributes 2 rows to 1): the two "
+            "numbers measure different things and neither is derived from the other.",
+            "A compound cluster's components share the cluster's coordinates — MISA does not "
+            "separate them, and a component on its own line carries the `compound_repeat` note.",
         ],
         citations=("misa",),
     )

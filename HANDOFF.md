@@ -10,28 +10,76 @@
 ## Resume point
 
 **Phases 1 – 5, 4a, 3B, 2B and 8 — COMPLETE and merged to `main`** (8 closed 10/10/2026: tagged
-`phase-8`, squashed into one commit; the branch `feat/phase-8` keeps its task commits). `main`
-holds one commit per phase.
+`phase-8`, squashed into one commit). `main` holds one commit per phase.
 
-**No phase is open.** The next unblocked work is **Phase 9** (packaging, licence, release): the
-toolkit is feature-complete for this round, every number it publishes has now been put beside
-another tool's (§8.60–§8.62), and CI watches every push (§8.64). What is **not** next, and why:
-Phase 7's assembly (M7.1 · M7.5 · M7.6) waits on **real reads**; the mito round (Phase 6 entirely,
-M7.3, M8.2) is **parked by scope**, not blocked.
+**Phase 8B is OPEN on `feat/phase-8b`** — the **Crataegus answer-key corpus**: anh Điềm's drop of
+10/10/2026 (`db_test_new`), an independent Rosaceae corpus of 49 plastomes whose paper prints its
+own answer tables (Table 1 · S5 RSCU · S6 SSR · S7 Ka/Ks) and whose Methods name every tool and
+parameter. `TASKS.md` carries nine tasks (P8B-01 and P8B-02 already done) and four decisions
+(D-k what the corpus is · D-l how to report when their Methods and their tables disagree · D-m where
+it lives · D-n whether our SSR module should take their thresholds as a parameter).
 
-**What Phase 8 left, for the record.** CPGview **surveyed, not adopted** (§8.60 — the repo is a
-landing page, there is no pip/conda/CLI, and the web app's port does not answer) · the **CPStools**
-cross-check (§8.61), which found and fixed a real bug in our own `ssr` module — the `Context`
-column read a trans-spliced gene's outer span, wrong on 11 of the golden's 37 rows, now
-`tests/unit/test_ssr.py` and §9.M-1 · the **CGAS** cross-check (§8.62), which caught CGAS printing
-`LSC/SSC/IR = 0` for a record it could not read while calling it analysed, and named **H-23**: our
-`introns` module publishes CDS introns only, so the golden's **8 tRNA introns** are published by no
-module of ours · the last two scale numbers (§8.63 — `diversity` 13 min 14 s · `barcodes`
-12 min 27 s, 138 MB each, so **no module is "not measured"** any more) · **CI** (§8.64), whose
-first run found three real defects and which has been watched **red on a deliberately broken
-golden number** before going green.
+**Where the corpus already paid, before any comparison was finished** — the tool numbers have been
+checked against another *tool* (Phase 8); this is the first time they are checked against another
+*laboratory*, and it found two defects in two days, both in a column no test read:
+**§9.M-1** (the `ssr` Context column read a trans-spliced gene's outer span) and **§8.65** (MISA's
+compound flag missed the per-component encoding — 0 of PX413282's 16 components flagged while MISA
+counted 8 clusters, and the golden hid it by carrying only the other encoding).
+Already measured (§8.66): 100/100 records read; all 50 plastomes declare `/organelle` and pass the
+IR gate at 100.00 %; **Table 1 reproduces row for row**; the paper's text range for IR (26,311) is
+reproduced by nothing we measured, including its own Table 1 (26,331); and their SSR table follows
+MISA **defaults**, not the thresholds their Methods state.
+
+**What is missing, named for anh Điềm** (board → "Waiting on data/people"): the **51st barcode
+sample** (Table S2's last row, *C. scabrifolia*, has no accession) · the **Ka/Ks comparison design**
+(S7's columns are species; the partner is unstated) · and, separately, **raw Illumina reads** for
+one of the 18 samples — Table S1 shows 2,786× coverage, so they exist, and they are still Phase 7's
+oldest blocker (M7.1 · M7.5 · M7.6).
+
+**Not next, and why:** Phase 7's assembly waits on those reads; the mito round (Phase 6 entirely,
+M7.3, M8.2) is **parked by scope**; Phase 9 (packaging, licence, release) is unblocked and waits
+only on this phase's answers.
 
 ## Log
+
+### 2026-10-10 · Claude · dev WSL · session 37 (Phase 8B opened — the Crataegus answer-key corpus)
+
+**Did.** anh Điềm delivered `D:\business\pts\thanhdiem_data\db_test_new`: the paper (Sun et al. 2026,
+*Front. Plant Sci.* 17:1767012, CC-BY), **its own supplementary tables** (S1–S7 + 5 data sheets) and
+**100 GenBank records** (18 plastomes sequenced for the study, 26 published *Crataegus*, 50 barcode
+amplicons, 6 outgroup/reference), with `groups.json`, `manifest.tsv` and a re-fetch script.
+(1) **Verified and copied** into `.data/thanhdiem_data/db_test_new/` — 117 files, sha256 per file
+against the D: original, byte-identical; 100/100 read by our own reader; all 50 plastomes declare
+`/organelle` and pass the IR gate at 100.00 % (§8.66). (2) **Reproduced their Table 1 row for row**
+on the 18 new plastomes (e.g. *C. altaica* 159,664 · 87,665 · 19,245 · 26,377 · GC
+34.37/30.42/42.65). (3) Found that the paper's **text** IR minimum (26,311) is reproduced by
+nothing we measure, including its own Table 1 (26,331). (4) Found that their **SSR table follows
+MISA defaults**, not the thresholds their Methods state — 57/57 rows match at defaults, 55/57 at
+their stated ones. (5) The first run on the corpus found a defect of ours: **the MISA compound
+flag** (§8.65) — MISA writes a cluster two ways and `_parse_gff` read one, so 0 of PX413282's 16
+component rows were flagged while MISA counted 8 clusters, and the golden hid it by carrying only
+the other encoding. Fixed test-first, module `ssr` 0.3.0; the golden's own numbers are unchanged
+(37 = 31 · 4 · 2) and its table now flags its 6 components. (6) Opened Phase 8B with a board of nine
+tasks and four decisions, added to `ROADMAP.md`.
+
+**Validation.** `make check` green on the branch (843 fast + 85 golden, before the doc-only edits
+that the same-day re-run covers). The golden contract re-measured through the corpus work: 37 ·
+31/4/2 · compound 3 (MISA's cluster count) with 6 flagged component rows. The corpus's copy is
+proven by per-file sha256 against the source, not by a file count.
+
+**Residual risks.** (1) The paper's Methods and its own tables disagree on SSR parameters (measured);
+every comparison must say which setting it used and why (D-l). (2) The corpus is **third-party
+published data**: nothing from it may reach a manuscript table, and every output is labelled (D-k).
+(3) Two of the comparisons wait on anh Điềm — the 51st barcode sample and the Ka/Ks design — and
+P8B-08 must not be quietly skipped. (4) `db_test_new` is a *test* corpus in a family the
+manuscripts do not use; the two species manuscripts still rest on stand-ins.
+
+**Blocked.** P8B-08 (the Ka/Ks design). Phase 7 (real reads). **Parked, not blocked:** the mito round
+— Phase 6 entirely, M7.3, M8.2 (scope decision 10/10/2026).
+
+**Next.** P8B-03 (structure & GC vs Table 1 over all 44 plastomes, the published ones included) is
+the first comparison with no blocker; P8B-04 (SSR over all 49 sections of S6) is the one that
+settles D-l.
 
 ### 2026-10-10 · Claude · dev WSL · session 36 (Phase 8 run whole — five tasks, and the phase closed)
 
