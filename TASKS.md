@@ -1,9 +1,11 @@
 # TASKS.md — active tasks
 
 > **Phase 8 is OPEN** on `feat/phase-8` — cross-checking, performance, automation (M8.1 · M8.3 ·
-> M8.4; **M8.2 is blocked** and says so below). It is the last phase whose work needs no data the
-> project is still waiting for: Phase 6 and 7 wait on a nuclear genome, plant mito data and real
-> reads, and Phase 9 is packaging, which wants this phase's numbers first.
+> M8.4; **M8.2 is blocked** and says so below). It is the last phase whose work needs **no data of
+> its own**: Phase 6 and 7 come later for three different reasons — a nuclear genome (M6.1, and
+> M8.2 through it) · several mitogenomes of one species (M6.2) · real reads (M7.1 · M7.5) — while
+> **M6.3 is deferred by decision D5-07, not by data** (the waiting table below names each). Phase 9
+> is packaging, and it wants this phase's numbers first.
 > Milestones: `ROADMAP.md` → Phase 8 · scope text: PROJECT.md §13.8 · log: `HANDOFF.md` · rules: `CLAUDE.md`.
 > Markers: `[ ]` todo · `[~]` doing · `[x]` done · **BLOCKED** = a named decision or dataset missing.
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**

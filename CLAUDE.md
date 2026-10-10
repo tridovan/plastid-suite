@@ -66,12 +66,20 @@ relabels the shared gene set, it does not re-select it (§8.45).
 the two vocabularies** (A everywhere; B only in the pairing table). Design:
 `docs/D5-09_reference_naming.md`; decision: PROJECT.md §3.
 
-**Current state: Phases 1–5, 4a and 3B complete** — 3B closed 10/10/2026 (tagged `phase-3b`,
-merged to `main` as one commit). **Phase 2B is OPEN** on `feat/phase-2b`: the plastome analysis
-set, completed — π per intron/IGS (H-07) · the **repeats** module (M2.12) · the two species'
-manuscript draft re-run (M2.10). It is the next **unblocked** work: Phases 6 and 7 wait on data the
-project does not have (a nuclear genome · plant mito data · real Illumina/ONT reads), and Phase 8's
-cross-check against CPStools is not honest while one of those analyses does not exist.
+**Current state: Phases 1–5, 4a, 3B and 2B complete** — 2B closed 10/10/2026 (tagged `phase-2b`,
+merged to `main` as one commit; it built π per intron/IGS, the **repeats** module and the two
+species' manuscript re-run). **Phase 8 is OPEN** on `feat/phase-8`: cross-checks, scale,
+automation (M8.1 · M8.3 · M8.4). It is the next unblocked work, and the cross-check became
+**honest** only now — every analysis it checks has to exist first, and `repeats` (M2.12) was the
+last one (§8.58).
+
+Why Phases 6 and 7 come later — **three different reasons, not one** (corrected 10/10/2026, the
+old sentence read as if a single missing dataset explained all of it): **M6.1** (NUPT/MTPT) and
+**M8.2** wait on a **nuclear genome** — every pinned record in the repo is an organelle; **M6.2**
+wants several mitogenomes of *one* species (the ten pinned plant ones are one per species, and
+"polymorphic" is a within-species property); **M7.1 · M7.5** wait on **real Illumina/ONT reads**
+(Phase 7 has only ever run on simulated read pairs); and **M6.3** is deferred by the 05/10/2026
+decision **D5-07** (plastid first) — *not* by data, since its stand-in pair already exists.
 Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active checklists with Done-when). Exact resume
 point: **`HANDOFF.md` → Resume point**.
 
