@@ -1,0 +1,78 @@
+# CI — M8.4. Two jobs, split by what they need, because that split is the point:
+#
+#   * `fast` is the tier the project can always run: ruff, the unit suite and the **tier-A golden**
+#     — pure Python over the vendored fixture (§6). It needs no external tool and no network, so a
+#     broken golden number turns this build red on its own.
+#   * `golden-tier-b` installs the **pinned** tools the tool-dependent golden needs. Every pin
+#     below is a version `PROJECT.md` §7.8 records and `environment.yml` carries; an unpinned
+#     `conda install mafft` is not a shortcut — §9.B-14 measured two MAFFT builds giving two Ts/Tv
+#     numbers from one genome.
+#
+# `PTS_REQUIRE_TOOLS=1` in the tier-B job turns "tool missing" from a printed skip into a failure:
+# a green build that quietly skipped the tools would prove nothing. table2asn is the one tool that
+# cannot come from conda, so the job fetches the build `docs/tools/table2asn.md` records and
+# checks its md5 — the same reasoning as the pins.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    name: lint · fast tests · tier-A golden (pure Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras --frozen
+      - name: ruff (lint + format check)
+        run: make lint
+      - name: fast tests
+        run: uv run pytest -q -m "not tier_b"
+      - name: tier-A golden — the §6 numbers, no tools
+        run: uv run pytest -q tests/golden/test_tier_a.py
+
+  golden-tier-b:
+    name: golden tier B (pinned tools)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: pts-tools
+          cache-environment: true
+          create-args: >-
+            -c conda-forge
+            -c bioconda
+            python=3.12
+            perl=5.32.1
+            mafft=7.526
+            mummer4=4.0.1
+            paml=4.10.10
+            blast=2.17.0
+            aragorn=1.2.41
+            vmatch=2.3.1
+      - name: fetch table2asn and check the recorded md5
+        run: |
+          curl -sSL -o table2asn.gz \
+            https://ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/linux64.table2asn.gz
+          gunzip table2asn.gz
+          chmod +x table2asn
+          echo "8b5b6cbede9d38b47c7c4cae29a25a0a  table2asn" | md5sum -c -
+      - run: uv sync --all-extras --frozen
+      - name: golden tier B — the tool-dependent numbers
+        env:
+          PTS_REQUIRE_TOOLS: "1"
+          PTS_TABLE2ASN: ${{ github.workspace }}/table2asn
+        run: uv run pytest -q tests/golden -rs
