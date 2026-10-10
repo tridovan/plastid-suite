@@ -1,0 +1,15 @@
+# The build context: the source, the fixtures and the docs — nothing a run produced, and nothing
+# that is somebody's private copy. `.panel/` alone is hundreds of MB and is gitignored anyway.
+.git
+.venv
+.runs
+.panel
+.data
+.cache
+dist
+build
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.claude
