@@ -84,15 +84,14 @@ def _citations(pattern: re.Pattern[str], paths: list[Path] | None = None) -> dic
 
 
 def test_the_log_entries_did_not_move_house_twice() -> None:
-    """One entry per number, none lost — 33 from the 04/10 split, plus 5's six, 3B's nine, and 2B's
-    three.
+    """One entry per number, none lost — currently §8.1 … §8.64, the whole run.
 
     The count is deliberate: a new entry updates this number in the same commit, so a lost or
     duplicated entry cannot pass unnoticed.
     """
     entries = _log_entries()
-    assert len(entries) == 59, f"expected 59 logged entries, found {len(entries)}"
-    assert set(entries) >= {"8.1", "8.31", "8.59"}, "the first, the corpus and the newest entry"
+    assert len(entries) == 64, f"expected 64 logged entries, found {len(entries)}"
+    assert set(entries) >= {"8.1", "8.31", "8.64"}, "the first, the corpus and the newest entry"
 
 
 def test_every_cited_log_entry_exists() -> None:
@@ -169,9 +168,9 @@ def test_error_item_numbers_are_unique_and_continuous() -> None:
     )
 
 
-@pytest.mark.parametrize("letter", ["D", "E", "F", "G", "H", "I", "K", "L"])
+@pytest.mark.parametrize("letter", ["D", "E", "F", "G", "H", "I", "K", "L", "M"])
 def test_subsection_items_restart_at_one(letter: str) -> None:
-    """D–I, K and L number within their own subsection — why a citation carries the subsection.
+    """D–I, K, L and M number within their own subsection — why a citation carries the subsection.
 
     Measured 05/10/2026: the numbers 1–8 appear in seven subsections, so uniqueness holds for the
     pair (subsection, number), not for the number alone — which is what CLAUDE.md's run-log rule
@@ -203,7 +202,7 @@ def test_every_cited_error_item_exists() -> None:
 
 @pytest.mark.parametrize(
     "name",
-    ["phase-1.md", "phase-2-3.md", "phase-3a.md", "phase-4.md", "phase-4a.md", "phase-5.md"],
+    sorted(path.name for path in LOG_DIR.glob("phase-*.md")),
 )
 def test_each_log_file_says_which_numbers_it_holds(name: str) -> None:
     """A reader who lands in the file (not the index) must be able to tell what it is."""

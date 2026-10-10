@@ -18,7 +18,11 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "ssr"
-MODULE_VERSION = "0.1.0"
+# 0.2.0 (10/10/2026): the Context column changed — a trans-spliced gene's outer span no longer
+# makes everything inside it an "Intron" (§9.M-1, found by the CPStools cross-check §8.61). The
+# run cache keys on this version, not on the source (H-08), so a stale cache would otherwise keep
+# serving the wrong column.
+MODULE_VERSION = "0.2.0"
 
 _THRESHOLDS = "(1/10) (2/6) (3/5) (4/5) (5/5) (6/5)"  # MISA defaults, PROJECT.md §10.2
 _GENE_KINDS = ("CDS", "tRNA", "rRNA")
@@ -47,7 +51,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "end_1b": feature.end,
                 "length_bp": span.length,
                 "region": _plastid_region(span, ir, len(genome)),
-                "context": _gene_context(span, genome),
+                "context": _gene_context(span, genome, ir),
                 "compound": "yes" if feature.compound else "no",
             }
         )
@@ -215,18 +219,38 @@ def _plastid_region(span: Interval, ir: IRResult, genome_length: int) -> str:
     return "SSC" if span.overlaps(between) else "LSC"
 
 
-def _gene_context(span: Interval, genome: Genome) -> str:
+def _gene_context(span: Interval, genome: Genome, ir: IRResult) -> str:
+    """Gene · Intron · IGS for one span, by the rule ``core/spans.py`` already states.
+
+    A gene occupies its **exons**, never the space between them. Read by outer span instead, the
+    golden's trans-spliced ``rps12`` — exon 1 in the LSC, exons 2 and 3 in the IR, all three
+    listed on each CDS feature — is one gene covering 68,975–139,634, so every SSR in between
+    came out "Intron" whichever gene it actually sits in. Measured 10/10/2026 in the CPStools
+    cross-check (§8.61): 11 of the golden's 37 rows, and cpstools' table named the genes they sit
+    in (``ycf1`` · ``ndhA`` · the ``rpl32`` spacer).
+
+    So a gap between two parts of one gene is an intron only when **both ends sit in one region**
+    — the same rule ``introns_of`` splits introns from trans-splicing junctions by. Exon
+    containment is checked across every gene before a gap is believed, because one gene's intron
+    can carry another gene (``matK`` is annotated inside ``trnK``'s), and that inner gene's exon
+    is a "Gene", not an intron.
+    """
+    length = len(genome)
+    in_intron = False
     for gene in genome.genes:
         if gene.kind not in _GENE_KINDS:
             continue
-        low = min(part.start for part in gene.parts)
-        high = max(part.end for part in gene.parts)
-        if not (low <= span.start and span.end <= high):
-            continue
         if any(part.start <= span.start and span.end <= part.end for part in gene.parts):
             return "Gene"
-        return "Intron"
-    return "IGS"
+        parts = sorted(gene.parts, key=lambda part: part.start)
+        for first, second in zip(parts, parts[1:], strict=False):
+            if not (first.end <= span.start and span.end <= second.start):
+                continue
+            head = _plastid_region(Interval(first.end, first.end + 1), ir, length)
+            tail = _plastid_region(Interval(second.start - 1, second.start), ir, length)
+            if head == tail:
+                in_intron = True
+    return "Intron" if in_intron else "IGS"
 
 
 __all__ = ["MODULE_ID", "MODULE_VERSION", "MisaResult", "run"]

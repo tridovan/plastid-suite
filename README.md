@@ -1,8 +1,11 @@
 # PlastidToolSuite
 
+[![CI](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml)
+
 Toolkit for **plastid (chloroplast) and mitochondrial genome analysis** — academic, non-commercial.
 
-**Status: Phases 1–5 and 4a complete; no phase is open.** Twenty analysis modules run end-to-end —
+**Status: Phases 1–5, 4a, 3B and 2B complete; Phase 8 (cross-checks, scale, CI) open on
+`feat/phase-8`.** Twenty analysis modules run end-to-end —
 genome statistics, structure (LSC/SSC/IR), gene tables, codon usage, amino-acid composition,
 introns, SSR, substitutions (Ts/Tv), diversity (π), barcodes, Ka/Ks, population genetics, synteny,
 statistics, ORF checks, gene-name unification, annotation, NCBI submission, and the mitochondrial

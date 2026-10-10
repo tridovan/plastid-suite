@@ -9,33 +9,84 @@
 
 ## Resume point
 
-**Phases 1 – 5, 4a, 3B and 2B — COMPLETE and merged to `main`** (2B closed 10/10/2026: tagged
-`phase-2b`, squashed into one commit; the branch `feat/phase-2b` keeps its three task commits).
-`main` holds one commit per phase.
+**Phases 1 – 5, 4a, 3B, 2B and 8 — COMPLETE and merged to `main`** (8 closed 10/10/2026: tagged
+`phase-8`, squashed into one commit; the branch `feat/phase-8` keeps its task commits). `main`
+holds one commit per phase.
 
-**Immediate next action: Phase 8 — the cross-check against CPStools** (M8.1). It was the agreed
-reason Phase 2B came first, and it is now unblocked: the last analysis it checks, **repeats**,
-exists (§8.58). **Before the first cross-check run, one tool has to be dealt with:** **CPGview**
-is named in M8.1 and §13.8 but appears **nowhere in §7.8** — no source, no version, no survey
-entry. It is a web service (no version to pin, no argv to record, unpublished data would leave
-the machine — the §10.12 question), so the choice is to declare it properly or mark it *surveyed —
-not adopted* with the measurement that says why. The ROADMAP's coverage rule calls an unnamed
-tool a gap, not a footnote.
+**No phase is open.** The next unblocked work is **Phase 9** (packaging, licence, release): the
+toolkit is feature-complete for this round, every number it publishes has now been put beside
+another tool's (§8.60–§8.62), and CI watches every push (§8.64). What is **not** next, and why:
+Phase 7's assembly (M7.1 · M7.5 · M7.6) waits on **real reads**; the mito round (Phase 6 entirely,
+M7.3, M8.2) is **parked by scope**, not blocked.
 
-**Why Phase 8 and not Phase 6/7:** 6 and 7 still wait on data the project does not have — a
-nuclear genome (M6.1), plant mito data (M6.2 · M6.3), real Illumina/ONT reads (M7.1 · M7.5 ·
-M7.6). Nothing in Phase 2B changed that.
-
-**What Phase 2B left, for the record:** the span derivation both `introns` and `diversity` read
-now lives in `core/spans.py` (17 introns · 91 spacers on the golden, π per locus, §8.57) · the
-**repeats** module with **two independent engines agreeing** on the golden's 9 matches ≥30 bp
-(§8.58) · the two species' manuscripts re-run with π, Ts/Tv, repeats and figures, every table
-labelled *stand-in* and scoped (§8.59). Two defects the P2B-03 runs exposed are fixed and
-recorded: the comparison panel must be **one genus** (a two-genus whole-plastome alignment left
-the IR copies asymmetric — 15 % usable columns against 95 %), and `substitutions`' report was
-printing a hardcoded scope sentence over runs made in another scope.
+**What Phase 8 left, for the record.** CPGview **surveyed, not adopted** (§8.60 — the repo is a
+landing page, there is no pip/conda/CLI, and the web app's port does not answer) · the **CPStools**
+cross-check (§8.61), which found and fixed a real bug in our own `ssr` module — the `Context`
+column read a trans-spliced gene's outer span, wrong on 11 of the golden's 37 rows, now
+`tests/unit/test_ssr.py` and §9.M-1 · the **CGAS** cross-check (§8.62), which caught CGAS printing
+`LSC/SSC/IR = 0` for a record it could not read while calling it analysed, and named **H-23**: our
+`introns` module publishes CDS introns only, so the golden's **8 tRNA introns** are published by no
+module of ours · the last two scale numbers (§8.63 — `diversity` 13 min 14 s · `barcodes`
+12 min 27 s, 138 MB each, so **no module is "not measured"** any more) · **CI** (§8.64), whose
+first run found three real defects and which has been watched **red on a deliberately broken
+golden number** before going green.
 
 ## Log
+
+### 2026-10-10 · Claude · dev WSL · session 36 (Phase 8 run whole — five tasks, and the phase closed)
+
+**Did.** (1) **P8-01** CPGview: surveyed and **not adopted** (§8.60) — the repo is a README-only
+landing page, there is no pip/conda/CLI to pin, the web app's port does not answer (controlled
+against port 80 on the same host and against `portquiz.net:16085`), and the only installable form
+is a 2.87 GB container for a figure tool. (2) **P8-02** the CPStools 3.0 cross-check (§8.61),
+installed pip-only in its own env with `docs/tools/cpstools.md` in the same session: IR identical,
+SSR 37/37, RSCU counts identical codon by codon once both sides count one gene set, π identical for
+100 of 104 genes to 5 dp, Ka/Ks differences traced to small Ks denominators — and the comparison
+**found a real bug of ours**: the `ssr` module's `Context` column read a trans-spliced gene's
+*outer* span, so `rps12`'s 68,975–139,634 made 11 of the golden's 37 rows say "Intron" — including
+SSRs sitting inside `ycf1`, `ndhA` and three spacers. Fixed by the rule `core/spans.py` already
+states (both ends in one region), regression test written first (`tests/unit/test_ssr.py`), module
+0.1.0 → 0.2.0 because the run cache keys on the version, H-08. Recorded as **§9.M-1**. (3) **P8-03**
+the CGAS 1.0.1 cross-check (§8.62): structure, RSCU and CDS introns identical; SSR differs by one
+**threshold** parameter (its defaults 54 vs MISA 37; with `-t "10,6,5,5,5,5"` it prints 37 =
+27·10·0 · 31/4/2, identical). Two findings: CGAS prints `LSC/SSC/IR = 0` for `NC_024936.1` with no
+warning while still counting it "analysed" (our paths find IR 26,184 @ 100.00 % there), and CGAS
+prints **8 tRNA introns** the golden really has and **no module of ours publishes** → **H-23** on
+ROADMAP's M2.7. R is absent here, and that measured something worth keeping: CGAS modules 8/9/12/13
+compute numbers in Python and call R only for plots. (4) **P8-04** the two modules
+`docs/M8.3_scale.md` had honestly left *not measured* (§8.63): `diversity` **13 min 14 s · 138 MB**
+(π 0.040086 over 120,964 of 191,707 columns), `barcodes` **12 min 27 s · 138 MB** (859 windows, 13
+hypervariable regions, 10 candidates, 8 found) — both finished, so the old prediction was wrong in
+the useful direction: it came from a run *stopped at a cap*, and a cap is not a measurement. (5)
+**P8-05** CI (§8.64): two jobs, every tool pinned to §7.8's versions, `PTS_REQUIRE_TOOLS=1`,
+table2asn fetched and md5-checked. Its first run was red on **three real defects** — scipy 1.18
+returning `pvalue=nan` where 1.17 returns 1.0 (and `kruskal` returning nan on *both* builds) while
+the `stats` module exported that nan into its FDR table; a test hardcoding `/root/toolbox/bin/
+table2asn`, which raised `PermissionError` on the runner instead of skipping; and the micromamba
+env missing from `PATH` in a `run:` step. All fixed, then the build was deliberately broken to
+watch it fail on the golden number (`37.863555723244254 == 37.8536 ± 0.001`) and reverted. (6)
+Closed the phase: tagged `phase-8`, squashed to `main`.
+
+**Validation.** `make check` green on the phase's tree. The golden contract re-measured through
+the cross-checks: Ts/Tv 2.6917 · SSR 37 · 132 = 86 + 38 + 8, and every cross-check run recorded
+both tools' names, versions and argv. CI green on `feat/phase-8`
+(https://github.com/tridovan/plastid-suite/actions/runs/38025149827) after being red both by
+accident and on purpose.
+
+**Residual risks.** (1) **H-23** — the `introns` module publishes CDS introns only; extending it
+to tRNA introns touches `core/spans.py` and the π-per-intron column of `diversity`, so it is a
+task, not a patch. (2) **Vmatch is academic-only** and present on this machine alone (M9.3 must say
+so in the release notes), and `cpstools`/`KaKs_Calculator`/CGAS are now declared cross-check tools
+— three more licences for that same review. (3) The **tier-B CI job** installs from conda-forge
+and bioconda at run time: a channel-side change could turn it red without anything in this repo
+changing, and the job prints every pinned version so that failure is readable. (4) The species
+manuscripts still rest on **stand-in** panels — a real sample means re-running, never patching.
+
+**Blocked.** M7.1 · M7.5 · M7.6 (real reads). **Parked, not blocked:** the mito round — Phase 6
+entirely, M7.3, M8.2 (scope decision 10/10/2026).
+
+**Next.** Phase 9 (packaging, licence review, release) is the next unblocked phase; before it, the
+H-23 decision and the `docs/tools/` licence list are the two things it will want.
 
 ### 2026-10-10 · Claude · dev WSL · session 35 (Phase 2B run whole — three tasks, and the phase closed)
 
@@ -62,7 +113,7 @@ patching numbers. (4) The 11-genome two-genus comparison runs stay in `.runs/pha
 measured first; the draft's numbers come from the **genus-restricted** runs — quoting the former
 without the asymmetry finding would be quoting a measurement whose IR halves disagree by 3.4×.
 
-**Blocked.** Phase 6 and 7 (nuclear genome · plant mito data · real reads). **Next.** Phase 8.
+**Blocked.** M7.1 · M7.5 · M7.6 (real reads). **Parked, not blocked:** the mito round — Phase 6 entirely, M7.3, M8.2 (scope decision 10/10/2026; this round is plastid only). **Next.** Phase 8, board P8-01.
 
 ### 2026-10-09 · Claude · dev WSL · session 34 (Phase 2B opened: the last unblocked analysis work)
 
