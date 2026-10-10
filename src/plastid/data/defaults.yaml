@@ -51,6 +51,14 @@ synteny:
   min_cluster: 65
   filter: "-1"
 
+repeats:
+  # M2.12/D-f (10/10/2026): the floor every published match clears — repeat-match is given it
+  # as `-n`, and a match the tool returns below it is refused rather than published (the
+  # adapter checks). It is part of what the count means, so it travels into the summary and the
+  # scope label. Measured on the golden: 9 maximal exact matches at 30 bp, the 26,214 bp IR
+  # pair among them (both engines agree — §8.58).
+  min_length_bp: 30
+
 report:
   draft_banner: "*Draft — needs human review.*"
 

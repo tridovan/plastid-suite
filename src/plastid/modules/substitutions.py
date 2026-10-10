@@ -106,6 +106,11 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("substitutions", "Substitutions", dtype="int"),
             Column("ts_tv", "Ts/Tv", dtype="float", precision=4),
             Column("tool", "Aligner"),
+            # The report's prose prints this cell rather than asserting a scope of its own:
+            # measured 10/10/2026 (P2B-03), the template said "this is the whole aligned
+            # plastome" over a run made with --set scope=cds, so the document described
+            # numbers it was not showing.
+            Column("scope", "Scope (this run)"),
         ),
         rows=(
             {
@@ -117,6 +122,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 "substitutions": whole["substitutions"],
                 "ts_tv": _ratio(whole)["ts_tv"],
                 "tool": "MAFFT",
+                "scope": "the whole aligned plastome against the reference, gap columns skipped",
             },
         ),
         scope=Scope(
@@ -290,6 +296,7 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
             Column("transversions", "Transversions", dtype="int"),
             Column("ts_tv", "Ts/Tv", dtype="float", precision=4),
             Column("tool", "Aligner"),
+            Column("scope", "Scope (this run)"),
         ),
         rows=(
             {
@@ -304,6 +311,10 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
                 "transversions": totals["transversions"],
                 "ts_tv": _ratio(totals)["ts_tv"],
                 "tool": "MAFFT",
+                "scope": (
+                    "CDS only; the genes both genomes share, one copy each (IR excluded), each "
+                    "gene aligned on its own"
+                ),
             },
         ),
         scope=summary_scope,

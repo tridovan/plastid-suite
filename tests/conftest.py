@@ -78,11 +78,35 @@ def paml_tools() -> dict[str, str | None]:
 
 @pytest.fixture(scope="session")
 def mummer_tools() -> dict[str, str | None]:
-    """MUMmer 4 — from ``PATH`` or from ``PTS_MUMMER_DIR`` (the three binaries ship together,
-    and on the dev machine they live in a conda environment that is not on ``PATH``)."""
+    """MUMmer 4 — from ``PATH`` or from ``PTS_MUMMER_DIR`` (the binaries ship together, and on
+    the dev machine they live in a conda environment that is not on ``PATH``).
+
+    ``repeat-match`` is here rather than in ``tools`` for the same reason it exists at all: it is
+    the **same package** as ``nucmer`` — measured 10/10/2026, ``conda-meta`` names
+    ``mummer4-4.0.1`` for both — so one directory answers for all four, and a mixed installation
+    is what ``repeat_match_version`` refuses.
+    """
     directory = os.environ.get("PTS_MUMMER_DIR")
     extra = [Path(directory)] if directory else []
-    return {name: which(name, extra=extra) for name in ("nucmer", "delta-filter", "show-coords")}
+    return {
+        name: which(name, extra=extra)
+        for name in ("nucmer", "delta-filter", "show-coords", "repeat-match")
+    }
+
+
+@pytest.fixture(scope="session")
+def vmatch_tools() -> dict[str, str | None]:
+    """Vmatch 2.3.1 — from ``PATH`` or from ``PTS_VMATCH_DIR``.
+
+    Its own fixture, and usually absent: Vmatch is **academic-only** (PROJECT.md §7.8), so it is
+    not part of the minimum install and the module that publishes the count runs on
+    ``repeat-match`` instead. It is the *second engine* that count is checked against — the way
+    MISA and cpstools both give the golden's 37 SSRs — so the check skips with a named reason
+    where it is not installed, rather than pretending one engine is two.
+    """
+    directory = os.environ.get("PTS_VMATCH_DIR")
+    extra = [Path(directory)] if directory else []
+    return {name: which(name, extra=extra) for name in ("mkvtree", "vmatch")}
 
 
 def make_mummer_stub(directory: Path, *, delta: str, coords: str, version: str = "4.0.1") -> Path:

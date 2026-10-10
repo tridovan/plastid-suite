@@ -359,6 +359,8 @@ def _diversity_result() -> Result:
                     Column("pi", "π (whole alignment)", dtype="float", precision=6),
                     Column("window_bp", "Window", dtype="int", unit="bp"),
                     Column("step_bp", "Step", dtype="int", unit="bp"),
+                    Column("n_introns", "Introns (reference)", dtype="int"),
+                    Column("n_spacers", "Intergenic spacers (reference)", dtype="int"),
                     Column("tool", "Aligner"),
                 ),
                 rows=(
@@ -371,6 +373,8 @@ def _diversity_result() -> Result:
                         "pi": 0.004321,
                         "window_bp": 600,
                         "step_bp": 200,
+                        "n_introns": 17,
+                        "n_spacers": 91,
                         "tool": "MAFFT",
                     },
                 ),
@@ -397,6 +401,7 @@ def _substitutions_result() -> Result:
                     Column("substitutions", "Substitutions", dtype="int"),
                     Column("ts_tv", "Ts/Tv", dtype="float", precision=4),
                     Column("tool", "Aligner"),
+                    Column("scope", "Scope (this run)"),
                 ),
                 rows=(
                     {
@@ -408,6 +413,7 @@ def _substitutions_result() -> Result:
                         "substitutions": 1_234,
                         "ts_tv": 2.6917,
                         "tool": "MAFFT",
+                        "scope": "the whole aligned plastome against the reference",
                     },
                 ),
                 scope=Scope(label="whole aligned plastome", coord_system="normalized"),
@@ -752,6 +758,74 @@ def _kaks_result() -> Result:
                 ),
                 scope=Scope(label="one row per gene and genome"),
                 key="row_id",
+            ),
+        },
+    )
+
+
+def _repeats_result() -> Result:
+    return Result(
+        module="repeats",
+        module_version="0.1.0",
+        tables={
+            "repeat_summary": Table(
+                id="repeat_summary",
+                title="Exact repeat summary",
+                columns=(
+                    Column("accession", "Accession"),
+                    Column("organism", "Organism"),
+                    Column("min_length_bp", "Minimum match length", dtype="int", unit="bp"),
+                    Column("n_matches", "Matches", dtype="int"),
+                    Column("n_dispersed", "Dispersed", dtype="int"),
+                    Column("n_palindromic", "Palindromic", dtype="int"),
+                    Column("longest_bp", "Longest match", dtype="int", unit="bp"),
+                    Column("longest_regions", "Longest match regions"),
+                    Column("tool", "Tool"),
+                ),
+                rows=(
+                    {
+                        "accession": "NC_050833.1",
+                        "organism": "Iris domestica",
+                        "min_length_bp": 30,
+                        "n_matches": 9,
+                        "n_dispersed": 4,
+                        "n_palindromic": 5,
+                        "longest_bp": 26_214,
+                        "longest_regions": "IRa–IRb",
+                        "tool": "repeat-match (MUMmer 4.0.1)",
+                    },
+                ),
+                scope=Scope(label="maximal exact matches of at least 30 bp, both strands"),
+            ),
+            "repeats": Table(
+                id="repeats",
+                title="Exact repeats",
+                columns=(
+                    Column("repeat_id", "Repeat"),
+                    Column("class", "Class"),
+                    Column("length_bp", "Length", dtype="int", unit="bp"),
+                    Column("start1_1b", "Copy 1 start", dtype="int"),
+                    Column("end1_1b", "Copy 1 end", dtype="int"),
+                    Column("region1", "Copy 1 region"),
+                    Column("start2_1b", "Copy 2 start", dtype="int"),
+                    Column("end2_1b", "Copy 2 end", dtype="int"),
+                    Column("region2", "Copy 2 region"),
+                ),
+                rows=(
+                    {
+                        "repeat_id": "R01",
+                        "class": "palindromic",
+                        "length_bp": 26_214,
+                        "start1_1b": 83_128,
+                        "end1_1b": 109_341,
+                        "region1": "IRa",
+                        "start2_1b": 127_511,
+                        "end2_1b": 153_724,
+                        "region2": "IRb",
+                    },
+                ),
+                scope=Scope(label="GenBank coordinates, 1-based inclusive"),
+                key="repeat_id",
             ),
         },
     )
@@ -1621,6 +1695,7 @@ TEMPLATE_FIXTURES = {
     "barcodes": _barcodes_result,
     "kaks": _kaks_result,
     "popgen": _popgen_result,
+    "repeats": _repeats_result,
     "synteny": _synteny_result,
     "stats": _stats_result,
 }

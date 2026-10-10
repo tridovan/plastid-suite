@@ -11,6 +11,7 @@ from plastid.core.ir import detect_ir, enforce_ir_gate
 from plastid.core.model import Genome, coding_sequence, count_genes
 from plastid.core.normalize import normalize
 from plastid.core.sequence import gc_percent
+from plastid.core.spans import introns_of, spacers_of
 from plastid.modules import amino_acid, codon_usage, introns, structure
 from plastid.run.context import RunContext
 
@@ -161,6 +162,66 @@ def test_introns_cross_check_the_annotation_part_boundaries(golden_genome: Genom
     ndh_a = next(row for row in rows if row["gene"] == "ndhA")
     assert (ndh_a["start_1b"], ndh_a["end_1b"]) == (119_328, 120_382)  # from the CDS parts
     assert ndh_a["phase"] == 1
+
+
+def test_the_shared_span_derivation_reproduces_the_introns_module(golden_genome: Genome) -> None:
+    """P2B-01's cross-check: one derivation, two modules, the same 17 spans.
+
+    The spans moved to ``core/spans.py`` because ``diversity`` measures π over them; the check
+    the board asks for is that the move changed nothing — every id, coordinate and phase the
+    ``introns`` table publishes is the one the derivation produces.
+    """
+    ir = detect_ir(golden_genome)
+    derived = introns_of(golden_genome, ir)
+    result = introns.run(golden_genome, {}, _ctx(golden_genome, "introns"))
+    published = {
+        row["intron_id"]: (
+            row["gene"],
+            row["start_1b"],
+            row["end_1b"],
+            row["length_bp"],
+            row["phase"],
+        )
+        for row in result.tables["introns"].rows
+    }
+    assert {
+        span.intron_id: (span.gene, span.start + 1, span.end, span.length, span.phase)
+        for span in derived.introns
+    } == published
+    assert [span.junction_id for span in derived.junctions] == ["rps12.1.1", "rps12.2.1"]
+
+
+def test_the_golden_spacers_are_measured_not_inherited(golden_genome: Genome) -> None:
+    """P2B-01's own numbers — measured 10/10/2026, a new §8 entry, never a survey's count.
+
+    The phase's trap is the 26/9 survey's numbers measured on *other* data (§9.H). These are the
+    golden's: 91 spacers in the single-copy regions, 38 more inside the IR (excluded — its two
+    copies are one sequence annotated twice), 2 crossing a region boundary, and 4 gene pairs
+    that leave no gap at all (psbD·psbC −53, ndhK·ndhC −10, atpE·atpB −4, and rps12's two CDS
+    features, which share their LSC exon).
+    """
+    spacers = spacers_of(golden_genome, detect_ir(golden_genome))
+
+    assert len(spacers.igs) == 91
+    assert [span.region for span in spacers.igs].count("LSC") == 79
+    assert [span.region for span in spacers.igs].count("SSC") == 12
+    assert sum(span.length for span in spacers.igs) == 32_134
+    assert len(spacers.in_ir) == 38
+    assert [(gap.left, gap.right) for gap in spacers.crossing] == [
+        ("rpl22", "rps19"),
+        ("rps19", "psbA"),
+    ]
+    assert [(gap.left, gap.right, gap.length) for gap in spacers.no_spacer] == [
+        ("psbD", "psbC", -53),
+        ("ndhK", "ndhC", -10),
+        ("atpE", "atpB", -4),
+        ("rps12", "rps12", -114),
+    ]
+    # rps12's exon in the LSC is flanked by real spacers: a gene occupies its exons, not the
+    # space between them, which is what the outer span would have claimed (P2B-01)
+    assert ("rps12-clpP", 138) in {(span.igs_id, span.length) for span in spacers.igs}
+    # and matK, annotated inside trnK's intron, is flanked by two of them
+    assert [span.length for span in spacers.igs if "matK" in span.igs_id] == [260, 789]
 
 
 def test_structure_module_tiles_the_golden_genome(golden_genome: Genome) -> None:

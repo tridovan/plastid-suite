@@ -9,51 +9,81 @@
 
 ## Resume point
 
-**Phases 1 – 5 and 4a — COMPLETE and merged to `main`.** **Phase 3B is OPEN** on `feat/phase-3b` —
-the self-built plastid annotator, with the naming step (D5-09) in front of it. **The board is
-complete: P3B-01 … P3B-11 are done** (10/10/2026, §8.50–§8.56).
+**Phases 1 – 5, 4a, 3B and 2B — COMPLETE and merged to `main`** (2B closed 10/10/2026: tagged
+`phase-2b`, squashed into one commit; the branch `feat/phase-2b` keeps its three task commits).
+`main` holds one commit per phase.
 
-**Immediate next action: P3B-12 — close the phase** (the only row left, and it is mechanical):
+**Immediate next action: Phase 8 — the cross-check against CPStools** (M8.1). It was the agreed
+reason Phase 2B came first, and it is now unblocked: the last analysis it checks, **repeats**,
+exists (§8.58). **Before the first cross-check run, one tool has to be dealt with:** **CPGview**
+is named in M8.1 and §13.8 but appears **nowhere in §7.8** — no source, no version, no survey
+entry. It is a web service (no version to pin, no argv to record, unpublished data would leave
+the machine — the §10.12 question), so the choice is to declare it properly or mark it *surveyed —
+not adopted* with the measurement that says why. The ROADMAP's coverage rule calls an unnamed
+tool a gap, not a footnote.
 
-```
-git tag phase-3b feat/phase-3b        # the detail outlives the close
-git switch main
-git merge --squash feat/phase-3b
-git commit                            # one commit, the ten tasks listed, §8.50–§8.56
-```
+**Why Phase 8 and not Phase 6/7:** 6 and 7 still wait on data the project does not have — a
+nuclear genome (M6.1), plant mito data (M6.2 · M6.3), real Illumina/ONT reads (M7.1 · M7.5 ·
+M7.6). Nothing in Phase 2B changed that.
 
-The branch is **never deleted** — it holds every task commit, and `git bisect` at task granularity
-runs on it. The squash commit's message must carry **the strict reading beside the headline**:
-418 conclusion-level differences against PGA's 588, and **1070 against 699 if every 1 bp move is
-counted** (§8.55). After the merge, `main` holds phases 1–5, 4a and 3B, and the next phase opens on
-a fresh branch.
-
-**What landed in this session's second half (P3B-11, §8.56).** The two external annotators retired
-— `annotation`'s chloe · pga set, the decisions table's own default, due the moment P3B-10 passed.
-9 files / 2,406 lines deleted (`modules/annotation.py` · `external/chloe.py` · `external/pga.py` ·
-`core/gff.py` · their three test files · the Chloe GFF fixture · `docs/tools/chloe.md`), the
-registry 22 → 21 modules and the plastid group 7 → 6. **Kept on purpose:** `tests/data/corpus/*.pga.gb`
-and `tools/corpus_bar.py` — PGA's home is being the measured counter-example, and deleting them
-would blind the bar. **The order mattered:** reading the old tests first showed that P3B-10's
-clause 4 ("a search that finds nothing is a failed run") was tested **only on the mito path** while
-TASKS.md claimed "both paths" — `tests/unit/test_plastid_annotate_module.py` was written before
-anything was deleted, and the false sentence was corrected in place.
-
-**What P3B-10 left, for the record** (§8.55): the golden annotates to 132 = 86 + 38 + 8 for the
-right reason with **35** differences from the published record listed and pinned as a set; the
-corpus runs 34 leave-one-out and reads **418 against PGA's 588** — better in 30/34 records, worse
-in 4 — with the strict reading (**1070 against 699, does not pass**) and the composition (621 of
-our 652 `boundary` differences are ARAGORN's tRNA ends) stated wherever the headline appears. The
-three changes that got there: the reference's **own exon structure** placed through an alignment of
-its own DNA · the **stop codon read even when the alignment stops short** · **H-20** (a candidate
-whose protein is the *suffix* of another's is a gene annotated from an inner ATG).
-
-**Open, named, not scheduled:** **H-22** (ARAGORN's `-i` 3,000 bp cap — the change now has a
-measured Done-when) · **H-04** · **H-07** · **H-11** · **H-13** · **H-16** · **H-17** · **H-21**;
-on hold H-06 · H-12; blocked D-03 (cô Trang). The eight tRNA names ARAGORN reads differently and
-ARAGORN's tRNA ends are **measured differences, not defects** — they are classified in §8.55.
+**What Phase 2B left, for the record:** the span derivation both `introns` and `diversity` read
+now lives in `core/spans.py` (17 introns · 91 spacers on the golden, π per locus, §8.57) · the
+**repeats** module with **two independent engines agreeing** on the golden's 9 matches ≥30 bp
+(§8.58) · the two species' manuscripts re-run with π, Ts/Tv, repeats and figures, every table
+labelled *stand-in* and scoped (§8.59). Two defects the P2B-03 runs exposed are fixed and
+recorded: the comparison panel must be **one genus** (a two-genus whole-plastome alignment left
+the IR copies asymmetric — 15 % usable columns against 95 %), and `substitutions`' report was
+printing a hardcoded scope sentence over runs made in another scope.
 
 ## Log
+
+### 2026-10-10 · Claude · dev WSL · session 35 (Phase 2B run whole — three tasks, and the phase closed)
+
+**Did.** (1) **P2B-01**: the intron and IGS span derivation moved out of `modules/introns.py` into
+`core/spans.py` — DRY's second real copy, as H-07 said it would be — and `diversity` now measures π
+per intron and per intergenic spacer over exactly the spans `introns` publishes (§8.57).
+(2) **P2B-02**: the **repeats** module (M2.12, H-16), the last analysis box without one: maximal
+exact matches ≥30 bp, dispersed and palindromic, each with both copies' coordinates and plastid
+region, running on MUMmer's `repeat-match` with **Vmatch 2.3.1** as the independent second engine
+(§8.58). (3) **P2B-03**: both species' manuscript drafts re-run — now with π, Ts/Tv, repeats and
+figures (§8.59). (4) Closed the phase: tagged `phase-2b`, squashed to `main`.
+
+**Validation.** `make check` green: **833 fast tests + 84 golden** (1 skip: `table2asn` is not on
+this machine). The golden contract re-measured this session: Ts/Tv **2.6917**, SSR **37**,
+**132 = 86 + 38 + 8**. The two engines agree on the golden row for row (9 matches, same
+coordinates, same classes) — a test, not a story. The species tables reproduce the 03/10 draft's
+numbers **cell for cell** (131/133 genes, SSR 32/32, introns 16/17) and add the parts it lacked.
+
+**Residual risks.** (1) **Vmatch is academic-only** and exists on this machine only; the
+cross-check test skips with a named reason elsewhere, and M9.3's licence review has to say so in
+the release notes. (2) **CPGview is still unnamed in §7.8** — it is the first thing Phase 8 needs
+(above). (3) The two species' panels are **stand-ins**: a real sample means re-running, never
+patching numbers. (4) The 11-genome two-genus comparison runs stay in `.runs/phase2b/` as what was
+measured first; the draft's numbers come from the **genus-restricted** runs — quoting the former
+without the asymmetry finding would be quoting a measurement whose IR halves disagree by 3.4×.
+
+**Blocked.** Phase 6 and 7 (nuclear genome · plant mito data · real reads). **Next.** Phase 8.
+
+### 2026-10-09 · Claude · dev WSL · session 34 (Phase 2B opened: the last unblocked analysis work)
+
+**Did.** Closed Phase 3B (P3B-12: tagged `phase-3b`, squash-merged to `main` as one commit — the
+merge conflicted in `CLAUDE.md` with `main`'s own "one commit per phase" edit, resolved by keeping
+main's changes and taking the branch's newer annotate paragraph), then opened **Phase 2B** on
+`feat/phase-2b` with a board built by the `make-tasks` skill: three tasks (π per intron/IGS ·
+the repeats module · the manuscript draft re-run), two decisions, five pitfalls, the waiting-on
+table.
+
+**Validation.** `make check` green *on main's own tree* before the push (805 fast + 79 golden).
+The board's self-check is done by hand, as the skill asks: every task has a runnable Done-when,
+every blocker names a dataset or a person, nothing finished is left on it, 89 lines.
+
+**Residual risks.** (1) P2B-02 needs **Vmatch**, declared but not installed here — the install
+ships in the session that first uses it (§7.8), and its academic-only licence keeps it out of the
+minimum install. (2) P2B-03's output stays a **stand-in** draft until real samples arrive; a real
+sample means re-running, never patching numbers. (3) **CPGview** is named in M8.1/§13.8 with no
+§7.8 record — named here rather than silently inherited.
+
+**Blocked.** Phases 6 and 7 (nuclear genome · plant mito data · real reads). **Next.** P2B-01.
 
 ### 2026-10-09 · Claude · dev WSL · session 33 (P3B-10 done — the bar is met; and P3B-11, the two annotators retire)
 

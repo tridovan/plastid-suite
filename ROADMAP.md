@@ -40,7 +40,8 @@
   never overwritten in place.
 - Genome normalization (origin/strand → LSC start, 4 regions split) happens once in Phase 1 and is
   reused everywhere after.
-- Runs on: **ordinary machines** = phases 1–5, 8 · **remote server** = phase 6 (divergence time).
+- Runs on: **ordinary machines** = phases 1–6, 8. *(Earlier: "remote server = phase 6 (divergence
+  time)" — divergence time left the plan 10/10/2026; see Phase 6's note.)*
   Assembly (phase 7) runs **locally when the user's machine has the RAM**, otherwise the Galaxy
   remote path — confirmed 08/10/2026; data-sharing policy for unpublished reads: **open**
   (PROJECT.md §10.12).
@@ -135,7 +136,7 @@ exists for; check it whenever the diagram changes):
 | 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **blocked — no ONT/HiFi reads**; declared · run in the survey (§7.1) |
 | 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | **done 10/10/2026** — P3B-07 … P3B-10, §8.46–§8.55; close = P3B-11 · P3B-12 |
 | 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | **done** — P3B-05, §8.45 |
-| [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | done, except **M2.12** (open) and M2.9 · M2.10 `[~]` |
+| [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | **done** — M2.9 · M2.10 · M2.12 closed in Phase 2B (§8.57–§8.59) |
 | [5] RNA editing (a reference of its own) | M4.5 | **blocked — needs RNA-seq** |
 | [6] Submission (`table2asn` · Excel · Supplementary) | M3.4 · M5.3 | done — except the team's `.sbt`, a TASKS.md waiting row |
 
@@ -218,6 +219,8 @@ tells you which file belongs to which job.
   an 8 GB machine leaves only 1.5–2.5 GB free per job. Recorded in PROJECT.md §3.
   *(Updated 08/10/2026: assembly runs locally when the user's machine has the RAM — the Galaxy
   remote path is for machines that do not. Divergence time stays remote.)*
+  *(Updated 10/10/2026: **there is no divergence-time remote path to keep** — M6.5 was deleted from
+  the plan; the toolkit runs on ordinary machines, and nothing in it needs a server.)*
 - [x] **M1.13 Hardening + API freeze v0.1** (2026-10-02) — README quickstart · `environment.yml` ·
   `docker/Dockerfile` skeleton · `docs/API_v0.1.md` (module contract, Result schema, coordinates,
   manifest keys, exit codes). *The environment checks in this milestone's Done-when — `make check` on
@@ -244,23 +247,43 @@ LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools 
       and every table says which scope it is
 - [x] **M2.7 Introns** — count · length · position
 - [x] **M2.8 SSR** — by region and motif
-- [~] **M2.9 Nucleotide diversity π** — **real-data run done 03/10** (§8.25): π 0.007181 whole,
+- [x] **M2.9 Nucleotide diversity π** — **[ĐÓNG 10/10/2026 — P2B-01, §8.57: phần còn thiếu (π theo intron/IGS) nay có, trên chính các span `core/spans.py` mà `introns` công bố; bản vàng: 17 intron · 91 IGS, π 0,004138–0,082353 theo IGS]** — **real-data run done 03/10** (§8.25): π 0.007181 whole,
       LSC 0.009185 · IRa 0.001682 · IRb 0.001681 · SSC 0.014066, per gene and 600/200 sliding
-      window. **Still missing: per intron/IGS** — those spans need the intron derivation extracted
-      from `modules/introns.py` into the shared layer first (DRY: it would be its second copy), so
-      it is named rather than half-built here (H-07)
-- [~] **M2.10 Manuscript deliverable** — tables + draft Results produced for both species from the
+      window. **Per intron/IGS closed by P2B-01 (§8.57)** — the derivation moved to
+      `core/spans.py` first, as H-07 said it would have to (DRY's second real copy)
+- [x] **M2.10 Manuscript deliverable** — **[ĐÓNG 10/10/2026 — P2B-03, §8.59: bản nháp chạy lại cho cả hai loài, nay có π · Ts/Tv · repeats và hình; nhãn *stand-in* + scope in trong từng bảng]** — tables + draft Results produced for both species from the
   public stand-in set (labelled); **the draft predates the π/Ts/Tv sections** (MAFFT has been
   present since 03/10, §8.25 — the draft simply has not been re-run with them) and figures; real
-  samples outstanding
+  samples outstanding. **[ĐÃ THAY 10/10/2026 — the split, spelled out because the milestone's name
+  hides it: our half is the **run** — every table and figure, produced and labelled. The prose, the
+  claims and what goes in the manuscript are **cô Trang's** (CLAUDE.md → who decides); the draft in
+  `docs/P2-10_manuscript_draft.md` is a draft for her to own.]**
 - [x] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
   (moved here from M1.11, whose loader shipped in Phase 1: `core/samples.py`)
 
-- [ ] **M2.12 Repeats (dispersed + palindromic)** — `repeat-match` + Vmatch on the golden fixture;
+- [x] **M2.12 Repeats (dispersed + palindromic)** — **[ĐÓNG 10/10/2026 — P2B-02, §8.58: bản vàng **9** match ≥30 bp (4 dispersed · 5 palindromic), cặp IR 26.214 bp trong đó, **hai engine độc lập trùng nhau từng dòng**]** — `repeat-match` + Vmatch on the golden fixture;
       the module reports every match ≥30 bp with its coordinates and region, the IR pair included;
       the count is **measured, not inherited** — the 26/9 survey's "9 matches" was measured on other
       data (§9.H's trap). *In scope since §1 and §7.1 and named in the canonical diagram (§13.0,
       `repeat (vmatch)`); it had no milestone until 07/10/2026.*
+
+## Phase 2B — The plastome analysis set, completed  *(slot decided 10/10/2026: the next **unblocked** work after 3B; it serves M2.9 · M2.10 · M2.12, whose milestones stay in Phase 2's own list)*
+
+**Goal:** the last three unblocked analysis outputs, so that every analysis the toolkit promises
+exists before it is cross-checked — π per intron/IGS (M2.9's remainder, **H-07**), the **repeats**
+module (M2.12), and the two species' manuscript draft re-run (M2.10).
+
+**Why here, and not Phase 8:** Phase 6 and 7 wait on data the project does not have yet (a nuclear
+genome for M6.1 · real reads for M7.1/M7.5), and Phase 8's M8.1 is a cross-check against
+CPStools' IR/π/RSCU/SSR/KaKs set — which cannot be honest while one of those analyses, **repeats**,
+does not exist. The two species manuscripts are the nearest deliverable, and these are their
+remaining tables.
+
+**In-phase checks:** the repeats count on the golden is a **new §8 entry** — measured, never the
+26/9 survey's "9 matches" (§9.H's trap) — with the IR pair among its matches · π per intron and per
+IGS over the spans the shared layer derives, the **17 introns** `introns` reports as the
+cross-check, the IR excluded and the scope labelled · the draft carries its π and Ts/Tv sections
+and its figures, every table labelled *stand-in* and scoped.
 
 ## Phase 3 — Annotation  *(§13.3)*
 
@@ -313,7 +336,7 @@ with the eight it could not call reported and measured (§8.24).
 - [x] **M3A.6 Golden check** (2026-10-03) — 31 · 17 · 3 against the published record, differences itemized
 - [x] **M3A.7 AP045469.1** (2026-10-03) — the unannotated sample: run it, report it, pin it
 
-## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; **board open 07/10/2026** — `TASKS.md` P3B-01…P3B-10, branch `feat/phase-3b`)*
+## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; **board open 07/10/2026**, **closed 10/10/2026** — tagged `phase-3b`, merged to `main` as one commit; the boards P3B-01…P3B-12 live in git and in §8.40–§8.56)*
 
 **Goal:** the annotate step of the pipeline (assembly → annotate → analyses, with gene names
 unified **on the reference set before** annotation and verified after it — D5-09) as this
@@ -464,9 +487,17 @@ Done-when measured: the figures (§8.36–§8.37), the statistics (§8.38), the 
 queryable-number audit (§8.35). Three layout defects were found by *looking at* the rendered
 figures rather than by a test — the lesson of §9.C-34, paid three times in one phase.
 
-## Phase 6 — Tool-paper content  *(§13.6 — published/GenBank data; assembly-dependent parts move to P7)*
+## Phase 6 — The analyses the tool paper is built on  *(§13.6 — published/GenBank data; assembly-dependent parts move to P7)*
 
-**Goal:** the scientific content of the Eleutherine bulbosa tool paper.
+**[ĐÃ THAY 10/10/2026 — the label, not the work: this phase was called "Tool-paper content", which
+reads as the dev writing a paper. It is not that. Every milestone below is a **module** — an
+analysis this toolkit must be able to run — and *"what to analyse · scope of a scientific claim ·
+what goes in a manuscript"* is **cô Trang's** by CLAUDE.md's own decision table. The paper is hers;
+the code that produces its figures and tables is ours.]**
+
+**Goal:** the five analyses the Eleutherine bulbosa tool paper rests on — built, measured against
+published benchmarks, and reported by the toolkit. **The paper itself — what it claims, what goes
+in it, in what order — is the PI's.**
 **In-phase checks:** mito-structure parts have published benchmarks to compare against
 (*Damnacanthus indicus* · *Salvia* 2022–2025 · *Hemiboea* · *Coffea arabica* 2023).
 NUPT/MTPT has **no published benchmark** — its only check is the Oldenlandia/Coleus comparison in Phase 8.
@@ -474,8 +505,13 @@ NUPT/MTPT has **no published benchmark** — its only check is the Oldenlandia/C
 - [ ] **M6.1 NUPT/MTPT** (nuclear ↔ plastid ↔ mito transfer) — **BLOCKED: needs nuclear genome**
 - [ ] **M6.2 Mito polymorphic structure + recombination via repeats** (Chimeric ORF/CMS)
 - [ ] **M6.3 Parallel plastid–mito comparison** within species
-- [ ] **M6.4 Ancestral state reconstruction**
-- [ ] **M6.5 Divergence time estimation** (mcmctree / BEAST2) — remote server
+
+**[ĐÃ THAY 10/10/2026 — dev's call: M6.4 (ancestral state reconstruction) and M6.5 (divergence
+time) are **deleted from this plan**.]** They are not toolkit modules: each needs a tree, fossil
+calibrations and a scientific question — not a genome — so they are analyses the PI runs for a
+paper, with her own tools. `mcmctree`/`BEAST2` are recorded in §7 as *surveyed, not adopted*.
+**The toolkit builds code; what to analyse, and what a paper claims, is cô Trang's** (CLAUDE.md →
+who decides). The three milestones left are modules and stay.
 
 ## Phase 7 — Assembly  *(§13.7 — after analysis, by decision 01/10)*
 
@@ -522,7 +558,10 @@ across 3 environments (WSL · CI · Docker).
   macOS experimental, unverified)
 - [ ] **M9.5 "Things we don't do" statement** — no native Windows; no assembly below RAM threshold;
   no RNA-editing prediction without RNA-seq data
-- [ ] **M9.6 Short how-to video · tool manuscript · DOI (Zenodo) + CITATION.cff**
+- [ ] **M9.6 Release artifacts** — short how-to video · **DOI (Zenodo) + CITATION.cff**.
+  **[ĐÃ THAY 10/10/2026: "tool manuscript" was listed here, in a phase of our own — writing the
+  paper is the PI's (CLAUDE.md → who decides), not a release step. What this phase owes it is the
+  artifacts a paper needs from a tool: the figures, the tables and the citable DOI.]**
 - [ ] **M9.7 Web UI** — deferred until the core is stable
 
 ---

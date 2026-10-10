@@ -33,10 +33,11 @@ dependencies:
                  # PGA's "BLAST+ 2.8.1 or newer".
 
   # --- Phase 4+: comparison, figures, dating ---------------------------------------------
-  - mummer4=4.0.1 # nucmer + delta-filter + show-coords, the synteny pipeline (P4-01, D4-02).
-                 # §7.8 recorded no version; this is the build the block numbers were measured
-                 # with (docs/tools/mummer4.md). The block count moves with the parameters, and
-                 # the alignment can move with the build — not pinned means not reproducible
+  - mummer4=4.0.1 # nucmer + delta-filter + show-coords, the synteny pipeline (P4-01, D4-02),
+                 # and repeat-match, the repeats module's engine (M2.12, D-f). §7.8 recorded no
+                 # version; this is the build the block numbers were measured with
+                 # (docs/tools/mummer4.md). The block count moves with the parameters, and the
+                 # alignment can move with the build — not pinned means not reproducible
   - mreps # §7.8 records no version
   - trf # §7.8 records no version
   - vmatch=2.3.1 # academic-only licence (§7.8)

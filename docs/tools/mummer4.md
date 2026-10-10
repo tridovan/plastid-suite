@@ -55,6 +55,29 @@ show-coords -rcl out.filter.delta
 * `show-coords -rcl` — sorted by reference, with coverage and sequence lengths. `-rcl` is the
   exact flag set §7 recorded.
 
+**`repeat-match` — the same package, measured 10/10/2026.** The repeats module (M2.12, D-f) runs
+`repeat-match`, and PROJECT.md §7.8's own line said it "belongs to MUMmer3" (the SourceForge
+tarball) — the binary is in fact **this package's**: `conda-meta` names `mummer4-4.0.1`, and it
+sits beside `nucmer`. It is so recorded rather than assumed because the count is a number a
+manuscript prints. Two consequences the adapter carries:
+
+* **`repeat-match` has no version flag.** `--version` is an invalid option. Its release is read
+  from the sibling `mummer`, and a directory where the two disagree with the pin is refused —
+  there is no way to tell two builds apart from the program itself.
+* **Its coordinates are 1-based, and the `r` suffix sits on the reverse copy's start *in the
+  reverse-complement frame*** — not on the forward coordinate a table wants. The golden's IR pair
+  is the check: `83128 153724r 26214` is `[83127, 109341)` and `[127510, 153724)`, i.e. IRa and
+  IRb. Read as a forward start it would give two plausible-looking intervals in the wrong places.
+
+The invocation, on the genome's own sequence:
+
+```
+repeat-match -n <floor> <genome.fa>
+```
+
+`-f` (forward only) and `-t` (tandem only) are deliberately **not** used: the module publishes
+both strands' maximal exact matches, which is what the class names say.
+
 **A version mismatch is refused, not noted** (`nucmer_version`): the three binaries are also
 checked to come from one directory, because a mixed installation would be a silent inconsistency
 nobody could name afterwards.
