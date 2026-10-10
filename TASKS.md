@@ -50,15 +50,12 @@ and any published artifact.
     `tests/unit/test_licensing.py::test_shipped_third_party_code_states_a_licence` is **red on
     today's tree** (MISA) and green after the decision — `make check` green.
 
-- [ ] **P9-02 · Package metadata + a clean-venv install** *(M9.2, pip half)*
-  - Version → the release number (D-r) · `license` · classifiers · project URLs · keywords.
-  - `uv build` produces sdist + wheel; **check what each one actually carries** (the sdist must
-    either carry what `make golden` needs or say plainly that it does not).
-  - Install the built wheel into a **fresh venv** — not the dev's `uv` env, which has been warm
-    since Phase 1 — and run a real analysis from the installed console script.
-  - **Done when:** in a fresh venv, `pip install dist/plastid_suite-<version>-py3-none-any.whl`
-    followed by `plastid run --module genome_stats --input tests/data/NC_050833.1.gb --out .runs
-    --dataset iris` prints **153,724 bp · 37.85 % · 132 = 86 CDS + 38 tRNA + 8 rRNA**, exit 0.
+- [x] **P9-02 · Package metadata + a clean-venv install** *(M9.2, pip half)* — **DONE 11/10/2026
+      (§8.75)**: version **1.0.0** (D-r) + classifiers/keywords/urls (no Windows classifier —
+      it does not run natively there); `uv build` → wheel 145 files, sdist 279; installed into a
+      **fresh venv** (`uv venv --seed`: this machine's `python3 -m venv` has no `ensurepip`) and
+      run from the installed console script — **153,724 bp · 37.85 % · 132 = 86 + 38 + 8**,
+      exit 0, on a minimum install of biopython + numpy + PyYAML.
 
 - [ ] **P9-03 · The Docker image, and the three-environment check** *(M9.2, Docker half + the
       phase's in-phase check)*

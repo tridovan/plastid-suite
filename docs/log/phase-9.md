@@ -77,3 +77,34 @@ còn mã MIT của mình. **Việc còn mở, có tên**: xin IPK (tác giả MI
 có thì được đóng gói lại; chưa có thì giữ nguyên như trên. Image Docker (M9.2) lấy MISA lúc build
 với md5 đã ghi, nên bản image **người dùng tự build** là bản của chính họ; **phát hành image dựng
 sẵn có MISA thì lại là phát tán** và cần đúng văn bản ấy.
+
+---
+
+### 8.75. Gói phát hành: metadata, và **cài từ wheel vào venv sạch** (P9-02, M9.2)
+
+**Việc.** Dựng artifact thật rồi **cài nó ở một chỗ không có gì của dev** — `uv` env của máy này đã
+ấm từ Pha 1, nên một lần chạy trong đó không chứng minh được gì về người dùng.
+
+**Đo được (11/10/2026).**
+
+| | |
+|---|---|
+| `uv build` | `plastid_suite-1.0.0-py3-none-any.whl` **455.720 B** · `plastid_suite-1.0.0.tar.gz` **1.917.958 B** |
+| Wheel | **145 file** — không có `vendor/`, có `dist-info/licenses/LICENSE`, METADATA: `License-Expression: MIT` · `License-File: LICENSE` |
+| Sdist | **279 file**, mang theo `tests/` và `tests/data` (15 file) |
+| Cài wheel vào venv sạch | `python3 -m venv` → **`pip` không có** (Debian thiếu `python3-venv`/`ensurepip`); dùng `uv venv --python 3.12 --seed` ⇒ **cài được, và đúng là pip cài** |
+| Phụ thuộc thật của bản cài tối thiểu | `plastid-suite 1.0.0` + **biopython 1.88 · numpy 2.5.3 · PyYAML 6.0.3** — không extra nào |
+| `plastid --version` (từ venv sạch) | **`plastid 1.0.0`** |
+| **Số vàng từ gói đã cài**, `plastid run -m genome_stats` trên `NC_050833.1.gb` | **153.724 bp · 37,85 % · 132 = 86 CDS + 38 tRNA + 8 rRNA** · IR 26.214 bp @ **100,00 %** · LSC 83.127 · SSC 18.169 — exit 0 |
+| Sdist cài được | `plastid 1.0.0` (dựng từ nguồn, cần hatchling — pip tự lấy) |
+
+**Phiên bản: 1.0.0** (D-r). Metadata nay khai đủ: classifiers · keywords · `[project.urls]`. **Cố ý
+KHÔNG có `Operating System :: Microsoft :: Windows`** — bộ công cụ không chạy native trên Windows,
+đường Windows là Docker; một classifier khai điều ngược lại đúng là kiểu câu nghe hợp lý mà sai mà
+dự án này sinh ra để tránh.
+
+**Cái sdist mang, và cái nó không mang** (nói thẳng, vì "cài từ nguồn rồi chạy `make golden`" là
+kỳ vọng dễ có): nó mang `tests/` + `tests/data`, nhưng **không** mang `.panel/` — các panel đã pin
+nằm ngoài git theo thiết kế (`.gitignore`). Nên **nửa corpus của `make golden` chỉ chạy được trong
+một checkout có panel**, còn người cài từ wheel thì chạy *phân tích*, không chạy bộ kiểm tra vàng.
+Ghi ở README (P9-04) để không ai đoán.

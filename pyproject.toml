@@ -4,9 +4,25 @@ build-backend = "hatchling.build"
 
 [project]
 name = "plastid-suite"
-version = "0.1.0"
+version = "1.0.0"
 description = "Toolkit for plastid and mitochondrial genome analysis (academic, non-commercial)"
 readme = "README.md"
+keywords = ["plastome", "chloroplast", "mitochondrial genome", "bioinformatics", "genomics"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+# No `Operating System :: Microsoft :: Windows`: the toolkit does not run natively there, and the
+# Windows route is Docker (docs/things_we_do_not_do.md) — a classifier claiming it would be the
+# kind of plausible-looking untruth this project exists to avoid.
 requires-python = ">=3.10"
 authors = [{ name = "PlastidToolSuite contributors" }]
 # Decided in Phase 9 (D-p, 11/10/2026): MIT — the toolkit's own code, permissively licensed so a
@@ -21,6 +37,11 @@ dependencies = [
 
 [project.scripts]
 plastid = "plastid.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/tridovan/plastid-suite"
+Repository = "https://github.com/tridovan/plastid-suite"
+Issues = "https://github.com/tridovan/plastid-suite/issues"
 
 [project.optional-dependencies]
 docx = [
