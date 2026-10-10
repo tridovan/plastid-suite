@@ -45,6 +45,8 @@ from plastid.core.gene_names import (
     Locus,
     NamingConflictError,
     Neighbours,
+    RecordedReference,
+    checkout_root,
     decide_gene,
     duplicate_names,
     load_gene_aliases,
@@ -53,7 +55,6 @@ from plastid.core.gene_names import (
     nucleotide_identity,
     oriented_aliases,
     protein_fasta_rows,
-    repo_root,
     vocabulary_of,
 )
 from plastid.core.ir import detect_ir, enforce_ir_gate
@@ -569,7 +570,9 @@ def test_the_recorded_reference_is_what_the_audit_and_the_flip_agree_about() -> 
     import hashlib
 
     recorded = load_recorded_reference()
-    path = recorded.resolve(root=repo_root())
+    root = checkout_root()
+    assert root is not None, "this test runs from a checkout, so a root must be found"
+    path = recorded.resolve(root=root)
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
 
     assert digest == recorded.sha256
@@ -752,3 +755,40 @@ def test_a_reference_that_cannot_be_used_is_refused_by_its_audit(tmp_path: Path)
 
     assert code == EXIT_ERROR
     assert not (tmp_path / "runs").exists()  # nothing was written at all
+
+
+# --- The release's Docker check found these (11/10/2026, §8.76) --------------------------------
+#
+# `gene_normalize` could not run from an **installed** package: resolving the recorded naming
+# reference went through `repo_root()`, which walks up looking for `pyproject.toml` — and a wheel
+# in `site-packages` has none above it, so the run died with "no pyproject.toml above
+# …/site-packages/plastid/core/gene_names.py". WSL and CI both run from a checkout, so no test
+# here could see it; the container could. Both halves are now permanent checks.
+
+
+def test_checkout_root_is_none_outside_a_checkout(tmp_path: Path) -> None:
+    """No checkout above the module is an answer, not a failure — the installed-package case."""
+    assert checkout_root(tmp_path) is None
+
+
+def test_the_recorded_reference_resolves_without_a_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without a checkout root the recorded path is taken as it comes — absolute or from the cwd."""
+    from plastid.cli import _resolve_recorded_reference
+
+    reference = tmp_path / "reference.gb"
+    reference.write_text("LOCUS       synthetic\n", encoding="utf-8")
+    recorded = RecordedReference(
+        path=reference.name,  # as recorded: relative, and not to any checkout
+        accession="synthetic",
+        sha256="0" * 64,
+        provisional=True,
+        recorded="2026-10-11",
+        recorded_by="the dev",
+        why="a regression test for the installed-package path",
+    )
+    monkeypatch.setattr("plastid.cli.checkout_root", lambda *args, **kwargs: None)
+    monkeypatch.chdir(tmp_path)
+
+    assert _resolve_recorded_reference(recorded) == reference

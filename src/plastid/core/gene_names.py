@@ -71,7 +71,7 @@ __all__ = [
     "NamingConflictError",
     "RecordedReference",
     "load_recorded_reference",
-    "repo_root",
+    "checkout_root",
     "GenomeNames",
     "Locus",
     "NormalizedName",
@@ -1077,22 +1077,36 @@ class RecordedReference:
         if not candidate.is_file():
             raise FileNotFoundError(
                 f"the recorded naming reference is not at {candidate} — the standard this "
-                f"project prints is a file that has to be there (D5-09 §7.2)"
+                f"project prints is a file that has to be there (D5-09 §7.2). If you installed "
+                f"the toolkit rather than cloning it, that file is yours to choose: pass it with "
+                f"--set naming_reference=<file>"
             )
-        return candidate
+        # Absolute, always: this path is written into the run's manifest and reference record, and
+        # a run has to be readable from anywhere afterwards. Measured 11/10/2026 — the first
+        # version of the no-checkout branch returned the path exactly as recorded, which the
+        # regression test caught: a relative path that only resolves from the directory the run
+        # happened to start in.
+        return candidate.resolve()
 
 
-def repo_root(start: Path | None = None) -> Path:
-    """The checkout's root — the directory holding ``pyproject.toml``, found by walking up.
+def checkout_root(start: Path | None = None) -> Path | None:
+    """The checkout's root — the directory holding ``pyproject.toml`` — or ``None``.
 
-    Used only to resolve a *recorded* path (the reference lives with the project's pinned test
-    data). Walking up rather than counting ``..`` keeps it true when a loader moves.
+    Used to resolve a *recorded* path (the reference lives with the project's pinned test data),
+    so a run started in any subdirectory still finds it. Walking up rather than counting ``..``
+    keeps it true when a loader moves.
+
+    **``None`` is a normal answer, not a failure** — and it was the failure until 11/10/2026: this
+    used to raise, and an **installed** package lives in ``site-packages`` with no
+    ``pyproject.toml`` anywhere above it, so ``gene_normalize`` could not run from the wheel at all
+    ("no pyproject.toml above …/site-packages/plastid/core/gene_names.py"). Found by the release's
+    Docker check — WSL and CI both run from a checkout and could never have seen it (§8.76).
     """
     here = (start or Path(__file__)).resolve()
     for candidate in (here, *here.parents):
         if (candidate / "pyproject.toml").is_file():
             return candidate
-    raise FileNotFoundError(f"no pyproject.toml above {here} — cannot locate the repository root")
+    return None
 
 
 def load_recorded_reference(path: str | Path | None = None) -> RecordedReference:
