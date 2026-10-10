@@ -9,6 +9,14 @@
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**
 > How this file is produced: the `make-tasks` skill (`.claude/skills/make-tasks/SKILL.md`).
 
+> **START HERE next session → P8B-08 (Ka/Ks vs Table S7).** It is now the *tightest*
+> comparison in the phase: the design is settled (*C. kansuensis* as the reference), that
+> record is in the corpus, and the paper prints three of its own values (rpoC2 **2.11** ·
+> **1.83** · **1.83**) to check ours against. Then **P8B-05** (RSCU) → **P8B-06** (π hotspot
+> + the 50 barcode records) → **P8B-07** (annotation vs GeSeq — the biggest) → **P8B-04**'s
+> remaining 35 sections, which waits on anh Điềm. Read "What the paper states" below before
+> asking him anything.
+
 ## Phase 8B — The Crataegus answer-key corpus (M8B.1 · … · M8B.8)
 
 **Goal:** every number this toolkit publishes for a plastome has now been checked against another
@@ -107,6 +115,21 @@ as third-party published data · the corpus's provenance recorded **in the repo*
   **Done when:** every defect found by the corpus is either fixed with a regression test or named
   as open on this board with its evidence.
 
+## What the paper states — read 10/10/2026, so nobody opens the PDF again for these
+
+anh Điềm's answer to the six asks was "read the paper", and he was right: four of the six are
+answered there, just never where a Methods section would put them. **Read this table before asking
+him anything again.**
+
+| Ask | Where it is | What it says |
+|---|---|---|
+| **Ka/Ks design** | **Results**, *not* Methods | every species is compared **relative to *C. kansuensis*** — and `MF784433` *C. kansuensis* **is in the drop**. The text prints rpoC2 at **2.11** (*C. monogyna*), **1.83** (*C. laevigata*), **1.83** (*C. songarica*), and S7 carries **2.10854 · 1.82925 · 1.82925** — same computation, so the design is settled **and checkable** |
+| **π** | Methods + Results | window **600 / step 200** (our `diversity` default); the values live in Figure 6 only, **but the text names its three most diverse regions**: `ndhC~trnV-UAC` · `psbZ~trnG-UCC` · `trnR-UCU~atpA` ⇒ the **ranking** is comparable without their numbers |
+| **IRscope junctions** | Figure 3 only | the numeric junction comparison goes through **Table 1's region sizes** instead — already done (§8.67) |
+| **MISA thresholds** | Methods | **stated**: (10,5,4,3,3,3) with compound 100 — *and their own Table S6 disagrees with them* (defaults reproduce 57/57 rows, their stated thresholds 55/57). An **inconsistency, not a gap** — D-l covers how to report it |
+| **51st barcode sample** | Data availability statement | covers `PX676094–PX676143` = **50 records** — *C. scabrifolia* was never deposited ⇒ the barcode half compares **50 of 51**, and that is the whole of what is available |
+| **raw reads** | not deposited | anh Điềm's answer: they need the assembly step. **Phase 7's blocker is unchanged by this corpus** |
+
 ## Decisions to make
 
 The recommendation is the default unless the dev says otherwise (CLAUDE.md → who decides).
@@ -117,6 +140,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | D-l | How to compare when their Methods and their tables disagree | **Report both settings, and say which one reproduces their table.** Measured: their SSR table follows MISA's defaults, not the thresholds their Methods state — matching the *stated* parameters would look like disagreement with a table that is actually reproducible | §8 entry for P8B-04 |
 | D-m | Where the corpus lives | **`.data/` (gitignored) + a provenance note in the repo** (accessions · retrieval date · DOI · manifest sha256). The paper is CC-BY but 22 MB of third-party PDF belongs in the note, not in git — the same shape as `docs/tools/*.md` for tools | README of the drop · `docs/` |
 | D-n | Whether the toolkit should be able to run their *stated* SSR parameters | **Yes, but as a parameter, not a code change**: `ssr` pins MISA's defaults today. A `--set` for thresholds is a module change that must keep §6's golden at 37 — decide it when P8B-04 shows how many of the 49 sections need it | §3 · P8B-04 |
+| D-o | How to use the paper's tables when their design is not stated | **Run ours first with every parameter printed and justified; use their table as an answer key to *infer* a design (labelled as inference); never tune a parameter until a table matches** — a setting chosen because it makes a number agree is *fitting, not reproduction*, and the entry must say which one it is. anh Điềm's own suggestion ("chạy output thô ra rồi so") with these two guards | §8 entries · this board |
 
 ## Pitfalls — this phase's own traps
 

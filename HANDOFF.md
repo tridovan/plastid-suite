@@ -89,8 +89,23 @@ published half and **omits clusters** in the new half. That half-way state is th
 answered (compare at defaults — they reproduce 57/57 against 55/57 for the thresholds their own
 Methods state), and the remaining question is which run produced each section of S6.
 
-**Next.** P8B-05 (RSCU vs Table S5) and P8B-06 (π, hotspots, the 50 barcode records) are unblocked;
-P8B-07 (annotation vs GeSeq) is the biggest one; P8B-04's second half and P8B-08 wait on anh Điềm.
+**START HERE next session → `TASKS.md` → P8B-08 (Ka/Ks vs Table S7).** The design is settled and
+that is new: the paper states it in its **Results**, not its Methods — every species is compared
+**relative to *C. kansuensis***, whose record (`MF784433`) is in the corpus, and the paper prints
+three of its own values to check ours against (rpoC2 **2.11** in *C. monogyna*, **1.83** in
+*C. laevigata*, **1.83** in *C. songarica*; S7 carries 2.10854 · 1.82925 · 1.82925). It is the
+tightest comparison in the phase, so it goes first. Then **P8B-05** (RSCU) → **P8B-06** (π hotspot —
+the paper names its three most diverse regions — plus the 50 barcode records) → **P8B-07**
+(annotation vs GeSeq, the biggest) → **P8B-04**'s remaining 35 sections, which waits on anh Điềm.
+
+**The rule for every comparison in this phase is on the board as D-o**, and it came from anh Điềm
+himself: run our own output first and print every parameter with its reason; use their table as an
+answer key to **infer** a design they did not state, labelled as inference; **never tune a parameter
+until a table matches** — that is fitting, not reproduction, and the entry must say which one it is.
+`TASKS.md` also carries a "What the paper states" table, so nobody opens the PDF again for the six
+asks: four are answered there, and only the **51st barcode sample** (never deposited — the data
+availability statement covers PX676094–PX676143, 50 records) and the **raw reads** are genuinely
+absent.
 
 ### 2026-10-10 · Claude · dev WSL · session 36 (Phase 8 run whole — five tasks, and the phase closed)
 
