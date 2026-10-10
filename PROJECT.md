@@ -615,6 +615,22 @@ thêm **một dòng** vào bảng dưới. Luật ở `CLAUDE.md` → "The run l
     **hiệu tập hợp trước/sau**, không qua `sorted()`. Luật kèm theo: một thư mục run chỉ được
     nhận diện bằng chính nó, không bằng vị trí của nó trong danh sách.
 
+38. **Mới 10/10/2026 — `export_xlsx` hứa "byte-identical" nhưng để lọt MỘT dấu thời gian: mọi lần
+    xuất cách nhau một giây là khác nhau.** Docstring của `result/xlsx_export.py` viết "created và
+    modified **đều được ghim**", và mã ghim thật (`workbook.properties.modified = _EPOCH`) — nhưng
+    `openpyxl` ghi đè **sau** đó: `ExcelWriter.write_workbook` (openpyxl/writer/excel.py:292) gán
+    `workbook.properties.modified = datetime.datetime.now(tz=utc).replace(tzinfo=None)` ngay trong
+    `save()`. Đo được: xuất 300 lần cùng một `Result`, **3 lần khác byte** — chỗ khác là
+    `<dcterms:modified>…T07:48:20Z` so với `…T07:48:21Z`; và chính test
+    `test_the_workbook_holds_one_sheet_per_table_and_is_byte_identical` đã **đỏ một lần trong một
+    lần chạy `make check` đầy đủ** (rồi xanh khi chạy riêng — đúng dạng flaky mà một lần chạy lẻ
+    không bắt được). Sửa: ghim ở **entry đã ghi** chứ không ở workbook — `docProps/core.xml` được
+    viết lại sau `save()`, và `_pin_modified` **ném lỗi** nếu không tìm thấy đúng một dấu (openpyxl
+    đổi hình dạng XML thì phải dừng, không được lặng lẽ trả lại một file phụ thuộc đồng hồ). Test
+    mới `test_the_workbook_pins_both_timestamps` viết **trước** khi sửa và phát biểu hợp đồng trực
+    tiếp thay vì trông vào cuộc đua; đo lại sau khi sửa: **0/300**. Cùng họ với §9.C-37: một giả
+    định về đồng hồ nằm trong thứ đáng lẽ không được phụ thuộc đồng hồ.
+
 ### D. Chuyển chú giải mito bằng BLAST (P3A-03)
 
 1. **`sseqid` bị cắt tại khoảng trắng** ⇒ một khoá chủ thể dựng từ bốn field sẽ **không bao giờ**

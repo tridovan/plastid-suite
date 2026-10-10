@@ -9,13 +9,18 @@
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**
 > How this file is produced: the `make-tasks` skill (`.claude/skills/make-tasks/SKILL.md`).
 
-> **START HERE → P8B-05 (RSCU vs Table S5).** P8B-08 closed 10/10/2026 (§8.69) by
-> reproducing S7 exactly — *Amelanchier cusickii* + MLWL, not *C. kansuensis* as the text
-> says. Then **P8B-06** (π hotspot + the 50 barcode records) → **P8B-07** (annotation vs
-> GeSeq — the biggest) → **P8B-04**'s remaining 35 sections, which waits on anh Điềm. Read
-> "What the paper states" below before asking him anything — and note P8B-08 measured that
-> **12/18 deposited records lack the IR genes** while the paper's tables analyse them, which
-> P8B-07 must read as its first fact, not as a surprise.
+> **ALL NINE TASKS ARE DONE (10/10/2026).** Every one passed its Done-when; the four things that
+> remain are **questions for anh Điềm**, not work on this board (see "Waiting on data / people"),
+> and the only step left for the phase is **closing it** — tag `phase-8b`, squash-merge to `main`
+> (`CLAUDE.md` → Commits). After that: **Phase 9** (packaging · licence review · release), which
+> inherits the cross-check tools' licence questions.
+> The headlines, so nobody re-derives them: **S7 reproduces to the last printed digit**
+> (*Amelanchier cusickii* + MLWL, §8.69) · **Table 1 and the 50 barcodes reproduce exactly**
+> (§8.67 · §8.72) · **S6 reproduces at MISA's defaults** (14/49 sections whole, all 49 compared at
+> both settings, §8.73) · **S5 does not reproduce** — 1–2 % under all 11 counting rules tested,
+> with the sequences proven identical (§8.70) · **our annotation differs from the published GeSeq
+> one in 341 conclusion-level places, and two thirds of them are the deposits' own gaps or one
+> reference record's outlier calls** (§8.71) · and **H-24**: `trnV-UAC` is never called (§8.71).
 
 ## Phase 8B — The Crataegus answer-key corpus (M8B.1 · … · M8B.8)
 

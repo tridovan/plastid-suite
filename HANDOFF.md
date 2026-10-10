@@ -9,38 +9,141 @@
 
 ## Resume point
 
-**Phases 1 – 5, 4a, 3B, 2B and 8 — COMPLETE and merged to `main`** (8 closed 10/10/2026: tagged
-`phase-8`, squashed into one commit). `main` holds one commit per phase.
+**Phases 1 – 5, 4a, 3B, 2B, 8 and 8B — COMPLETE.** 8B's nine tasks all passed their Done-when on
+10/10/2026; the branch `feat/phase-8b` holds the per-task commits and is **not yet closed** (tag +
+squash-merge to `main` is the remaining step, and it is the dev's call — `CLAUDE.md` → Commits).
 
-**Phase 8B is OPEN on `feat/phase-8b`** — the **Crataegus answer-key corpus**: anh Điềm's drop of
-10/10/2026 (`db_test_new`), an independent Rosaceae corpus of 49 plastomes whose paper prints its
-own answer tables (Table 1 · S5 RSCU · S6 SSR · S7 Ka/Ks) and whose Methods name every tool and
-parameter. `TASKS.md` carries nine tasks (P8B-01 and P8B-02 already done) and four decisions
-(D-k what the corpus is · D-l how to report when their Methods and their tables disagree · D-m where
-it lives · D-n whether our SSR module should take their thresholds as a parameter).
+**Phase 8B, the Crataegus answer-key corpus, is finished** — and every one of the paper's four
+number tables has now been put beside ours:
 
-**Where the corpus already paid, before any comparison was finished** — the tool numbers have been
-checked against another *tool* (Phase 8); this is the first time they are checked against another
-*laboratory*, and it found two defects in two days, both in a column no test read:
-**§9.M-1** (the `ssr` Context column read a trans-spliced gene's outer span) and **§8.65** (MISA's
-compound flag missed the per-component encoding — 0 of PX413282's 16 components flagged while MISA
-counted 8 clusters, and the golden hid it by carrying only the other encoding).
-Already measured (§8.66): 100/100 records read; all 50 plastomes declare `/organelle` and pass the
-IR gate at 100.00 %; **Table 1 reproduces row for row**; the paper's text range for IR (26,311) is
-reproduced by nothing we measured, including its own Table 1 (26,331); and their SSR table follows
-MISA **defaults**, not the thresholds their Methods state.
+| Their table | Result | § |
+|---|---|---|
+| Table 1 — sizes · per-region GC | **18/18 rows reproduce all four sizes**; one GC cell does not | §8.67 |
+| S6 — SSR | at MISA **defaults** every row of **14/49** sections reproduces; all 49 compared at both settings — defaults 2,581/3,546 rows exact and 14 sections complete, their stated thresholds 3,070/3,546 but only 4 complete. 9/9 non-exact rows in a section are **a compound cluster their table writes as one spanning row** | §8.68 · §8.73 |
+| S5 — RSCU | **does not reproduce**: 1–2 % away under **all 11** counting rules tested, though the sequences are proven identical (S7 reproduces exactly). Their counting rule is the open question | §8.70 |
+| S7 — Ka/Ks | **reproduces to the last printed digit** (629/714 cells, zero error) — **KaKs_Calculator `-m MLWL` against `MN068257` *Amelanchier cusickii***, *not* the *C. kansuensis* its text names, which the table's own structure refutes | §8.69 |
+| Table S2 — barcodes | **50/50 reproduce exactly** (length and GC to the printed digit); the 51st was never deposited | §8.72 |
+
+**What the corpus found in our own code, and what is still open.** Two defects fixed test-first
+(MISA's compound flag, §8.65 · `ssr`'s Context column, §9.M-1) and one **named open with evidence —
+H-24**: `trnV-UAC` is never called, because ARAGORN reads that locus as `tRNA-Stop(tta)` in this
+corpus and as `tRNA-Cys(aca)` on the golden; it is missing from 18/18 runs and from the golden, and
+the run does report it. Also still open (§8.71, §8.70): the annotation pipeline calls **341**
+conclusion-level differences against the published GeSeq annotation, 18.9 per record — 110 of the
+136 extras are IR genes **the deposited records do not have**, and 105 of the 184 extents are six
+genes of **one** reference record (*M. germanica*'s `psbM` is 270 bp where the other 17 say 105).
 
 **What is missing, named for anh Điềm** (board → "Waiting on data/people"): the **51st barcode
-sample** (Table S2's last row, *C. scabrifolia*, has no accession) · the **Ka/Ks comparison design**
-(S7's columns are species; the partner is unstated) · and, separately, **raw Illumina reads** for
-one of the 18 samples — Table S1 shows 2,786× coverage, so they exist, and they are still Phase 7's
-oldest blocker (M7.1 · M7.5 · M7.6).
+sample** (never deposited) · **how their RSCU was counted** (the only table that does not
+reproduce, and the sequences are ruled out as the cause) · **which annotation produced their
+tables** (12/18 deposited records lack the IR genes the paper's tables analyse) · and, separately,
+**raw Illumina reads** for one of the 18 samples — still Phase 7's oldest blocker (M7.1 · M7.5 ·
+M7.6).
 
 **Not next, and why:** Phase 7's assembly waits on those reads; the mito round (Phase 6 entirely,
-M7.3, M8.2) is **parked by scope**; Phase 9 (packaging, licence, release) is unblocked and waits
-only on this phase's answers.
+M7.3, M8.2) is **parked by scope**; **Phase 9** (packaging, licence, release) is unblocked, and it
+now inherits three licence questions from the cross-checks (cpstools · KaKs_Calculator · CGAS) plus
+Vmatch's academic-only status.
 
 ## Log
+
+### 2026-10-10 · Claude · dev WSL · session 38 (Phase 8B run whole — six tasks, and every answer table put beside ours)
+
+**Did.** The remaining Phase 8B board, task by task, each committed and pushed on `feat/phase-8b`.
+The phase's question was "does our reading of a plastome reproduce another laboratory's published
+tables?" — and the answer is now per table, with the reason for every difference.
+
+* **P8B-08 (§8.69) — the tightest comparison, and it found the design.** Table S7 (42 PCGs × 18
+  samples) **reproduces with zero error on 629 of 714 comparable cells** — under **KaKs_Calculator
+  2.0.1 `-m MLWL -c 11`** against **`MN068257` *Amelanchier cusickii***, a record from outside the
+  study group. The paper's Results say the comparison is "relative to *C. kansuensis*"; that is
+  ruled out twice — against `MF784433` the numbers are wholly different (rpoC2 *C. monogyna*
+  0.6667 vs the table's 2.10854), and the table's own structure refutes it (41/42 rows are constant
+  within each group of byte-identical CDS, and for rpoB and matK the samples whose CDS *is*
+  `MF784433`'s carry a value where that comparison prints `NA`). Getting there took five
+  measurements, each recorded: the structural test · the byte-identical CDS test · a 99-record brute
+  force · five *Amelanchier* records × 8 groups × 5 methods · then the full 42 genes. **And the
+  paper's own named outliers reproduce with our estimator**: the four species it calls rpoC2 > 1
+  are exactly the four our yn00 calls > 1 against Amelanchier (1.5263 · 1.3684 · 1.3684 · 1.3684),
+  while against *C. kansuensis* **none** exceeds 1 (pooled 0.15–0.27). A finding fell out of the
+  last 42 cells: **12 of the 18 deposited records lack the whole IR gene set**, yet S7 carries
+  `ndhB` values for 11 of them — the annotation analysed is not the annotation deposited.
+* **P8B-05 (§8.70) — the one table that does not reproduce, and it is not the data.** RSCU is 1–2 %
+  away (max |ΔRSCU| 0.1039 · mean 0.0148) under our counting rule, and 0.1018 · 0.0106 counting one
+  copy per gene name. The difference is systematic — the big codons differ **in the same direction
+  in all 18 samples** — and it is classed by record (74–75-CDS records 1.55 %, the complete 83–85
+  CDS records 2.6 %, falling to 1.10 % under one-copy counting), so the IR-duplicate rule is part
+  of it and not all of it. **Eleven candidate rules were tested and every one rejected with its
+  number** (gene-set variants, adding any single gene from the corpus, tRNA/rRNA, intron spans,
+  whole genome, averaging rules). That it is *not* a data difference is measured, not assumed: the
+  same deposited CDS reproduce S7 to the last digit, and our RSCU side matches cpstools on the
+  golden codon for codon (§8.61). Their counting rule is now a question for anh Điềm.
+* **P8B-06 (§8.72) — the barcode half is exact, the hotspot ranking is not.** `diversity` (600/200,
+  their DnaSP setting) over the 44 plastomes: π 0.001633 whole. Their three named hotspot regions
+  rank **4th · 5th · 9th of 91** spacers for us — inside our top ten, but **our first is
+  `petG-trnW-CCA` at 0.02042**, more than twice the runner-up; the scope difference (their ranking
+  comes from whole-genome sliding windows) is stated with it. The **50 barcode records reproduce
+  Table S2 exactly** — length 50/50, GC to the printed digit, max difference 0.0000 — and the
+  missing row is `seq45`, the 51st sample, never deposited. π inside the locus: 0.018759 against
+  0.00742 for the same spacer across the plastomes.
+* **P8B-07 (§8.71) — the biggest, and its composition is the finding.** 18 leave-one-out runs
+  through `plastid annotate`, classified with `tools/corpus_bar.py`'s own rule (imported, not
+  re-implemented): **341 conclusion-level differences** (missing 21 · extra 136 · extent 184) over
+  4,448 published features against 2,339 called — 18.9 per record against the Iridaceae bar's 12.3
+  (418/34). **Two of the three components are not our reading being wrong**: 110 of the 136 extras
+  are the IR genes the deposited records lack, and 105 of the 184 extents are **six genes of one
+  reference record** (`PX413299` annotates `psbM` as 270 bp where the other 17 say 105 — the
+  transfer is faithful to its reference, which is the limit P3B-10 named as a residual risk). The
+  third is ours, and it is a defect of the annotator: **`trnV-UAC` is never called** — ARAGORN
+  *does* find a tRNA at that locus but reads its identity wrong (`tRNA-Stop(tta)` here,
+  `tRNA-Cys(aca)` on the golden), the vocabulary cannot name a Stop tRNA, so the call is dropped and
+  an intron-containing tRNA is missing from every run. Recorded as **H-24** (ROADMAP M3B.5).
+* **P8B-04 (§8.73) — the comparison finished rather than left half-done.** MISA run at **both**
+  settings over all 50 plastomes, one genome assigned per section by their own SSR coordinates and
+  read for both: **defaults 2,581/3,546 rows exact (72.8 %) and 14/49 sections complete; their own
+  Methods' thresholds 3,070/3,546 (86.6 %) but only 4 sections complete** — the two numbers answer
+  two different questions and both are stated. The mechanism is measured row by row: in the ZWSZ
+  section **9 of 9 non-exact rows are a compound cluster their table writes as one spanning row**
+  (`(242,267)` theirs = `(242,252)` + `(256,267)` ours).
+* **P8B-09 (M8B.8) — the record.** `docs/corpus_crataegus_2026.md`: the paper and its DOI, the four
+  accession groups, **how to prove a copy is the same** (`sha256(gb_data/manifest.tsv)` =
+  `0a34e679…`; the whole tree in one line = `4ee47625…`), the labels this corpus gets wrong
+  (`PX413286` is *C. chlorosarca* in GenBank and *C. jozana* in Table S1), what it is not (not
+  manuscript content; not a benchmark to tune against), and the running defect list.
+
+**Validation.** `make check` green on the branch at each commit; the doc-edits run was **853 fast
+passed, 1 skipped**, plus the golden suite (83 passed, 2 skipped — `vmatch` and `table2asn` absent
+in that shell) on the tree before the last doc edits. **The phase's closing run then failed once**,
+and the failure was real rather than flaky noise: `test_the_workbook_holds_one_sheet_per_table_and_
+is_byte_identical` was red in the full run and green in isolation. Measured: **3 exports in 300
+were not byte-identical** — openpyxl's `write_workbook` assigns `properties.modified =
+datetime.now()` *after* the caller pinned it, so a second-boundary race leaked the wall clock into
+`docProps/core.xml` while the module's docstring claimed both stamps were pinned. Fixed in the
+written entry (not the workbook), **test written first**
+(`test_the_workbook_pins_both_timestamps`), 0/300 after — recorded as **§9.C-38**, the same family
+as §9.C-37: a clock assumption inside something that must not depend on the clock. `tests/unit/test_project_docs.py` moved 68 →
+**73** entries in the same commits, as it requires. Every comparison quotes its own parameters: MISA
+2.1 at two settings · KaKs_Calculator 2.0.1 with its argv and method · MAFFT 7.526 · BLAST+ 2.17.0 ·
+ARAGORN 1.2.41 · yn00 4.10.10. The corpus's copy is proven by per-file sha256, and the working
+manifest (`src/plastid/data/plastid_reference.json`) was **restored and verified clean** after the
+leave-one-out runs — the recorded set is one at a time, which is itself a measured limitation.
+
+**Residual risks.** (1) **H-24** is open: `trnV-UAC` has no call in any run, and three fixes are
+possible (transfer tRNAs from the reference as CDS/rRNA already do · a second engine · report and
+keep) — none chosen, and the phase did not need to choose. (2) **P8B-05's question** — their counting
+rule — is the one thing the corpus did not answer; the entry says so rather than smoothing 1–2 %
+into agreement. (3) The corpus's own internal inconsistencies are now a list, not a surprise: text
+vs Table 1's IR range, one GC cell, S6's two encodings, S7's reference, the RSCU rule, and the
+deposited annotations that lack the IR genes. (4) The corpus is third-party published data — nothing
+from it may reach a manuscript table (D-k), and every output carries the label. (5) The two species
+manuscripts still rest on **stand-in** panels — a real sample means re-running, never patching.
+
+**Blocked.** Nothing in this phase. Phase 7 (real reads) unchanged; the mito round parked by scope.
+
+**Next.** Close **Phase 8B** — `git tag phase-8b feat/phase-8b`, squash-merge to `main` as one
+commit — then **Phase 9** (packaging · licence review · release), which now inherits the licence
+questions from the cross-check tools (cpstools · KaKs_Calculator · CGAS · Vmatch academic-only).
+The four asks for anh Điềm are on the board's Waiting table; none of them blocks Phase 9.
 
 ### 2026-10-10 · Claude · dev WSL · session 37 (Phase 8B opened — the Crataegus answer-key corpus)
 
