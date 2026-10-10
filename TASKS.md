@@ -1,17 +1,18 @@
 # TASKS.md — active tasks
 
 > **Phase 8 is OPEN** on `feat/phase-8` — cross-checking, performance, automation (M8.1 · M8.3 ·
-> M8.4; **M8.2 is blocked** and says so below). It is the last phase whose work needs **no data of
-> its own**: Phase 6 and 7 come later for three different reasons — a nuclear genome (M6.1, and
-> M8.2 through it) · several mitogenomes of one species (M6.2) · real reads (M7.1 · M7.5) — while
-> **M6.3 is deferred by decision D5-07, not by data** (the waiting table below names each). Phase 9
-> is packaging, and it wants this phase's numbers first.
+> M8.4; **M8.2 is parked with Phase 6** and appears on no board). Every task here is **plastid
+> work or infrastructure** — CPStools · CGAS · CPGview · the 34-plastome corpus · CI — and it is
+> the last phase whose work needs **no data of its own**. The mito round (Phase 6 entirely, M7.3,
+> M8.2) is **parked by the scope decision of 10/10/2026**, not waiting on anybody; what Phase 7
+> keeps is assembly, which waits on **real reads**. Phase 9 is packaging, and it wants this
+> phase's numbers first.
 > Milestones: `ROADMAP.md` → Phase 8 · scope text: PROJECT.md §13.8 · log: `HANDOFF.md` · rules: `CLAUDE.md`.
 > Markers: `[ ]` todo · `[~]` doing · `[x]` done · **BLOCKED** = a named decision or dataset missing.
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**
 > How this file is produced: the `make-tasks` skill (`.claude/skills/make-tasks/SKILL.md`).
 
-## Phase 8 — Cross-checking, performance, automation (M8.1 · M8.2 · M8.3 · M8.4)
+## Phase 8 — Cross-checking, performance, automation (M8.1 · M8.3 · M8.4; M8.2 is parked with Phase 6)
 
 **Goal:** only what cannot be done earlier — every analysis the toolkit promises now exists
 (Phase 2B closed the last gap: `repeats`, §8.58), so a number of ours can finally be put beside a
@@ -111,14 +112,13 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 
 | What | Who | Blocks |
 |---|---|---|
-| A **nuclear genome** — none exists in the repo; every pinned record is an organelle | anh Điềm / cô Trang | **M6.1** (NUPT/MTPT searches nucleus ↔ plastid ↔ mito), and through it **M8.2** — that milestone stays in ROADMAP, marked waiting |
-| Several mitogenomes of **one species** (polymorphism is a within-species property) | anh Điềm / cô Trang | **M6.2** — the repo's ten pinned plant mitogenomes are one per species (`mito-reference` ×8, plus `AP045469.1`, `OX459128.1`); phase 4's mito sketch measured what that much data can say |
 | A machine with CGAS's full environment (R + its tool chain), if it cannot be built here | anh Điềm | P8-03's second half — the modules that could not run |
 | Real samples for the two manuscripts | cô Trang / anh Điềm | M2.10's final version — the stand-in draft re-runs, never gets patched |
-| Real Illumina/ONT reads — the project has none; phase 7's smoke tests ran on simulated pairs | anh Điềm / cô Trang | M7.1 · M7.5 — and M7.3 feeds M6.2 |
+| Real Illumina/ONT reads — the project has none; phase 7's smoke tests ran on simulated pairs | anh Điềm / cô Trang | M7.1 · M7.5 (assembly — the only live part of Phase 7) |
 
-*Two rows deliberately absent, because they are **not** waiting on data:* **M6.3** (parallel
-plastid–mito comparison) has a stand-in pair already — `AP045470.1` (plastid) and `AP045469.1`
-(mito, with this project's own prototype annotation), the pair phase 4 sketched; it is deferred by
-**D5-07** (plastid first), a decision, not a dataset. And **M6.4/M6.5** left the plan on
-10/10/2026 — divergence time and ancestral state are the PI's analyses, not modules.*
+*The **mito round** is not in this table on purpose — it is **parked, not waiting**: Phase 6
+entirely (M6.1 NUPT/MTPT · M6.2 mito structure · M6.3 plastid–mito comparison), M7.3 and M8.2 are
+out of scope for this round by the decision of 10/10/2026 (CLAUDE.md → "Priority today"), and they
+are marked parked in `ROADMAP.md`. The structure that makes them addable later is kept
+(D5-06/D5-07); the mito code that exists stays and keeps being tested. **M6.4/M6.5** left the plan
+on 10/10/2026 — divergence time and ancestral state are the PI's analyses, not modules.*

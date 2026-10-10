@@ -25,13 +25,12 @@ source is in `.data/cgas-review/`; its R-based environment is the first thing to
 against the papers) is **waiting** on M6.1 and a nuclear genome — named in the board's waiting
 table rather than left as schedulable work.
 
-**Why Phase 8 and not Phase 6/7** — three different reasons, stated separately because the old
-one-line version read as if a single missing dataset explained all of it (corrected 10/10/2026):
-**M6.1** (NUPT/MTPT) and **M8.2** through it wait on a **nuclear genome** — every pinned record in
-the repo is an organelle; **M6.2** wants several mitogenomes of **one species** (the ten pinned
-plant ones are one per species, and "polymorphic" is a within-species property); **M7.1 · M7.5 ·
-M7.6** wait on **real reads** (Phase 7 has only run on simulated pairs); and **M6.3** is deferred
-by **D5-07** (plastid first) — a decision, not a dataset, since its stand-in pair already exists.
+**Why Phase 8 and not Phase 6/7:** the mito round is **parked, not blocked** — all of Phase 6
+(M6.1 NUPT/MTPT · M6.2 mito structure · M6.3 plastid–mito comparison), M7.3 and M8.2 are out of
+scope for this round and marked `HOÃN` in `ROADMAP.md`. On 10/10/2026 "plastid first" was restated
+as a **scope** rule (PROJECT.md §3), because as an ordering it kept turning into mito work on the
+next board. What is left of Phase 7 is assembly, and M7.1 · M7.5 · M7.6 wait on **real reads**
+(Phase 7 has only run on simulated pairs).
 
 **What Phase 2B left, for the record:** the span derivation both `introns` and `diversity` read
 now lives in `core/spans.py` (17 introns · 91 spacers on the golden, π per locus, §8.57) · the
@@ -69,7 +68,7 @@ patching numbers. (4) The 11-genome two-genus comparison runs stay in `.runs/pha
 measured first; the draft's numbers come from the **genus-restricted** runs — quoting the former
 without the asymmetry finding would be quoting a measurement whose IR halves disagree by 3.4×.
 
-**Blocked.** M6.1 · M8.2 (a nuclear genome) · M6.2 (several mitogenomes of one species) · M7.1 · M7.5 (real reads); **M6.3 is deferred by D5-07, not blocked**. **Next.** Phase 8, board P8-01.
+**Blocked.** M7.1 · M7.5 · M7.6 (real reads). **Parked, not blocked:** the mito round — Phase 6 entirely, M7.3, M8.2 (scope decision 10/10/2026; this round is plastid only). **Next.** Phase 8, board P8-01.
 
 ### 2026-10-09 · Claude · dev WSL · session 34 (Phase 2B opened: the last unblocked analysis work)
 

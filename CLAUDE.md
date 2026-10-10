@@ -38,10 +38,24 @@ wrong genome. The group table, the measured reason per module, and what is still
 declaration in the registry, the input-set check, the eight shared analyses not yet opened to mito):
 PROJECT.md §13 → "Hai bào quan".
 
-**Priority today: plastid** (team decision 05/10/2026, D5-07). Plant mito data is still scarce, so
-new module work serves the plastome; the existing mito path stays as it is, and the structure above
-is kept precisely so mito analyses can be added later without rework — the deferred items carry
-names in `TASKS.md`.
+**Priority today: plastid — and this round is plastid ONLY** (team decision 05/10/2026, D5-07;
+restated 10/10/2026 as a *scope* rule, because "priority" kept being read as a mere ordering).
+Every module, run, manuscript, cross-check and release step in this round serves **plastomes**.
+
+The mito milestones are **parked by name** — never work to pick up: **M6.1** NUPT/MTPT · **M6.2**
+mito polymorphic structure · **M6.3** plastid–mito comparison (those three are all of Phase 6) ·
+**M7.3** · **M8.2**. They are marked parked in `ROADMAP.md` and appear on no board. The mito
+**code** that already exists (`mito_annotate` · `mito_genes`, their core, panels and tests) stays
+exactly as it is: not deleted, not extended, and still covered by `make check`.
+
+What is kept is the **structure** — one organelle per run, the registry's three groups, no mixed
+input set — which is exactly the room left for mito later, so adding those modules needs no
+rework (D5-06/D5-07, PROJECT.md §13 → "Hai bào quan").
+
+**The consequence, said plainly so nobody plans around it:** the **tool paper** (deliverable 2,
+Eleutherine bulbosa — NUPT/MTPT and mito structure) waits with Phase 6, because those analyses
+*are* its content. This round's deliverables are the two species manuscripts and the released
+toolkit.
 
 **The annotate step is ours (D5-08).** Annotation will be built in-house on CGAS's model with our
 own search-and-decide core; **Chloe is dropped from the plan**, PGA stays only as the measured
@@ -73,13 +87,10 @@ automation (M8.1 · M8.3 · M8.4). It is the next unblocked work, and the cross-
 **honest** only now — every analysis it checks has to exist first, and `repeats` (M2.12) was the
 last one (§8.58).
 
-Why Phases 6 and 7 come later — **three different reasons, not one** (corrected 10/10/2026, the
-old sentence read as if a single missing dataset explained all of it): **M6.1** (NUPT/MTPT) and
-**M8.2** wait on a **nuclear genome** — every pinned record in the repo is an organelle; **M6.2**
-wants several mitogenomes of *one* species (the ten pinned plant ones are one per species, and
-"polymorphic" is a within-species property); **M7.1 · M7.5** wait on **real Illumina/ONT reads**
-(Phase 7 has only ever run on simulated read pairs); and **M6.3** is deferred by the 05/10/2026
-decision **D5-07** (plastid first) — *not* by data, since its stand-in pair already exists.
+Why Phase 6 and 7 are not next — **and it is not one reason**: **Phase 6 is parked**, not blocked
+(its three milestones are the mito/nuclear analyses, out of this round's scope — see "Priority
+today" above); **M8.2** goes with it. Of Phase 7, what stays live is **assembly**, and it waits on
+**real Illumina/ONT reads** — M7.1 · M7.5 · M7.6, which have only ever run on simulated pairs.
 Progress: `ROADMAP.md` (milestones) · `TASKS.md` (active checklists with Done-when). Exact resume
 point: **`HANDOFF.md` → Resume point**.
 

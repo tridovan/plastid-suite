@@ -32,6 +32,7 @@ Bộ công cụ phân tích **bộ gen lục lạp (plastome) và bộ gen ty th
 
 | Ngày | Quyết định |
 |---|---|
+| 10/10/2026 | **Vòng làm việc này CHỈ làm lục lạp — phần ty thể hoãn có tên, không phải "đang chờ dữ liệu" (dev quyết, nhắc lại lần thứ ba nên chốt thành luật phạm vi)**: D5-07 đọc như một *thứ tự* ("lục lạp trước") và vì thế các phiên sau vẫn quay lại bàn việc ty thể. Nay là **phạm vi**: mọi mô-đun · lần chạy · bản thảo · kiểm chứng chéo · bước phát hành của vòng này phục vụ **plastome**. **Hoãn có tên**: M6.1 · M6.2 · M6.3 (cả Pha 6) · M7.3 · M8.2 — đánh dấu `HOÃN` trong `ROADMAP.md`, không xuất hiện trên board nào, không nằm trong bảng "waiting" (chúng không chờ ai cả). **Giữ nguyên**: mã ty thể đã có (`mito_annotate` · `mito_genes` · core · panel · test) — không xoá, không mở rộng, `make check` vẫn chạy; và **cấu trúc** một-bào-quan-một-lần-chạy + ba nhóm trong registry (D5-06) chính là chỗ đã chừa để mở lại mà không phải đập lại | Dev | §13 "Hai bào quan" · CLAUDE.md → "Priority today" · ROADMAP (Pha 6 · M7.3 · M8.2). **Hệ quả nói thẳng:** bài báo công cụ (deliverable 2 — NUPT/MTPT + cấu trúc mito) **đi cùng Pha 6**, vì ba mô-đun ấy *chính là* nội dung của nó; vòng này còn lại hai bản thảo loài và bản phát hành toolkit |
 | 22/9 | Xây bộ công cụ; mục tiêu máy phổ thông |
 | 26/9 | Công cụ bị chặn → thay bằng bản local đã chạy thật (không còn phụ thuộc web) |
 | 26/9 | PGA = GPL-3.0; Vmatch = chỉ miễn phí học thuật |

@@ -22,13 +22,16 @@
 
 ## Cross-phase rules (apply to every phase)
 
-- Serves **both plastid and mitochondrion** — but the seven *transitional* analyses (see PROJECT.md
+- Serves **both plastid and mitochondrion** — but the *transitional* analyses (see PROJECT.md
   §13, "Hai bào quan") run on plastid only today: on a mitogenome they stop at the IR gate. Opening
-  them is **H-10, on hold** by D5-07. Divergence-time work is tool-paper only.
-- **Plastid first** (team decision 05/10/2026, D5-07): plant mito data is still scarce, so new module
-  work serves the plastome. The existing mito path stays as it is — not extended — and the
-  two-organelle structure is kept so mito analyses can be integrated later without rework
-  (PROJECT.md §13 → "Hai bào quan"; H-06 · H-10 on hold by D5-07).
+  them is **H-10, on hold** with the rest of the mito round.
+- **Plastid ONLY — this round's scope, not its ordering** (D5-07, 05/10/2026; restated as a scope
+  rule 10/10/2026 after "priority" kept being read as a mere sequence, PROJECT.md §3): every
+  module, run, manuscript, cross-check and release step here serves **plastomes**. The mito
+  milestones — all of Phase 6 (M6.1 · M6.2 · M6.3), M7.3, M8.2, plus H-06 · H-10 · H-12 — are
+  **parked with a name** (`HOÃN` in the phase lists; they appear on no board and wait on nobody).
+  The mito code that exists stays as it is and keeps being tested, and the two-organelle structure
+  (PROJECT.md §13 → "Hai bào quan") is what makes them addable later without rework.
 - **IR gate ≥ 99.9 %** before any position-based analysis. Fail ⇒ red flag, stop. No exceptions.
 - Gene counting: **132 = 86 CDS + 38 tRNA + 8 rRNA**. Never "133 genes" (that is the `gene` feature
   count, diagnostic only).
@@ -495,6 +498,11 @@ analysis this toolkit must be able to run — and *"what to analyse · scope of 
 what goes in a manuscript"* is **cô Trang's** by CLAUDE.md's own decision table. The paper is hers;
 the code that produces its figures and tables is ours.]**
 
+**[ĐÃ HOÃN 10/10/2026 — NGOÀI PHẠM VI VÒNG LÀM VIỆC NÀY (dev quyết): cả ba milestone dưới là phân
+tích ty thể/nhân, mà vòng này chỉ làm **lục lạp**. Đây **không phải** việc đang chờ dữ liệu — tên
+và nội dung giữ nguyên vì cấu trúc đã chừa sẵn cho chúng (D5-06/D5-07); không board nào, không
+prompt nào coi chúng là việc sẽ bắt tay vào.]**
+
 **Goal:** the five analyses the Eleutherine bulbosa tool paper rests on — built, measured against
 published benchmarks, and reported by the toolkit. **The paper itself — what it claims, what goes
 in it, in what order — is the PI's.**
@@ -502,9 +510,9 @@ in it, in what order — is the PI's.**
 (*Damnacanthus indicus* · *Salvia* 2022–2025 · *Hemiboea* · *Coffea arabica* 2023).
 NUPT/MTPT has **no published benchmark** — its only check is the Oldenlandia/Coleus comparison in Phase 8.
 
-- [ ] **M6.1 NUPT/MTPT** (nuclear ↔ plastid ↔ mito transfer) — **BLOCKED: needs nuclear genome**
-- [ ] **M6.2 Mito polymorphic structure + recombination via repeats** (Chimeric ORF/CMS)
-- [ ] **M6.3 Parallel plastid–mito comparison** within species
+- [ ] **M6.1 NUPT/MTPT** (nuclear ↔ plastid ↔ mito transfer) — **HOÃN: ngoài phạm vi vòng này** (D5-07, 10/10/2026); cần bộ gen nhân khi nào mở lại
+- [ ] **M6.2 Mito polymorphic structure + recombination via repeats** (Chimeric ORF/CMS) — **HOÃN: ngoài phạm vi vòng này**
+- [ ] **M6.3 Parallel plastid–mito comparison** within species — **HOÃN: ngoài phạm vi vòng này**
 
 **[ĐÃ THAY 10/10/2026 — dev's call: M6.4 (ancestral state reconstruction) and M6.5 (divergence
 time) are **deleted from this plan**.]** They are not toolkit modules: each needs a tree, fossil
@@ -527,7 +535,7 @@ RAM here and replaced (§7.1, PROJECT.md §13.0's dated note).*
 
 - [ ] **M7.1 Batch assembly + QC** (fastp → GetOrganelle · BWA/minimap2 map-back) — **BLOCKED: no real Illumina reads yet**
 - [ ] **M7.2 Assembly-graph checks** (Bandage)
-- [ ] **M7.3 Feed mito-structure work** (M6.2)
+- [ ] **M7.3 Feed mito-structure work** (M6.2) — **HOÃN: ngoài phạm vi vòng này** (đi cùng M6.2)
 - [ ] **M7.4 Remote path** (usegalaxy.eu `get_organelle_from_reads`) — subsample reads before upload ·
   pin tool version · record history ID · data-sharing policy for unpublished reads: **open**
   (PROJECT.md §10.12)
@@ -547,10 +555,9 @@ deliberately broken golden number before it is green.
 - [ ] **M8.1 Cross-check vs CGAS · CPStools · CPGview** on the same dataset — differences explained
       *(CPStools/CGAS: board P8-02 · P8-03 · CPGview's own record: P8-01 — it was named here and in
       §13.8 while §7.8 had never recorded it; that gap is the first task)*
-- [ ] **M8.2 Cross-check NUPT/MTPT vs the Oldenlandia/Coleus papers** (only benchmark available) —
-      **WAITING on M6.1 and a nuclear genome**: there is nothing of ours to compare against those
-      papers until the NUPT/MTPT module exists (Phase 6, blocked). Named here so it is not read as
-      schedulable work
+- [ ] **M8.2 Cross-check NUPT/MTPT vs the Oldenlandia/Coleus papers** — **HOÃN: ngoài phạm vi vòng
+      này** — it checks a module (M6.1) that this round does not build, so it is not "waiting on
+      data" either: it is parked with Phase 6
 - [ ] **M8.3 Batch test 10–50+ genomes** — record memory/time limits (PROJECT.md §8).
       **[ĐÃ ĐO 05/10/2026 — `docs/M8.3_scale.md`: 34 bản ghi, 9 mô-đun một-genome < 4 phút & < 100 MB;
       `substitutions`/`synteny`/`popgen`/`kaks` đo đủ; `diversity` và `barcodes` ghi rõ **not
@@ -597,6 +604,11 @@ must be name-normalized before the annotator uses it (D5-08 §7.3). `docs/D5-08`
 |---|---|---|
 | Real Illumina reads (1 sample) | Diem / Trang | M7.1 · M7.5 · M4.5 |
 | ONT/HiFi reads (1 sample) | Diem / Trang | M7.6 (long-read path) |
-| Plant mito data — a real mitogenome dataset | anh Điềm / cô Trang | M6.2 · M6.3 · H-06 · H-10 · H-12 (on hold by D5-07) |
-| Nuclear genome of the sample | Trang | M6.1 (NUPT/MTPT) |
 | A macOS machine | Team | M9.4 platform claims |
+
+*The **mito round** is deliberately **not** in this table: Phase 6 entirely (M6.1 · M6.2 · M6.3),
+M7.3 and M8.2 are **parked by decision of 10/10/2026** — this round is plastid only (CLAUDE.md →
+"Priority today") — so they are not waiting on anybody. What that round will need the day it
+reopens is named here once, so the list is not lost: **several mitogenomes of one species** (M6.2
+· M6.3) and **a nuclear genome** (M6.1) — plus H-06 · H-10 · H-12, the mito follow-ups D5-07
+already held back.*
