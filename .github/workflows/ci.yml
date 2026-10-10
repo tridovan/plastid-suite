@@ -63,6 +63,20 @@ jobs:
             blast=2.17.0
             aragorn=1.2.41
             vmatch=2.3.1
+      - name: put the pinned tools on PATH
+        # The action activates the environment for interactive shells; a `run:` step is neither
+        # interactive nor a login shell, so the binaries have to be put on PATH explicitly.
+        # Measured 10/10/2026 (first CI run): without this line the tools were installed and every
+        # tier-B test still reported "missing external tool(s): mafft".
+        run: echo "${MAMBA_ROOT_PREFIX:-$HOME/micromamba}/envs/pts-tools/bin" >> "$GITHUB_PATH"
+      - name: the pins, printed — a version nobody can read is not a pin
+        run: |
+          mafft --version
+          nucmer --version | head -1
+          blastn -version | head -1
+          aragorn -h 2>&1 | head -1
+          vmatch -version 2>&1 | head -2
+          perl -v | grep -E "^This is perl 5"
       - name: fetch table2asn and check the recorded md5
         run: |
           curl -sSL -o table2asn.gz \

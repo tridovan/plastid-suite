@@ -162,3 +162,34 @@ def test_a_missing_stats_extra_is_a_named_error(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setitem(sys.modules, "scipy.stats", None)
     with pytest.raises(ExportDependencyError, match="plastid-suite\\[stats\\]"):
         mann_whitney([1, 2, 3], [4, 5, 6])
+
+
+@requires_stats
+def test_a_p_value_scipy_cannot_compute_is_not_exported_as_a_number() -> None:
+    """Identical observations: a ``nan`` p is not a p, whatever the installed scipy does.
+
+    Measured 10/10/2026 (P8-05): the CI runner resolves scipy **1.18.1** for Python >= 3.12 while
+    the dev machine's 3.11 gets **1.17.1**, and on identical observations the two disagree —
+    ``mannwhitneyu([1,1],[1,1])`` answers ``p=1.0`` on one build and ``pvalue=nan`` on the other,
+    silently on both. The nan travelled into the module's FDR table, where Bonferroni clamped it
+    to 1.0 beside a nan p: a number nobody can reproduce, which is the failure this project
+    exists to avoid.
+
+    The contract is about the export, not about the scipy build: either a finite number, or
+    ``not computable`` with a reason — so this holds on both versions.
+    """
+    outcome = mann_whitney([1.0, 1.0, 1.0], [1.0, 1.0, 1.0])
+    assert outcome.p is None or math.isfinite(outcome.p)
+    assert outcome.statistic is None or math.isfinite(outcome.statistic)
+    if outcome.p is None:
+        assert outcome.status == NOT_COMPUTABLE
+        assert outcome.reason
+
+
+@requires_stats
+def test_the_same_holds_for_kruskal_wallis() -> None:
+    outcome = kruskal_wallis([1.0, 1.0], [1.0, 1.0], [1.0, 1.0])
+    assert outcome.p is None or math.isfinite(outcome.p)
+    if outcome.p is None:
+        assert outcome.status == NOT_COMPUTABLE
+        assert outcome.reason

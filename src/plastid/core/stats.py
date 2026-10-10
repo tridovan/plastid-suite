@@ -99,6 +99,29 @@ def _not_computable(test: str, assumption: str, n: tuple[int, ...], reason: str)
     return TestResult(test=test, assumption=assumption, n=n, status=NOT_COMPUTABLE, reason=reason)
 
 
+def _is_finite(*values: float) -> bool:
+    """Whether every value is a real number — ``nan`` and ``inf`` are scipy having no answer."""
+    return all(math.isfinite(float(value)) for value in values)
+
+
+def _no_answer(test: str, assumption: str, n: tuple[int, ...]) -> TestResult:
+    """What scipy's ``nan`` becomes: a row that says so, never a number.
+
+    Measured 10/10/2026 (P8-05): ``kruskal`` answers ``nan`` for both statistic and p when every
+    observation is identical (it warns, and a warning nobody reads is the failure mode this
+    project keeps meeting), and scipy **1.18** silently changed ``mannwhitneyu`` on the same data
+    from ``p=1.0`` to ``p=nan`` while the 1.17 build still says 1.0. Left alone, the nan reached
+    the module's FDR table, where Bonferroni clamped it to 1.0 next to a nan p.
+    """
+    return _not_computable(
+        test,
+        assumption,
+        n,
+        "scipy returned no statistic/p-value for these observations — it reports nan when the "
+        "ranks carry no information (every observation identical)",
+    )
+
+
 def describe(values: Sequence[float]) -> Descriptives:
     """Mean, sample sd and the quartiles; ``None`` wherever the data cannot give one."""
     ordered = sorted(values)
@@ -149,6 +172,8 @@ def mann_whitney(first: Sequence[float], second: Sequence[float]) -> TestResult:
         )
     stats = require_module("scipy.stats", extra="stats", purpose="Statistics")
     outcome = stats.mannwhitneyu(list(first), list(second), alternative="two-sided")
+    if not _is_finite(outcome.statistic, outcome.pvalue):
+        return _no_answer("Mann–Whitney U", _MANN_WHITNEY_ASSUMPTION, n)
     return TestResult(
         test="Mann–Whitney U",
         assumption=_MANN_WHITNEY_ASSUMPTION,
@@ -183,6 +208,8 @@ def kruskal_wallis(*groups: Sequence[float]) -> TestResult:
         )
     stats = require_module("scipy.stats", extra="stats", purpose="Statistics")
     outcome = stats.kruskal(*[list(group) for group in groups])
+    if not _is_finite(outcome.statistic, outcome.pvalue):
+        return _no_answer("Kruskal–Wallis H", _KRUSKAL_ASSUMPTION, n)
     return TestResult(
         test="Kruskal–Wallis H",
         assumption=_KRUSKAL_ASSUMPTION,

@@ -308,13 +308,15 @@ def test_the_module_writes_both_files_from_the_normalized_set(data_dir: Path) ->
     assert summary["n_features"] == 265  # 133 gene + 86 CDS + 38 tRNA + 8 rRNA
 
 
-def test_the_sqn_step_is_a_named_error_when_table2asn_is_absent(data_dir: Path) -> None:
+def test_the_sqn_step_is_a_named_error_when_table2asn_is_absent(
+    data_dir: Path, submission_tools: dict[str, str | None]
+) -> None:
     """D3-04: the .sqn is opt-in, and asking for it without the tool is exit 3, not a silent
     skip — the .fsa/.tbl half stays complete and is what NCBI's web submission takes."""
     from plastid.modules import submission
-    from plastid.run.tools import ToolError, which
+    from plastid.run.tools import ToolError
 
-    if which("table2asn") is not None:
+    if submission_tools["table2asn"] is not None:
         pytest.skip("table2asn is installed here — this test is about the machine that has none")
 
     golden = read_genbank(data_dir / "NC_050833.1.gb")
@@ -323,17 +325,21 @@ def test_the_sqn_step_is_a_named_error_when_table2asn_is_absent(data_dir: Path) 
 
 
 def test_with_the_tool_present_the_missing_template_is_what_stops_the_sqn(
-    data_dir: Path, tmp_path: Path
+    data_dir: Path, tmp_path: Path, submission_tools: dict[str, str | None]
 ) -> None:
-    """This machine has table2asn (installed 2026-10-03, declared in docs/tools/table2asn.md),
-    so the path past "tool not found" is testable — and what stops it is the template, which is
-    exactly the file only the team can produce."""
-    from plastid.modules import submission
-    from plastid.run.tools import ToolError, which
+    """The machine that has table2asn (docs/tools/table2asn.md) can be tested past "tool not
+    found" — and what stops it is the template, the file only the team can produce.
 
-    binary = which("table2asn") or (
-        "/root/toolbox/bin/table2asn" if Path("/root/toolbox/bin/table2asn").is_file() else None
-    )
+    The tool is found the way every other tool-dependent test finds one: through
+    ``submission_tools``, which honours ``PTS_TABLE2ASN``. It used to fall back to a hardcoded
+    ``/root/toolbox/bin/table2asn`` — a banned hardcoded path, and on a machine where that path
+    is present but unreadable (the CI runner, whose user cannot traverse ``/root``) the check
+    raised ``PermissionError`` instead of skipping the test. Measured 10/10/2026, P8-05.
+    """
+    from plastid.modules import submission
+    from plastid.run.tools import ToolError
+
+    binary = submission_tools["table2asn"]
     if binary is None:
         pytest.skip("table2asn is not installed here — nothing to test past the tool check")
 
