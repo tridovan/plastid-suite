@@ -549,6 +549,12 @@ RAM here and replaced (§7.1, PROJECT.md §13.0's dated note).*
 
 ## Phase 8 — Cross-testing, performance, automation  *(§13.8 — not first-time testing)*
 
+**Phase 8 — CLOSED 10/10/2026**, tagged `phase-8` and merged to `main` as one commit. Five
+tasks, each with its Done-when measured: the CPGview decision and the two real cross-checks
+(§8.60–§8.62, which found a bug of ours and a gap of ours), the last two scale numbers
+(§8.63), and CI (§8.64 — watched red on a deliberately broken golden number before it was
+green).
+
 **Goal:** only what cannot be done earlier — cross-checks, scale, automation.
 
 **In-phase checks:** every disagreement **explained** (class definition · parameter · coordinate
@@ -556,18 +562,26 @@ convention), never just counted · both tools' version + argv recorded per cross
 sides measured on the **same pinned input** · every number scope-labelled · CI shown **red** on a
 deliberately broken golden number before it is green.
 
-- [ ] **M8.1 Cross-check vs CGAS · CPStools · CPGview** on the same dataset — differences explained
-      *(CPStools/CGAS: board P8-02 · P8-03 · CPGview's own record: P8-01 — it was named here and in
-      §13.8 while §7.8 had never recorded it; that gap is the first task)*
+- [x] **M8.1 Cross-check vs CGAS · CPStools · CPGview** on the same dataset — differences explained
+      **(2026-10-10)** — P8-01 **CPGview: surveyed, not adopted** (§8.60: repo is a landing page, no
+      pip/conda/CLI, the web app's port does not answer) · P8-02 **CPStools 3.0** (§8.61: IR
+      identical · SSR 37/37 · RSCU identical codon by codon on one gene set · π 100/104 genes to
+      5 dp — **and it found a real bug in our `ssr` module**, fixed with a regression test, §9.M-1) ·
+      P8-03 **CGAS 1.0.1** (§8.62: structure · RSCU · introns identical; SSR one threshold apart;
+      CGAS reports `0` for a record it cannot read, and prints 8 tRNA introns ours does not → H-23).
+      Every difference names its cause: a convention (compound clusters · IR labels), a parameter
+      (SSR thresholds · RSCU gene set · `-l`), an alignment scope, or a different implementation of
+      the same estimator.
 - [ ] **M8.2 Cross-check NUPT/MTPT vs the Oldenlandia/Coleus papers** — **HOÃN: ngoài phạm vi vòng
       này** — it checks a module (M6.1) that this round does not build, so it is not "waiting on
       data" either: it is parked with Phase 6
-- [ ] **M8.3 Batch test 10–50+ genomes** — record memory/time limits (PROJECT.md §8).
+- [x] **M8.3 Batch test 10–50+ genomes** **(2026-10-10)** — record memory/time limits (PROJECT.md §8).
       **[ĐÃ ĐO 05/10/2026 — `docs/M8.3_scale.md`: 34 bản ghi, 9 mô-đun một-genome < 4 phút & < 100 MB;
       `substitutions`/`synteny`/`popgen`/`kaks` đo đủ; `diversity` và `barcodes` ghi rõ **not
       measured** — board P8-04 đo nốt]**
-- [ ] **M8.4 CI** — tests on every change; golden set re-runs automatically *(board P8-05: the repo
-      has no CI today, measured 10/10/2026)*
+- [x] **M8.4 CI** **(2026-10-10)** — tests on every change; golden set re-runs automatically
+      *(was P8-05: the repo had no CI, measured 10/10/2026 — §8.64 has the four runs, including the
+      deliberate break that turned the build red on the golden number)*
 
 ## Phase 9 — Packaging, license & release  *(§13.9)*
 

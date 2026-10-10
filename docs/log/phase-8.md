@@ -159,3 +159,81 @@ CDS*, còn intron tRNA **không mô-đun nào in ra**. Đặt tên: **H-23** —
 chạy lần này** — không phải vì thiếu dữ liệu, mà vì phạm vi P8-03 chốt ở ba mặt có đầu ra tất định
 (IR · codon · SSR) cộng mặt intron; ba mặt kia đã có phép so tương ứng ở §8.61 (π) và ở bộ vàng
 (SNP), nên chúng không bị bỏ quên, chỉ là không lặp lại ở đây.
+
+### 8.64. CI — và ba lỗi thật nó tìm ra ngay lần chạy đầu (P8-05, 10/10/2026)
+
+**Việc.** M8.4: repo nằm trên GitHub và **đo 10/10/2026 không có CI nào** (không `.github/`, không
+`.gitlab-ci.yml`). D-i chốt: lint + test nhanh + **bộ vàng tier A** mỗi lần push, và bộ vàng tier B
+trong một job **cài đúng bản đã pin** — không bao giờ `conda install mafft` trần, vì §9.B-14 đã đo
+hai bản MAFFT cho hai số Ts/Tv từ một bộ gen.
+
+**.github/workflows/ci.yml** — hai job, tách theo thứ chúng cần:
+
+| Job | Chạy gì | Cần gì |
+|---|---|---|
+| `fast` | ruff (lint + format) · toàn bộ test nhanh · **bộ vàng tier A** | chỉ Python + dữ liệu đã vendor: không công cụ, không mạng |
+| `golden-tier-b` | bộ vàng đầy đủ | micromamba với **perl 5.32.1 · mafft 7.526 (conda-forge — bioconda dừng ở 7.525) · mummer4 4.0.1 · paml 4.10.10 · blast 2.17.0 · aragorn 1.2.41 · vmatch 2.3.1**, `PTS_REQUIRE_TOOLS=1`, và `table2asn` tải thẳng từ NCBI **kèm kiểm md5** theo `docs/tools/table2asn.md` |
+
+**Ba lỗi thật, lộ ra ngay lần chạy đầu tiên** — run
+[38024381329](https://github.com/tridovan/plastid-suite/actions/runs/38024381329):
+
+1. **scipy trả `nan` và module xuất thẳng số `nan` ấy ra bảng.** Lock cài scipy **1.18.1** cho
+   Python ≥ 3.12 (runner) còn máy dev 3.11 dùng **1.17.1**, và trên dữ liệu đồng nhất hai bản
+   **khác nhau**: `mannwhitneyu([1,1],[1,1])` trả `pvalue=nan` ở 1.18 và `1.0` ở 1.17 — **cả hai
+   đều im lặng**. `kruskal` thì trả `nan` cho cả statistic lẫn p ở **cả hai bản**, chỉ kèm một
+   `RuntimeWarning` không ai đọc. Số `nan` ấy đi vào bảng FDR của module `stats`, nơi Bonferroni
+   kẹp nó thành `1.0` nằm cạnh một p `nan`. Sửa: `core/stats.py` nay biến kết quả không-hữu-hạn
+   thành dòng **not computable** kèm lý do; hai test hồi quy phát biểu hợp đồng đúng trên **cả hai
+   bản scipy** (đo lại: `kruskal([1,1],[1,1],[1,1])` → `nan` ở bản local, xác nhận không phải
+   chuyện riêng của 1.18).
+2. **Một test hardcode `/root/toolbox/bin/table2asn`** — đường dẫn tuyệt đối, thứ `CLAUDE.md` cấm
+   thẳng. Trên runner, `/root` có nhưng **không đi qua được** (user `runner`), nên phép kiểm ném
+   `PermissionError` **thay vì skip**. Sửa: cả hai test table2asn dùng fixture `submission_tools`
+   (tôn trọng `PTS_TABLE2ASN`) như mọi test phụ thuộc công cụ khác.
+3. **Job tier-B cài đủ công cụ mà test vẫn báo "missing external tool(s): mafft"** —
+   `setup-micromamba` kích hoạt env cho shell tương tác, còn bước `run:` của Actions **không tương
+   tác cũng không phải login shell**. Sửa: đưa `bin/` của env lên `GITHUB_PATH` tường minh, và thêm
+   một bước **in ra từng phiên bản đã pin** — một phiên bản không ai đọc được thì không phải một
+   cái pin.
+
+**Chứng minh nó biết đỏ** (Done-when của P8-05) — bốn lần chạy, theo thứ tự:
+
+| Run | Việc | Kết quả |
+|---|---|---|
+| [38024381329](https://github.com/tridovan/plastid-suite/actions/runs/38024381329) | workflow lần đầu | **đỏ cả hai job** — ba lỗi thật ở trên |
+| [38024744478](https://github.com/tridovan/plastid-suite/actions/runs/38024744478) | sau khi sửa ba lỗi | **xanh cả hai job**, tier-B cài đủ công cụ đã pin |
+| [38024933018](https://github.com/tridovan/plastid-suite/actions/runs/38024933018) | **cố ý phá số vàng** (`gc_percent` + 0,01) | **đỏ cả hai job**, và đỏ **đúng ở số vàng**: `test_tier_a.py::test_length_and_gc` → `37.863555723244254 == 37.8536 ± 0.001`; `test_e2e.py` → `'37.85 %' not in report` |
+| [38025149827](https://github.com/tridovan/plastid-suite/actions/runs/38025149827) | revert bản phá | **xanh** — trạng thái đóng của pha |
+
+Một CI chưa từng đỏ là một đèn xanh không ai kiểm — nên lần chạy thứ ba là **cố ý**, và nó là thứ
+duy nhất trong bốn lần chứng minh được rằng **số vàng** (không chỉ test đơn vị) làm build đỏ.
+
+### 8.63. `diversity` và `barcodes` ở N = 34 — hai số đo cuối cùng, và một dòng "not measured" được xoá (P8-04, M8.3, 10/10/2026)
+
+**Việc.** `docs/M8.3_scale.md` (M8.3, 05/10) đo chín mô-đun một-genome cộng `substitutions` ·
+`synteny` · `popgen` · `kaks` trên 34 bản ghi, và ghi **"not measured"** cho `diversity` và
+`barcodes` — một phép **đọc mã**, không phải một phép đo, và file nói đúng như thế. P8-04 là chỗ
+trả nợ: đo hai mô-đun ấy trên **cùng 34 bản ghi đã ghim**, cùng giao thức (một mô-đun một lần,
+`--force` vì cache khoá theo `module_version` chứ không theo mã nguồn — H-08, `/usr/bin/time -v`).
+
+**Đo được** — bản ghi vàng đứng đầu, 33 bản ghi còn lại theo sau, cùng một lệnh cho cả hai:
+
+| Mô-đun | Wall clock | Đỉnh RAM | Kết quả |
+|---|---|---|---|
+| `diversity` | **13 ph 14 s** | **138 MB** (141.516 kB) | xong — π **0,040086** trên **120.964** cột dùng được của alignment **191.707** cột; theo vùng: SSC **0,1211** · LSC **0,0439** · IRa 0,0135 · IRb 0,0136 |
+| `barcodes` | **12 ph 27 s** | **138 MB** (141.536 kB) | xong — π trung bình 0,050020 trên 859 cửa sổ, **13 vùng siêu biến**, **10 locus ứng viên, 8 tìm thấy** |
+
+**Dự đoán cũ sai theo hướng đáng giữ.** "Not measured" được viết vì hai mô-đun này gọi **cùng phép
+align cả genome** như `substitutions --set scope=whole`, mà phép đo 05/10 **dừng ở trần 11 phút**
+khi chạy 34 bản ghi — nên suy đoán trung thực khi đó là chúng cũng sẽ không xong. Chúng **xong**,
+sau khoảng **13 phút**, cùng mức 138 MB. Lý do nằm đúng ở điều chính file ấy đã đo: thứ đắt là
+**kích thước một phép align**, và align 34 plastome thì đắt nhưng **hữu hạn** — dòng cũ ghi lại một
+lần chạy **bị dừng ở trần**, không phải một lần chạy thất bại. **Một cái trần không phải một phép
+đo** — và đó là bài học của chính mục này.
+
+**Kết quả cho file scale:** hai dòng "not measured" **đã được đo** — và phần file **chưa từng phủ**
+thì được **gọi tên**, thay vì để câu "không còn gì not measured" bị đọc thành "mọi mô-đun đã đo":
+`repeats` (dựng sau, P2B-02) · `stats` · đường chú giải và đặt tên (`plastid_annotate` ·
+`mito_annotate` · `mito_genes` · `gene_names` · `gene_normalize`) **không có dòng nào trong file
+scale**. Câu dễ nhớ là câu nhàm chán nhất: **cả panel 34 genome tốn khoảng một phần tư giờ và dưới
+150 MB**, bất kể mô-đun align-cả-genome nào.
