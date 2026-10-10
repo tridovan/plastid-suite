@@ -14,12 +14,15 @@ absent at the start of the session (*"could not be found… activate the WSL int
 present — `/usr/bin/docker`, client 29.8.0 · server 29.8.0 (linux) — once the dev turned Docker
 Desktop's WSL integration on. **P9-03 is unblocked; nothing on this board waits.**
 
-**Where the phase stands** (11/10/2026): **P9-01 … P9-06 are done** — the licence is MIT and MISA
+**Where the phase stands** (11/10/2026): **P9-01 … P9-06 are done**, and the candidate is
+**handed over for the team to run** (P9-08) — the licence is MIT and MISA
 left the package (§8.74) · the wheel/sdist build and install into a clean venv (§8.75) · the
 release image builds and the golden numbers reproduce inside it (§8.76) · README, the module ×
 platform × RAM table and the "things we don't do" statement are written and executed (§8.77).
 **P9-07 is half done**: `CITATION.cff` exists and validates, `docs/release.md` is the procedure —
 the DOI, the PyPI upload, the authors and the video need the team (see "Waiting on data/people").
+**Nothing public happens before P9-08 comes back**: the release follows a run on somebody else's
+machine, not our own green.
 
 ## Phase 9 — the board
 
@@ -85,6 +88,21 @@ the DOI, the PyPI upload, the authors and the video need the team (see "Waiting 
       fragment inputs by design · no web UI · the panel cost, with its machine. `README.md` links
       it from the top.
 
+- [~] **P9-08 · The candidate goes to the team before it goes anywhere public** — **handed over
+      11/10/2026**: the artifacts are on the team drive at
+      `D:\business\pts\PTS_1.0.0_test_2026-10-11\` (wheel · sdist · the golden record · SHA256SUMS
+      · the Vietnamese note `docs/handoff_test_1.0.0.md`), built from `003cfa1` and **re-verified
+      after the build** (installed into a clean venv, golden numbers reproduced).
+  - **Why it is a task and not a nicety**: every number so far was measured on **one machine**. The
+    phase's own check is three environments; a release needs a *fourth* — somebody else's.
+  - Three levels, in the note: **mức 1** (5 min, no tools, anyone) · **mức 2** (with MISA/MAFFT,
+    anh Điềm) · **mức 3** (`pytest` from the sdist — the sdist carries the tests and the golden
+    data, so no repository access is needed).
+  - **Done when:** anh Điềm has run mức 2 or 3 on his own machine and reported the outcome — a
+    pass, or the verbatim error with its exit code and the run directory — and cô Trang has read a
+    `report.md` and said whether the tables and wording are usable. **Anything they find becomes a
+    regression test before it is fixed** (CLAUDE.md → testing discipline).
+
 - [~] **P9-07 · Release artifacts: `CITATION.cff` · DOI · the release itself** *(M9.6)* — **half
       done 11/10/2026**: `CITATION.cff` is written for **1.0.0** and **validated** —
       `uv tool run cffconvert --validate` → *"Citation metadata are valid according to schema
@@ -129,6 +147,7 @@ The recommendation is the default unless the dev says otherwise (CLAUDE.md → w
 | Written permission from **IPK Gatersleben** (MISA's authors) to redistribute `misa.pl` | cô Trang / anh Điềm — one mail | D-q's preferred path; **the release does not wait on it** if D-q is answered "no, fetch on first use" |
 | The **PyPI name** `plastid-suite` availability + the account to publish | dev | P9-07's publish step |
 | A **Zenodo** account, and the GitHub release it archives | dev | P9-07's DOI |
+| **The team runs the 1.0.0 candidate** — mức 1/2/3 in `docs/handoff_test_1.0.0.md` | anh Điềm (mức 2–3) · cô Trang (đọc `report.md`) | **P9-08**, and therefore the release: one machine's green is not a release's green |
 | The **short how-to video** — a human records it | the team | P9-07's last artifact |
 | **Who is named as an author** in `CITATION.cff` — it says "PlastidToolSuite contributors" today, and that is a decision, not a placeholder (CLAUDE.md → who decides) | the team | P9-07's DOI: a Zenodo deposit records its authors permanently |
 | The **repository's visibility** — it is **private** (measured 11/10/2026), and Zenodo's GitHub integration archives public repositories: make it public at release time, or upload the tarball by hand | dev | P9-07's DOI step |
