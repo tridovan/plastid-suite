@@ -31,24 +31,6 @@ the DOI, the PyPI upload, the authors and the video need the team (see "Waiting 
       `docs/licensing.md` carries the 14-tool inventory with licences **measured** from conda
       metadata; the guard test was **watched failing on the old tree** before it passed. Golden
       unchanged: 37 = 31 · 4 · 2, `make check` green (856 fast + 85 golden).
-  - *(the checklist this closed, kept as the record)*
-  - One table over **everything the toolkit runs** (`src/plastid/external/` — aragorn · blast ·
-    mafft · misa · mummer · paml · repeatmatch · vmatch — plus table2asn) and **everything it
-    ships** (the wheel's own file list, not the source tree), each row: licence · source · is it
-    redistributed? · what happens when it is absent.
-  - **The sharp one, measured 11/10/2026**: the wheel ships `misa.pl`, and MISA's own
-    `SOURCE.json` records `"license": "NOT STATED - the zip ships no licence file and the IPK page
-    only requests the citation."` Decide and execute D-q before any artifact leaves this repo.
-  - The toolkit's own `LICENSE` file + `pyproject.toml`'s `license` field, on D-p.
-  - Fix the inventory defect found today: `environment.yml`'s "NOT here, on purpose" block has an
-    entry **with no tool name** (it is PGA's — §7.8 pins its commit `0683a0ec…` and sha256).
-  - **Pitfall:** "the zip is public, so it is free" — no licence means all rights reserved, and
-    putting the file in a wheel or in git *is* redistribution. A tool we only *call* is not
-    redistributed; a tool we *bundle* is, and that is the whole distinction this task draws.
-  - **Done when:** `docs/licensing.md` holds the table, and a new
-    `tests/unit/test_licensing.py::test_shipped_third_party_code_states_a_licence` is **red on
-    today's tree** (MISA) and green after the decision — `make check` green.
-
 - [x] **P9-02 · Package metadata + a clean-venv install** *(M9.2, pip half)* — **DONE 11/10/2026
       (§8.75)**: version **1.0.0** (D-r) + classifiers/keywords/urls (no Windows classifier —
       it does not run natively there); `uv build` → wheel 145 files, sdist 279; installed into a
