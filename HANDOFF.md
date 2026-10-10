@@ -83,7 +83,15 @@ order, each committed on the branch.
 
 **Validation.** `make check` green — **861 fast + 85 golden** with the pinned tools present
 (`PTS_MISA_DIR` now required: MISA is no longer in the tree). The wheel installs and runs in a fresh
-venv. The container build runs the golden suite and only builds if it reproduces.
+venv. The container build runs the golden suite and only builds if it reproduces — **54 passed,
+30 skipped (all `.panel/`, each naming its reason), 1 deselected (table2asn, named)**.
+
+**CI found what the local run could not** (§9.N-2): the fix commit cites `§8.76` in its own
+comments, and §8.76 was written one commit later — so that commit does not stand on its own, and
+per-commit CI said so while `make check` on the working tree was green. The guard
+(`test_every_cited_log_entry_exists`) was working; the order was wrong. Rule for next time: an
+entry a commit cites goes in **that** commit, and the cheap check is the docs test run **after
+staging**.
 
 **Residual risks.** (1) The registry's `citations` drift is **named, not fixed** — the fix is either
 to feed it from each module's `Result` or to drop the field. (2) A user who installs the wheel and

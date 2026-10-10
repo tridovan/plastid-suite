@@ -928,6 +928,20 @@ phải của bộ gọi; bộ gọi báo đúng như nó thấy.
    manifest. Hai test: `test_checkout_root_is_none_outside_a_checkout` ·
    `test_the_recorded_reference_resolves_without_a_checkout`.
 
+2. **Một commit trích `§8.76` mà chính nó không chứa `§8.76` — CI bắt, local không** (11/10/2026).
+   Commit sửa lỗi `gene_normalize` viết trong docstring `tests/unit/test_gene_normalize.py` và
+   `src/plastid/core/gene_names.py` câu "found by the release's Docker check, §8.76", nhưng mục
+   §8.76 chỉ được viết ở commit **sau** đó. Trên máy dev `make check` **xanh**, vì nó chạy trên
+   *cây làm việc* — nơi §8.76 đã có — chứ không trên *cây của commit*. CI chạy theo từng lần push
+   nên bắt được ngay: `AssertionError: cited but not written: {'8.76':
+   ['src/plastid/core/gene_names.py', 'tests/unit/test_gene_normalize.py']}`. **Đây là test canh gác
+   đang làm đúng việc của nó** (`test_every_cited_log_entry_exists`, và nó đã bắt đúng một lần
+   trước đó), không phải một lỗi mới — cái sai là **thứ tự**: viết trích dẫn trước, viết mục sau.
+   Luật rút ra, áp cho phiên sau: **khi một commit trích một mục §8 mới, mục ấy phải nằm trong
+   cùng commit** — và cách kiểm rẻ nhất là chạy `pytest tests/unit/test_project_docs.py` **sau khi
+   đã stage**, tức trên cây sắp commit. Commit hỏng vẫn nằm trong lịch sử (nó đã được push, và dự
+   án không sửa commit đã push); mục này là bản ghi của nó.
+
 ## 10. Câu hỏi còn treo
 
 1. ~~Phạm vi con số Ts/Tv~~ — **ĐÃ CHỐT 02/10**: cổng dùng **chỉ vùng CDS · gen dùng chung · căn bằng MAFFT**, **không tính vùng lặp IR**. Bộ gen dùng chung được đo lại 04/10 **bằng locus, không bằng cách viết tên** ⇒ **79 gen, 2,6917** (323 Ts / 120 Tv, 68.448 cột — §6, §8.27). Số Ts/Tv của bộ Eleutherine (1,095–1,777) là phạm vi khác (SNP cả plastome) — chỉ dùng cho nội dung riêng của bộ đó và **phải dán nhãn phạm vi** ở mọi chỗ xuất ra.
