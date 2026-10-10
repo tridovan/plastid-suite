@@ -9,43 +9,30 @@
 
 ## Resume point
 
-**Phases 1 – 5, 4a, 3B, 2B, 8 and 8B — COMPLETE and merged to `main`** (8B closed 10/10/2026:
-tagged `phase-8b`, squashed into one commit; the per-task commits stay on `feat/phase-8b`, which is
-never deleted). **The next unblocked work is Phase 9** — packaging (pip/conda + Docker), the licence
-review and the release; it inherits the cross-check tools' licence questions (cpstools ·
-KaKs_Calculator · CGAS · Vmatch academic-only).
+**Phases 1 – 5, 4a, 3B, 2B, 8 and 8B — COMPLETE and merged to `main`.** **Phase 9 is OPEN on
+`feat/phase-9`** (board: `TASKS.md`), and six of its seven tasks are done:
 
-**Phase 8B, the Crataegus answer-key corpus, is finished** — and every one of the paper's four
-number tables has now been put beside ours:
+| Task | What it produced |
+|---|---|
+| **P9-01** (§8.74) | **MIT** for the toolkit (D-p) · **MISA left the package** (D-q) — its zip states no licence — and is obtained now, with the download line and both hashes in `docs/tools/misa.md` · `docs/licensing.md`: 14 tools, licences **measured** from conda metadata |
+| **P9-02** (§8.75) | version **1.0.0**, wheel/sdist built and **installed into a clean venv**, golden numbers reproduced from the installed console script |
+| **P9-03** (§8.76) | `docker/Dockerfile` real: pinned tools + MISA fetched with its md5, **golden suite run at build time**; the first container run found a real defect — `gene_normalize` could not run from an installed package (**§9.N-1**, fixed with two regression tests) |
+| **P9-04 · P9-05 · P9-06** (§8.77) | README **executed verbatim** in a clean venv (five exit codes measured) · `docs/platforms.md` (22 modules × tool × RAM × 3 support levels) · `docs/things_we_do_not_do.md` (12 refusals with their reasons) |
+| **P9-07** | **half**: `CITATION.cff` written and validated (CFF 1.2.0) · `docs/release.md` the procedure |
 
-| Their table | Result | § |
-|---|---|---|
-| Table 1 — sizes · per-region GC | **18/18 rows reproduce all four sizes**; one GC cell does not | §8.67 |
-| S6 — SSR | at MISA **defaults** every row of **14/49** sections reproduces; all 49 compared at both settings — defaults 2,581/3,546 rows exact and 14 sections complete, their stated thresholds 3,070/3,546 but only 4 complete. 9/9 non-exact rows in a section are **a compound cluster their table writes as one spanning row** | §8.68 · §8.73 |
-| S5 — RSCU | **does not reproduce**: 1–2 % away under **all 11** counting rules tested, though the sequences are proven identical (S7 reproduces exactly). Their counting rule is the open question | §8.70 |
-| S7 — Ka/Ks | **reproduces to the last printed digit** (629/714 cells, zero error) — **KaKs_Calculator `-m MLWL` against `MN068257` *Amelanchier cusickii***, *not* the *C. kansuensis* its text names, which the table's own structure refutes | §8.69 |
-| Table S2 — barcodes | **50/50 reproduce exactly** (length and GC to the printed digit); the 51st was never deposited | §8.72 |
+**What Phase 9 still needs is the team, not code** — the four items are on the board's "Waiting on
+data/people": **who is named as an author** in `CITATION.cff` (it says "PlastidToolSuite
+contributors" on purpose) · a **Zenodo** account, and the **repository is private** while Zenodo's
+GitHub integration archives public repos · the **PyPI** name `plastid-suite` · the **how-to video**.
+Publishing is outward-facing and permanent (a DOI is minted per version, a PyPI filename is taken on
+upload), so it needs the dev's explicit go — `docs/release.md` has the order and the check between
+each step. **IPK Gatersleben** may also be asked (one mail) whether MISA may be redistributed; until
+an answer, the release does not wait on it.
 
-**What the corpus found in our own code, and what is still open.** Two defects fixed test-first
-(MISA's compound flag, §8.65 · `ssr`'s Context column, §9.M-1) and one **named open with evidence —
-H-24**: `trnV-UAC` is never called, because ARAGORN reads that locus as `tRNA-Stop(tta)` in this
-corpus and as `tRNA-Cys(aca)` on the golden; it is missing from 18/18 runs and from the golden, and
-the run does report it. Also still open (§8.71, §8.70): the annotation pipeline calls **341**
-conclusion-level differences against the published GeSeq annotation, 18.9 per record — 110 of the
-136 extras are IR genes **the deposited records do not have**, and 105 of the 184 extents are six
-genes of **one** reference record (*M. germanica*'s `psbM` is 270 bp where the other 17 say 105).
-
-**What is missing, named for anh Điềm** (board → "Waiting on data/people"): the **51st barcode
-sample** (never deposited) · **how their RSCU was counted** (the only table that does not
-reproduce, and the sequences are ruled out as the cause) · **which annotation produced their
-tables** (12/18 deposited records lack the IR genes the paper's tables analyse) · and, separately,
-**raw Illumina reads** for one of the 18 samples — still Phase 7's oldest blocker (M7.1 · M7.5 ·
-M7.6).
-
-**Not next, and why:** Phase 7's assembly waits on those reads; the mito round (Phase 6 entirely,
-M7.3, M8.2) is **parked by scope**; **Phase 9** (packaging, licence, release) is unblocked, and it
-now inherits three licence questions from the cross-checks (cpstools · KaKs_Calculator · CGAS) plus
-Vmatch's academic-only status.
+**Still open from earlier phases, unchanged:** Phase 7's assembly waits on **real Illumina/ONT
+reads** (the project's oldest blocker) · the whole **mito round is parked by scope** (Phase 6, M7.3,
+M8.2) · **macOS is unverified** — no machine · and the four questions for anh Điềm from the
+Crataegus corpus (§8.69–§8.73) are still open, none of them blocking.
 
 ## Log
 
