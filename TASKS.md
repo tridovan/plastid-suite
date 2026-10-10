@@ -9,11 +9,10 @@
 > **Every task ends with a "Done when" — a runnable, measurable check. No check, no done.**
 > How this file is produced: the `make-tasks` skill (`.claude/skills/make-tasks/SKILL.md`).
 
-> **ALL NINE TASKS ARE DONE (10/10/2026).** Every one passed its Done-when; the four things that
-> remain are **questions for anh Điềm**, not work on this board (see "Waiting on data / people"),
-> and the only step left for the phase is **closing it** — tag `phase-8b`, squash-merge to `main`
-> (`CLAUDE.md` → Commits). After that: **Phase 9** (packaging · licence review · release), which
-> inherits the cross-check tools' licence questions.
+> **PHASE 8B IS CLOSED (10/10/2026)** — tagged `phase-8b`, squashed to `main` as one commit. All
+> nine tasks passed their Done-when. What remains are **questions for anh Điềm**, not work on this
+> board (see "Waiting on data / people"). **Next: Phase 9** (packaging · licence review · release),
+> which inherits the cross-check tools' licence questions.
 > The headlines, so nobody re-derives them: **S7 reproduces to the last printed digit**
 > (*Amelanchier cusickii* + MLWL, §8.69) · **Table 1 and the 50 barcodes reproduce exactly**
 > (§8.67 · §8.72) · **S6 reproduces at MISA's defaults** (14/49 sections whole, all 49 compared at

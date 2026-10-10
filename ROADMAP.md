@@ -591,7 +591,17 @@ deliberately broken golden number before it is green.
       *(was P8-05: the repo had no CI, measured 10/10/2026 — §8.64 has the four runs, including the
       deliberate break that turned the build red on the golden number)*
 
-## Phase 8B — The Crataegus answer-key corpus  *(board opened 10/10/2026; the drop is anh Điềm's `db_test_new`, delivered 10/10/2026)*
+## Phase 8B — The Crataegus answer-key corpus  *(board opened 10/10/2026; **closed 10/10/2026** — tagged
+`phase-8b`, squashed into one commit on `main`; the drop is anh Điềm's `db_test_new`, delivered
+10/10/2026)*
+
+**What it answered, per table:** Table 1 reproduces row for row · **S7 reproduces to the last printed
+digit** (KaKs_Calculator `-m MLWL` against *Amelanchier cusickii* `MN068257`, not the *C. kansuensis*
+its text names) · **the 50 barcode records reproduce Table S2 exactly** · S6 reproduces at MISA's
+defaults (14/49 sections whole) · **S5 does not reproduce** (1–2 % under 11 counting rules, with the
+sequences proven identical) — the one open question, for anh Điềm. Two defects of ours fixed
+test-first (§8.65 · §9.M-1), one named open (**H-24**: `trnV-UAC` is never called), and one more
+found by the closing `make check` (§9.C-38: the Excel export leaked a timestamp).
 
 **Goal.** The toolkit's numbers have been put beside **another tool's** (Phase 8). This phase puts
 them beside a **published paper's own result tables**: an independent corpus of 49 *Crataegus* /

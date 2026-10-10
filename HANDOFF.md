@@ -9,9 +9,11 @@
 
 ## Resume point
 
-**Phases 1 – 5, 4a, 3B, 2B, 8 and 8B — COMPLETE.** 8B's nine tasks all passed their Done-when on
-10/10/2026; the branch `feat/phase-8b` holds the per-task commits and is **not yet closed** (tag +
-squash-merge to `main` is the remaining step, and it is the dev's call — `CLAUDE.md` → Commits).
+**Phases 1 – 5, 4a, 3B, 2B, 8 and 8B — COMPLETE and merged to `main`** (8B closed 10/10/2026:
+tagged `phase-8b`, squashed into one commit; the per-task commits stay on `feat/phase-8b`, which is
+never deleted). **The next unblocked work is Phase 9** — packaging (pip/conda + Docker), the licence
+review and the release; it inherits the cross-check tools' licence questions (cpstools ·
+KaKs_Calculator · CGAS · Vmatch academic-only).
 
 **Phase 8B, the Crataegus answer-key corpus, is finished** — and every one of the paper's four
 number tables has now been put beside ours:
