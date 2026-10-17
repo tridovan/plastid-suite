@@ -22,6 +22,7 @@ from dataclasses import asdict
 from datetime import datetime
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 from plastid import __version__
 from plastid.core import organelle, plastid_reference, reference_audit
@@ -34,6 +35,7 @@ from plastid.core.gene_names import (
     load_recorded_reference,
 )
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
+from plastid.core.junctions import JunctionError
 from plastid.core.model import Genome
 from plastid.core.normalize import normalize
 from plastid.core.panel import (
@@ -57,6 +59,7 @@ from plastid.result.result import Result
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
 from plastid.run.figures import read_run_results, render_run_figures
+from plastid.run.junction import junction_config, junction_rows, junction_table
 from plastid.run.layout import RunLayout
 from plastid.run.manifest import build_manifest, write_manifest
 from plastid.run.ncbi import NcbiClient, NcbiError
@@ -167,6 +170,58 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="ID",
         help="render only this figure (repeatable; default: every figure the run's tables feed)",
+    )
+
+    junction_parser = subparsers.add_parser(
+        "ir-junction",
+        help="draw the IR junctions (JLB/JSB/JSA/JLA) of one or more records, with CPJSdraw",
+    )
+    junction_parser.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        action="append",
+        metavar="GENBANK",
+        help="a GenBank record with its IR annotated; repeat the flag for one record per species",
+    )
+    junction_parser.add_argument(
+        "-o", "--out", default=".runs", help="output root (default: .runs)"
+    )
+    junction_parser.add_argument(
+        "--dataset", default="ir-junction", help="dataset label (default: ir-junction)"
+    )
+    junction_parser.add_argument(
+        "--tag",
+        default="ir_junction",
+        help="base name of the figure and table (default: ir_junction)",
+    )
+    junction_parser.add_argument(
+        "--width", type=int, default=3200, help="PNG width in pixels (default: 3200)"
+    )
+    junction_parser.add_argument(
+        "--tree",
+        default=None,
+        metavar="NEWICK",
+        help="order the species by distance from --reference on this tree (default: input order)",
+    )
+    junction_parser.add_argument(
+        "--reference", default=None, metavar="NAME", help="the species --tree measures from"
+    )
+    junction_parser.add_argument(
+        "--cpjsdraw",
+        default=None,
+        metavar="PATH",
+        help="the patched CPJSdraw.pl (default: on PATH — see docs/tools/cpjsdraw.md)",
+    )
+    junction_parser.add_argument(
+        "--drop-pseudo", action="store_true", help="pass -p to CPJSdraw (drop pseudo genes)"
+    )
+    junction_parser.add_argument(
+        "--label",
+        default=None,
+        metavar="TEXT",
+        help="data-provenance label, recorded in the run — output made from someone else's "
+        "records must carry one (e.g. --label stand-in)",
     )
 
     annotate_parser = subparsers.add_parser(
@@ -995,6 +1050,171 @@ def _cmd_qc(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_ir_junction(args: argparse.Namespace) -> int:
+    """The junction figure: one run directory holding the picture, the table and the provenance.
+
+    The named exception to "a figure reads table cells" (docs/things_we_do_not_do.md): the species
+    order comes from a tree and the genes either side of a junction come from the record's own
+    annotation, so this figure is drawn from the records themselves.
+    """
+    records: list[tuple[Path, Genome]] = []
+    for item in args.input:
+        path = Path(item)
+        if not path.is_file():
+            print(f"no such record: {path}", file=sys.stderr)
+            return EXIT_ERROR
+        try:
+            records.append((path, read_genbank(path)))
+        except (OSError, ValueError) as error:
+            print(f"cannot read {path}: {error}", file=sys.stderr)
+            return EXIT_ERROR
+
+    try:
+        order = _junction_order(records, args.tree, args.reference)
+    except (OSError, ValueError) as error:
+        print(f"cannot read the tree: {error}", file=sys.stderr)
+        return EXIT_ERROR
+
+    params: dict[str, Any] = {
+        "tag": args.tag,
+        "width": args.width,
+        "tree": args.tree,
+        "reference": args.reference,
+        "drop_pseudo": args.drop_pseudo,
+    }
+    if args.label:
+        params[DATA_LABEL_PARAM] = args.label
+
+    fingerprint = hashlib.sha256(
+        (
+            "".join(f"{path}:{len(genome)}\x00" for path, genome in records)
+            + json.dumps(params, sort_keys=True)
+        ).encode("ascii", "replace")
+    ).hexdigest()
+    layout = RunLayout.create(args.out, args.dataset, fingerprint=fingerprint)
+    layout.make_dirs()
+    ctx = RunContext(layout=layout, params=params, module_id="ir_junction", module_order=1)
+    manifest_path = layout.run_dir / "manifest.json"
+    manifest = build_manifest(
+        run_id=layout.run_id,
+        command=["ir-junction", *sys.argv[1:]],
+        package_version=__version__,
+        started_at=datetime.now().isoformat(timespec="seconds"),
+        params=params,
+        inputs=[
+            {"path": str(path), "sha256": _sha256_file(path), "bytes": path.stat().st_size}
+            for path, _ in records
+        ],
+        coordinate_system={
+            "name": "genbank",
+            "rotation_offset": 0,
+            "note": "junction positions are the record's own; nothing is rotated into a frame",
+        },
+        dataset=args.dataset,
+    )
+
+    # The drawing is wired here rather than in `run/junction.py`: the `run` layer may not import
+    # `external/`, and this is where every other non-module step that calls a tool is wired.
+    from plastid.external.cpjsdraw import run_cpjsdraw, svg_to_png
+
+    figures = layout.figures_dir
+    figures.mkdir(parents=True, exist_ok=True)
+    try:
+        rows = junction_rows(records, order)
+        config = figures / f"cfg_{args.tag}.cfg"
+        config.write_text(junction_config(rows), encoding="utf-8")
+        table = figures / f"{args.tag}.csv"
+        table.write_text(junction_table(rows), encoding="utf-8")
+        svg = run_cpjsdraw(
+            ctx,
+            config,
+            figures / f"{args.tag}.svg",
+            script=args.cpjsdraw,
+            drop_pseudo=args.drop_pseudo,
+        )
+        png = svg_to_png(ctx, svg, figures / f"{args.tag}.png", width=args.width)
+    except ToolError as error:
+        print(str(error), file=sys.stderr)
+        _finish_manifest(manifest, manifest_path, "failed")
+        return EXIT_TOOL
+    except (JunctionError, OSError, ValueError) as error:
+        print(f"cannot draw the junction figure: {error}", file=sys.stderr)
+        _finish_manifest(manifest, manifest_path, "failed")
+        return EXIT_ERROR
+
+    for path in (config, table, svg, png):
+        relative = path.relative_to(layout.run_dir).as_posix()
+        manifest["files"].append(
+            {
+                "path": relative,
+                "module": "ir_junction",
+                "sha256": _sha256_file(path),
+                "bytes": path.stat().st_size,
+            }
+        )
+        print(f"wrote {relative}")
+    for row in rows:
+        if row.warning:
+            print(f"warning: {row.warning}", file=sys.stderr)
+    _finish_manifest(manifest, manifest_path, "ok")
+    return EXIT_OK
+
+
+def _finish_manifest(manifest: dict[str, Any], path: Path, status: str) -> None:
+    """Close a manifest — a run that failed still says what it was and what it wrote."""
+    manifest["status"] = status
+    manifest["finished_at"] = datetime.now().isoformat(timespec="seconds")
+    write_manifest(path, manifest)
+
+
+def _junction_order(
+    records: Sequence[tuple[Path, Genome]], tree: str | None, reference: str | None
+) -> list[str] | None:
+    """Species names ordered by distance from a reference on the user's own tree.
+
+    The tree is the user's (PTS builds none — M10.5), and its tip labels are not this toolkit's
+    species names, so a tip is matched to a record by the first two words of the organism name.
+    A reference that is not on the tree is said out loud and the input order is kept: silently
+    ordering by nothing would look like a tree was used.
+    """
+    if not tree:
+        return None
+    from Bio import Phylo
+
+    parsed = Phylo.read(tree, "newick")
+    terminals = parsed.get_terminals()
+    wanted = _normalised(reference) if reference else None
+    root = next(
+        (tip for tip in terminals if wanted and _normalised(tip.name).startswith(wanted)),
+        None,
+    )
+    if root is None:
+        print(
+            f"warning: {reference!r} is not on {tree} — keeping the input order",
+            file=sys.stderr,
+        )
+        return None
+    distances = {_normalised(tip.name): parsed.distance(root, tip) for tip in terminals}
+    return sorted(
+        (genome.name for _, genome in records),
+        key=lambda name: _distance_for(name, distances),
+    )
+
+
+def _distance_for(name: str, distances: dict[str, float]) -> float:
+    """A record's distance from the reference tip, or infinity when no tip matches it."""
+    wanted = _normalised(name)
+    for tip, distance in distances.items():
+        if tip.startswith(wanted):
+            return distance
+    return float("inf")
+
+
+def _normalised(text: str | None) -> str:
+    """A name reduced to lowercase letters and digits, for matching a record against a tip."""
+    return "".join(character for character in (text or "").lower() if character.isalnum())
+
+
 def _cmd_figures(args: argparse.Namespace) -> int:
     """Re-render a run's figures from the tables it stored — no module runs again."""
     run_dir = _run_dir_or_error(args.run)
@@ -1731,6 +1951,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "figures":
         return _cmd_figures(args)
+
+    if args.command == "ir-junction":
+        return _cmd_ir_junction(args)
 
     if args.command == "package":
         return _cmd_package(args)

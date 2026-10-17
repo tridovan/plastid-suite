@@ -46,6 +46,13 @@ chmod a+x CPJSdraw/script/svg_kit/buildInFont      # readme.txt asks for this
 sudo apt-get install -y perl libsvg-perl librsvg2-bin
 ```
 
+**It wants `gene` features, and this toolkit writes none.** Measured 17/10/2026: handed a record
+without one, CPJSdraw stops with `has no gene info(no primary gene tag)` and writes no SVG. A
+GenBank record from NCBI carries both `gene` and `CDS` features and works; a record **this toolkit
+annotated** carries `CDS`/`tRNA`/`rRNA` only, so `plastid annotate` output cannot be drawn as it
+stands. The refusal is loud — an exit-3 with the tool's own message — rather than a figure that is
+quietly missing, which is why it is written down here instead of worked around.
+
 **Nothing is probed with a flag.** `CPJSdraw.pl` is a Perl script: passing it an unknown flag makes
 it run itself with default arguments. Its version is read out of its own header, and the
 interpreter's version is asked of Perl (`perl -e 'print $^V'`).

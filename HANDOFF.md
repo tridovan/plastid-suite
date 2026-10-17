@@ -10,20 +10,22 @@ installed into a clean venv, the Docker image with the golden suite run inside i
 P9-07 (the DOI, PyPI, the video) and P9-08 (anh Điềm's report) stay open on the team's side.
 
 **Phase 10 is the paper's figures.** anh Điềm's bundle (`feedback/goi_tool_hinh_IR_2026-10-16/`) is the
-seven R scripts and the patched CPJSdraw that drew the Iridaceae manuscript's Figures 2–9. The
-IR-junction half is built and measured: `core/junctions.py` reads a record's own four regions in the
-GenBank frame and `external/cpjsdraw.py` drives the tool. On the bundle's eight records the derivation
-reproduces the bundle's configuration **8/8** and the SVG comes out **byte-identical** (`9ae599a9…`).
-`TASKS.md` holds what is left; `ROADMAP.md` → Phase 10 holds the rest of the phase.
+seven R scripts and the patched CPJSdraw that drew the Iridaceae manuscript's Figures 2–9.
+**M10.1 is done**: `plastid ir-junction` reads a record's own four regions in the GenBank frame,
+drives CPJSdraw, and writes the configuration, the junction table, the SVG and the PNG into a run
+directory. On the bundle's eight records the configuration is reproduced **8/8** and the SVG comes
+out **byte-identical** (`9ae599a9…`). `TASKS.md` holds the next task — the R engine (M10.2);
+`ROADMAP.md` → Phase 10 holds the rest of the phase.
 
 **All pushed.** `main` (the Phase 9 squash), `feat/phase-9`, the tag `phase-9` and this branch are on
 `origin`; every ref is 0/0 with its remote. anh Điềm's pull for P9-08 is `main`.
 
 ## Next
 
-**`TASKS.md`** — the `plastid ir-junction` command, then M10.2–M10.5: the R engine, the three figures
-PTS lacks, the long→wide pivots, and the tree. Then **Phase 7**, assembly, judged on a published
-paper's public reads against its assembled plastome.
+**`TASKS.md`** — the R figure engine (M10.2): `external/rscript.py`, the seven scripts under
+`data/r_scripts/`, `docs/tools/r.md` and the `environment.yml` pins. Then M10.3–M10.5: the three
+figures PTS lacks, the long→wide pivots, and the tree. Then **Phase 7**, assembly, judged on a
+published paper's public reads against its assembled plastome.
 
 ## Waiting on the team — nothing here is ours to do
 
@@ -45,9 +47,13 @@ paper's own results (`CLAUDE.md` → How the tools are judged).
   `plastid` unable to process them at all, and it is why the junction figure reads the annotation
   directly rather than through `detect_ir`. Its own task, with its own regression test.
 - **The R half is measured but not yet in the repo.** R 4.3.3, `rsvg-convert` and `libsvg-perl` were
-  installed on this machine to run the bundle's scripts. Nothing about them is declared yet, so
-  `docs/tools/r.md` and the `environment.yml` pins must ship in the session that first uses them — a
-  tool that exists only on one machine is not part of the toolkit.
+  installed on this machine to run the bundle's scripts, and all seven run and write all eight
+  figures. Nothing about R is declared yet, so `docs/tools/r.md` and the `environment.yml` pins must
+  ship in the session that first uses them — a tool that exists only on one machine is not part of
+  the toolkit. (`rsvg-convert` and `libsvg-perl` are declared: `docs/tools/cpjsdraw.md`.)
+- **CPJSdraw refuses a record without a `gene` feature**, and `to_genbank` writes `CDS`/`tRNA`/`rRNA`
+  only — so a genome `plastid annotate` produced cannot be drawn as it stands. Measured 17/10/2026,
+  written down in `docs/tools/cpjsdraw.md`; the refusal is loud, not silent.
 - **CPJSdraw is not bundled and cannot be** (no licence — measured 17/10/2026, GitHub answers
   `license: null`). The bundle's integration README claims it is MIT; that claim is wrong, and the repo
   says so. The patched build is identified by md5, so a pristine clone stops the run.

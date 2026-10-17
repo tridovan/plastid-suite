@@ -11,8 +11,9 @@
   the release itself: MIT, the wheel, the Docker image and the user docs. The analysis round is done,
   except RNA editing (needs RNA-seq) and the parked mito/nuclear round.
 - **Open:** **Phase 10** on `feat/phase-10` — the paper's figures. anh Điềm's bundle of R scripts and
-  patched CPJSdraw drew the Iridaceae manuscript's Figures 2–9; the junction half is ported and
-  reproduces the bundle's own output byte for byte. `TASKS.md` holds what is left.
+  patched CPJSdraw drew the Iridaceae manuscript's Figures 2–9. **M10.1 is done**: the junction
+  figure is a command, and it reproduces the bundle's own output byte for byte. `TASKS.md` holds the
+  next task — the R engine.
 - **Waiting on people:** anh Điềm's P9-08 report — the code is on `main` now, so that is the pull —
   the release accounts, and a macOS machine.
 - **After that:** Phase 7, assembly — judged on a published paper's public reads against its assembled
@@ -37,10 +38,11 @@ structure) waits with the parked round.
 **Phase 10 — the paper's figures** (`feat/phase-10`; the manuscript's Figures 2–9, drawn outside the
 toolkit until now — seven R scripts and a patched CPJSdraw, in `feedback/`)
 
-- [~] **M10.1 The IR-junction figure (Figure 2)** — `core/junctions.py` reads the record's own four
-  regions in the GenBank frame, `external/cpjsdraw.py` draws them. Measured 17/10/2026: the SVG and
-  the junction table come out **byte-identical** to the bundle's own verified output. Left: the
-  `plastid ir-junction` command that a user can actually call, and the junction table's columns.
+- [x] **M10.1 The IR-junction figure (Figure 2)** — `core/junctions.py` reads the record's own four
+  regions in the GenBank frame, `external/cpjsdraw.py` draws them, `plastid ir-junction` drives both
+  into a run directory. Measured 17/10/2026 on the bundle's eight Iridaceae records: the
+  configuration is reproduced **8/8**, the SVG is **byte-identical** to the bundle's own verified
+  output, and the table's eight region and junction columns agree on every row.
 - [ ] **M10.2 The R figure engine** — `external/rscript.py`, the seven scripts under `data/r_scripts/`
   and the R pins; all seven run here under R 4.3.3 and write all eight figures
 - [ ] **M10.3 The figures PTS lacks** — amino-acid heatmap (paper 4), substitution types (7), Ka/Ks (8)
