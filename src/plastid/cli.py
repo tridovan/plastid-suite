@@ -63,6 +63,7 @@ from plastid.run.junction import junction_config, junction_rows, junction_table
 from plastid.run.layout import RunLayout
 from plastid.run.manifest import build_manifest, write_manifest
 from plastid.run.ncbi import NcbiClient, NcbiError
+from plastid.run.rfigures import RFigureOutcome, render_run_rfigures
 from plastid.run.runinfo import render_run_info
 from plastid.run.runner import (
     DATA_LABEL_PARAM,
@@ -170,6 +171,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="ID",
         help="render only this figure (repeatable; default: every figure the run's tables feed)",
+    )
+    figures_parser.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        dest="sets",
+        help="parameter for the R figures, e.g. --set rscript=/usr/bin/Rscript (docs/tools/r.md)",
     )
 
     junction_parser = subparsers.add_parser(
@@ -1216,23 +1225,39 @@ def _normalised(text: str | None) -> str:
 
 
 def _cmd_figures(args: argparse.Namespace) -> int:
-    """Re-render a run's figures from the tables it stored — no module runs again."""
+    """Re-render a run's figures from the tables it stored — no module runs again.
+
+    Two passes. The first is this toolkit's own drawing (matplotlib, vector only). The second is
+    the manuscript's R scripts, drawn from the same tables — a second source for a figure that
+    already exists, and the only source for the three the toolkit has no drawing for. A failure in
+    the first does not stop the second: they are independent, and a run with no plotting extra
+    installed can still have its R figures.
+    """
     run_dir = _run_dir_or_error(args.run)
     if run_dir is None:
         return EXIT_ERROR
     manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    files: list[Path] = []
+    skipped: list[tuple[str, str]] = []
+    missing_extra: str | None = None
     try:
         outcome = render_run_figures(run_dir, figures=args.figure)
+        files.extend(outcome.files)
+        skipped.extend(outcome.skipped)
     except ExportDependencyError as error:
+        missing_extra = str(error)
         print(str(error), file=sys.stderr)
-        return EXIT_TOOL
     except (OSError, ValueError, KeyError) as error:
         print(f"cannot render figures: {error}", file=sys.stderr)
         return EXIT_ERROR
 
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    r_outcome, ctx = _render_r_figures(run_dir, args)
+    files.extend(r_outcome.files)
+    skipped.extend(r_outcome.skipped)
+
     known = {entry["path"] for entry in manifest.get("files", [])}
-    for path in outcome.files:
+    for path in files:
         relative = path.relative_to(run_dir).as_posix()
         if relative not in known:  # a re-render replaces the file; it is not listed twice
             manifest.setdefault("files", []).append(
@@ -1244,13 +1269,72 @@ def _cmd_figures(args: argparse.Namespace) -> int:
                 }
             )
         print(f"wrote {relative}")
-    for figure_id, reason in outcome.skipped:
+    for figure_id, reason in skipped:
         print(f"skipped {figure_id}: {reason}", file=sys.stderr)
-    if not outcome.files:
+    if ctx.tools:
+        # The R figures are the only step here that calls an external tool, so this is where the
+        # run's provenance for them goes — the same record every other tool call leaves.
+        manifest.setdefault("figures", {})["tools"] = [asdict(record) for record in ctx.tools]
+    if not files:
         print("no figure could be rendered from this run's tables", file=sys.stderr)
-        return EXIT_ERROR
+        # Exit 3 is "a tool this run needs is not here" — the plotting extra, or R when the
+        # figures asked for are the R ones. A missing *table* stays exit 1: a data problem.
+        return EXIT_TOOL if (missing_extra or r_outcome.blocked) else EXIT_ERROR
     write_manifest(manifest_path, manifest)
     return EXIT_OK
+
+
+def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureOutcome, RunContext]:
+    """The R figure pass, with the tool call wired here — ``run/`` may not import ``external/``."""
+    from plastid.external.rscript import missing_packages, rscript_binary, run_figure
+
+    layout = RunLayout(
+        out_root=run_dir.parent.parent, dataset=run_dir.parent.name, run_id=run_dir.name
+    )
+    try:
+        params = dict(_parse_sets(args.sets))
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        params = {}
+    # `ctx.out` is never used by this pass — it writes into the run's own figures directory — but
+    # `ctx.tool` is, and that is what puts R's version and argv in the run's provenance.
+    ctx = RunContext(layout=layout, params=params, module_id="r_figures", module_order=0)
+
+    def preflight() -> str | None:
+        """Asked once for the whole pass: R itself, then the packages the scripts need."""
+        try:
+            binary = rscript_binary(params.get("rscript"))
+            missing = missing_packages(ctx, binary)
+        except ToolError as error:
+            return str(error)
+        if missing:
+            return f"R is missing {', '.join(missing)} — install them (docs/tools/r.md)"
+        return None
+
+    def runner(script: str, input_file, input_dir, out_dir: Path) -> Path:
+        return run_figure(
+            ctx,
+            script,
+            input_file=input_file,
+            input_dir=input_dir,
+            out_dir=out_dir,
+            binary=params.get("rscript"),
+            # the preflight above already asked, once for the whole pass
+            check_packages=False,
+        )
+
+    try:
+        outcome = render_run_rfigures(
+            run_dir,
+            runner=runner,
+            preflight=preflight,
+            figures=args.figure,
+            params=params,
+        )
+    except (OSError, ValueError, KeyError) as error:
+        print(f"cannot render the R figures: {error}", file=sys.stderr)
+        return RFigureOutcome(files=(), skipped=()), ctx
+    return outcome, ctx
 
 
 MITO_MODULE = "mito_annotate"

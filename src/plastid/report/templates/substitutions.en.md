@@ -10,7 +10,8 @@ Across all comparisons: {{substitutions_summary.substitutions}} substitutions in
 **{{substitutions_summary.ts_tv}}**.
 
 Ts/Tv is left blank when no transversion was found — it is undefined, not infinite. The
-per-genome table is `substitutions`; the per-region breakdown is `substitutions_by_region`.
+per-genome table is `substitutions`; the per-region breakdown is `substitutions_by_region`; the
+twelve directed changes the totals are summed from are `substitutions_by_type`.
 
 **Scope:** {{substitutions_summary.scope}}.
 

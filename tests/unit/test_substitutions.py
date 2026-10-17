@@ -8,12 +8,13 @@ for the records that can be compared.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 import plastid.modules.substitutions as substitutions
-from plastid.core.align import Alignment
+from plastid.core.align import SUBSTITUTION_TYPES, Alignment
 from plastid.core.model import Gene, Genome, Interval
 from plastid.run.context import RunContext
 from plastid.run.layout import RunLayout
@@ -90,3 +91,57 @@ def test_the_cds_scope_reports_each_query_genome_separately(tmp_path: Path, stub
     summary = result.tables["substitutions_summary"].rows[0]
     assert summary["transitions"] == 1
     assert summary["transversions"] == 3
+
+
+def test_the_type_table_carries_every_directed_change_per_genome(tmp_path: Path, stubbed) -> None:
+    """The twelve directed changes are what the paper's six complementary pairs are summed from.
+
+    Measured 17/10/2026: the module held only transitions and transversions, so a figure of
+    substitution type × species had nothing to read.
+    """
+    reference = _genome("REF.1", {"rbcL": _GENE})
+    close = _genome("CLOSE.1", {"rbcL": _GENE.replace("GGGTTT", "GGGTTC")})  # one T→C
+    far = _genome("FAR.1", {"rbcL": _GENE.replace("GGGTTT", "GGGAAA")})  # three T→A
+    result = substitutions.run((reference, close, far), {"scope": "cds"}, _ctx(tmp_path))
+    table = result.tables["substitutions_by_type"]
+    counts = {(row["genome"], row["substitution_type"]): row["count"] for row in table.rows}
+    assert counts[("CLOSE.1", "T_to_C")] == 1
+    assert counts[("FAR.1", "T_to_A")] == 3
+    # every genome carries all twelve, a zero included — an absent row would be ambiguous
+    assert len(table.rows) == 2 * len(SUBSTITUTION_TYPES)
+    assert sum(value for (genome, _), value in counts.items() if genome == "FAR.1") == 3
+
+
+def test_the_type_table_agrees_with_the_aggregates_it_is_summed_from(
+    tmp_path: Path, stubbed
+) -> None:
+    """A type table that disagreed with `substitutions_by_genome` would be a second truth."""
+    reference = _genome("REF.1", {"rbcL": _GENE})
+    close = _genome("CLOSE.1", {"rbcL": _GENE.replace("GGGTTT", "GGGTTC")})
+    far = _genome("FAR.1", {"rbcL": _GENE.replace("GGGTTT", "GGGAAA")})
+    result = substitutions.run((reference, close, far), {"scope": "cds"}, _ctx(tmp_path))
+    per_genome = {row["genome"]: row for row in result.tables["substitutions_by_genome"].rows}
+    by_type: dict[str, dict[str, int]] = {}
+    for row in result.tables["substitutions_by_type"].rows:
+        bucket = by_type.setdefault(row["genome"], {"Transition": 0, "Transversion": 0})
+        bucket[row["class"]] += row["count"]
+    for genome, row in per_genome.items():
+        assert by_type[genome]["Transition"] == row["transitions"]
+        assert by_type[genome]["Transversion"] == row["transversions"]
+
+
+def test_the_whole_scope_also_carries_the_type_table(
+    tmp_path: Path, stubbed, golden_genome: Genome
+) -> None:
+    """Both scopes build the table from the same counters, so a figure needs one rule for either.
+
+    The whole scope needs a genome whose IR the gate accepts, so this one uses the golden sample
+    with five bases changed — the CDS scope above covers the same code path on synthetic records.
+    """
+    mutated = replace(golden_genome, sequence=golden_genome.sequence.replace("A", "G", 5))
+    result = substitutions.run((golden_genome, mutated), {"scope": "whole"}, _ctx(tmp_path))
+    rows = result.tables["substitutions_by_type"].rows
+    counts = {(row["genome"], row["substitution_type"]): row["count"] for row in rows}
+    assert counts[(mutated.accession, "A_to_G")] == 5
+    assert len(rows) == len(SUBSTITUTION_TYPES)
+    assert "twelve directed changes" in result.tables["substitutions_by_type"].scope.label

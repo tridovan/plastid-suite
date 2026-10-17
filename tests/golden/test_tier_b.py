@@ -147,6 +147,15 @@ def test_the_cds_scope_reproduces_the_golden_ts_tv(
     assert (row["Transitions"], row["Transversions"]) == ("323", "120")
     assert row["Ts/Tv"] == "2.6917"
 
+    # The twelve directed changes recombine into exactly those totals — this is the table the
+    # manuscript's Figure 7 reads, and it is the golden number, measured on the golden pair.
+    by_type = list(_table(tmp_path / "runs", "substitutions_by_type"))
+    # twelve directed types for the one query genome — the reference is not a column
+    assert len(by_type) == 12
+    transitions = sum(int(r["Count"]) for r in by_type if r["Class"] == "Transition")
+    transversions = sum(int(r["Count"]) for r in by_type if r["Class"] == "Transversion")
+    assert (transitions, transversions) == (323, 120)
+
 
 def test_the_naming_step_does_not_move_the_golden_ts_tv(
     tools: dict[str, str | None],

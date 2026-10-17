@@ -10,10 +10,12 @@
   in-house annotator, the cross-checks against CGAS / CPStools and the Crataegus answer key, CI, and
   the release itself: MIT, the wheel, the Docker image and the user docs. The analysis round is done,
   except RNA editing (needs RNA-seq) and the parked mito/nuclear round.
-- **Open:** **Phase 10** on `feat/phase-10` — the paper's figures. anh Điềm's bundle of R scripts and
-  patched CPJSdraw drew the Iridaceae manuscript's Figures 2–9. **M10.1 is done**: the junction
-  figure is a command, and it reproduces the bundle's own output byte for byte. `TASKS.md` holds the
-  next task — the R engine.
+- **Open:** **Phase 10** on `feat/phase-10` — the paper's figures, worked from anh Điềm's feedback
+  bundle (`feedback/goi_tool_hinh_IR_2026-10-16/`). **M10.1 – M10.4 are done**: the junction figure
+  is a command reproducing the bundle's own output byte for byte, and the six R figures render from
+  a run directory through `plastid figures` — including the tree, over the user's own tree file.
+  **Phase 10 is complete**: every figure the bundle names is reachable from a run, or is a named
+  skip. `TASKS.md` holds the next task — **H-25**, the IR gate's length rule.
 - **Waiting on people:** anh Điềm's P9-08 report — the code is on `main` now, so that is the pull —
   the release accounts, and a macOS machine.
 - **After that:** Phase 7, assembly — judged on a published paper's public reads against its assembled
@@ -48,9 +50,25 @@ toolkit until now — seven R scripts and a patched CPJSdraw, in `feedback/`)
   seven run through the adapter in 35 s and each writes its PNG, on 4.3.3 here and 4.1.2 for the
   scripts' author. The one change to the scripts is in `00_ham_chung.R`: input paths are made
   absolute before `setwd()`, without which a relative `--inputdir` finds nothing
-- [ ] **M10.3 The figures PTS lacks** — amino-acid heatmap (paper 4), substitution types (7), Ka/Ks (8)
-- [ ] **M10.4 The pivots** — RSCU (3), SSR (5) and π (6) need the long→wide shape their R scripts read
-- [ ] **M10.5 The tree (9 + S1–S3)** — stays the user's script over the user's own tree; PTS builds none
+- [x] **M10.3 The figures PTS lacks** — amino-acid heatmap (paper 4), substitution types (7),
+  Ka/Ks (8). `plastid figures` renders them from a run directory. **Figure 7 had no source**:
+  measured 17/10/2026, `core/align.py` counted only transitions and transversions, so the six
+  complementary types the manuscript draws did not exist in the toolkit — `substitution_counts()`
+  now returns the twelve directed pairs and `substitutions` publishes `substitutions_by_type`
+  (module 0.2.0 → 0.3.0; every existing table and golden number unchanged)
+- [x] **M10.4 The pivots** — RSCU (3), SSR (5) and π (6) reshaped from table cells into the wide
+  form their R scripts read. The R figures are a **second catalogue** (`result/rfigure.py`), not
+  `FigureSpec`s: `Figure` is vector-only and its `build` has no `RunContext`, so a figure drawn
+  through it would call R with no provenance — which is what the bundle's own
+  `figure_spec_mau.py` says. Measured 17/10/2026: `plastid figures` draws the golden's RSCU
+  figure end to end under R 4.3.3, and every refusal is a named skip
+- [x] **M10.5 The tree (9 + S1–S3)** — the last R script, reachable but not wired. **PTS builds no
+  tree**: the file is the user's own, named with `--set tree=<file.treefile>`, handed to the script
+  as its input and never copied into the run. The caption records that file and its digest — a
+  figure read from no table has no scope label to carry, which it says rather than leaving blank.
+  Measured 17/10/2026 on the bundle's own 34-taxon tree: 32 tips after the script's two *Asparagus*
+  are dropped, rooted on the two Orchidaceae, SH-aLRT red and UFBoot black — the bundle's own
+  verification record reproduced
 
 **Phase 7 — assembly** (not built; judged on a published paper — its public reads in, its assembled plastome
 as the answer; so far run only on simulated pairs)

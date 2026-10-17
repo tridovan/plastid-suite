@@ -5,67 +5,86 @@ earlier sessions are `git log -p -- HANDOFF.md`.
 
 ## State — 17/10/2026
 
-Branch `feat/phase-10`. **Phase 9 is closed and squashed on `main`**, tagged `phase-9`: MIT, the wheel
-installed into a clean venv, the Docker image with the golden suite run inside it, and the user docs.
-P9-07 (the DOI, PyPI, the video) and P9-08 (anh Điềm's report) stay open on the team's side.
+Branch `feat/phase-10`. **Phase 9 is closed and squashed on `main`**, tagged `phase-9`.
 
-**Phase 10 is the paper's figures.** anh Điềm's bundle (`feedback/goi_tool_hinh_IR_2026-10-16/`) is the
-seven R scripts and the patched CPJSdraw that drew the Iridaceae manuscript's Figures 2–9.
-**M10.1 and M10.2 are done.** `plastid ir-junction` reads a record's own four regions in the GenBank
-frame, drives CPJSdraw, and writes the configuration, the junction table, the SVG and the PNG into a
-run directory — on the bundle's eight records the configuration is reproduced **8/8** and the SVG
-comes out **byte-identical** (`9ae599a9…`). And the R engine runs: `external/rscript.py` with the
-seven scripts as package data, all seven through the adapter in 35 s under R 4.3.3. `TASKS.md` holds
-the next task — wiring figures to that engine (M10.3/M10.4); `ROADMAP.md` → Phase 10 has the rest.
+**Phase 10 is anh Điềm's feedback bundle**, `feedback/goi_tool_hinh_IR_2026-10-16/` — and it is a
+*feedback* phase, so the bundle is the specification. `TASKS.md` now opens by saying so, because this
+session read only `BANG_MAP_PTS_den_hinh.md` first and designed on a premise the tables do not
+support. Read the whole bundle.
 
-**All pushed.** `main` (the Phase 9 squash), `feat/phase-9`, the tag `phase-9` and this branch are on
-`origin`; every ref is 0/0 with its remote. anh Điềm's pull for P9-08 is `main`.
+**Phase 10 is complete.** `plastid ir-junction` reproduces the bundle's own junction output byte for
+byte, and **every** figure the bundle names renders from a run directory through **`plastid
+figures`** — or is a named skip. M10.5, the tree, is the last of them: `R_F9_phylogeny_tree.R` was
+already packaged but had no door, because the six figures before it all read **tables** and this one
+reads a tree.
+
+## What M10.3/M10.4 built
+
+* **The R figures are a second catalogue**, not `FigureSpec`s: `result/rfigure.py` (`RFigureSpec`,
+  `RFigureSkip`), the pivots in `result/figures/r_*.py`, and the pass in `run/rfigures.py`. Three
+  reasons, all measured: `Figure` accepts only `svg/pdf/eps` and a test pins that; `FigureSpec.build`
+  gets no `RunContext`, so R would run with **no provenance**; and one script writes several named
+  images. The bundle's own `figure_spec_mau.py` reaches the same conclusion in its own words.
+* **The pivots are pure and tested cell-for-cell** (`tests/unit/test_figures_r_tables.py`), and where
+  PTS already draws the figure the two must agree (`tests/unit/test_figures_agree.py`). π is the
+  stated exception: `pi_window` draws windows, the paper draws features — two pictures of two tables.
+* **Figure 7 had no source at all.** `core/align.py` counted only transitions and transversions, so
+  the six complementary types the manuscript draws did not exist here. `substitution_counts()` now
+  returns the twelve directed pairs and `substitutions` publishes `substitutions_by_type`
+  (0.2.0 → 0.3.0). Every existing table and golden number is unchanged; the counters are additive.
+* **The tree figure takes the user's own file, not a table.** `RFigureSpec.source_param` names a
+  `--set` parameter holding a file the script reads **directly**: `--set tree=<file.treefile>`. The
+  file is handed to R as its input and is **never** copied into the run or cached as a result — the
+  caption records its path and sha256 instead of a scope label, because it read no table. Measured
+  17/10/2026 on the bundle's 34-taxon tree: 32 tips after the script drops two *Asparagus*, rooted on
+  two Orchidaceae, which is the bundle's own verification record reproduced.
+* **`plastid figures` gained `--set`** (for `rscript=` and `tree=`), runs both passes, and records
+  R's version and argv in `manifest.json` under `figures.tools`. A matplotlib failure no longer
+  stops the R pass. The R pass is **not** wired into `run --figures` — the golden `test_e2e.py:379`
+  asserts that path exits 3 leaving no `figures/`, and that is a deliberate later decision, not an
+  oversight. Nor into `package` or `qc`, which still call `render_run_figures` alone: the
+  supplementary package and the QC list carry the matplotlib figures only until someone decides
+  otherwise.
 
 ## Next
 
-**`TASKS.md`** — wire figures to the R engine (M10.3/M10.4): the three the paper has and PTS lacks
-(amino acid, substitutions, Ka/Ks), the long→wide pivots, and — where PTS already draws the figure —
-a test that the matplotlib and R versions agree. Then M10.5, the tree, which stays the user's own
-script. Then **Phase 7**, assembly, judged on a published paper's public reads against its
-assembled plastome.
+**`TASKS.md`** — **H-25**: an IR pair whose two annotated copies differ in length measures as
+unrelated, and the gate stops three of the bundle's eight records. Then **Phase 7**, assembly,
+judged on a published paper's public reads against its assembled plastome.
 
 ## Waiting on the team — nothing here is ours to do
 
-- **P9-08.** anh Điềm tests the 1.0.0 code. The pull is now **`main`** — Phase 9 is merged there; the
-  `feat/phase-9` pointer in the older notes is out of date. Whatever he finds becomes a regression test
-  before it is fixed.
-- **P9-07.** The DOI, the PyPI upload and the video need the authors named in `CITATION.cff`, a Zenodo
-  account, the repository made public (it is private today) and the dev's explicit go — `docs/release.md`
-  has the order.
-- A macOS machine, for the one column of `docs/platforms.md` that has never been run.
-
-Nothing else waits on people: the tools are judged on a published paper's public input against the
-paper's own results (`CLAUDE.md` → How the tools are judged).
+* **P9-08.** anh Điềm tests the 1.0.0 code; the pull is `main`.
+* **P9-07.** DOI, PyPI, video — need the authors named, a Zenodo account, the repo made public, and
+  the dev's explicit go (`docs/release.md`).
+* A macOS machine, for the one column of `docs/platforms.md` never run.
+* **The bundle's own numbers, which are the team's to settle** (`README.md` → "Lưu ý số liệu"):
+  Figure 7 was drawn from **20 comparison pairs** while the caption says 33 species; the manuscript's
+  five-species compound-IRa list names *Iris hermona* where the data say *Isophysis tasmanica*; the
+  CPJSdraw citation is the PeerJ 2023 paper, not "Xu, W. (2024)". None is a toolkit change.
 
 ## Live risks
 
-- **H-25** (new, `ROADMAP.md`): the IR gate refuses a record whose two annotated IR copies differ in
-  length — three of the eight records in the bundle, whose inverted repeats are in fact exact. It makes
-  `plastid` unable to process them at all, and it is why the junction figure reads the annotation
-  directly rather than through `detect_ir`. Its own task, with its own regression test.
-- **The R half is measured but not yet in the repo.** R 4.3.3, `rsvg-convert` and `libsvg-perl` were
-  installed on this machine to run the bundle's scripts, and all seven run and write all eight
-  figures. Nothing about R is declared yet, so `docs/tools/r.md` and the `environment.yml` pins must
-  ship in the session that first uses them — a tool that exists only on one machine is not part of
-  the toolkit. (`rsvg-convert` and `libsvg-perl` are declared: `docs/tools/cpjsdraw.md`.)
-- **CPJSdraw refuses a record without a `gene` feature**, and `to_genbank` writes `CDS`/`tRNA`/`rRNA`
-  only — so a genome `plastid annotate` produced cannot be drawn as it stands. Measured 17/10/2026,
-  written down in `docs/tools/cpjsdraw.md`; the refusal is loud, not silent.
-- **CPJSdraw is not bundled and cannot be** (no licence — measured 17/10/2026, GitHub answers
-  `license: null`). The bundle's integration README claims it is MIT; that claim is wrong, and the repo
-  says so. The patched build is identified by md5, so a pristine clone stops the run.
-- The registry's `citations` field is stored and never read, and it has drifted. Feed it from each
-  module's `Result`, or drop the field.
-- `gene_normalize` from an installed package asks for `--set naming_reference=<file>`, because the naming
-  record is the end user's choice (D5-09). The first-run experience is worth watching.
-- CI's tier B installs from conda-forge and bioconda at run time, so a channel-side change can turn it
-  red with nothing changed here; the job prints every pinned version.
-- Four named-but-unfixed defects (H-21 … H-24) are in `ROADMAP.md` → Known defects, now joined by H-25.
-  Each is a task of its own with a regression test, never a silent fix inside another task.
-- Tier B needs the pinned tools on `PATH` and the `PTS_*_DIR` variables; without them the tests skip
-  with a named reason and the run looks green — `PTS_REQUIRE_TOOLS=1` makes a skip a failure.
+* **A 34-species RSCU / amino-acid / SSR figure is not reachable from one run.** `codon_usage`,
+  `amino_acid` and `ssr` are arity-1 — one genome per run — and the run layer concatenates nothing.
+  The figures render what the run holds and say so in the caption; merging runs is its own task.
+  Recorded in `docs/things_we_do_not_do.md`.
+* **F3 and F4 draw only the species on their own hard-coded 34-name list.** A run of another species
+  is refused **by name** (`RFigureSkip`) rather than drawn empty — measured on the Coleus stand-in.
+  The list is parsed from the packaged script, so a script edit cannot silently change it.
+* **F5's `tRNA`/`rRNA` columns are blank**, not zero: `ssrs.context` is Gene·Intron·IGS only and the
+  toolkit does not split gene kinds. The caption says so.
+* **`R_F8_KaKs_heatmap.R` cannot draw a one-genome matrix** — measured 17/10/2026, isolated on a
+  hand-built matrix: its `mat[keep_genes, keep_spp]` drops a single column to a vector and it halts
+  with `replacement has 0 rows`. A one-query run is skipped by name (`RFigureSkip`). The script is
+  the manuscript's and is not edited; both limits are written down in `docs/tools/r.md`.
+* **H-25**: the IR gate refuses a record whose two annotated IR copies differ in length — three of
+  the bundle's eight records, whose repeats are in fact exact. Its own task.
+* **CPJSdraw is not bundled and cannot be** (no licence, measured 17/10/2026). The bundle's README
+  claims MIT; that claim is wrong and the repo says so.
+* The registry's `citations` field is stored and never read, and it has drifted.
+* CI's tier B installs from conda-forge and bioconda at run time, so a channel-side change can turn
+  it red with nothing changed here.
+* Four named-but-unfixed defects (H-21 … H-24) are in `ROADMAP.md` → Known defects, with H-25.
+* Tier B needs the pinned tools on `PATH` and the `PTS_*` variables, **plus `PTS_RSCRIPT`** for the
+  R figure end-to-end; without them the tests skip with a named reason and the run looks green.

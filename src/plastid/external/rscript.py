@@ -125,20 +125,27 @@ def run_figure(
     extra: Sequence[str] = (),
     binary: str | Path | None = None,
     timeout: int | None = None,
+    check_packages: bool = True,
 ) -> Path:
     """Run one figure script and return the directory its images landed in.
 
     ``input_dir`` and ``input_file`` are resolved to absolute paths here as well as inside the
     script: the script's own guard is the fix, and this is the same rule stated where a caller can
     read it.
+
+    ``check_packages=False`` is for a caller that has **already** asked which packages are missing
+    and is drawing several figures in a row: ``plastid figures`` probes once for the whole pass
+    rather than once per figure, so the run's provenance holds one version record instead of seven.
+    The default stays the safe one — a caller that has not asked gets the check.
     """
     executable = rscript_binary(binary)
-    missing = missing_packages(ctx, executable)
-    if missing:
-        raise ToolError(
-            f"rscript: R is missing {', '.join(missing)} — the figure scripts need all of "
-            f"{', '.join(R_PACKAGES)}; install them ({RSCRIPT_DOC})"
-        )
+    if check_packages:
+        missing = missing_packages(ctx, executable)
+        if missing:
+            raise ToolError(
+                f"rscript: R is missing {', '.join(missing)} — the figure scripts need all of "
+                f"{', '.join(R_PACKAGES)}; install them ({RSCRIPT_DOC})"
+            )
 
     script = figure_script(name)
     out_dir = Path(out_dir).resolve()

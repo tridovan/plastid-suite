@@ -5,10 +5,12 @@ from __future__ import annotations
 import pytest
 
 from plastid.core.align import (
+    SUBSTITUTION_TYPES,
     Alignment,
     columns_for_span,
     nucleotide_diversity,
     reference_positions,
+    substitution_class,
     substitution_counts,
     variable_sites,
     window_diversity,
@@ -96,6 +98,53 @@ def test_substitution_counts_skip_gaps_and_ambiguous_bases() -> None:
     assert counts["compared"] == 2  # only A and T were comparable
     assert counts["skipped"] == 2
     assert counts["substitutions"] == 0
+
+
+def test_every_substitution_is_counted_under_its_own_directed_type() -> None:
+    """The twelve directed pairs are the primitive fact; transitions/transversions aggregate them.
+
+    The manuscript's Figure 7 draws the six *complementary* pairs, so the toolkit has to hold the
+    directed counts they are summed from — measured 17/10/2026, it held only the two aggregates.
+    """
+    counts = substitution_counts("AGCT", "GATC")  # one of each transition, no transversion
+    assert counts["A_to_G"] == 1
+    assert counts["G_to_A"] == 1
+    assert counts["C_to_T"] == 1
+    assert counts["T_to_C"] == 1
+    assert counts["transversions"] == 0
+    assert sum(counts[name] for name in SUBSTITUTION_TYPES) == counts["substitutions"] == 4
+
+
+def test_the_type_counters_partition_into_transitions_and_transversions() -> None:
+    counts = substitution_counts("ACGTACGT", "GCTAGCAT")
+    transitions = sum(
+        counts[name] for name in SUBSTITUTION_TYPES if substitution_class(name) == "Transition"
+    )
+    transversions = sum(
+        counts[name] for name in SUBSTITUTION_TYPES if substitution_class(name) == "Transversion"
+    )
+    assert transitions == counts["transitions"]
+    assert transversions == counts["transversions"]
+    assert transitions + transversions == counts["substitutions"]
+
+
+def test_a_skipped_column_contributes_to_no_substitution_type() -> None:
+    """An ambiguous base is not a type: it is counted as skipped, never as a substitution."""
+    counts = substitution_counts("ACGT", "A-GN")
+    assert sum(counts[name] for name in SUBSTITUTION_TYPES) == 0
+    # every type is present as a key, so a reader never has to guess whether a zero means "none"
+    assert set(SUBSTITUTION_TYPES) <= set(counts)
+
+
+def test_the_type_names_are_the_twelve_directed_pairs() -> None:
+    assert len(SUBSTITUTION_TYPES) == 12
+    assert set(SUBSTITUTION_TYPES) == {f"{a}_to_{b}" for a in "ACGT" for b in "ACGT" if a != b}
+    assert {name for name in SUBSTITUTION_TYPES if substitution_class(name) == "Transition"} == {
+        "A_to_G",
+        "G_to_A",
+        "C_to_T",
+        "T_to_C",
+    }
 
 
 def test_the_recorded_window_decision_matches_the_module() -> None:

@@ -36,6 +36,7 @@ __all__ = [
     "THEME",
     "Theme",
     "export_figure",
+    "missing_tables",
     "themed",
 ]
 
@@ -136,6 +137,21 @@ class Figure:
         raise KeyError(f"figure {self.id!r} has no {fmt!r} payload (have: {self.formats})")
 
 
+def missing_tables(
+    requires: Sequence[tuple[str, str]], results: Mapping[str, Result]
+) -> tuple[str, ...]:
+    """The ``(module, table)`` pairs this run does not hold — named as ``module.table``.
+
+    Shared by :class:`FigureSpec` and the R figures (``result/rfigure.py``): the two catalogues
+    must name a missing source identically, or the same run would explain the same absence twice.
+    """
+    return tuple(
+        f"{module}.{table}"
+        for module, table in requires
+        if module not in results or table not in results[module].tables
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class FigureSpec:
     """A figure type: which tables it needs, and how to build it from a run's results.
@@ -155,11 +171,7 @@ class FigureSpec:
 
     def missing(self, results: Mapping[str, Result]) -> tuple[str, ...]:
         """The required tables this run does not hold — named as ``module.table``."""
-        return tuple(
-            f"{module}.{table}"
-            for module, table in self.requires
-            if module not in results or table not in results[module].tables
-        )
+        return missing_tables(self.requires, results)
 
 
 @contextmanager

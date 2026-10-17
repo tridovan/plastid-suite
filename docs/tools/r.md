@@ -62,5 +62,51 @@ script fails to find its own input. Measured 17/10/2026: `--inputdir data_mau` f
 path works. `00_ham_chung.R` now makes those paths absolute before the working directory moves. No
 drawing changed.
 
+**How a run wires its tables to these scripts.** `plastid figures <run_dir>` renders them, beside
+the toolkit's own figures — `--set rscript=/path/to/Rscript` when R is not on `PATH`. Each R figure
+is a pivot in `src/plastid/result/figures/r_*.py` that reads table **cells** and writes the file the
+script expects; the script then runs through `external/rscript.py`, so its version and argv land in
+the run's provenance. Four things are worth knowing:
+
+* the pivot file the script read is kept in `<run>/figures/<id>__input/`, and the images beside it
+  as `<id>__<name>.png` and `.pdf`;
+* a **caption** is written as `<run>/figures/<id>.caption.txt`, carrying the scope label of every
+  table the figure read — the scripts draw no source note of their own, and an exported number must
+  carry its scope;
+* a figure is **skipped by name**, never drawn empty: when a source table is absent from the run,
+  when R or one of the nine packages is missing, when the run's species is not one the script orders
+  by (F3 and F4 intersect their own hard-coded list and would otherwise draw an empty panel), or
+  when the run's scope produced no Ts/Tv table (F7);
+* the three arity-1 modules — `codon_usage`, `amino_acid`, `ssr` — take **one genome per run**, so
+  F3, F4 and F5 carry one species column. `kaks` and `diversity` take the whole panel, so F6 and F8
+  cover every genome in the run;
+* **F9, the tree, reads no table at all.** This toolkit builds no tree, so the figure takes the
+  user's own file — `--set tree=<file.treefile>` — hands it to the script as its input, and never
+  copies it into the run. Its caption carries that file's path and sha256 where the others carry a
+  scope label. `R_F9` drops two *Asparagus* tips and roots on two Orchidaceae unless told
+  otherwise, so a tree of another family loses nothing and silently midpoint-roots instead.
+
+**Three limits of the scripts themselves**, all measured 17/10/2026 and each turned into a **named
+skip** or a pinned test rather than left to a cryptic R error:
+
+* **`R_F8_KaKs_heatmap.R` cannot draw a one-genome matrix.** Its own `mat[keep_genes, keep_spp]`
+  drops a single species column to a vector, so `rownames(mat)` is NULL and it halts with
+  `replacement has 0 rows`. Isolated on a hand-built matrix: two columns draw, one does not. A run
+  comparing the reference against a single genome is skipped with that reason.
+* **`R_F3` and `R_F4` draw only the species on their own hard-coded 34-name list** — anything else
+  is dropped by their `intersect(SP_ORDER, colnames(data))` and the panel comes out empty, without
+  a word. A run of any other species is skipped by name. The list is parsed from the packaged
+  script so it cannot drift unnoticed.
+* **`R_F6_nucleotide_diversity_pi.R` halts on a repeated `Region` label** — its
+  `factor(Region, levels = Region)` refuses a duplicate and R stops with `factor level [6] is
+  duplicated`, drawing nothing. Any figure feeding it must therefore label rows by a **unique key**,
+  which is why its pivot uses the tables' own `intron_id`/`igs_id` cells rather than a name built
+  from parts: on the golden pair a gene-name label collides twice over, and neither collision is
+  visible from the name (two IR copies of one intron, and two introns of one gene).
+
+**The scripts are not edited.** The one change M10.2 made is the absolute-path fix in
+`00_ham_chung.R`. Everything a figure needs beyond that is supplied by its pivot, never by editing
+the manuscript's code.
+
 **Cite it.** R Core Team. *R: A Language and Environment for Statistical Computing.* R Foundation
 for Statistical Computing, Vienna, Austria. https://www.R-project.org/
