@@ -60,8 +60,11 @@ Golden sample **Iris domestica NC_050833.1** (comparison genome: Iris gatesii NC
 | SSR | **37** = mono 31 · di 4 · tri 2 (MISA 2.1 and cpstools agree) |
 | Ts/Tv | **2.6917** = 323 Ts / 120 Tv — scope: **CDS only · 79 shared genes · MAFFT · IR excluded** |
 
-Changing any of these needs fresh measured evidence (provenance: PROJECT.md §6). Another scope is another
-number (whole-alignment Ts/Tv is 1.8416) and must be labelled.
+These are a regression contract for this one pinned input, not a claim about any other sample. **Ts/Tv is
+the weakest row**: self-measured, confirmed by no independent tool (CPStools has none, §8.61), and it moves
+with the aligner and the gene set (§9.B-14) — our pipeline's anchor, not a biological constant. Changing any
+of these needs fresh measured evidence (provenance: PROJECT.md §6); another scope is another number
+(whole-alignment Ts/Tv is 1.8416) and must be labelled.
 
 ## Data
 
