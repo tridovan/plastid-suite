@@ -10,12 +10,13 @@
   in-house annotator, the cross-checks against CGAS / CPStools and the Crataegus answer key, CI, and
   the release itself: MIT, the wheel, the Docker image and the user docs. The analysis round is done,
   except RNA editing (needs RNA-seq) and the parked mito/nuclear round.
-- **Open:** **Phase 10** on `feat/phase-10` — the paper's figures, worked from anh Điềm's feedback
-  bundle (`feedback/goi_tool_hinh_IR_2026-10-16/`). **M10.1 – M10.4 are done**: the junction figure
-  is a command reproducing the bundle's own output byte for byte, and the six R figures render from
-  a run directory through `plastid figures` — including the tree, over the user's own tree file.
-  **Phase 10 is complete**: every figure the bundle names is reachable from a run, or is a named
-  skip. `TASKS.md` holds the next task — **H-25**, the IR gate's length rule.
+- **Closed:** **Phase 10** — the paper's figures, worked from anh Điềm's feedback bundle
+  (`feedback/goi_tool_hinh_IR_2026-10-16/`). Tagged `phase-10`, squashed onto `main` (`0037379`):
+  the junction figure reproduces the bundle's own output byte for byte, all seven R figures render
+  from a run directory, and H-25 — the IR gate's length rule — is fixed. Every figure the bundle
+  names is reachable from a run, or is a named skip.
+- **Open:** **Phase 7**, assembly — `TASKS.md` starts at M7.1, whose first step is finding a
+  published paper with public reads and its assembled plastome as an answer key.
 - **Waiting on people:** anh Điềm's P9-08 report — the code is on `main` now, so that is the pull —
   the release accounts, and a macOS machine.
 - **After that:** Phase 7, assembly — judged on a published paper's public reads against its assembled

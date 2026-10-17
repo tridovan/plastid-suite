@@ -5,11 +5,9 @@ earlier sessions are `git log -p -- HANDOFF.md`.
 
 ## State — 17/10/2026
 
-Branch `feat/phase-10`. **Phase 9 is closed and squashed on `main`**, tagged `phase-9`.
-
-**Every milestone of Phase 10 is done** (M10.1 – M10.5) and so is **H-25**, its last finding — all on
-`feat/phase-10`, **not yet merged to `main`**: closing the phase is a `git tag phase-10` plus a
-`--squash` merge, and neither has been run.
+Branch `feat/phase-10` (kept). **Phase 9 and Phase 10 are both closed and squashed on `main`**,
+tagged `phase-9` and `phase-10`; the Phase 10 squash is `0037379` and the branch still carries the
+six commits it summarises.
 
 **Phase 10 is anh Điềm's feedback bundle**, `feedback/goi_tool_hinh_IR_2026-10-16/` — and it is a
 *feedback* phase, so the bundle is the specification. `TASKS.md` opens by saying so, because one
@@ -69,8 +67,9 @@ assembled plastome. Its first step is finding that paper: no answer key, no eval
 simulated pair is not a substitute. Then M7.2 and M7.6. **H-21 … H-24** stay open in `ROADMAP.md` →
 Known defects, each its own task.
 
-**Closing Phase 10** is a separate, outward step: `git tag phase-10 feat/phase-10`, then
-`git merge --squash` it into `main` as one commit listing M10.1 – M10.5 and H-25.
+**Closing Phase 11** will be the same outward step, when its milestones are done: `git tag phase-N
+feat/phase-N`, then `git merge --squash` onto `main` as one commit listing its tasks. Ask the dev
+before either — the tag is permanent.
 
 ## Waiting on the team — nothing here is ours to do
 
