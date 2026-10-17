@@ -6,14 +6,15 @@
 
 ## Now — 17/10/2026
 
-- **Closed and on `main`:** Phases 1–5, 4a, 3B, 2B, 8 and 8B — every analysis module, the in-house
-  annotator, the cross-checks against CGAS / CPStools and the Crataegus answer key, CI. The analysis
-  round is done, except RNA editing (needs RNA-seq) and the parked mito/nuclear round.
-- **Open:** Phase 9 on `feat/phase-9`. The packaging, the licence review (MIT), the Docker image and the
-  user docs are done; anh Điềm tests the code from git (P9-08), and the DOI, PyPI and the video wait on
-  that and on the team.
-- **Next, unblocked:** fixes to the figure tool from anh Điềm's package (`feedback/`, untracked) — then
-  close Phase 9 on the team's report.
+- **Closed and on `main`:** Phases 1–5, 4a, 3B, 2B, 8, 8B and **9** — every analysis module, the
+  in-house annotator, the cross-checks against CGAS / CPStools and the Crataegus answer key, CI, and
+  the release itself: MIT, the wheel, the Docker image and the user docs. The analysis round is done,
+  except RNA editing (needs RNA-seq) and the parked mito/nuclear round.
+- **Open:** **Phase 10** on `feat/phase-10` — the paper's figures. anh Điềm's bundle of R scripts and
+  patched CPJSdraw drew the Iridaceae manuscript's Figures 2–9; the junction half is ported and
+  reproduces the bundle's own output byte for byte. `TASKS.md` holds what is left.
+- **Waiting on people:** anh Điềm's P9-08 report — the code is on `main` now, so that is the pull —
+  the release accounts, and a macOS machine.
 - **After that:** Phase 7, assembly — judged on a published paper's public reads against its assembled
   plastome; it waits on no one.
 
@@ -32,6 +33,19 @@ structure) waits with the parked round.
   is the procedure. Left: the DOI (Zenodo), the PyPI upload, the how-to video and the authors to name.
   Each is outward-facing and permanent, so each waits for the dev's explicit go.
 - [ ] **M9.7 Web UI** — deferred until the core is stable
+
+**Phase 10 — the paper's figures** (`feat/phase-10`; the manuscript's Figures 2–9, drawn outside the
+toolkit until now — seven R scripts and a patched CPJSdraw, in `feedback/`)
+
+- [~] **M10.1 The IR-junction figure (Figure 2)** — `core/junctions.py` reads the record's own four
+  regions in the GenBank frame, `external/cpjsdraw.py` draws them. Measured 17/10/2026: the SVG and
+  the junction table come out **byte-identical** to the bundle's own verified output. Left: the
+  `plastid ir-junction` command that a user can actually call, and the junction table's columns.
+- [ ] **M10.2 The R figure engine** — `external/rscript.py`, the seven scripts under `data/r_scripts/`
+  and the R pins; all seven run here under R 4.3.3 and write all eight figures
+- [ ] **M10.3 The figures PTS lacks** — amino-acid heatmap (paper 4), substitution types (7), Ka/Ks (8)
+- [ ] **M10.4 The pivots** — RSCU (3), SSR (5) and π (6) need the long→wide shape their R scripts read
+- [ ] **M10.5 The tree (9 + S1–S3)** — stays the user's script over the user's own tree; PTS builds none
 
 **Phase 7 — assembly** (not built; judged on a published paper — its public reads in, its assembled plastome
 as the answer; so far run only on simulated pairs)
@@ -74,6 +88,18 @@ when the user's machine has the RAM, otherwise on the Galaxy remote path (confir
 
 ## Known defects — named, not fixed
 
+- **H-25** An IR pair whose two annotated copies differ in length by *d* measures as unrelated.
+  `measure_ir` takes the mirror constant from the two annotated boundaries (`first.start +
+  second.end - 1`), so a copy *d* bases longer shifts every base *d* positions away from its true
+  partner: measured 17/10/2026 on eight Iridaceae records, *d* = 1 (Chasmanthe NC_072562), 2 (Iris
+  hermona NC_081931) and 4 (Trimezia NC_072662) give identities of **0.2924 / 0.2636 / 0.2778** —
+  all under the 99.9 % gate — while the constant that accounts for *d* gives **1.0000 / 0.9985 /
+  0.9998**. The gate therefore refuses three genomes whose inverted repeats are exact, and
+  `plastid` cannot process them at all. Records whose difference exceeds
+  `IR_COPY_LENGTH_TOLERANCE` (Freesia 37, Olsynium 40) fail the annotation path and are rescued by
+  de-novo detection; those inside the tolerance are not. Note the interaction: a copy written
+  `join(...)` across the origin arrives as two intervals and the small piece is dropped, which is
+  one way *d* becomes non-zero. A task of its own with a regression test, never a silent fix.
 - **H-24** `trnV-UAC` is never called: ARAGORN reads that locus as `tRNA-Stop(tta)` in the Crataegus
   corpus and as `tRNA-Cys(aca)` on the golden, so an intron-containing tRNA is missing from every
   `plastid annotate` run. Three fixes are possible — transfer tRNAs from the reference, as CDS and rRNA

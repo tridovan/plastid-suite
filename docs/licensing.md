@@ -46,6 +46,7 @@ by us* — which is **none of them**.
 | Tool | Version | Called by | Licence | How we know | Bundled |
 |---|---|---|---|---|---|
 | **MISA** | 2.1 | `external/misa.py` (module `ssr`) | **NOT STATED** — the zip ships no licence file; the IPK page only asks for the citation | the zip itself + the IPK page, 02/10/2026 | **no — left the package 11/10/2026** (D-q) |
+| **CPJSdraw** | 0.0.1 | `external/cpjsdraw.py` (the IR-junction figure) | **NOT STATED** — the tree ships no licence file, and GitHub answers `license: null` | the cloned tree + the GitHub API, 17/10/2026 | **no — never shipped, obtained by the user** (`docs/tools/cpjsdraw.md`) |
 | **MAFFT** | 7.526 | `external/mafft.py` (`substitutions`, `diversity`, `barcodes`, `popgen`, `kaks`) | BSD-3-Clause | conda-forge metadata | no |
 | **BLAST+** | 2.17.0 | `external/blast.py` (mito annotation, corpus bar) | NCBI-PD (public domain) | bioconda metadata | no |
 | **ARAGORN** | 1.2.41 | `external/aragorn.py` (mito tRNA) | GPLv3 | bioconda metadata + `docs/tools/aragorn.md` | no |
