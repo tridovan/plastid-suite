@@ -10,6 +10,11 @@ own "one directory up" guess.
 - `misa.ini` — the MISA 2.1 settings the `ssr` module runs with: **ours**, writing down MISA's
   default definitions. The tool's own file is not redistributed (D-q — its zip states no licence,
   `docs/tools/misa.md`), and its script is obtained separately.
+- `r_scripts/` — the seven R scripts the manuscript's figures 3–9 were drawn with, plus the helper
+  they share. **The team's own code**, carried so a figure can be reproduced, and kept in the
+  language its authors wrote it in. R itself is not bundled: it is declared in `docs/tools/r.md`.
+  The one change made to them is in `00_ham_chung.R` — input paths are made absolute before
+  `setwd()`, without which a relative `--inputdir` finds nothing (measured 17/10/2026).
 
 `gene_groups.yaml` is data, not code, on purpose: it holds external knowledge (the grouping
 plastome papers use) and the real Oldenlandia/Coleus records will bring gene names it has not

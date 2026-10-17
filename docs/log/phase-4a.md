@@ -56,6 +56,24 @@ nhiên mà dự án chưa từng có: cùng đầu vào, hai đường ống, so
 giải**, không phải của chuỗi. Tức **3/34 = 8,8 %** số bản ghi sẽ hỏng im lặng nếu ai đó tin IR
 trong annotation — đúng lý do gate tồn tại (§9.A).
 
+**Đính chính (17/10/2026, H-25 — `ROADMAP.md` → Phase 10, mục H-25 đã đóng):** ba con số **29,24 % / 26,36 % /
+27,78 %** ở bảng trên không phải phán quyết về ba bản chú giải đó. Cả ba cặp đều lệch nhau *d*
+base (1 / 2 / 4), và hằng số ghép cặp mà §8.3 ghim (`C = a1 + b2 − 1`) chỉ đúng khi hai bản **bằng
+nhau**: lệch *d* thì nó ghép lệch *d* vị trí, và phép so trở thành ngẫu nhiên (~25 %) — đúng bằng
+những gì bảng ghi. Đo lại cùng ngày, với phép ghép mà độ lệch đó ngụ ý:
+
+| Bản ghi | *d* | Số của bảng trên | Đo lại | Kết luận |
+|---|---|---|---|---|
+| *Chasmanthe floribunda* | +1 | 29,24 % | **1,00000** | repeat chính xác; chú giải rộng hơn *d* base ở mép ngoài ⇒ **cổng chặn oan** |
+| *Trimezia steyermarkii* | +4 | 27,78 % | **1,00000** | như trên ⇒ **cổng chặn oan** |
+| *Iris hermona* | +2 | 26,36 % | **0,99863** | khớp tuyệt đối 26.132 bp, lệch 36/48 vị trí trong một khối 48 bp ở JLB ⇒ chú giải PGA **rộng hơn repeat thật 48 bp**; cổng chặn **đúng** |
+
+Kết luận "lỗi của **bản chú giải**, không phải của chuỗi" vì thế đúng với *Iris hermona* và **sai
+với hai bản còn lại** — ở đó lỗi nằm ở phép ghép cặp của chính toolkit, không ở PGA. Con số
+26,36 % vẫn là điều đo được hôm đó; nó chỉ không còn là điều code hôm nay đo ra, và fixture
+`test_corpus.py` đã cập nhật theo. `Iris hermona` vẫn rớt gate, nên kết luận của cả mục — *tin IR
+trong annotation là hỏng im lặng* — vẫn nguyên.
+
 **34/34 bản ghi viết tên gen khác nhau giữa hai chú giải.** Phân loại:
 
 | Khác biệt | Số bản ghi | Loại |
@@ -108,7 +126,7 @@ P3A-07 đã làm), vì hai đường mang **cùng chuỗi** (đã kiểm 68/68).
 | Cặp | Bản công bố | Bản PGA | Điều nó kiểm |
 |---|---|---|---|
 | genome vàng | `NC_050833.1.gb` (**đã có sẵn**, sha256 trùng khít file của bộ) | 85 CDS | hợp đồng §6 không phải thuộc tính của chuỗi, mà của chú giải |
-| *Iris hermona* | 26.132 bp @ 100,00 % — **qua gate** | 26.180 bp @ **26,36 %** — **rớt gate** | một chuỗi, hai phán quyết; fixture hồi quy cho §9.A |
+| *Iris hermona* | 26.132 bp @ 100,00 % — **qua gate** | 26.180 bp @ **26,36 %** — **rớt gate** (nay đo ra **99,86 %**, vẫn rớt — đính chính ở mục gate phía trên) | một chuỗi, hai phán quyết; fixture hồi quy cho §9.A |
 | *E. bulbosa* (bản ghi của nhóm) | **133 = 87 + 38 + 8** | **131 = 85 + 38 + 8** | cùng kiểu mất bản sao, trên chính bản ghi nhóm quan tâm |
 
 12 test tier-A trong `tests/golden/test_corpus.py` khoá từng con số trên, **và khoá cả điều làm

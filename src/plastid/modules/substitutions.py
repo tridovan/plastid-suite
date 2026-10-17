@@ -16,7 +16,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from plastid.core.align import Alignment, reference_positions, substitution_counts
+from plastid.core.align import (
+    SUBSTITUTION_TYPES,
+    Alignment,
+    reference_positions,
+    substitution_class,
+    substitution_counts,
+)
 from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.ir import detect_ir
 from plastid.core.model import Genome, coding_sequence
@@ -28,7 +34,9 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "substitutions"
-MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-35)
+MODULE_VERSION = (
+    "0.3.0"  # 0.3.0 adds substitutions_by_type; 0.2.0 changed behaviour 2026-10-04 (§9.C-35)
+)
 
 
 # The two scopes this module can report, and why the difference is not cosmetic: §6's golden
@@ -65,6 +73,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
     labels: dict[str, str] = params.get("groups", {})
     rows = []
+    type_rows: list[dict[str, Any]] = []
     for index in range(1, alignment.n_rows):
         counts = substitution_counts(alignment.sequences[0], alignment.sequences[index])
         rows.append(
@@ -73,6 +82,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 "group": labels.get(alignment.names[index], ""),
                 **_ratio(counts),
             }
+        )
+        type_rows.extend(
+            _type_rows(alignment.names[index], labels.get(alignment.names[index], ""), counts)
         )
 
     regions = []
@@ -186,10 +198,23 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             "substitutions_summary": summary,
             "substitutions": table,
             "substitutions_by_region": region_table,
+            "substitutions_by_type": _by_type_table(
+                type_rows,
+                Scope(
+                    label=(
+                        "each genome against the reference; every one of the twelve directed "
+                        "changes is a row, a zero included; gap and ambiguous columns skipped"
+                    ),
+                    coord_system="normalized",
+                ),
+            ),
         },
         notes=(
             "Ts/Tv is blank when no transversion was found: it is undefined, not infinite.",
             "§6's golden Ts/Tv has the narrower scope CDS only · 76 shared genes · IR excluded.",
+            "substitutions_by_type holds the twelve directed changes the transitions and "
+            "transversions totals are summed from; a manuscript's six complementary pairs "
+            "(A↔G, C↔T, A↔C, T↔G, C↔G, A↔T) are two rows each.",
         ),
         citations=("mafft",),
     )
@@ -243,6 +268,12 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
         }
         for genome, _genes in annotated
     }
+    # The per-type counters live beside `per_query`, not inside it: that dict's keys are the
+    # `substitutions_by_genome` columns, and a nested dict there would be a column the table
+    # does not declare.
+    per_query_types: dict[str, dict[str, int]] = {
+        name: dict.fromkeys(SUBSTITUTION_TYPES, 0) for name in per_query
+    }
     for name in shared:
         rows = [
             (reference.accession or reference.name, coding_sequence(reference, ref_genes[name])),
@@ -252,14 +283,11 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
             ],
         ]
         alignment = align(rows, ctx)
-        counts = {"compared": 0, "substitutions": 0, "transitions": 0, "transversions": 0}
+        counts = _zero_counts()
         for index in range(1, alignment.n_rows):
-            row_counts = {"compared": 0, "substitutions": 0, "transitions": 0, "transversions": 0}
-            for key, value in substitution_counts(
-                alignment.sequences[0], alignment.sequences[index]
-            ).items():
-                if key in row_counts:
-                    row_counts[key] = value
+            # The counters now carry the twelve directed types as well as the two aggregates, and
+            # this scope sums both: a gene's per-type counts are what the type table is built from.
+            row_counts = substitution_counts(alignment.sequences[0], alignment.sequences[index])
             for key in counts:
                 counts[key] += row_counts[key]
             # The per-pair numbers a manuscript table needs: one gene, one query genome.
@@ -268,6 +296,8 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
             entry["columns"] += alignment.length
             for key in ("compared", "substitutions", "transitions", "transversions"):
                 entry[key] += row_counts[key]
+            for type_name in SUBSTITUTION_TYPES:
+                per_query_types[rows[index][0]][type_name] += row_counts[type_name]
         for key in totals:
             totals[key] += counts[key]
         per_gene.append({"gene": name, "columns": alignment.length, **_ratio(counts)})
@@ -381,9 +411,67 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
             "substitutions_summary": summary,
             "substitutions_by_genome": genomes_table,
             "substitutions_by_gene": genes,
+            "substitutions_by_type": _by_type_table(
+                [
+                    row
+                    for key, counts in per_query_types.items()
+                    for row in _type_rows(key, (params.get("groups") or {}).get(key, ""), counts)
+                ],
+                summary_scope,
+            ),
         },
         notes=tuple(notes),
         citations=("mafft",),
+    )
+
+
+def _zero_counts() -> dict[str, int]:
+    """A fresh accumulator: the four aggregates plus every directed type, all at zero."""
+    return {
+        "compared": 0,
+        "substitutions": 0,
+        "transitions": 0,
+        "transversions": 0,
+        **dict.fromkeys(SUBSTITUTION_TYPES, 0),
+    }
+
+
+def _type_rows(genome: str, group: str, counts: dict[str, int]) -> list[dict[str, Any]]:
+    """One row per directed substitution type for one genome — zero counts included.
+
+    A zero is a measurement ("this pair never occurred in the comparison"), so every one of the
+    twelve is written rather than only the non-zero ones: a reader must not have to tell an
+    absent row from a zero.
+    """
+    return [
+        {
+            "row_id": f"{genome}|{type_name}",
+            "genome": genome,
+            "group": group,
+            "substitution_type": type_name,
+            "class": substitution_class(type_name),
+            "count": counts[type_name],
+        }
+        for type_name in SUBSTITUTION_TYPES
+    ]
+
+
+def _by_type_table(rows: list[dict[str, Any]], scope: Scope) -> Table:
+    """The ``substitutions_by_type`` table — one shape in both scopes, one rule for a figure."""
+    return Table(
+        id="substitutions_by_type",
+        title="Substitutions by type",
+        columns=(
+            Column("row_id", "Row"),
+            Column("genome", "Genome"),
+            Column("group", "Group"),
+            Column("substitution_type", "Substitution type"),
+            Column("class", "Class"),
+            Column("count", "Count", dtype="int"),
+        ),
+        rows=tuple(rows),
+        scope=scope,
+        key="row_id",
     )
 
 

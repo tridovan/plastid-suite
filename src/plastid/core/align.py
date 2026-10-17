@@ -16,12 +16,14 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 __all__ = [
+    "SUBSTITUTION_TYPES",
     "Alignment",
     "WindowDiversity",
     "codon_frame_breaks",
     "columns_for_span",
     "nucleotide_diversity",
     "reference_positions",
+    "substitution_class",
     "substitution_counts",
     "usable_columns",
     "variable_sites",
@@ -30,6 +32,37 @@ __all__ = [
 
 TRANSITIONS = frozenset({("A", "G"), ("G", "A"), ("C", "T"), ("T", "C")})
 _DNA = frozenset("ACGT")
+
+# The twelve **directed** changes, named ``<from>_to_<to>``. They are the primitive fact a
+# comparison of two rows produces; ``transitions`` and ``transversions`` are sums over them, and
+# the six *complementary* pairs a manuscript draws (A↔G, C↔T, A↔C, T↔G, C↔G, A↔T) are sums of two
+# directed ones each. Measured 17/10/2026: only the two aggregates existed, so the paper's Figure 7
+# — substitution type × species — had no source in this toolkit at all.
+SUBSTITUTION_TYPES: tuple[str, ...] = (
+    "A_to_G",
+    "G_to_A",
+    "C_to_T",
+    "T_to_C",
+    "C_to_G",
+    "G_to_C",
+    "A_to_T",
+    "T_to_A",
+    "A_to_C",
+    "C_to_A",
+    "T_to_G",
+    "G_to_T",
+)
+
+_TRANSITION_TYPES = frozenset({"A_to_G", "G_to_A", "C_to_T", "T_to_C"})
+
+
+def substitution_class(type_name: str) -> str:
+    """``"Transition"`` or ``"Transversion"`` — the same split :data:`TRANSITIONS` makes."""
+    if type_name not in SUBSTITUTION_TYPES:
+        raise ValueError(
+            f"{type_name!r} is not a substitution type (have: {', '.join(SUBSTITUTION_TYPES)})"
+        )
+    return "Transition" if type_name in _TRANSITION_TYPES else "Transversion"
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,11 +260,16 @@ def codon_frame_breaks(alignment: Alignment) -> tuple[str, ...]:
 
 
 def substitution_counts(reference: str, query: str) -> dict[str, int]:
-    """Substitutions between two aligned rows: transitions, transversions and their ratio.
+    """Substitutions between two aligned rows, by type, plus the transition/transversion totals.
 
     Columns where either row is not an unambiguous base are skipped and counted, so a ratio is
     never computed over an unstated denominator.
+
+    Every one of :data:`SUBSTITUTION_TYPES` is a key of the result, zero included — a reader must
+    never have to guess whether an absent key means "none" or "not counted". ``transitions`` and
+    ``transversions`` are sums over those twelve, so they can never disagree with them.
     """
+    types = dict.fromkeys(SUBSTITUTION_TYPES, 0)
     transitions = 0
     transversions = 0
     skipped = 0
@@ -241,6 +279,7 @@ def substitution_counts(reference: str, query: str) -> dict[str, int]:
             continue
         if ref_base == query_base:
             continue
+        types[f"{ref_base}_to_{query_base}"] += 1
         if (ref_base, query_base) in TRANSITIONS:
             transitions += 1
         else:
@@ -251,4 +290,5 @@ def substitution_counts(reference: str, query: str) -> dict[str, int]:
         "substitutions": transitions + transversions,
         "transitions": transitions,
         "transversions": transversions,
+        **types,
     }

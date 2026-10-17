@@ -9,6 +9,11 @@ below it inherits the error. Rules:
 * the two copies are related by a mirror: position ``i`` in copy A pairs with
   ``C - i`` in copy B (reverse-complemented), with ``C = a1 + b2 - 1`` — this is the
   pairing constant measured in PROJECT.md §8.3;
+* **that constant assumes the two copies are the same length.** Annotations do not always
+  give them so (`IR_COPY_LENGTH_TOLERANCE`), and when they differ the constant pairs the
+  wrong bases and an exact repeat measures as unrelated — H-25. The difference is therefore
+  taken off the longer copy at whichever end it sits, and both readings are measured;
+  :attr:`IRResult.excess_at` records which one the number came from;
 * a failing gate raises :class:`IRGateError`; it is never downgraded to a warning.
 """
 
@@ -32,6 +37,7 @@ __all__ = [
     "ir_de_novo",
     "ir_from_annotation",
     "measure_ir",
+    "mirror_constant_for",
     "pair_identity",
 ]
 
@@ -67,6 +73,10 @@ class IRResult:
     source: str  # "annotation" | "denovo_diag" | "manual"
     frame_offset: int = 0  # coordinates are in the frame rotated by this much
     denovo_length: int | None = None  # independent de-novo cross-check, when it ran
+    # Which end of the longer copy carried the length difference: "none" when the copies are
+    # equal, else "outer" (the JLB/JLA side) or "inner" (the JSB/JSA side). It is recorded because
+    # the number alone cannot say which alignment produced it (H-25).
+    excess_at: str = "none"
 
     @property
     def length(self) -> int:
@@ -109,6 +119,73 @@ def pair_identity(sequence: str, interval: Interval, constant: int) -> tuple[flo
     return identity, mismatches, compared, exact_core
 
 
+def _trimmed_pair(
+    first: Interval, second: Interval, excess: int, where: str
+) -> tuple[Interval, Interval]:
+    """The pair with ``abs(excess)`` bases taken off the **longer** copy at the named end.
+
+    ``where`` is ``"outer"`` — the first copy's start or the second copy's end, the JLB/JLA side —
+    or ``"inner"``, the first copy's end or the second copy's start, the JSB/JSA side. Trimming the
+    longer copy to the shorter's length is what makes the mirror constant of §8.3 valid again: the
+    formula assumes the two copies are the same length, and the annotation does not say which end
+    the difference sits at.
+    """
+    if excess == 0:
+        return first, second
+    if where not in ("outer", "inner"):
+        # An IRResult carries "none" only when the copies are equal; saying nothing about where a
+        # real difference sits would make the constant depend on a default nobody chose.
+        raise ValueError(
+            f"the two copies differ by {excess} base(s), so the result must say where the "
+            f"difference sits ('outer' or 'inner'); got {where!r}"
+        )
+    size = abs(excess)
+    if excess > 0:  # the first copy is the longer one
+        trimmed = (
+            Interval(first.start + size, first.end, first.strand)
+            if where == "outer"
+            else Interval(first.start, first.end - size, first.strand)
+        )
+        return trimmed, second
+    trimmed = (
+        Interval(second.start, second.end - size, second.strand)
+        if where == "outer"
+        else Interval(second.start + size, second.end, second.strand)
+    )
+    return first, trimmed
+
+
+def mirror_constant_for(first: Interval, second: Interval, excess_at: str) -> int:
+    """The pairing constant for a pair, honouring **where** a length difference sits.
+
+    The one derivation, shared with :func:`plastid.core.normalize.normalize`, which recomputes the
+    constant on the rotated intervals. Two derivations would drift, and the drift would be invisible
+    until a figure or a table came out wrong on the frame the modules actually use.
+    """
+    trimmed_first, trimmed_second = _trimmed_pair(
+        first, second, first.length - second.length, excess_at
+    )
+    return trimmed_first.start + trimmed_second.end - 1
+
+
+def _aligned(
+    sequence: str,
+    first: Interval,
+    second: Interval,
+    compared_length: int,
+    excess: int,
+    where: str,
+) -> tuple[float, int, int, int, int, str]:
+    """One alignment of the pair: the longer copy trimmed at ``where``, then the §8.3 constant."""
+    trimmed_first, _trimmed_second = _trimmed_pair(first, second, excess, where)
+    span = Interval(
+        trimmed_first.start, trimmed_first.start + compared_length, trimmed_first.strand
+    )
+    constant = mirror_constant_for(first, second, where)
+    identity, mismatches, compared, exact_core = pair_identity(sequence, span, constant)
+    return identity, mismatches, compared, exact_core, constant, where
+
+
 def measure_ir(
     sequence: str,
     ira: Interval,
@@ -117,14 +194,32 @@ def measure_ir(
     source: str,
     frame_offset: int = 0,
 ) -> IRResult:
-    """Measure the identity of an IR pair on the full copies (shorter copy when unequal)."""
+    """Measure the identity of an IR pair on the full copies (shorter copy when unequal).
+
+    When the annotated copies differ in length by *d*, the mirror constant that §8.3 states
+    (``a1 + b2 - 1``) pairs the wrong bases, and an exact repeat measures as unrelated — the
+    identity of two random sequences, ~25 %. Measured 17/10/2026 (H-25): *d* = 1, 2 and 4 on three
+    Iridaceae records gave 0.2924 / 0.2636 / 0.2778, and the gate refused all three.
+
+    The annotation does not say **which** end carries the difference, so both alignments it implies
+    are measured and the better is kept. That is not a search for a match: a pair that is not a
+    repeat scores ~25 % under either alignment, so neither can carry it over the gate.
+    """
     first, second = sorted((ira, irb), key=lambda interval: interval.start)
     if first.end > second.start:
         raise ValueError(f"IR copies must be disjoint and ordered: {first} overlaps {second}")
     compared_length = min(first.length, second.length)
-    measured_span = Interval(first.start, first.start + compared_length, first.strand)
-    constant = first.start + second.end - 1
-    identity, mismatches, compared, exact_core = pair_identity(sequence, measured_span, constant)
+    excess = first.length - second.length
+    if excess == 0:
+        alignments = [_aligned(sequence, first, second, compared_length, 0, "none")]
+    else:
+        alignments = [
+            _aligned(sequence, first, second, compared_length, excess, "inner"),
+            _aligned(sequence, first, second, compared_length, excess, "outer"),
+        ]
+    identity, mismatches, compared, exact_core, constant, excess_at = max(
+        alignments, key=lambda alignment: alignment[0]
+    )
     return IRResult(
         ira=ira,
         irb=irb,
@@ -135,6 +230,7 @@ def measure_ir(
         mirror_constant=constant,
         source=source,
         frame_offset=frame_offset,
+        excess_at=excess_at,
     )
 
 

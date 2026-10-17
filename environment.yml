@@ -50,6 +50,26 @@ dependencies:
   - vmatch=2.3.1 # academic-only licence (§7.8)
   - pycirclize=1.10.1 # conda-forge (§7.8)
 
+  # --- Phase 10: the manuscript's figures -------------------------------------------------
+  - r-base=4.3 # the plotting engine behind the seven figure scripts (docs/tools/r.md). R is a
+               # PLOTTING engine here and nothing else: none of the scripts computes a number the
+               # toolkit does not already hold in a table cell. Measured 17/10/2026 — all seven
+               # run under 4.3.3 here and under the author's 4.1.2, so the figures do not move
+               # with the interpreter. The scripts themselves are package data, not a tool:
+               # src/plastid/data/r_scripts/
+  - r-ggplot2 # the nine the scripts call. NOT pinned, and the reason is the opposite of MAFFT's:
+              # these draw a picture, they do not produce a number that reaches a table, so a
+              # version bump cannot move a golden figure's data. §7.8 records no version for any
+              # of them. A missing one is named before any figure is attempted
+  - r-dplyr
+  - r-tidyr
+  - r-reshape2
+  - r-rcolorbrewer
+  - r-zoo
+  - r-scales
+  - r-pheatmap
+  - r-ape
+
   # --- Phase 6/7: assembly and dating ----------------------------------------------------
   - getorganelle=1.7.7.1 # needs a one-off seed download: get_organelle_config.py -a embplant_pt,embplant_mt
   - spades=4.3.0

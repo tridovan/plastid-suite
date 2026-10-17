@@ -9,6 +9,8 @@ The measured failure modes this file guards (each one stays forever):
 
 from __future__ import annotations
 
+import random
+
 import pytest
 
 from plastid.core.ir import (
@@ -18,9 +20,11 @@ from plastid.core.ir import (
     ir_de_novo,
     ir_from_annotation,
     measure_ir,
+    mirror_constant_for,
     pair_identity,
 )
-from plastid.core.model import Genome
+from plastid.core.model import Genome, Interval
+from plastid.core.sequence import reverse_complement
 
 
 def test_annotation_ir_on_the_golden_genome(golden_genome: Genome) -> None:
@@ -41,6 +45,104 @@ def test_off_by_one_pairing_constant_collapses_identity(golden_genome: Genome) -
         golden_genome.sequence, ir.ira, ir.mirror_constant + 1
     )
     assert shifted_identity < 0.5  # measured ~29 %; never silently accepted
+
+
+def _unequal_pair(
+    d: int, *, exact: bool = True, length: int = 600, extra_at: str = "outer"
+) -> tuple[str, Interval, Interval]:
+    """A plastome with an inverted repeat whose **first copy is ``d`` bases longer**.
+
+    ``d`` may be negative — the second copy longer, which the annotation path also tolerates.
+    ``extra_at="outer"`` puts the extra bases at the pair's outer ends (the first copy's start,
+    or the second copy's end); ``"inner"`` puts them at the inner ends. ``exact=False`` scrambles
+    the second copy so the pair is not a repeat at all — the negative case the gate must refuse.
+    """
+    rng = random.Random(11)
+    core = "".join(rng.choices("ACGT", k=length))
+    first_copy = core
+    second_copy = reverse_complement(core)
+    if d > 0:
+        extra = "".join(rng.choices("ACGT", k=d))
+        first_copy = extra + core if extra_at == "outer" else core + extra
+    elif d < 0:
+        extra = "".join(rng.choices("ACGT", k=-d))
+        rev = reverse_complement(core)
+        second_copy = rev + extra if extra_at == "outer" else extra + rev
+    if not exact:
+        second_copy = "".join(rng.choices("ACGT", k=len(second_copy)))
+    # LSC · first copy · SSC · second copy · a tail, so neither copy touches an end
+    sequence = "ACGT" * 40 + first_copy + "TTAA" * 40 + second_copy + "GGCC" * 40
+    first_start = 160
+    second_start = first_start + len(first_copy) + 160
+    return (
+        sequence,
+        Interval(first_start, first_start + len(first_copy), 1),
+        Interval(second_start, second_start + len(second_copy), -1),
+    )
+
+
+@pytest.mark.parametrize("d", [1, 2, 4])
+def test_a_length_difference_is_measured_at_the_end_it_sits_at(d: int) -> None:
+    """H-25: the mirror constant assumed equal copies, so *d* bases of excess made an exact
+    repeat measure as unrelated (~25 %). Measured 17/10/2026 — Chasmanthe NC_072562 (*d* = 1),
+    Iris hermona NC_081931 (*d* = 2) and Trimezia NC_072662 (*d* = 4) were all refused."""
+    sequence, ira, irb = _unequal_pair(d)
+    result = measure_ir(sequence, ira, irb, source="annotation")
+    assert result.identity == 1.0, f"d={d}: an exact repeat measured {result.identity:.4f}"
+    assert result.mismatches == 0
+    assert result.compared_length == 600  # the shorter copy, unchanged
+    assert result.excess_at == "outer"
+
+
+@pytest.mark.parametrize("d", [-1, -3])
+def test_the_second_copy_may_be_the_longer_one(d: int) -> None:
+    """The annotation path tolerates a difference either way, so the rule must too.
+
+    Trimming the *longer* copy is what makes this symmetric; shifting only the first copy's span
+    would read bases outside the copy and report a number that means nothing.
+    """
+    sequence, ira, irb = _unequal_pair(d)
+    result = measure_ir(sequence, ira, irb, source="annotation")
+    assert result.identity == 1.0, f"d={d}: an exact repeat measured {result.identity:.4f}"
+    assert result.excess_at == "outer"
+    assert result.compared_length == 600
+
+
+def test_a_pair_that_is_not_a_repeat_still_measures_as_unrelated() -> None:
+    """The two alignments a length difference implies must not become a search for a match.
+
+    A pair whose copies are simply different sequences scores ~25 % under *both* alignments, so
+    neither can carry it over the gate.
+    """
+    sequence, ira, irb = _unequal_pair(3, exact=False)
+    result = measure_ir(sequence, ira, irb, source="annotation")
+    assert result.identity < 0.5
+    with pytest.raises(IRGateError):
+        enforce_ir_gate(result)
+
+
+def test_the_excess_is_taken_at_the_inner_end_when_that_is_where_it_sits() -> None:
+    sequence, ira, irb = _unequal_pair(4, extra_at="inner")
+    result = measure_ir(sequence, ira, irb, source="annotation")
+    assert result.identity == 1.0
+    assert result.excess_at == "inner"
+
+
+def test_a_difference_with_no_end_named_is_refused_rather_than_defaulted() -> None:
+    """An `IRResult` says "none" only when the copies are equal. Anything else must name an end —
+    a silent default would make the mirror constant depend on a choice nobody made."""
+    _, ira, irb = _unequal_pair(3)
+    with pytest.raises(ValueError, match="must say where the difference sits"):
+        mirror_constant_for(ira, irb, "none")
+
+
+def test_equal_copies_are_measured_exactly_as_before() -> None:
+    """*d* = 0 is the golden genome's case: a correct fix is a no-op there."""
+    sequence, ira, irb = _unequal_pair(0)
+    result = measure_ir(sequence, ira, irb, source="annotation")
+    assert result.identity == 1.0
+    assert result.excess_at == "none"  # no excess to place: the copies are the same length
+    assert result.mirror_constant == ira.start + irb.end - 1  # the rule stated in §8.3
 
 
 def test_identity_is_measured_on_full_copies_not_the_exact_core(
@@ -89,6 +191,12 @@ def test_copies_of_unequal_length_are_measured_over_the_shorter(
     assert ir is not None
     assert ir.compared_length == 26_161
     assert ir.length == 26_161
+    # …and its excess sits at the **inner** end: 92.63 % here against 36.46 % at the outer end.
+    # This is the measurement that says H-25's fix must weigh both ends rather than assume one —
+    # "take it at the outer end" would have turned §8.3's 92.63 % finding into 36.46 % and taken
+    # the corpus's known-divergent case with it.
+    assert ir.excess_at == "inner"
+    assert ir.identity == pytest.approx(1 - 1_929 / 26_161)
 
 
 def test_de_novo_reproduces_the_two_known_failures(edge_genomes: dict[str, Genome]) -> None:

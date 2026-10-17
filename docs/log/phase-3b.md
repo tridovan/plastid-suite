@@ -232,7 +232,8 @@ trả giá: lần chạy đầu, pin được áp **trước khi** phát hiện 
 im lặng hết tác dụng — thứ tự nay là **phát hiện cấp bộ → áp pin → lần đọc thứ hai**.
 
 **Bản ghi PGA của *Iris hermona* là ca âm thật, có sẵn trong repo.** `tests/data/corpus/…pga.gb`:
-**84 CDS, 83 thiếu `/translation`**, và cổng IR hỏng (26,36 %, §8.31) ⇒ bị chặn; bản công bố cùng
+**84 CDS, 83 thiếu `/translation`**, và cổng IR hỏng (26,36 % — nay đo ra **99,86 %**, vẫn dưới
+ngưỡng; xem đính chính H-25 ở `phase-4a.md`, §8.31) ⇒ bị chặn; bản công bố cùng
 chuỗi ấy qua sạch. Đây là test âm chạy được trên mọi máy, không cần `.panel/`.
 
 **Một thay đổi ở tầng dữ liệu, vì cổng cần nó.** `Gene` nay mang thêm `/translation` của chính

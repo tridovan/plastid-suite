@@ -6,14 +6,18 @@
 
 ## Now — 17/10/2026
 
-- **Closed and on `main`:** Phases 1–5, 4a, 3B, 2B, 8 and 8B — every analysis module, the in-house
-  annotator, the cross-checks against CGAS / CPStools and the Crataegus answer key, CI. The analysis
-  round is done, except RNA editing (needs RNA-seq) and the parked mito/nuclear round.
-- **Open:** Phase 9 on `feat/phase-9`. The packaging, the licence review (MIT), the Docker image and the
-  user docs are done; anh Điềm tests the code from git (P9-08), and the DOI, PyPI and the video wait on
-  that and on the team.
-- **Next, unblocked:** fixes to the figure tool from anh Điềm's package (`feedback/`, untracked) — then
-  close Phase 9 on the team's report.
+- **Closed and on `main`:** Phases 1–5, 4a, 3B, 2B, 8, 8B and **9** — every analysis module, the
+  in-house annotator, the cross-checks against CGAS / CPStools and the Crataegus answer key, CI, and
+  the release itself: MIT, the wheel, the Docker image and the user docs. The analysis round is done,
+  except RNA editing (needs RNA-seq) and the parked mito/nuclear round.
+- **Open:** **Phase 10** on `feat/phase-10` — the paper's figures, worked from anh Điềm's feedback
+  bundle (`feedback/goi_tool_hinh_IR_2026-10-16/`). **M10.1 – M10.4 are done**: the junction figure
+  is a command reproducing the bundle's own output byte for byte, and the six R figures render from
+  a run directory through `plastid figures` — including the tree, over the user's own tree file.
+  **Phase 10 is complete**: every figure the bundle names is reachable from a run, or is a named
+  skip. `TASKS.md` holds the next task — **H-25**, the IR gate's length rule.
+- **Waiting on people:** anh Điềm's P9-08 report — the code is on `main` now, so that is the pull —
+  the release accounts, and a macOS machine.
 - **After that:** Phase 7, assembly — judged on a published paper's public reads against its assembled
   plastome; it waits on no one.
 
@@ -32,6 +36,50 @@ structure) waits with the parked round.
   is the procedure. Left: the DOI (Zenodo), the PyPI upload, the how-to video and the authors to name.
   Each is outward-facing and permanent, so each waits for the dev's explicit go.
 - [ ] **M9.7 Web UI** — deferred until the core is stable
+
+**Phase 10 — the paper's figures** (`feat/phase-10`; the manuscript's Figures 2–9, drawn outside the
+toolkit until now — seven R scripts and a patched CPJSdraw, in `feedback/`)
+
+- [x] **M10.1 The IR-junction figure (Figure 2)** — `core/junctions.py` reads the record's own four
+  regions in the GenBank frame, `external/cpjsdraw.py` draws them, `plastid ir-junction` drives both
+  into a run directory. Measured 17/10/2026 on the bundle's eight Iridaceae records: the
+  configuration is reproduced **8/8**, the SVG is **byte-identical** to the bundle's own verified
+  output, and the table's eight region and junction columns agree on every row.
+- [x] **M10.2 The R figure engine** — `external/rscript.py`, the seven scripts under
+  `data/r_scripts/`, `docs/tools/r.md` and the `environment.yml` pins. Measured 17/10/2026: all
+  seven run through the adapter in 35 s and each writes its PNG, on 4.3.3 here and 4.1.2 for the
+  scripts' author. The one change to the scripts is in `00_ham_chung.R`: input paths are made
+  absolute before `setwd()`, without which a relative `--inputdir` finds nothing
+- [x] **M10.3 The figures PTS lacks** — amino-acid heatmap (paper 4), substitution types (7),
+  Ka/Ks (8). `plastid figures` renders them from a run directory. **Figure 7 had no source**:
+  measured 17/10/2026, `core/align.py` counted only transitions and transversions, so the six
+  complementary types the manuscript draws did not exist in the toolkit — `substitution_counts()`
+  now returns the twelve directed pairs and `substitutions` publishes `substitutions_by_type`
+  (module 0.2.0 → 0.3.0; every existing table and golden number unchanged)
+- [x] **M10.4 The pivots** — RSCU (3), SSR (5) and π (6) reshaped from table cells into the wide
+  form their R scripts read. The R figures are a **second catalogue** (`result/rfigure.py`), not
+  `FigureSpec`s: `Figure` is vector-only and its `build` has no `RunContext`, so a figure drawn
+  through it would call R with no provenance — which is what the bundle's own
+  `figure_spec_mau.py` says. Measured 17/10/2026: `plastid figures` draws the golden's RSCU
+  figure end to end under R 4.3.3, and every refusal is a named skip
+- [x] **M10.5 The tree (9 + S1–S3)** — the last R script, reachable but not wired. **PTS builds no
+  tree**: the file is the user's own, named with `--set tree=<file.treefile>`, handed to the script
+  as its input and never copied into the run. The caption records that file and its digest — a
+  figure read from no table has no scope label to carry, which it says rather than leaving blank.
+  Measured 17/10/2026 on the bundle's own 34-taxon tree: 32 tips after the script's two *Asparagus*
+  are dropped, rooted on the two Orchidaceae, SH-aLRT red and UFBoot black — the bundle's own
+  verification record reproduced
+- [x] **H-25 — the IR gate's length rule** (was a known defect; fixed 17/10/2026). An IR pair whose
+  two annotated copies differed in length by *d* measured as unrelated, because the mirror constant
+  of §8.3 (`a1 + b2 - 1`) assumes equal copies. Measured on the bundle's eight Iridaceae records,
+  *d* = 1 / 2 / 4 gave **0.2924 / 0.2636 / 0.2778**, and the gate refused three plastomes.
+  `measure_ir` now takes the difference off the longer copy at **whichever end it sits** and measures
+  both readings, keeping the better — recorded as `IRResult.excess_at`. Re-measured the same day:
+  **1.00000 / 0.99863 / 1.00000**, so the bundle's records go from 5/8 to **7/8 passing**. Iris
+  hermona stays refused, correctly: its PGA annotation is 48 bp wider than the true repeat (26,132 bp
+  exact, 36 mismatches in the first 48). Weighing both ends is measured, not stylistic — NC_063920's
+  excess sits at the **inner** end (92.63 % there, 36.46 % at the outer), so "outer only" would have
+  destroyed §8.3's own finding
 
 **Phase 7 — assembly** (not built; judged on a published paper — its public reads in, its assembled plastome
 as the answer; so far run only on simulated pairs)
