@@ -1,54 +1,105 @@
-# ROADMAP.md — phases, milestones, progress
+# ROADMAP.md — the whole project
 
-> The file to read to know **where we are**. Milestones here are the source for specs/tasks.
-> Session set: `CLAUDE.md` (rules) · `HANDOFF.md` (resume point + session log) · `ROADMAP.md` (this)
-> · `TASKS.md` (active checklists with Done-when).
-> `PROJECT.md` is the evidence archive (golden numbers §6 · decisions §3 · tools §7 · measurements
-> §8–§9) — open it only when a phase needs it.
-> Legend: `[x]` done · `[ ]` not started · **BLOCKED** = waiting on data/people.
+> The macro view. Rewritten when a milestone closes or a phase opens or closes — never appended to.
+> Closed work is one line: the detail is in git (commit messages), the evidence in `docs/log/` —
+> `PROJECT.md` §8 indexes it by `§8.N`. Legend: `[x]` done · `[~]` partly · `[ ]` open.
 
-## How to use
+## Now — 17/10/2026
 
-1. A phase is done only when its **In-phase checks** pass and are recorded. Never defer checks.
-   Where a check is a number, write it as a **failing test first** (CLAUDE.md → Testing discipline).
-2. When a phase starts: derive specs/tasks from its milestones → put them in `TASKS.md`.
-3. Tick a milestone here when its tasks are DONE (add the date); refresh `HANDOFF.md`.
-4. New measured facts → PROJECT.md §8 (runs) / §9 (errors), per `CLAUDE.md`.
-5. **Coverage**: every box of the pipeline diagram (canonical copy: PROJECT.md §13.0 — repeated in
-   "The pipeline" below) — **and every tool named inside a box** — names the milestone that owns
-   it, or is marked *surveyed — not adopted* with the measurement that dropped it. A box or tool
-   with no owner is a **gap**: name it in "Open decisions", never leave it silent. The check runs
-   at tool level because the box-level pass of 07/10/2026 missed three tools and one team artifact.
+- **Closed and on `main`:** Phases 1–5, 4a, 3B, 2B, 8 and 8B — every analysis module, the in-house
+  annotator, the cross-checks against CGAS / CPStools and the Crataegus answer key, CI. The analysis
+  round is done, except RNA editing (needs RNA-seq) and the parked mito/nuclear round.
+- **Open:** Phase 9 on `feat/phase-9`. The packaging, the licence review (MIT), the Docker image and the
+  user docs are done; anh Điềm tests the code from git (P9-08), and the DOI, PyPI and the video wait on
+  that and on the team.
+- **Next, unblocked:** fixes to the figure tool from anh Điềm's package (`feedback/`, untracked) — then
+  close Phase 9 on the team's report.
+- **After that:** Phase 7, assembly — judged on a published paper's public reads against its assembled
+  plastome; it waits on no one.
 
-## Cross-phase rules (apply to every phase)
+## Scope of this round
 
-- Serves **both plastid and mitochondrion** — but the *transitional* analyses (see PROJECT.md
-  §13, "Hai bào quan") run on plastid only today: on a mitogenome they stop at the IR gate. Opening
-  them is **H-10, on hold** with the rest of the mito round.
-- **Plastid ONLY — this round's scope, not its ordering** (D5-07, 05/10/2026; restated as a scope
-  rule 10/10/2026 after "priority" kept being read as a mere sequence, PROJECT.md §3): every
-  module, run, manuscript, cross-check and release step here serves **plastomes**. The mito
-  milestones — all of Phase 6 (M6.1 · M6.2 · M6.3), M7.3, M8.2, plus H-06 · H-10 · H-12 — are
-  **parked with a name** (`HOÃN` in the phase lists; they appear on no board and wait on nobody).
-  The mito code that exists stays as it is and keeps being tested, and the two-organelle structure
-  (PROJECT.md §13 → "Hai bào quan") is what makes them addable later without rework.
-- **IR gate ≥ 99.9 %** before any position-based analysis. Fail ⇒ red flag, stop. No exceptions.
-- Gene counting: **132 = 86 CDS + 38 tRNA + 8 rRNA**. Never "133 genes" (that is the `gene` feature
-  count, diagnostic only).
-- Ts/Tv scope: **CDS only · 79 shared genes · MAFFT · IR excluded** → 2.6917. Other scopes must be
-  labelled as such wherever they are exported. *(Was 2.686 over 76 genes; the scope definition is
-  unchanged — the shared set was re-measured by locus on 04/10/2026 after three differently-spelled
-  loci turned out to be shared, §8.27.)*
-- Every run emits a **tool + parameters report**; output is **run-scoped** (`<dataset>/<run_id>/`),
-  never overwritten in place.
-- Genome normalization (origin/strand → LSC start, 4 regions split) happens once in Phase 1 and is
-  reused everywhere after.
-- Runs on: **ordinary machines** = phases 1–6, 8. *(Earlier: "remote server = phase 6 (divergence
-  time)" — divergence time left the plan 10/10/2026; see Phase 6's note.)*
-  Assembly (phase 7) runs **locally when the user's machine has the RAM**, otherwise the Galaxy
-  remote path — confirmed 08/10/2026; data-sharing policy for unpublished reads: **open**
-  (PROJECT.md §10.12).
-- Standard test case: **Eleutherine bulbosa dataset + the golden numbers** (PROJECT.md §6).
+**Plastid only** (D5-07): one organelle per run, never a mixed input set. The mito/nuclear milestones are
+parked by name (below) and never picked up; the mito code that exists stays as it is and stays tested.
+Divergence time and ancestral state are the PI's analyses, not modules. The tool paper (NUPT/MTPT, mito
+structure) waits with the parked round.
+
+## Open milestones
+
+**Phase 9 — packaging, licence, release** (`feat/phase-9`; M9.1 – M9.5 are done, below)
+
+- [~] **M9.6 Release artifacts** — `CITATION.cff` written and validated (CFF 1.2.0) and `docs/release.md`
+  is the procedure. Left: the DOI (Zenodo), the PyPI upload, the how-to video and the authors to name.
+  Each is outward-facing and permanent, so each waits for the dev's explicit go.
+- [ ] **M9.7 Web UI** — deferred until the core is stable
+
+**Phase 7 — assembly** (not built; judged on a published paper — its public reads in, its assembled plastome
+as the answer; so far run only on simulated pairs)
+
+Check: GetOrganelle + SPAdes → 127,679 bp from 20,000 simulated read pairs · OATK → 126,660 bp at
+100.00 % identity · Bandage → PNG; with real reads, add a peak-RAM measurement. Assembly runs locally
+when the user's machine has the RAM, otherwise on the Galaxy remote path (confirmed 08/10/2026).
+
+- [ ] **M7.1 Batch assembly + QC** (fastp → GetOrganelle · BWA/minimap2 map-back) — needs a published
+  paper with public Illumina reads and its assembled plastome as the answer key. Neither `fastp` nor `BWA`
+  is declared in the repo yet: declare each in the session it is first used.
+- [ ] **M7.2 Assembly-graph checks** (Bandage) — after M7.1
+- [ ] **M7.4 Remote path** (usegalaxy.eu `get_organelle_from_reads`) — subsample reads before upload ·
+  pin the tool version · record the history ID · data-sharing policy for unpublished reads is **open**
+  (PROJECT.md §10.12)
+- [ ] **M7.5 Peak-RAM with real reads** — measured on the M7.1 run
+- [ ] **M7.6 Long-read path** (OATK · raven-assembler, ONT/HiFi) — needs a published paper with public
+  long reads and its assembly; both tools are declared in `environment.yml` and were run in the survey
+  (§7.1)
+
+**Earlier phases, still open**
+
+- [~] **M3B.0 Naming (D5-09)** — built and measured (`gene_normalize`; Ts/Tv 2.6917 unchanged, §8.45).
+  **Open: the ★ pick** — the end user chooses the project's naming record from the audit report
+  (§8.43); a recorded override stands until then.
+- [ ] **M4.5 RNA editing prediction** — needs a published paper with public RNA-seq and its list of
+  editing sites
+- [~] **M8B.4 RSCU vs Table S5** — measured, not reproduced: 1–2 % away under every one of 11 counting
+  rules tested; the sequences are proven identical (Table S7 reproduces exactly), so the residual is the
+  authors' counting rule (§8.70) — unexplained, reported as measured.
+
+**Parked by scope — never picked up this round** (D5-07; the mito/nuclear round, with its follow-ups H-06 · H-10 · H-12)
+
+- [ ] **M6.1 NUPT/MTPT** (nuclear ↔ plastid ↔ mito transfer) — needs a nuclear genome when it reopens
+- [ ] **M6.2 Mito polymorphic structure + recombination via repeats** (chimeric ORF / CMS)
+- [ ] **M6.3 Parallel plastid–mito comparison** within a species
+- [ ] **M7.3 Feed mito-structure work** (M6.2)
+- [ ] **M8.2 Cross-check NUPT/MTPT against the Oldenlandia/Coleus papers** — checks a module (M6.1) this
+  round does not build, so it is parked, not waiting
+
+## Known defects — named, not fixed
+
+- **H-24** `trnV-UAC` is never called: ARAGORN reads that locus as `tRNA-Stop(tta)` in the Crataegus
+  corpus and as `tRNA-Cys(aca)` on the golden, so an intron-containing tRNA is missing from every
+  `plastid annotate` run. Three fixes are possible — transfer tRNAs from the reference, as CDS and rRNA
+  already are · a second engine · report and keep — and none is chosen (§8.71;
+  `docs/corpus_crataegus_2026.md`).
+- **H-23** `introns` publishes CDS introns only, so the golden's 8 tRNA introns appear in no module's
+  output. Extending it touches `core/spans.py` and the π-per-intron column of `diversity`: a task, not a
+  patch (§8.62; the limit is stated in `docs/platforms.md`).
+- **H-22** ARAGORN's `-i` searches introns up to 3,000 bp and says nothing when it skips a longer one; the
+  longest measured is 2,671 bp, a 12 % margin (§8.52, §8.55).
+- **H-21** The audit's partial-coordinate BLOCK refuses `NC_024936.1`, whose `rps19` is complete and which
+  produced the published call — the rule's stated reason does not hold for this shape. Changing a BLOCK
+  rule decided in P3B-03 means re-measuring all of it (§8.49).
+
+## Waiting on people
+
+| What | Who | Blocks |
+|---|---|---|
+| **P9-08** — pull the code from git (branch `feat/phase-9` until Phase 9 is merged into `main`) and test it by the process that suits the tool: input in, output out | anh Điềm | Phase 9's close. One machine's green is not a release's green; anything found becomes a regression test before it is fixed |
+| Authors to name in `CITATION.cff` · a Zenodo account · the repository's visibility (private today; Zenodo archives public repositories) · the PyPI name `plastid-suite` · the how-to video | the team · the dev | M9.6 — and a publish needs the dev's explicit go, each time |
+| A macOS machine | the team | macOS stays *unverified* in `docs/platforms.md` |
+
+Nothing else waits on people: the tools are judged on a published paper's public input against the
+paper's own results (CLAUDE.md → How the tools are judged). The open design questions for the PI and the end
+user — the naming ★, which `trnG` name prints, what a generated sentence may assert — are in PROJECT.md §3
+and §10, and none of them blocks evaluation.
 
 ## The pipeline — every step, and who owns it
 
@@ -133,573 +184,108 @@ exists for; check it whenever the diagram changes):
 | Quality assessment (the audit) | M3B.1 | **done** — P3B-01 · P3B-03 · `--audit-only` (P3B-09), §8.40 · §8.43 · §8.49 |
 | The end user picks the naming reference ★ | **M3B.0** | **waiting on the end user** — the audit report is the evidence (§8.43) |
 | Unify the reference DB (`gene_normalize`) | **M3B.0** | **done** — P3B-04, §8.44 (the ★ override stands until it is picked) |
-| reads · `fastp` · `BWA`/`minimap2` (trim · map back) | M7.1 | **blocked — no real reads yet**; neither tool declared yet |
-| reads · `Bandage` (assembly graph) | M7.2 | **blocked — no real reads yet** |
-| 1 Assembly — short read (`GetOrganelle` + `SPAdes`) | M7.1 | **blocked — no real Illumina reads yet** |
-| 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **blocked — no ONT/HiFi reads**; declared · run in the survey (§7.1) |
+| reads · `fastp` · `BWA`/`minimap2` (trim · map back) | M7.1 | **not built** — judged on a published paper's public reads; neither tool declared yet |
+| reads · `Bandage` (assembly graph) | M7.2 | **not built** — after M7.1 |
+| 1 Assembly — short read (`GetOrganelle` + `SPAdes`) | M7.1 | **not built** — judged on a published paper's public Illumina reads |
+| 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **not built** — judged on a published paper's public long reads; declared · run in the survey (§7.1) |
 | 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | **done 10/10/2026** — P3B-07 … P3B-10, §8.46–§8.55; close = P3B-11 · P3B-12 |
 | 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | **done** — P3B-05, §8.45 |
 | [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | **done** — M2.9 · M2.10 · M2.12 closed in Phase 2B (§8.57–§8.59) |
-| [5] RNA editing (a reference of its own) | M4.5 | **blocked — needs RNA-seq** |
-| [6] Submission (`table2asn` · Excel · Supplementary) | M3.4 · M5.3 | done — except the team's `.sbt`, a TASKS.md waiting row |
-
-*Checked 07/10/2026: two boxes had no owner — the naming step (now **M3B.0**) and **repeats**
-(now **M2.12**). Making that check a rule ("How to use" 5) is what keeps this table true.*
-
-*Checked again 07/10/2026, now **at tool level**: three tools had no owner — the long-read
-assemblers (`OATK` · `raven` → **M7.6**), the read map-back (`BWA`/`minimap2` → named in **M7.1**),
-and `Sibelia` (surveyed and run in the 26/9 survey, never adopted: the project's synteny route is
-`nucmer`, D4-02/M4.2 — so it left the diagram); plus one team artifact with no row at all (the
-submitter template `.sbt` → `TASKS.md` → "Waiting on data / people"). `Flye` also left the diagram
-— measured to die on RAM here and replaced by the two long-read assemblers (§7.1). PROJECT.md
-§13.0's dated note is the canonical record.*
-
-## Already banked (evidence in PROJECT.md §8–§9)
-
-- [x] Golden numbers measured & cross-checked against 2 published papers (153,724 bp · 37.85 % ·
-      132 = 86+38+8 · IR 26,214 bp @ 100.00 % · LSC 83,127 / SSC 18,169 · 37 SSR ·
-      Ts/Tv 2.6917 — re-measured 04/10 over the 79 shared loci, §8.27)
-- [x] IR algorithm validated on 20 RefSeq genomes — naive detection fails silently 2/9 (22 %);
-      the ≥ 99.9 % gate catches 2/2 bad cases, 0 false alarms on 7 good ones
-- [x] Validated probe code + golden data on disk (`/mnt/d/business/pts/probe/`), including
-      `ir_probe_v2.py` (detect) and `ir_gate.py` (gate) — to be ported, not rewritten
-- [x] Tool inventory: 84 tools tried · 64 working · replacements found for every blocked tool (§7)
-- [x] Key decisions locked 02/10 (§3): analysis before assembly · Linux + Docker · 2-tier golden ·
-      MISA bundled · no Snakemake · Reference Panel 4 tiers defined
-
----
-
-## Phase 1 — Framework & shared data  *(PROJECT.md §13.1)*
-
-**Goal:** the skeleton every later phase plugs into — data model, IR gate, result schema, run layout,
-golden tests, report engine, module registry. Without it, Phase 2 has no gate to enforce.
-
-**In-phase checks (from §13.1):** `make test` + `make golden` in **one command** produce every
-golden number · the run report lists tool name + version + parameters · opening the output folder
-tells you which file belongs to which job.
-
-**Milestones**
-
-- [x] **M1.1 Skeleton & packaging** (2026-10-02) — `uv sync` installs; `plastid --version` works;
-  `make check` green; import layering enforced by `tests/unit/test_architecture.py`
-- [x] **M1.2 Core model + GenBank reader + vendored golden data** (2026-10-02) — tier A tests read
-  153,724 bp · GC 37.8536 % · 86 CDS + 38 tRNA + 8 rRNA · `gene`=133 · 112 unique names from the
-  vendored fixture; truncated-ycf1 and trans-spliced-rps12 cases covered
-- [x] **M1.3 IR detection + gate + normalization** (2026-10-02) — annotation IR 26,214 bp @ 100.00 %;
-  the ported de-novo detector reproduces §8.3 exactly (7/9, same two failures — one loud, one silent,
-  disagreement recorded in `denovo_length`); the gate catches 2/2 diverged genomes with 0 false alarms;
-  an off-by-one pairing constant collapses identity to ~29 % (regression); normalization reproduces
-  LSC 83,127 / IRa 26,214 / SSC 18,169 / IRb 26,214 and handles a genome starting inside an IR
-- [x] **M1.4 Result schema + exporters** (2026-10-02) — `Scope` · `Column` · `Table` · `Result`;
-  cell refs (`table.column`, `table[row].column`) resolve or raise `ResultRefError`; csv/json/md
-  exports are byte-identical across runs and carry the scope label + coordinate frame
-- [x] **M1.5 Run layer** (2026-10-02) — `<dataset>/<run_id>/` with `00_run_info` + logs; manifest
-  schema v1 + hand-written `validate()`; `run_tool()` is the only subprocess door and records
-  name/version/source/path/argv/cwd/rc/time/logs; content-hash cache restores files byte-identically
-- [x] **M1.6 Golden harness** (2026-10-02) — `make golden` runs the whole set in one command; the
-  tier-B probe names every missing tool and skips; `PTS_REQUIRE_TOOLS=1` turns skips into failures
-- [x] **M1.7 Report engine + citation registry + defaults** (2026-10-02) — `{{…}}` resolves through
-  `Result.format()` or raises; shipped templates carry zero bare digits (scan test); the draft
-  banner is appended by the engine; citations come from `src/plastid/data/citations.yaml`
-- [x] **M1.8 Module registry + first module end-to-end** (2026-10-02) — decorator registry;
-  `genome_stats` produces `01_genome_stats/` (3 tables + result.json + report.md); CLI `plastid run`
-  writes `manifest.json` + `00_run_info/run_info.md`; a failed gate exits 2 and still leaves a
-  traceable run directory
-- [x] **M1.9 MISA vendored + `ssr` module (tier B)** (2026-10-02) — IPK zip verified against every
-  §7.8 checksum and vendored with `SOURCE.json` (licence: not stated → flagged for M9.3); the module
-  reproduces **SSR 37 = mono 31 · di 4 · tri 2, compound 3** on this machine; a missing perl raises a
-  named `ToolError` → CLI exit 3
-- [x] **M1.10 Reference Panel (4 tiers) + NCBI fetch/cache** (2026-10-03) — `core/panel.py`
-  (tiers · modes A/B · quality filter · pin with an injected fetcher) + `run/ncbi.py` (esearch ·
-  esummary · taxonomy efetch · 3 req/s) + `plastid panel refresh | propose | pin`. Verified live:
-  76 RefSeq genomes for Iridaceae (the §8.3 count, after fixing NCBI's `chloroplast[filter]` blind
-  spot — PROJECT.md §9.C-27), and a re-pinned NC_050833.1 whose sha256 matches the vendored golden
-  file byte-for-byte. Proposals and pins are offline; the network lives only in `refresh`.
-- [x] **M1.11 Sample-group metadata** (2026-10-02) — loader + lookup shipped (`core/samples.py`,
-  duplicate-accession guard, tests); the "used by a comparison table" half moved to **M2.11**
-- [x] **M1.12 Execution backend decision** (2026-10-03, dev decision) — local for phases 1–5 and 8;
-  remote for phase 6 (divergence time) and phase 7 (assembly), where PROJECT.md §9.28 measured that
-  an 8 GB machine leaves only 1.5–2.5 GB free per job. Recorded in PROJECT.md §3.
-  *(Updated 08/10/2026: assembly runs locally when the user's machine has the RAM — the Galaxy
-  remote path is for machines that do not. Divergence time stays remote.)*
-  *(Updated 10/10/2026: **there is no divergence-time remote path to keep** — M6.5 was deleted from
-  the plan; the toolkit runs on ordinary machines, and nothing in it needs a server.)*
-- [x] **M1.13 Hardening + API freeze v0.1** (2026-10-02) — README quickstart · `environment.yml` ·
-  `docker/Dockerfile` skeleton · `docs/API_v0.1.md` (module contract, Result schema, coordinates,
-  manifest keys, exit codes). *The environment checks in this milestone's Done-when — `make check` on
-  a clean clone and `make golden` inside Docker — are deferred to the Phase 9 platform pass, when
-  Docker is set up on the dev machine.*
-
-## Phase 2 — Genome reading & statistics  *(§13.2 — plastid; the mito half waits on H-10)*
-
-**Goal:** tables + figures + draft Results for the 2 species manuscripts (Oldenlandia, Coleus).
-**Input:** GenBank files (downloaded or produced). Raw reads not needed.
-**In-phase checks:** golden numbers — 153,724 bp · 132 = 86+38+8 · IR 26,214 (≥ 99.9 %) ·
-LSC 83,127 / SSC 18,169 · 37 SSR (mono 31 · di 4 · tri 2) when MISA/cpstools available. Mismatch ⇒ stop.
-
-- [x] **M2.1 Gene content & summary statistics** (per group, GC %, length)
-- [x] **M2.2 Publication gene table** (Word export) — categorised table + reproducible `.docx`
-- [x] **M2.3 Genome structure** — LSC/SSC/IR boundaries · %GC per region · GC-skew
-- [x] **M2.4 Codon usage** — RSCU · ENC · CAI · CBI · Fop
-- [x] **M2.5 Amino acid composition** — + GRAVY · aromaticity
-- [x] **M2.6 SNP / substitutions by position** (2026-10-03) — scope labels enforced; the **CDS
-      scope reproduces §6's golden Ts/Tv exactly**. Originally 317 Ts / 118 Tv = 2.686 over 76
-      shared genes and 66,066 columns (§8.25); **re-measured 04/10/2026** as **323 Ts / 120 Tv =
-      2.6917 over 79 shared genes and 68,448 columns** after three differently-spelled loci were
-      recognized as shared (§8.27). The whole-alignment default is a *different* number (1.8416)
-      and every table says which scope it is
-- [x] **M2.7 Introns** — count · length · position
-      *(measured coverage limit, named 10/10/2026 — **H-23**: the `introns` module derives
-      introns from **CDS** parts, so its 17 are *CDS introns*; the golden's **8 tRNA introns**
-      (trnK-UUU 2,617 bp …) are published by no module of ours — CGAS module 11 prints them, and
-      the count was confirmed against the record itself. Found by P8-03, §8.62)*
-- [x] **M2.8 SSR** — by region and motif
-- [x] **M2.9 Nucleotide diversity π** — **[ĐÓNG 10/10/2026 — P2B-01, §8.57: phần còn thiếu (π theo intron/IGS) nay có, trên chính các span `core/spans.py` mà `introns` công bố; bản vàng: 17 intron · 91 IGS, π 0,004138–0,082353 theo IGS]** — **real-data run done 03/10** (§8.25): π 0.007181 whole,
-      LSC 0.009185 · IRa 0.001682 · IRb 0.001681 · SSC 0.014066, per gene and 600/200 sliding
-      window. **Per intron/IGS closed by P2B-01 (§8.57)** — the derivation moved to
-      `core/spans.py` first, as H-07 said it would have to (DRY's second real copy)
-- [x] **M2.10 Manuscript deliverable** — **[ĐÓNG 10/10/2026 — P2B-03, §8.59: bản nháp chạy lại cho cả hai loài, nay có π · Ts/Tv · repeats và hình; nhãn *stand-in* + scope in trong từng bảng]** — tables + draft Results produced for both species from the
-  public stand-in set (labelled); **the draft predates the π/Ts/Tv sections** (MAFFT has been
-  present since 03/10, §8.25 — the draft simply has not been re-run with them) and figures; real
-  samples outstanding. **[ĐÃ THAY 10/10/2026 — the split, spelled out because the milestone's name
-  hides it: our half is the **run** — every table and figure, produced and labelled. The prose, the
-  claims and what goes in the manuscript are **cô Trang's** (CLAUDE.md → who decides); the draft in
-  `docs/P2-10_manuscript_draft.md` is a draft for her to own.]**
-- [x] **M2.11 Sample-group labels** — every comparison table/figure carries a shared group label
-  (moved here from M1.11, whose loader shipped in Phase 1: `core/samples.py`)
-
-- [x] **M2.12 Repeats (dispersed + palindromic)** — **[ĐÓNG 10/10/2026 — P2B-02, §8.58: bản vàng **9** match ≥30 bp (4 dispersed · 5 palindromic), cặp IR 26.214 bp trong đó, **hai engine độc lập trùng nhau từng dòng**]** — `repeat-match` + Vmatch on the golden fixture;
-      the module reports every match ≥30 bp with its coordinates and region, the IR pair included;
-      the count is **measured, not inherited** — the 26/9 survey's "9 matches" was measured on other
-      data (§9.H's trap). *In scope since §1 and §7.1 and named in the canonical diagram (§13.0,
-      `repeat (vmatch)`); it had no milestone until 07/10/2026.*
-
-## Phase 2B — The plastome analysis set, completed  *(slot decided 10/10/2026: the next **unblocked** work after 3B; it serves M2.9 · M2.10 · M2.12, whose milestones stay in Phase 2's own list)*
-
-**Goal:** the last three unblocked analysis outputs, so that every analysis the toolkit promises
-exists before it is cross-checked — π per intron/IGS (M2.9's remainder, **H-07**), the **repeats**
-module (M2.12), and the two species' manuscript draft re-run (M2.10).
-
-**Why here, and not Phase 8:** Phase 6 and 7 wait on data the project does not have yet (a nuclear
-genome for M6.1 · real reads for M7.1/M7.5), and Phase 8's M8.1 is a cross-check against
-CPStools' IR/π/RSCU/SSR/KaKs set — which cannot be honest while one of those analyses, **repeats**,
-does not exist. The two species manuscripts are the nearest deliverable, and these are their
-remaining tables.
-
-**In-phase checks:** the repeats count on the golden is a **new §8 entry** — measured, never the
-26/9 survey's "9 matches" (§9.H's trap) — with the IR pair among its matches · π per intron and per
-IGS over the spans the shared layer derives, the **17 introns** `introns` reports as the
-cross-check, the IR excluded and the scope labelled · the draft carries its π and Ts/Tv sections
-and its figures, every table labelled *stand-in* and scoped.
-
-## Phase 3 — Annotation  *(§13.3)*
-
-**Goal:** annotate genomes we already have; prepare NCBI submissions.
-**In-phase checks:** the output re-reads with our own GenBank reader (no format damage) · ORF checks
-pass · gene recount uses the fixed counting **rule** (CDS + tRNA + rRNA, both IR copies) — **132 is
-the golden genome's value, not a constant**: P2-10 measured 131 (*S. diffusum*) and 133
-(*C. amboinicus*), both correct. *De-novo assemblies (Phase 7 only) get the extra "verify vs close
-relatives / reads across LSC–IR · SSC–IR junctions, else label undetermined" rule — skipped here.*
-
-- [x] **M3.1 Annotation** (2026-10-03) — plastome: **Chloe** (PGA measured and replaced, §8.15/§8.17; **cả hai đã nghỉ hưu 10/10/2026 — P3B-11, §8.56**),
-      **132 = 86 + 38 + 8** through our own reader, 0 CDS failing the ORF checks; mito path
-      (`mito_genes`, no IR gate) done and measured; the mito **count check closed in Phase 3A** by
-      this project's own annotator — PMGA never ran here (11 GB + MAKER against an 8 GB cap; its web
-      server still refuses connections, re-measured 03/10) and nothing depends on it now (§8.22).
-      *The annotate step itself is being replaced by this project's own tool — **Phase 3B** (D5-08):
-      Chloe is dropped; this milestone records what Phase 3 shipped.*
-- [x] **M3.2 Gene-name check & normalization** (2026-10-03) — one normalizer (`core/gene_names.py`), panel measured: 155 → 115 canonical, 0 unresolved, 0 unclassified
-- [x] **M3.3 ORF checks** (2026-10-03) — golden: 0 failures, 5 alternative starts; the truncated ycf1 reported as annotated-not-coding
-- [x] **M3.4 NCBI submission files** (2026-10-03) — `.fsa` + `.tbl` in pure Python, 265/265 features
-      round-trip; **the `.sqn` step ran against `table2asn`**, and NCBI's own validator took the
-      table from **13 errors to 7** (the rest inherent to duplicated IR genes; §8.18). A real
-      submission still needs the team's own `.sbt` from NCBI's form —
-      **the mito count check continues in Phase 3A**
-
-## Phase 3A — Mito annotator, self-built prototype  *(opened 03/10)*
-
-**Goal:** a mito annotator this project can run, read and reproduce. PMGA cannot run here — 11 GB
-unpacked driving MAKER against an 8 GB VM cap, and its own web service refuses connections (P3-04,
-`docs/tools/pmga.md`). CLAUDE.md's rule for a tool that cannot run is *replace it — or write that
-part ourselves*, from parts the repo already has: BLAST+, the 31-locus vocabulary, the ORF checks,
-the reader. It is measured against a record whose answer is already published, so it must earn its
-place rather than be declared.
-
-**In-phase check — MET 03/10/2026.** On `OX459128.1` the annotator's **own output** re-reads with
-**our own reader**, runs through `orf` + `mito_genes` unchanged, and recounts to **31 CDS · 17 tRNA
-· 3 rRNA** — with **every difference from the published record listed** (13 CDS spans within 75 bp,
-1 missing and 1 extra tRNA, 1 anticodon disagreement), and anything it cannot call reported as not
-called. The counts agree; the *members* of two of the three sets do not, and that is what the
-golden file prints. On the unannotated `AP045469.1` the same command yields 23 CDS of 31, pinned —
-with the eight it could not call reported and measured (§8.24).
-
-- [x] **M3A.1 GenBank writer** — read → write → read round-trips the golden's 265 features
-- [x] **M3A.2 Reference set** — RefSeq mitogenomes chosen by taxonomy (same family first) → CDS
-      proteins + rRNA, pinned, with sources and sha256 recorded
-- [x] **M3A.3 Gene caller** (2026-10-03) — `blastx` for CDS and `blastn` for rRNA; boundaries come from the
-      alignment, not from ORF-walking; everything below the floor is reported
-- [x] **M3A.4 tRNA caller** (2026-10-03) — ARAGORN, declared in `environment.yml` and `docs/`
-- [x] **M3A.5 CLI** (2026-10-03) — `plastid mito annotate`, output through the existing pipeline, no second path
-- [x] **M3A.6 Golden check** (2026-10-03) — 31 · 17 · 3 against the published record, differences itemized
-- [x] **M3A.7 AP045469.1** (2026-10-03) — the unannotated sample: run it, report it, pin it
-
-## Phase 3B — Plastid annotator, self-built  *(slot decided 07/10/2026: this phase, with the naming step M3B.0 in front of the annotator; **board open 07/10/2026**, **closed 10/10/2026** — tagged `phase-3b`, merged to `main` as one commit; the boards P3B-01…P3B-12 live in git and in §8.40–§8.56)*
-
-**Goal:** the annotate step of the pipeline (assembly → annotate → analyses, with gene names
-unified **on the reference set before** annotation and verified after it — D5-09) as this
-project's own tool — **CGAS's flow with our search-and-decide core**: a pinned
-reference set, per-sample annotation, an audit gate in front of every run. **Chloe is dropped**
-(D5-08). The mito counterpart is Phase 3A; this is its plastid sibling. Design and the other open
-decisions (D-a tRNA caller · D-b reference set · D-e shared core): `docs/D5-08_plastid_annotator.md`.
-
-**In-phase checks (proposed):** the golden *sequence* annotates to exactly **132 = 86 + 38 + 8**
-with **every difference from the published record listed** · the 34-record corpus runs
-leave-one-out, each result diffed against the published record and every difference classified ·
-a failed reference audit stops the run with `file — reason`, nothing annotated · no silent
-failures: a search that finds nothing is a failed run, every below-floor hit reported.
-
-- [~] **M3B.0 Naming (D5-09)** — the step that stands in front of the annotator: the audit's
-      report is what the end user reads to pick the naming reference ★ (D5-09 §7.1); the three
-      numbers of D5-09 §9.3 measured **before** coding (the margin · whether neighbours separate
-      `rpl2`/`rpl23` and the two `trnL` · the `identity_floor`); `gene_normalize` — normalize the
-      reference DB, verify the annotated samples — with every table in vocabulary **A**; the
-      `gene_aliases.yaml` direction flips with its guard test; **Ts/Tv re-measured** (§6's 2.6917
-      is a prediction until this lands)
-      *P3B-02 (the three numbers, §8.41) and P3B-04 (`gene_normalize`, §8.44) are done 08/10/2026,
-      and the alias direction is flipped. Left: **P3B-06** — Ts/Tv re-measured under the new
-      direction — and the **★ pick**, which is the end user's (a recorded override stands until
-      then).*
-- [x] **M3B.1 Reference-set audit** — the gate (structural errors block; flip-flop and
-      majority-deviation report), `--audit-only`, errors printed as `file — reason`, confirmed
-      exceptions pinned by sha256; MAFFT `--adjustdirection` per region + a dotplot for the
-      user's confirmation; **its report is the evidence the end user picks the naming reference ★
-      from** (D5-09 §7.1)
-      *P3B-01 (the set, §8.40) and P3B-03 (the gate, §8.43) are done 08/10/2026, and the flag
-      itself shipped with the command it is a flag of — `--audit-only` on `plastid annotate`,
-      P3B-09 (§8.49), calling `core/reference_audit.audit_files`. The gate sits in front of the
-      first BLAST, so a blocked record produces no annotation at all.*
-- [x] **M3B.2 Calling engine** — orthogonal searches (`blastx` on published `/translation` ·
-      `blastn` for rRNA · IR self-blast behind the structural gate), candidates carrying their
-      evidence, the six measured rules of §8.22
-- [x] **M3B.3 Arbitration & export** — structure first and score within one program; overlap kept
-      and reported (the golden itself carries four overlapping pairs); many references → one call
-      per locus with the losing candidates listed; ties → one call when identical, both with a
-      note otherwise; GenBank that re-reads, `/organelle` on the source, a reason per rejected hit
-- [x] **M3B.4 CLI & batch** — 1..N samples × 1..N reference records; organelle declared at input
-      (H-09); a failed sample is marked without killing the run; docx report (D2-04 pattern)
-- [x] **M3B.5 Golden + corpus validation** — the phase's Done-when at both scales, every
-      difference itemized
-      *(coverage limit named 10/10/2026 — **H-24**: **`trnV-UAC` is never called.** ARAGORN *does*
-      find a tRNA at that locus but reads its identity wrong — `tRNA-Stop(tta)` `c[54467,55134]` on
-      the Crataegus corpus, `tRNA-Cys(aca)` `c[51598,52275]` on the golden — so the call is dropped
-      (the vocabulary has no name for a Stop tRNA) and an intron-containing tRNA is missing from
-      **every** run: 18/18 corpus records and the golden. The run does say so ("Vocabulary loci not
-      called: 1"), which is why it was found only when the corpus supplied an answer key that has
-      the gene. Found by P8B-07, §8.71; three fixes are possible (transfer tRNAs from the reference
-      as CDS/rRNA already do · a second engine · report and keep) and none is chosen yet)*
-      *P3B-10 done 10/10/2026 (§8.55): the golden is **132 = 86 + 38 + 8** with its **35**
-      differences from the published record listed and pinned; the corpus runs 34 leave-one-out
-      and reads **418 conclusion-level differences against PGA's 588** (30/34 records better) —
-      **with the strict reading beside it, 1070 against 699, which does not pass**, and 621 of
-      the 652 `boundary` differences being ARAGORN's tRNA ends. The engine's own Done-when is met
-      on the rule as stated; the close is **P3B-11** (retire chloe · pga) and **P3B-12**.*
-
-## Phase 4 — Multi-genome comparison  *(§13.4 — plastid; the mito half waits on H-10)*
-
-**Goal:** comparison content for the 2 manuscripts. **Deliverable: the three runs and their table
-sets — `docs/P4-05_comparison_tables.md`** (two species over the pinned stand-in panel + the mito
-sketch), every table carrying the stand-in label.
-**In-phase checks:** Ts/Tv = **2.6917** for *I. domestica* × *I. gatesii* (CDS only · 79 genes · MAFFT, §8.27) ·
-identity plot **7 blocks**, %IDY 89.66–99.11 (mean 97.37), coverage 99.09 % — measured 04/10
-(§8.26). *The earlier "21 blocks · 83.7–98.2 · mean 91.5" could not be reproduced from the probe's
-inputs and is recorded as a finding, §9.H.* Mismatch ⇒ stop, re-check inputs.
-
-- [x] **M4.1 Ka/Ks selection pressure** (2026-10-04) — PAML yn00 (Yang & Nielsen 2000) per shared
-      CDS on a codon alignment; 79 shared genes, 78 scored, pooled Ka/Ks 0.2167; unscoreable genes
-      listed with a reason (§8.27)
-- [x] **M4.2 mVISTA-style %identity + synteny** (2026-10-04) — `nucmer --maxmatch → delta-filter -1
-      → show-coords -rcl`, MUMmer 4.0.1 pinned; block table + 600/200 % identity series + raw
-      coords/delta as run artifacts
-- [x] **M4.3 Barcode candidates & hypervariable regions** (2026-10-04) — π reused from the
-      diversity module (773/773 windows identical in a cross-check), 26 regions and 10 candidate
-      loci against the record's own annotation (§8.29)
-- [x] **M4.4 Population genetics** (2026-10-04) — written here in pure Python (D4-03): Hd · θ(S) ·
-      θ(π) · Tajima's D · Fu & Li's D*/F* · Nei's Gst, per gene and group; cross-checked against
-      scikit-allel and hand-computed vectors (§8.28)
-- [ ] **M4.5 RNA editing prediction** — **BLOCKED: needs RNA data**
-- [x] **M4.6 Ts/Tv module** (2026-10-04) — the CDS-scope module (M2.6) is this phase's Ts/Tv
-      deliverable; its shared-gene set is measured by locus, and the re-measurement that followed
-      the three alias loci (§8.27) is what the manuscript tables quote: **2.6917 = 323 Ts / 120 Tv
-      over 79 shared genes**, with the whole-alignment scope a different, labelled number
-
-## Phase 4a — The Điềm corpus as the test dataset  *(opened 04/10/2026)*
-
-**Goal:** the phases so far were tested on data this project picked itself. anh Điềm's corpus — **34
-Iridaceae plastomes × 2 annotations** (published NCBI · PGA) **+ the bare sequences**, 28 MB in
-`.data/thanhdiem_data/` (gitignored, in the working tree) — is the first dataset nobody here chose,
-and it carries its own answer key three ways. It is a **test corpus**: Iridaceae, not the manuscript
-species, so nothing from it becomes a manuscript table.
-
-**In-phase checks (all measured 04/10/2026):** the golden genome's own file is **in the corpus**
-(set 01 `Iris_domestica_NC_050833.1.gb`, sha256 `a946f23e…` — byte-identical to the vendored
-fixture) · set 02 is the *same sequence* annotated by PGA, **85 CDS where the contract says 86**,
-with **3/34 records failing the IR gate at 26–29 %** while de-novo finds 100.00 % on every one ·
-**34/34** records spell at least one locus differently between the two annotations — §8.27's lesson
-at 34× scale.
-
-- [x] **M4a.0 Corpus in the working tree** (2026-10-04) — `.data/thanhdiem_data/`, 136 files, every
-      sha256 identical to `D:\business\pts\thanhdiem_data`; gitignored; ~100× faster than `/mnt/d`
-      on the small-file writes a run is made of (measured)
-- [x] **M4a.1 Pinned** (2026-10-04) — `.panel/iridaceae-34/` (0 gate failures) and
-      `.panel/iridaceae-34-pga/` (3, named) with `PINNED.json` as the verification table, every
-      sha256 · md5 · byte count and measured value re-read; the `.fasta` half as `fasta.json`
-      (68 entries) because the pin route is GenBank-only (measured), with all 68 sequences proven
-      identical to the pinned records. §8.31
-- [x] **M4a.2 Vendored fixtures + Phase-1 checks** (2026-10-04) — five files · 1.3 MB in
-      `tests/data/corpus/` (three pairs; the golden's published half is not duplicated), and
-      `tests/golden/test_corpus.py` asserts each one: the golden re-annotated is one CDS short,
-      *Iris hermona* passes the gate as published and fails it at 26.36 % under PGA on the same
-      sequence (exit 0 / exit 2 through the CLI), the group's own record 87 → 85, and the
-      `ndhI`/`ndhL` alias resolving both spellings to one key. A `SHA256SUMS` completeness check
-      now guards every vendored file. §8.31
-- [x] **M4a.3 Scale (M8.3)** (2026-10-04) — wall clock and peak RSS for every module run at N = 34;
-  `diversity` and `barcodes` are **named as not measured** (they align whole genomes like
-  `substitutions`, whose curve *is* measured). `docs/M8.3_scale.md` + PROJECT.md §8.32
-- [x] **M4a.4 Annotator at scale** (2026-10-04) — 34/34 bare sequences annotated by Chloe, 0 CDS
-      failing the ORF checks, and three annotations of one sequence side by side: **no record has
-      all three agreeing (0/34)**, and the differences cluster on `ycf1` (24/34) and the
-      trans-spliced `rps12` (22/34). Needed a FASTA door in `plastid run`, which exposed a third
-      bug of the same family. §8.33
-
-## Phase 5 — Figures & reports  *(§13.5)*
-
-**Goal:** publication-grade output, regenerable from intermediates (never by hand).
-**In-phase checks:** every table/figure regenerates from intermediate data · **queryable-number test**:
-every number in a report traces to exactly one cell in a source table · tool report has name, version,
-path, threshold.
-
-- [x] **M5.1 Figure system** (2026-10-05) — eight figure types in `result/figures/`, one theme, SVG ·
-  PDF · EPS byte-identical between runs (§8.36), and the N-scaling rule **measured** at 2 · 8 · 34:
-  a series cap of 8, above which the identity panel draws the span the genomes cover (§8.37)
-- [x] **M5.2 Statistics** (2026-10-05) — `core/stats.py` (scipy, `[stats]`): descriptive ·
-  Mann–Whitney U · Kruskal–Wallis H · Spearman · Pearson · Benjamini–Hochberg · Bonferroni, every
-  one pinned by a hand-computed vector; the `stats` module runs a real two-group comparison and
-  reports a test the data cannot support as *not computable* (§8.38)
-- [x] **M5.3 Exports** (2026-10-05) — multi-sheet Excel (byte-identical) · `plastid package` (the
-  Supplementary package, regenerated from a run directory) · one-page PDF per genome, **34/34 corpus
-  records** · `plastid qc` (the technical QC report) · the Word export unchanged (§8.39)
-- [x] **M5.4 Queryable-number check automated** (2026-10-05) — `report/audit.py` fails on an orphan
-  number and on a number two cells disagree about; clean over the whole Phase-4 deliverable run (§8.35)
-
-*Of M5.1's eleven figure types, **seven have a source table today and four do not** (measured
-04/10/2026): the haplotype network needs a haplotype table (`popgen` counts haplotypes,
-it does not list them), the annotated tree needs a phylogeny nothing builds yet, NUPT/MTPT is M6.1
-(blocked on a nuclear genome) and the mito configuration is M6.2. Phase 5 shipped the seven, plus a
-PDF-only one-page sheet per genome (P5-04).*
-
-**Phase 5 — CLOSED 05/10/2026**, merged to `main` (fast-forward). Five tasks, each with its
-Done-when measured: the figures (§8.36–§8.37), the statistics (§8.38), the exports (§8.39) and the
-queryable-number audit (§8.35). Three layout defects were found by *looking at* the rendered
-figures rather than by a test — the lesson of §9.C-34, paid three times in one phase.
-
-## Phase 6 — The analyses the tool paper is built on  *(§13.6 — published/GenBank data; assembly-dependent parts move to P7)*
-
-**[ĐÃ THAY 10/10/2026 — the label, not the work: this phase was called "Tool-paper content", which
-reads as the dev writing a paper. It is not that. Every milestone below is a **module** — an
-analysis this toolkit must be able to run — and *"what to analyse · scope of a scientific claim ·
-what goes in a manuscript"* is **cô Trang's** by CLAUDE.md's own decision table. The paper is hers;
-the code that produces its figures and tables is ours.]**
-
-**[ĐÃ HOÃN 10/10/2026 — NGOÀI PHẠM VI VÒNG LÀM VIỆC NÀY (dev quyết): cả ba milestone dưới là phân
-tích ty thể/nhân, mà vòng này chỉ làm **lục lạp**. Đây **không phải** việc đang chờ dữ liệu — tên
-và nội dung giữ nguyên vì cấu trúc đã chừa sẵn cho chúng (D5-06/D5-07); không board nào, không
-prompt nào coi chúng là việc sẽ bắt tay vào.]**
-
-**Goal:** the five analyses the Eleutherine bulbosa tool paper rests on — built, measured against
-published benchmarks, and reported by the toolkit. **The paper itself — what it claims, what goes
-in it, in what order — is the PI's.**
-**In-phase checks:** mito-structure parts have published benchmarks to compare against
-(*Damnacanthus indicus* · *Salvia* 2022–2025 · *Hemiboea* · *Coffea arabica* 2023).
-NUPT/MTPT has **no published benchmark** — its only check is the Oldenlandia/Coleus comparison in Phase 8.
-
-- [ ] **M6.1 NUPT/MTPT** (nuclear ↔ plastid ↔ mito transfer) — **HOÃN: ngoài phạm vi vòng này** (D5-07, 10/10/2026); cần bộ gen nhân khi nào mở lại
-- [ ] **M6.2 Mito polymorphic structure + recombination via repeats** (Chimeric ORF/CMS) — **HOÃN: ngoài phạm vi vòng này**
-- [ ] **M6.3 Parallel plastid–mito comparison** within species — **HOÃN: ngoài phạm vi vòng này**
-
-**[ĐÃ THAY 10/10/2026 — dev's call: M6.4 (ancestral state reconstruction) and M6.5 (divergence
-time) are **deleted from this plan**.]** They are not toolkit modules: each needs a tree, fossil
-calibrations and a scientific question — not a genome — so they are analyses the PI runs for a
-paper, with her own tools. `mcmctree`/`BEAST2` are recorded in §7 as *surveyed, not adopted*.
-**The toolkit builds code; what to analyse, and what a paper claims, is cô Trang's** (CLAUDE.md →
-who decides). The three milestones left are modules and stay.
-
-## Phase 7 — Assembly  *(§13.7 — after analysis, by decision 01/10)*
-
-**Goal:** assemble plastomes/mitogenomes from raw reads; feed Phase 6.
-**In-phase checks:** GetOrganelle + SPAdes → 127,679 bp from 20,000 simulated read pairs ·
-OATK → 126,660 bp @ identity 100.00 % · Bandage → PNG. With real reads: add a **peak-RAM** measurement.
-
-*The canonical diagram (PROJECT.md §13.0) names `fastp` · `BWA/minimap2` · `Bandage` for read QC;
-neither `fastp` nor `BWA` is declared in the repo yet — declare each in the session it is first
-used (the §7.8b lesson); the map-back step itself is M7.1's. The long-read assemblers (`OATK` ·
-`raven-assembler`, both declared) belong to **M7.6**; `Flye` left the diagram — measured to die on
-RAM here and replaced (§7.1, PROJECT.md §13.0's dated note).*
-
-- [ ] **M7.1 Batch assembly + QC** (fastp → GetOrganelle · BWA/minimap2 map-back) — **BLOCKED: no real Illumina reads yet**
-- [ ] **M7.2 Assembly-graph checks** (Bandage)
-- [ ] **M7.3 Feed mito-structure work** (M6.2) — **HOÃN: ngoài phạm vi vòng này** (đi cùng M6.2)
-- [ ] **M7.4 Remote path** (usegalaxy.eu `get_organelle_from_reads`) — subsample reads before upload ·
-  pin tool version · record history ID · data-sharing policy for unpublished reads: **open**
-  (PROJECT.md §10.12)
-- [ ] **M7.5 Peak-RAM with real reads** — **BLOCKED: no real reads yet**
-- [ ] **M7.6 Long-read path** (OATK · raven-assembler — ONT/HiFi) — **BLOCKED: no ONT/HiFi reads**;
-  both tools are declared (`environment.yml`) and were run in the survey (§7.1); feeds M7.3
-
-## Phase 8 — Cross-testing, performance, automation  *(§13.8 — not first-time testing)*
-
-**Phase 8 — CLOSED 10/10/2026**, tagged `phase-8` and merged to `main` as one commit. Five
-tasks, each with its Done-when measured: the CPGview decision and the two real cross-checks
-(§8.60–§8.62, which found a bug of ours and a gap of ours), the last two scale numbers
-(§8.63), and CI (§8.64 — watched red on a deliberately broken golden number before it was
-green).
-
-**Goal:** only what cannot be done earlier — cross-checks, scale, automation.
-
-**In-phase checks:** every disagreement **explained** (class definition · parameter · coordinate
-convention), never just counted · both tools' version + argv recorded per cross-check run · both
-sides measured on the **same pinned input** · every number scope-labelled · CI shown **red** on a
-deliberately broken golden number before it is green.
-
-- [x] **M8.1 Cross-check vs CGAS · CPStools · CPGview** on the same dataset — differences explained
-      **(2026-10-10)** — P8-01 **CPGview: surveyed, not adopted** (§8.60: repo is a landing page, no
-      pip/conda/CLI, the web app's port does not answer) · P8-02 **CPStools 3.0** (§8.61: IR
-      identical · SSR 37/37 · RSCU identical codon by codon on one gene set · π 100/104 genes to
-      5 dp — **and it found a real bug in our `ssr` module**, fixed with a regression test, §9.M-1) ·
-      P8-03 **CGAS 1.0.1** (§8.62: structure · RSCU · introns identical; SSR one threshold apart;
-      CGAS reports `0` for a record it cannot read, and prints 8 tRNA introns ours does not → H-23).
-      Every difference names its cause: a convention (compound clusters · IR labels), a parameter
-      (SSR thresholds · RSCU gene set · `-l`), an alignment scope, or a different implementation of
-      the same estimator.
-- [ ] **M8.2 Cross-check NUPT/MTPT vs the Oldenlandia/Coleus papers** — **HOÃN: ngoài phạm vi vòng
-      này** — it checks a module (M6.1) that this round does not build, so it is not "waiting on
-      data" either: it is parked with Phase 6
-- [x] **M8.3 Batch test 10–50+ genomes** **(2026-10-10)** — record memory/time limits (PROJECT.md §8).
-      **[ĐÃ ĐO 05/10/2026 — `docs/M8.3_scale.md`: 34 bản ghi, 9 mô-đun một-genome < 4 phút & < 100 MB;
-      `substitutions`/`synteny`/`popgen`/`kaks` đo đủ; `diversity` và `barcodes` ghi rõ **not
-      measured** — board P8-04 đo nốt]**
-- [x] **M8.4 CI** **(2026-10-10)** — tests on every change; golden set re-runs automatically
-      *(was P8-05: the repo had no CI, measured 10/10/2026 — §8.64 has the four runs, including the
-      deliberate break that turned the build red on the golden number)*
-
-## Phase 8B — The Crataegus answer-key corpus  *(board opened 10/10/2026; **closed 10/10/2026** — tagged
-`phase-8b`, squashed into one commit on `main`; the drop is anh Điềm's `db_test_new`, delivered
-10/10/2026)*
-
-**What it answered, per table:** Table 1 reproduces row for row · **S7 reproduces to the last printed
-digit** (KaKs_Calculator `-m MLWL` against *Amelanchier cusickii* `MN068257`, not the *C. kansuensis*
-its text names) · **the 50 barcode records reproduce Table S2 exactly** · S6 reproduces at MISA's
-defaults (14/49 sections whole) · **S5 does not reproduce** (1–2 % under 11 counting rules, with the
-sequences proven identical) — the one open question, for anh Điềm. Two defects of ours fixed
-test-first (§8.65 · §9.M-1), one named open (**H-24**: `trnV-UAC` is never called), and one more
-found by the closing `make check` (§9.C-38: the Excel export leaked a timestamp).
-
-**Goal.** The toolkit's numbers have been put beside **another tool's** (Phase 8). This phase puts
-them beside a **published paper's own result tables**: an independent corpus of 49 *Crataegus* /
-*Mespilus* plastomes (Rosaceae — a different family from everything the project has tested on) whose
-paper, Sun et al. 2026 (*Front. Plant Sci.* 17:1767012, CC-BY), prints the answer key: Table 1
-(genome · LSC · SSC · IR + GC per region), Table S5 (RSCU), Table S6 (SSR, 3,546 rows over 49
-genomes), Table S7 (Ka/Ks), Table S2 (barcode lengths/GC) — plus the Methods, which name every tool
-and parameter they used.
-
-**Why it is a corpus and not data to analyse:** it is Rosaceae, while the two species manuscripts
-are Oldenlandia and Coleus — so nothing from it becomes a manuscript table (the M4a rule). It is a
-**test corpus**, and its value is that the answer key was written by somebody who was not us.
-
-**What is already measured (10/10/2026, before the board went up):** 100/100 GenBank records read by
-our own reader; 50 plastomes all declare `/organelle` and pass the IR gate at 100.00 %; the 18 new
-plastomes reproduce **Table 1 row for row** (e.g. *C. altaica* 87,665 · 19,245 · 26,377 and GC
-34.37/30.42/42.65 — exact); the paper's SSR table is reproduced by MISA **defaults** and not by the
-thresholds its own Methods state; and the corpus immediately found a real defect — MISA's compound
-flag (§8.65).
-
-**In-phase checks:** every published table we compare against is quoted with its own scope, and each
-difference names its cause (a parameter · a counting rule · a class definition · a coordinate
-convention) · no comparison is run on a stand-in in place of the corpus, and every output made from
-it is labelled as third-party published data · the corpus's own provenance (accessions, retrieval
-date, file digest) is recorded in the repo, not only on D:.
-
-- [x] **M8B.1 The corpus on disk, verified** — copied into the working tree, byte-identical to the
-      drop (117/117 sha256), gitignored; **the repo-side provenance note is `docs/corpus_crataegus_2026.md`**
-      (accessions · retrieval date · DOI · manifest sha256 · how to prove a copy is the same), P8B-09
-- [x] **M8B.2 Structure & GC vs Table 1** — 18/18 rows reproduce all four sizes; one GC cell does not
-      (*C. jozana* IR 45.62 vs 42.64); §8.67, P8B-03
-- [x] **M8B.3 SSR vs Table S6** — **parameter question settled by measurement, and the comparison
-      now covers all 49 sections at both settings** (§8.73): defaults reproduce **14/49 sections
-      whole** and 72.8 % of rows exactly; their own Methods' thresholds find 86.6 % of rows but
-      complete only 4 sections; 9 of 9 non-exact rows in a section are a compound cluster their
-      table writes as one spanning row. The provenance question (which run produced each section)
-      is left for anh Điềm as a *stricter* comparison, not as a blocker
-- [~] **M8B.4 RSCU vs Table S5** — **measured, not reproduced**: 1–2 % away under every one of 11
-      counting rules tested; the sequences are proven identical (S7 reproduces exactly), so the
-      residual is their counting rule — §8.70, open question for anh Điềm
-- [x] **M8B.5 Ka/Ks vs Table S7** — **reproduced to the last printed digit** (629/714 cells, zero
-      error): KaKs_Calculator `-m MLWL` against **`MN068257` *Amelanchier cusickii*** — not the
-      *C. kansuensis* the paper's text names, which the table's own structure refutes; §8.69, P8B-08
-- [x] **M8B.6 π and hotspots vs the paper** — their three named regions rank **4th · 5th · 9th of 91**
-      for us (our first is `petG-trnW-CCA`, twice the runner-up); the **50/50 barcode records reproduce
-      Table S2 exactly**; the 51st was never deposited; §8.72, P8B-06
-- [x] **M8B.7 Annotation vs the published GeSeq annotation** — 18/18 leave-one-out runs, classified
-      with the corpus bar's own rule: **341 conclusion-level differences** (18.9/record against
-      Iridaceae's 12.3), of which **110 extras are the IR genes the deposits lack** and **105 extents
-      are six genes of one reference record**; §8.71, P8B-07
-- [x] **M8B.8 The defects the corpus forced** — the running list is `docs/corpus_crataegus_2026.md`:
-      **§8.65** MISA's compound flag (fixed test-first) · **§9.M-1** `ssr`'s Context column (fixed in
-      Phase 8) · **H-24** `trnV-UAC` never called, named with its evidence (§8.71), open
-
-## Phase 9 — Packaging, license & release  *(§13.9)*
-
-**Goal:** a citable, installable release.
-**In-phase check:** golden numbers re-run **inside Docker on Windows** — same input, same numbers
-across 3 environments (WSL · CI · Docker).
-
-- [ ] **M9.1 README / quickstart / user docs** — followable by a non-technical user
-- [ ] **M9.2 pip/conda package + Dockerfile** (Windows via Docker)
-- [ ] **M9.3 License review** — PGA = GPL-3.0 · Vmatch = academic only · **MISA = not stated**
-  (zip ships no license; IPK page only cites Beier et al. 2017) · isolation if needed
-- [ ] **M9.4 Module × platform × RAM table + 3 support levels** (Linux native · Windows/Docker ·
-  macOS experimental, unverified)
-- [ ] **M9.5 "Things we don't do" statement** — no native Windows; no assembly below RAM threshold;
-  no RNA-editing prediction without RNA-seq data
-- [ ] **M9.6 Release artifacts** — short how-to video · **DOI (Zenodo) + CITATION.cff**.
-  **[ĐÃ THAY 10/10/2026: "tool manuscript" was listed here, in a phase of our own — writing the
-  paper is the PI's (CLAUDE.md → who decides), not a release step. What this phase owes it is the
-  artifacts a paper needs from a tool: the figures, the tables and the citable DOI.]**
-- [ ] **M9.7 Web UI** — deferred until the core is stable
-
----
-
-## Open decisions blocking milestones
-
-| Decision | Blocks | Where |
-|---|---|---|
-| Reference Panel item (c) — source text truncated | documentation only — does not block M1.10 | PROJECT.md §10.9 |
-
-*Decided 07/10/2026 (dev): the self-built annotator's slot is **Phase 3B, opened next** (after
-Phase 5, mirroring 3A), and the naming step (D5-09) sits **inside it as M3B.0** — the reference set
-must be name-normalized before the annotator uses it (D5-08 §7.3). `docs/D5-08`'s D-c and
-`docs/D5-09`'s §9.5 are answered there; D-a · D-b · D-e stay open.*
-
-## Waiting on data / people
-
-| What | Who | Blocks |
-|---|---|---|
-| Real Illumina reads (1 sample) | Diem / Trang | M7.1 · M7.5 · M4.5 |
-| ONT/HiFi reads (1 sample) | Diem / Trang | M7.6 (long-read path) |
-| A macOS machine | Team | M9.4 platform claims |
-
-*The **mito round** is deliberately **not** in this table: Phase 6 entirely (M6.1 · M6.2 · M6.3),
-M7.3 and M8.2 are **parked by decision of 10/10/2026** — this round is plastid only (CLAUDE.md →
-"Priority today") — so they are not waiting on anybody. What that round will need the day it
-reopens is named here once, so the list is not lost: **several mitogenomes of one species** (M6.2
-· M6.3) and **a nuclear genome** (M6.1) — plus H-06 · H-10 · H-12, the mito follow-ups D5-07
-already held back.*
+| [5] RNA editing (a reference of its own) | M4.5 | **not built** — judged on a published paper's public RNA-seq and its editing sites |
+| [6] Submission (`table2asn` · Excel · Supplementary) | M3.4 · M5.3 | done — except the team's own `.sbt` (see Waiting) |
+
+## Done — one line each
+
+### Phase 1 — Framework & shared data
+- [x] **M1.1 Skeleton & packaging**
+- [x] **M1.2 Core model + GenBank reader + vendored golden data**
+- [x] **M1.3 IR detection + gate + normalization**
+- [x] **M1.4 Result schema + exporters**
+- [x] **M1.5 Run layer**
+- [x] **M1.6 Golden harness**
+- [x] **M1.7 Report engine + citation registry + defaults**
+- [x] **M1.8 Module registry + first module end-to-end**
+- [x] **M1.9 `ssr` module (tier B)** — MISA is obtained, no longer vendored (M9.3)
+- [x] **M1.10 Reference Panel (4 tiers) + NCBI fetch/cache**
+- [x] **M1.11 Sample-group metadata**
+- [x] **M1.12 Execution backend decision**
+- [x] **M1.13 Hardening + API freeze v0.1**
+
+### Phase 2 — Genome reading & statistics
+- [x] **M2.1 Gene content & summary statistics**
+- [x] **M2.2 Publication gene table**
+- [x] **M2.3 Genome structure**
+- [x] **M2.4 Codon usage**
+- [x] **M2.5 Amino acid composition**
+- [x] **M2.6 SNP / substitutions by position**
+- [x] **M2.7 Introns**
+- [x] **M2.8 SSR**
+- [x] **M2.9 Nucleotide diversity π**
+- [x] **M2.10 Manuscript deliverable** — the recipe is `docs/P2-10_manuscript_draft.md`
+- [x] **M2.11 Sample-group labels**
+- [x] **M2.12 Repeats (dispersed + palindromic)**
+
+### Phase 3 — Annotation
+- [x] **M3.1 Annotation** — plastid: superseded by Phase 3B (Chloe and PGA retired); mito: Phase 3A
+- [x] **M3.2 Gene-name check & normalization**
+- [x] **M3.3 ORF checks**
+- [x] **M3.4 NCBI submission files**
+
+### Phase 3A — Mito annotator, self-built prototype
+- [x] **M3A.1 GenBank writer**
+- [x] **M3A.2 Reference set**
+- [x] **M3A.3 Gene caller**
+- [x] **M3A.4 tRNA caller**
+- [x] **M3A.5 CLI**
+- [x] **M3A.6 Golden check**
+- [x] **M3A.7 AP045469.1**
+
+### Phase 3B — Plastid annotator, self-built
+- [x] **M3B.1 Reference-set audit**
+- [x] **M3B.2 Calling engine**
+- [x] **M3B.3 Arbitration & export**
+- [x] **M3B.4 CLI & batch**
+- [x] **M3B.5 Golden + corpus validation**
+
+### Phase 4 — Multi-genome comparison
+- [x] **M4.1 Ka/Ks selection pressure**
+- [x] **M4.2 mVISTA-style %identity + synteny**
+- [x] **M4.3 Barcode candidates & hypervariable regions**
+- [x] **M4.4 Population genetics**
+- [x] **M4.6 Ts/Tv module**
+
+### Phase 4a — The Điềm corpus as the test dataset
+- [x] **M4a.0 Corpus in the working tree**
+- [x] **M4a.1 Pinned**
+- [x] **M4a.2 Vendored fixtures + Phase-1 checks**
+- [x] **M4a.3 Scale (M8.3)**
+- [x] **M4a.4 Annotator at scale**
+
+### Phase 5 — Figures & reports
+- [x] **M5.1 Figure system**
+- [x] **M5.2 Statistics**
+- [x] **M5.3 Exports**
+- [x] **M5.4 Queryable-number check automated**
+
+### Phase 8 — Cross-testing, performance, automation
+- [x] **M8.1 Cross-check vs CGAS · CPStools · CPGview**
+- [x] **M8.3 Batch test 10–50+ genomes**
+- [x] **M8.4 CI**
+
+### Phase 8B — The Crataegus answer-key corpus
+- [x] **M8B.1 The corpus on disk, verified** — provenance, and how to prove a copy is the same: `docs/corpus_crataegus_2026.md`
+- [x] **M8B.2 Structure & GC vs Table 1**
+- [x] **M8B.3 SSR vs Table S6**
+- [x] **M8B.5 Ka/Ks vs Table S7**
+- [x] **M8B.6 π and hotspots vs the paper**
+- [x] **M8B.7 Annotation vs the published GeSeq annotation**
+- [x] **M8B.8 The defects the corpus forced**
+
+### Phase 9 — Packaging, license & release
+- [x] **M9.1 README / quickstart / user docs**
+- [x] **M9.2 pip/conda package + Dockerfile (Windows via Docker)**
+- [x] **M9.3 License review**
+- [x] **M9.4 Module × platform × RAM table + 3 support levels**
+- [x] **M9.5 "Things we don't do" statement**
+
+*Open questions: PROJECT.md §10. Decisions: PROJECT.md §3. Original per-phase scope text: PROJECT.md §13.*

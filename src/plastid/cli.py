@@ -27,7 +27,12 @@ from plastid import __version__
 from plastid.core import organelle, plastid_reference, reference_audit
 from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
-from plastid.core.gene_names import NamingConflictError, load_recorded_reference, repo_root
+from plastid.core.gene_names import (
+    NamingConflictError,
+    RecordedReference,
+    checkout_root,
+    load_recorded_reference,
+)
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
 from plastid.core.model import Genome
 from plastid.core.normalize import normalize
@@ -619,7 +624,7 @@ def _resolve_reference(
             raise ValueError(f"{key}={override} is not a file — the naming reference has to be one")
     else:
         recorded = load_recorded_reference()
-        path = recorded.resolve(root=repo_root())
+        path = _resolve_recorded_reference(recorded)
 
     digest = _sha256_file(path)
     audit = reference_audit.audit_files([path], confirm=None)
@@ -643,6 +648,24 @@ def _resolve_reference(
     params[key] = str(path)
     params[f"{key}_sha256"] = digest
     return reference, (_read_input(str(path)), *genomes), [str(path), *inputs]
+
+
+def _resolve_recorded_reference(recorded: RecordedReference) -> Path:
+    """Where the recorded naming standard actually is, or an error saying what to do about it.
+
+    Two shapes have to work. **From a checkout** (the team's runs, CI) the recorded path is
+    relative to the checkout root, so a run started in any subdirectory still finds it. **From an
+    installed package** there is no checkout: measured 11/10/2026 by the release's Docker check,
+    the old code walked up from ``site-packages/plastid/core/gene_names.py``, found no
+    ``pyproject.toml``, and ``gene_normalize`` died for anyone who had installed the toolkit rather
+    than cloned it. There the path is taken as it comes — absolute, or relative to the working
+    directory — and when it is not there the error names the way out: the naming reference is the
+    user's own choice (D5-09 §7.2), not a toolkit default.
+    """
+    root = checkout_root()
+    if root is None:
+        return recorded.resolve()
+    return recorded.resolve(root=root)
 
 
 def _read_input(path: str) -> Genome:

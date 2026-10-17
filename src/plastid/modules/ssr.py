@@ -1,4 +1,8 @@
-"""SSR (microsatellite) analysis — tier B: needs the bundled MISA + perl.
+"""SSR (microsatellite) analysis — tier B: needs MISA 2.1 + perl.
+
+MISA is **obtained, not bundled** (D-q: its source zip states no licence — `docs/tools/misa.md`
+has the download line and both hashes). Pass ``--set misa=/path/to/misa.pl`` when it is not on
+``PATH``; the run refuses any release but the pinned 2.1.
 
 Golden numbers (PROJECT.md §6): 37 = mono 31 · di 4 · tri 2, compound 3.
 Counts are MISA's; the module adds the plastid region (LSC/IRa/SSC/IRb) and the gene
@@ -18,13 +22,16 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "ssr"
+# 0.4.0 (11/10/2026): MISA left the package (D-q — its zip states no licence), so the module takes
+# `--set misa=/path/to/misa.pl` and refuses a release other than the pinned 2.1. The golden numbers
+# are unchanged; the cache key (H-08) is why this is a version and not just an edit.
 # 0.3.0 (10/10/2026): the compound flag now marks every component of a cluster. MISA writes a
 # cluster two ways and the parser read only one, so a component on its own line said "no" —
 # 0 of PX413282's 16 components while MISA counted 8 clusters (P8B-01, found by the Crataegus
 # answer-key corpus). The run cache keys on this version, not on the source (H-08).
 # 0.2.0 (10/10/2026): the Context column changed — a trans-spliced gene's outer span no longer
 # makes everything inside it an "Intron" (§9.M-1, found by the CPStools cross-check §8.61).
-MODULE_VERSION = "0.3.0"
+MODULE_VERSION = "0.4.0"
 
 _THRESHOLDS = "(1/10) (2/6) (3/5) (4/5) (5/5) (6/5)"  # MISA defaults, PROJECT.md §10.2
 _GENE_KINDS = ("CDS", "tRNA", "rRNA")
@@ -40,7 +47,7 @@ _GENE_KINDS = ("CDS", "tRNA", "rRNA")
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
-    misa = run_misa(genome, ctx)
+    misa = run_misa(genome, ctx, params.get("misa"))
 
     rows = []
     for feature in misa.features:

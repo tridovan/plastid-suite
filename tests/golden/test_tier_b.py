@@ -40,6 +40,10 @@ def test_ssr_reproduces_the_golden_numbers(
                 str(tmp_path),
                 "--dataset",
                 "golden",
+                # MISA is not bundled (D-q: its zip states no licence), so the test says where
+                # the copy it found is — the same `--set misa=` a user without it on PATH passes.
+                "--set",
+                f"misa={tools['misa.pl']}",
             ]
         )
         == 0
@@ -51,7 +55,7 @@ def test_ssr_reproduces_the_golden_numbers(
     tool_records = manifest["modules"][0]["tools"]
     assert [record["name"] for record in tool_records] == ["misa"]
     record = tool_records[0]
-    assert record["version"] == "2.1"  # pinned: the vendored MISA
+    assert record["version"] == "2.1"  # the pinned release, read out of the script's own header
     assert record["interpreter"].startswith("perl ")
     assert record["rc"] == 0
     assert Path(record["stdout_file"]).is_file()

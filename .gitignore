@@ -11,3 +11,4 @@ dist/
 .panel/
 .data/
 .claude/settings.local.json
+feedback/

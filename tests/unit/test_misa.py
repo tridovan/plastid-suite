@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from plastid.core.model import Genome
-from plastid.external.misa import MisaResult, SsrFeature, _parse_gff, _parse_statistics, run_misa
+from plastid.external.misa import (
+    MisaResult,
+    SsrFeature,
+    _parse_gff,
+    _parse_statistics,
+    misa_script,
+    misa_version,
+    run_misa,
+)
 from plastid.run.tools import ToolError
 
 STATISTICS = """\
@@ -103,3 +113,63 @@ def test_missing_perl_raises_a_named_tool_error(monkeypatch: pytest.MonkeyPatch)
 def test_misa_result_shape() -> None:
     result = MisaResult(total=37, by_unit={1: 31}, compound=3, features=())
     assert result.total == 37
+
+
+# --- MISA is not bundled (D-q, 11/10/2026) ------------------------------------------------
+#
+# The script left the package because its source zip states no licence and redistribution is the
+# one act a missing licence forbids (docs/licensing.md). What replaces "a file is missing" is a
+# message naming the download line, and a release check — MISA has no version flag, so the only
+# place it says which release it is, is its own header.
+
+HEADER = """\
+#!/usr/bin/perl -w
+
+###_______________________________________________________________________________
+###
+###Program name: misa.pl
+###Release date: 25/08/20 (version 2.1)
+###
+"""
+
+
+def test_misa_script_names_the_download_line_when_it_is_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The negative case that matters: no `misa.pl` anywhere says how to get one."""
+    monkeypatch.setenv("PATH", str(tmp_path))  # a PATH with nothing on it
+    with pytest.raises(ToolError, match="docs/tools/misa.md"):
+        misa_script()
+
+
+def test_misa_script_takes_an_explicit_path(tmp_path: Path) -> None:
+    """`--set misa=…` is the route for a machine that keeps its tools off PATH."""
+    script = tmp_path / "misa.pl"
+    script.write_text(HEADER, encoding="utf-8")
+    assert misa_script(script) == script
+
+
+def test_misa_script_rejects_an_explicit_path_that_is_not_a_file(tmp_path: Path) -> None:
+    with pytest.raises(ToolError, match="not a file"):
+        misa_script(tmp_path / "typo.pl")
+
+
+def test_misa_version_is_read_from_the_scripts_own_header(tmp_path: Path) -> None:
+    script = tmp_path / "misa.pl"
+    script.write_text(HEADER, encoding="utf-8")
+    assert misa_version(script) == "2.1"
+
+
+def test_misa_version_refuses_another_release(tmp_path: Path) -> None:
+    """A different release is a different caller — §6's numbers were measured with 2.1."""
+    script = tmp_path / "misa.pl"
+    script.write_text(HEADER.replace("version 2.1", "version 2.2"), encoding="utf-8")
+    with pytest.raises(ToolError, match="expected MISA 2.1"):
+        misa_version(script)
+
+
+def test_misa_version_refuses_a_script_that_never_says(tmp_path: Path) -> None:
+    script = tmp_path / "misa.pl"
+    script.write_text("#!/usr/bin/perl -w\nprint 'hello';\n", encoding="utf-8")
+    with pytest.raises(ToolError, match="cannot be read"):
+        misa_version(script)
