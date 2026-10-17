@@ -2,7 +2,7 @@
 
 > The macro view. Rewritten when a milestone closes or a phase opens or closes — never appended to.
 > Closed work is one line: the detail is in git (commit messages), the evidence in `docs/log/` —
-> `PROJECT.md` §8 indexes it by `§8.N`. Legend: `[x]` done · `[~]` partly · `[ ]` open · **BLOCKED** = waits on data or people.
+> `PROJECT.md` §8 indexes it by `§8.N`. Legend: `[x]` done · `[~]` partly · `[ ]` open.
 
 ## Now — 17/10/2026
 
@@ -10,11 +10,12 @@
   annotator, the cross-checks against CGAS / CPStools and the Crataegus answer key, CI. The analysis
   round is done, except RNA editing (needs RNA-seq) and the parked mito/nuclear round.
 - **Open:** Phase 9 on `feat/phase-9`. The packaging, the licence review (MIT), the Docker image and the
-  user docs are done; the 1.0.0 candidate is with the team (P9-08), and the DOI, PyPI and the video wait
-  on them.
+  user docs are done; anh Điềm tests the code from git (P9-08), and the DOI, PyPI and the video wait on
+  that and on the team.
 - **Next, unblocked:** fixes to the figure tool from anh Điềm's package (`feedback/`, untracked) — then
   close Phase 9 on the team's report.
-- **After that:** Phase 7, assembly — blocked on real Illumina/ONT reads.
+- **After that:** Phase 7, assembly — judged on a published paper's public reads against its assembled
+  plastome; it waits on no one.
 
 ## Scope of this round
 
@@ -32,32 +33,35 @@ structure) waits with the parked round.
   Each is outward-facing and permanent, so each waits for the dev's explicit go.
 - [ ] **M9.7 Web UI** — deferred until the core is stable
 
-**Phase 7 — assembly** (waits on real reads; so far run only on simulated pairs)
+**Phase 7 — assembly** (not built; judged on a published paper — its public reads in, its assembled plastome
+as the answer; so far run only on simulated pairs)
 
 Check: GetOrganelle + SPAdes → 127,679 bp from 20,000 simulated read pairs · OATK → 126,660 bp at
 100.00 % identity · Bandage → PNG; with real reads, add a peak-RAM measurement. Assembly runs locally
 when the user's machine has the RAM, otherwise on the Galaxy remote path (confirmed 08/10/2026).
 
-- [ ] **M7.1 Batch assembly + QC** (fastp → GetOrganelle · BWA/minimap2 map-back) — **BLOCKED: no real
-  Illumina reads.** Neither `fastp` nor `BWA` is declared in the repo yet: declare each in the session
-  it is first used.
-- [ ] **M7.2 Assembly-graph checks** (Bandage) — **BLOCKED: no real reads**
+- [ ] **M7.1 Batch assembly + QC** (fastp → GetOrganelle · BWA/minimap2 map-back) — needs a published
+  paper with public Illumina reads and its assembled plastome as the answer key. Neither `fastp` nor `BWA`
+  is declared in the repo yet: declare each in the session it is first used.
+- [ ] **M7.2 Assembly-graph checks** (Bandage) — after M7.1
 - [ ] **M7.4 Remote path** (usegalaxy.eu `get_organelle_from_reads`) — subsample reads before upload ·
   pin the tool version · record the history ID · data-sharing policy for unpublished reads is **open**
   (PROJECT.md §10.12)
-- [ ] **M7.5 Peak-RAM with real reads** — **BLOCKED: no real reads**
-- [ ] **M7.6 Long-read path** (OATK · raven-assembler, ONT/HiFi) — **BLOCKED: no ONT/HiFi reads**; both
-  tools are declared in `environment.yml` and were run in the survey (§7.1)
+- [ ] **M7.5 Peak-RAM with real reads** — measured on the M7.1 run
+- [ ] **M7.6 Long-read path** (OATK · raven-assembler, ONT/HiFi) — needs a published paper with public
+  long reads and its assembly; both tools are declared in `environment.yml` and were run in the survey
+  (§7.1)
 
 **Earlier phases, still open**
 
 - [~] **M3B.0 Naming (D5-09)** — built and measured (`gene_normalize`; Ts/Tv 2.6917 unchanged, §8.45).
   **Open: the ★ pick** — the end user chooses the project's naming record from the audit report
   (§8.43); a recorded override stands until then.
-- [ ] **M4.5 RNA editing prediction** — **BLOCKED: needs RNA-seq data**
+- [ ] **M4.5 RNA editing prediction** — needs a published paper with public RNA-seq and its list of
+  editing sites
 - [~] **M8B.4 RSCU vs Table S5** — measured, not reproduced: 1–2 % away under every one of 11 counting
   rules tested; the sequences are proven identical (Table S7 reproduces exactly), so the residual is the
-  authors' counting rule (§8.70) — a question for anh Điềm.
+  authors' counting rule (§8.70) — unexplained, reported as measured.
 
 **Parked by scope — never picked up this round** (D5-07; the mito/nuclear round, with its follow-ups H-06 · H-10 · H-12)
 
@@ -84,20 +88,18 @@ when the user's machine has the RAM, otherwise on the Galaxy remote path (confir
   produced the published call — the rule's stated reason does not hold for this shape. Changing a BLOCK
   rule decided in P3B-03 means re-measuring all of it (§8.49).
 
-## Waiting on data / people
+## Waiting on people
 
 | What | Who | Blocks |
 |---|---|---|
-| **P9-08** — run the 1.0.0 candidate (`docs/handoff_test_1.0.0.md`, levels 1–3) and read a `report.md` | anh Điềm (levels 2–3) · cô Trang (the report) | Phase 9's close. One machine's green is not a release's green; anything they find becomes a regression test before it is fixed |
+| **P9-08** — pull the code from git (branch `feat/phase-9` until Phase 9 is merged into `main`) and test it by the process that suits the tool: input in, output out | anh Điềm | Phase 9's close. One machine's green is not a release's green; anything found becomes a regression test before it is fixed |
 | Authors to name in `CITATION.cff` · a Zenodo account · the repository's visibility (private today; Zenodo archives public repositories) · the PyPI name `plastid-suite` · the how-to video | the team · the dev | M9.6 — and a publish needs the dev's explicit go, each time |
-| The ★ naming record, picked from the audit report | the end user (the PI signs off the names a manuscript prints) | M3B.0 |
-| Two decisions that are the PI's: which `trnG` name prints in tables and submissions (H-04 — the golden calls two different tRNAs `trnG-UCC`; PROJECT.md §10.10) · what a machine-written sentence may assert (D5-05; PROJECT.md §10.11, the cautious default is in force) | cô Trang | manuscript tables, submission files, report wording |
-| Four open questions from the Crataegus corpus (§8.69 … §8.73) | anh Điềm | M8B.4 — none of them blocking |
-| Written permission from IPK Gatersleben to redistribute `misa.pl` | cô Trang / anh Điềm (one mail) | nothing — the release does not wait on it |
-| Real Illumina reads (1 sample) | anh Điềm / cô Trang | M7.1 · M7.5 · M4.5 |
-| ONT/HiFi reads (1 sample) | anh Điềm / cô Trang | M7.6 |
-| The team's own `.sbt` submitter template (NCBI's form; a stand-in is vendored for tests) | the team | M3.4 · M5.3 — a real `.sqn` submission only |
 | A macOS machine | the team | macOS stays *unverified* in `docs/platforms.md` |
+
+Nothing else waits on people: the tools are judged on a published paper's public input against the
+paper's own results (CLAUDE.md → How the tools are judged). The open design questions for the PI and the end
+user — the naming ★, which `trnG` name prints, what a generated sentence may assert — are in PROJECT.md §3
+and §10, and none of them blocks evaluation.
 
 ## The pipeline — every step, and who owns it
 
@@ -182,14 +184,14 @@ exists for; check it whenever the diagram changes):
 | Quality assessment (the audit) | M3B.1 | **done** — P3B-01 · P3B-03 · `--audit-only` (P3B-09), §8.40 · §8.43 · §8.49 |
 | The end user picks the naming reference ★ | **M3B.0** | **waiting on the end user** — the audit report is the evidence (§8.43) |
 | Unify the reference DB (`gene_normalize`) | **M3B.0** | **done** — P3B-04, §8.44 (the ★ override stands until it is picked) |
-| reads · `fastp` · `BWA`/`minimap2` (trim · map back) | M7.1 | **blocked — no real reads yet**; neither tool declared yet |
-| reads · `Bandage` (assembly graph) | M7.2 | **blocked — no real reads yet** |
-| 1 Assembly — short read (`GetOrganelle` + `SPAdes`) | M7.1 | **blocked — no real Illumina reads yet** |
-| 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **blocked — no ONT/HiFi reads**; declared · run in the survey (§7.1) |
+| reads · `fastp` · `BWA`/`minimap2` (trim · map back) | M7.1 | **not built** — judged on a published paper's public reads; neither tool declared yet |
+| reads · `Bandage` (assembly graph) | M7.2 | **not built** — after M7.1 |
+| 1 Assembly — short read (`GetOrganelle` + `SPAdes`) | M7.1 | **not built** — judged on a published paper's public Illumina reads |
+| 1 Assembly — long read (`OATK` · `raven`) | **M7.6** | **not built** — judged on a published paper's public long reads; declared · run in the survey (§7.1) |
 | 2 Annotation (self-built · BLAST+) | M3B.2–M3B.5 | **done 10/10/2026** — P3B-07 … P3B-10, §8.46–§8.55; close = P3B-11 · P3B-12 |
 | 3 Verify names (`gene_normalize`, verify mode) | **M3B.0** | **done** — P3B-05, §8.45 |
 | [4] Analyses — structure · gene content · codon · SSR (`MISA`) · **repeats** (`vmatch`) · synteny (`MUMmer4`) · Ka/Ks (`PAML`) · Ts/Tv (`MAFFT`) · barcode · popgen · pycirclize | M2.3 · M2.1/M2.2 · M2.4 · M2.8 · **M2.12** · M4.2 · M4.1 · M2.6/M4.6 · M4.3 · M4.4 · M5.1 | **done** — M2.9 · M2.10 · M2.12 closed in Phase 2B (§8.57–§8.59) |
-| [5] RNA editing (a reference of its own) | M4.5 | **blocked — needs RNA-seq** |
+| [5] RNA editing (a reference of its own) | M4.5 | **not built** — judged on a published paper's public RNA-seq and its editing sites |
 | [6] Submission (`table2asn` · Excel · Supplementary) | M3.4 · M5.3 | done — except the team's own `.sbt` (see Waiting) |
 
 ## Done — one line each

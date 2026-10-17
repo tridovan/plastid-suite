@@ -66,12 +66,15 @@ with the aligner and the gene set (§9.B-14) — our pipeline's anchor, not a bi
 of these needs fresh measured evidence (provenance: PROJECT.md §6); another scope is another number
 (whole-alignment Ts/Tv is 1.8416) and must be labelled.
 
-## Data
+## How the tools are judged
 
-No real project dataset exists yet (status 08/10/2026): everything in the tree — the pinned panels,
-`.data/thanhdiem_data/` — is stand-in or tool-test material. Fetch a stand-in with `plastid panel pin`
-(accession · date · sha256 recorded), label every output made from it, and never let its numbers reach a
-manuscript table as the team's sample. When the real data arrives, re-run; do not patch numbers.
+By **input → output**: run a tool on a published paper's public input and compare what comes out with the
+paper's own results (worked example: the Crataegus corpus, `docs/corpus_crataegus_2026.md`). Public data are
+enough — evaluation never waits on the team's samples, and we do not ask the team for data. A paper's number
+we cannot reproduce is reported as measured, with its cause or "unexplained", never tuned to match. Fetch
+public data with `plastid panel pin` (accession · date · sha256 recorded), label every output made from it,
+and never let third-party numbers reach a manuscript table as the team's sample. If the team's own data do
+arrive, re-run; never patch numbers.
 
 ## Language
 
