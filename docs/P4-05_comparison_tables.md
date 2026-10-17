@@ -8,7 +8,7 @@ and what they contain.
 **Data, stated once.** Everything here comes from `.panel/` — public GenBank records pinned with
 their sha256 (PROJECT.md §8.6), **not the team's samples**. The one exception is the Coleus run's
 reference, `PX923121.1`: it is the group's own GenBank record of *C. amboinicus* (HANDOFF session
-5 — `docs/handoff-archive.md`), and its run label says so.
+5 — `git show 4004e1a:docs/handoff-archive.md`), and its run label says so.
 
 Every table carries its run's label — `stand-in (public records, not the team's samples)` for
 Oldenlandia, the same plus the reference caveat for Coleus, and a cross-genus-sketch wording for

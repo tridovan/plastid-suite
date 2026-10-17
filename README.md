@@ -13,8 +13,7 @@ Every run writes its own directory: the tables, a draft report, and the **name, 
 line of every external tool** it used. Nothing is overwritten in place.
 
 **Status: v1.0.0.** What is finished, what is open and what is left is kept in
-[TASKS.md](TASKS.md) (the live board) and [ROADMAP.md](ROADMAP.md) — this line is only the
-version. What the toolkit deliberately does **not** do is in
+[ROADMAP.md](ROADMAP.md) — this line is only the version. What the toolkit deliberately does **not** do is in
 [docs/things_we_do_not_do.md](docs/things_we_do_not_do.md); which modules need which tool, and how
 much memory they take, is in [docs/platforms.md](docs/platforms.md).
 
