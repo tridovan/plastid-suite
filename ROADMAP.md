@@ -43,8 +43,11 @@ toolkit until now — seven R scripts and a patched CPJSdraw, in `feedback/`)
   into a run directory. Measured 17/10/2026 on the bundle's eight Iridaceae records: the
   configuration is reproduced **8/8**, the SVG is **byte-identical** to the bundle's own verified
   output, and the table's eight region and junction columns agree on every row.
-- [ ] **M10.2 The R figure engine** — `external/rscript.py`, the seven scripts under `data/r_scripts/`
-  and the R pins; all seven run here under R 4.3.3 and write all eight figures
+- [x] **M10.2 The R figure engine** — `external/rscript.py`, the seven scripts under
+  `data/r_scripts/`, `docs/tools/r.md` and the `environment.yml` pins. Measured 17/10/2026: all
+  seven run through the adapter in 35 s and each writes its PNG, on 4.3.3 here and 4.1.2 for the
+  scripts' author. The one change to the scripts is in `00_ham_chung.R`: input paths are made
+  absolute before `setwd()`, without which a relative `--inputdir` finds nothing
 - [ ] **M10.3 The figures PTS lacks** — amino-acid heatmap (paper 4), substitution types (7), Ka/Ks (8)
 - [ ] **M10.4 The pivots** — RSCU (3), SSR (5) and π (6) need the long→wide shape their R scripts read
 - [ ] **M10.5 The tree (9 + S1–S3)** — stays the user's script over the user's own tree; PTS builds none

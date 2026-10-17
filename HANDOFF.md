@@ -11,21 +11,23 @@ P9-07 (the DOI, PyPI, the video) and P9-08 (anh Điềm's report) stay open on t
 
 **Phase 10 is the paper's figures.** anh Điềm's bundle (`feedback/goi_tool_hinh_IR_2026-10-16/`) is the
 seven R scripts and the patched CPJSdraw that drew the Iridaceae manuscript's Figures 2–9.
-**M10.1 is done**: `plastid ir-junction` reads a record's own four regions in the GenBank frame,
-drives CPJSdraw, and writes the configuration, the junction table, the SVG and the PNG into a run
-directory. On the bundle's eight records the configuration is reproduced **8/8** and the SVG comes
-out **byte-identical** (`9ae599a9…`). `TASKS.md` holds the next task — the R engine (M10.2);
-`ROADMAP.md` → Phase 10 holds the rest of the phase.
+**M10.1 and M10.2 are done.** `plastid ir-junction` reads a record's own four regions in the GenBank
+frame, drives CPJSdraw, and writes the configuration, the junction table, the SVG and the PNG into a
+run directory — on the bundle's eight records the configuration is reproduced **8/8** and the SVG
+comes out **byte-identical** (`9ae599a9…`). And the R engine runs: `external/rscript.py` with the
+seven scripts as package data, all seven through the adapter in 35 s under R 4.3.3. `TASKS.md` holds
+the next task — wiring figures to that engine (M10.3/M10.4); `ROADMAP.md` → Phase 10 has the rest.
 
 **All pushed.** `main` (the Phase 9 squash), `feat/phase-9`, the tag `phase-9` and this branch are on
 `origin`; every ref is 0/0 with its remote. anh Điềm's pull for P9-08 is `main`.
 
 ## Next
 
-**`TASKS.md`** — the R figure engine (M10.2): `external/rscript.py`, the seven scripts under
-`data/r_scripts/`, `docs/tools/r.md` and the `environment.yml` pins. Then M10.3–M10.5: the three
-figures PTS lacks, the long→wide pivots, and the tree. Then **Phase 7**, assembly, judged on a
-published paper's public reads against its assembled plastome.
+**`TASKS.md`** — wire figures to the R engine (M10.3/M10.4): the three the paper has and PTS lacks
+(amino acid, substitutions, Ka/Ks), the long→wide pivots, and — where PTS already draws the figure —
+a test that the matplotlib and R versions agree. Then M10.5, the tree, which stays the user's own
+script. Then **Phase 7**, assembly, judged on a published paper's public reads against its
+assembled plastome.
 
 ## Waiting on the team — nothing here is ours to do
 
