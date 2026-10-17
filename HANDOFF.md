@@ -7,10 +7,26 @@ earlier sessions are `git log -p -- HANDOFF.md`.
 
 Branch `feat/phase-10`. **Phase 9 is closed and squashed on `main`**, tagged `phase-9`.
 
+**Every milestone of Phase 10 is done** (M10.1 – M10.5) and so is **H-25**, its last finding — all on
+`feat/phase-10`, **not yet merged to `main`**: closing the phase is a `git tag phase-10` plus a
+`--squash` merge, and neither has been run.
+
 **Phase 10 is anh Điềm's feedback bundle**, `feedback/goi_tool_hinh_IR_2026-10-16/` — and it is a
-*feedback* phase, so the bundle is the specification. `TASKS.md` now opens by saying so, because this
+*feedback* phase, so the bundle is the specification. `TASKS.md` opens by saying so, because one
 session read only `BANG_MAP_PTS_den_hinh.md` first and designed on a premise the tables do not
 support. Read the whole bundle.
+
+**H-25 — the IR gate measured an unequal pair as unrelated.** `measure_ir`'s mirror constant
+(`a1 + b2 - 1`, §8.3) assumes the two annotated copies are the same length; when they differ by *d*
+it pairs every base *d* positions off and an exact repeat comes back at ~25 %. Fixed: the difference
+is taken off the **longer copy at whichever end it sits**, both readings are measured, and
+`IRResult.excess_at` records which one produced the number. On the bundle's eight records that takes
+the gate from 5/8 to **7/8**; Iris hermona stays refused, correctly — its PGA annotation is 48 bp
+wider than the true repeat.
+
+**Why "both ends" and not "the outer end":** measured on `tests/data/iridaceae_edge_cases.gb`,
+NC_063920's excess sits at the **inner** end — 92.63 % there against 36.46 % at the outer. "Outer
+only" would have rewritten §8.3's own finding. That number is now pinned in `test_ir.py`.
 
 **Phase 10 is complete.** `plastid ir-junction` reproduces the bundle's own junction output byte for
 byte, and **every** figure the bundle names renders from a run directory through **`plastid
@@ -48,9 +64,13 @@ reads a tree.
 
 ## Next
 
-**`TASKS.md`** — **H-25**: an IR pair whose two annotated copies differ in length measures as
-unrelated, and the gate stops three of the bundle's eight records. Then **Phase 7**, assembly,
-judged on a published paper's public reads against its assembled plastome.
+**`TASKS.md`** — **M7.1**, batch assembly, judged on a published paper's public reads against its
+assembled plastome. Its first step is finding that paper: no answer key, no evaluation, and a
+simulated pair is not a substitute. Then M7.2 and M7.6. **H-21 … H-24** stay open in `ROADMAP.md` →
+Known defects, each its own task.
+
+**Closing Phase 10** is a separate, outward step: `git tag phase-10 feat/phase-10`, then
+`git merge --squash` it into `main` as one commit listing M10.1 – M10.5 and H-25.
 
 ## Waiting on the team — nothing here is ours to do
 
@@ -78,13 +98,21 @@ judged on a published paper's public reads against its assembled plastome.
   hand-built matrix: its `mat[keep_genes, keep_spp]` drops a single column to a vector and it halts
   with `replacement has 0 rows`. A one-query run is skipped by name (`RFigureSkip`). The script is
   the manuscript's and is not edited; both limits are written down in `docs/tools/r.md`.
-* **H-25**: the IR gate refuses a record whose two annotated IR copies differ in length — three of
-  the bundle's eight records, whose repeats are in fact exact. Its own task.
+* **The IR gate now weighs both ends of a length difference, and that is a rule, not a tweak.** If a
+  future record fails with a small `d`, look at `excess_at` before touching the threshold: the gate
+  is doing its job and the annotation is what is wrong (Iris hermona's PGA record: IRB and IRA each
+  ~50 bp wider than the true 26,132 bp repeat, on the same sequence as the published record that
+  passes).
+* **Do not "fix" a failing annotation by falling back to de-novo.** Measured 17/10/2026: on
+  NC_063920 the annotation is 26,162/26,161 @ 92.63 % (refused) and de-novo finds **22,998 bp** at
+  100 % — the exact core. A fallback would accept that record on a 22,998 bp IR and hide the
+  3,163 bp of divergence §8.3 exists to catch. `detect_ir` keeps the annotation and records
+  `denovo_length` beside it; that is the designed behaviour (§8.5), not an omission.
 * **CPJSdraw is not bundled and cannot be** (no licence, measured 17/10/2026). The bundle's README
   claims MIT; that claim is wrong and the repo says so.
 * The registry's `citations` field is stored and never read, and it has drifted.
 * CI's tier B installs from conda-forge and bioconda at run time, so a channel-side change can turn
   it red with nothing changed here.
-* Four named-but-unfixed defects (H-21 … H-24) are in `ROADMAP.md` → Known defects, with H-25.
+* Four named-but-unfixed defects (H-21 … H-24) are in `ROADMAP.md` → Known defects.
 * Tier B needs the pinned tools on `PATH` and the `PTS_*` variables, **plus `PTS_RSCRIPT`** for the
   R figure end-to-end; without them the tests skip with a named reason and the run looks green.

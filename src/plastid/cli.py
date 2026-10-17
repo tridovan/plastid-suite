@@ -822,6 +822,9 @@ def _execute_run(
             "identity": gated[0].identity,
             "gate_passed": gated[0].gate_passed,
             "mirror_constant": gated[0].mirror_constant,
+            # which end of a length difference the identity was measured at (H-25); "none" when
+            # the two annotated copies are the same length
+            "excess_at": gated[0].excess_at,
             "denovo_length": gated[0].denovo_length,
             "denovo_delta": gated[0].denovo_delta,
         }
@@ -835,6 +838,7 @@ def _execute_run(
                     "length": result.length,
                     "identity": result.identity,
                     "source": result.source,
+                    "excess_at": result.excess_at,
                 }
                 for candidate, result in zip(genomes, gated, strict=True)
             ]

@@ -69,6 +69,17 @@ toolkit until now — seven R scripts and a patched CPJSdraw, in `feedback/`)
   Measured 17/10/2026 on the bundle's own 34-taxon tree: 32 tips after the script's two *Asparagus*
   are dropped, rooted on the two Orchidaceae, SH-aLRT red and UFBoot black — the bundle's own
   verification record reproduced
+- [x] **H-25 — the IR gate's length rule** (was a known defect; fixed 17/10/2026). An IR pair whose
+  two annotated copies differed in length by *d* measured as unrelated, because the mirror constant
+  of §8.3 (`a1 + b2 - 1`) assumes equal copies. Measured on the bundle's eight Iridaceae records,
+  *d* = 1 / 2 / 4 gave **0.2924 / 0.2636 / 0.2778**, and the gate refused three plastomes.
+  `measure_ir` now takes the difference off the longer copy at **whichever end it sits** and measures
+  both readings, keeping the better — recorded as `IRResult.excess_at`. Re-measured the same day:
+  **1.00000 / 0.99863 / 1.00000**, so the bundle's records go from 5/8 to **7/8 passing**. Iris
+  hermona stays refused, correctly: its PGA annotation is 48 bp wider than the true repeat (26,132 bp
+  exact, 36 mismatches in the first 48). Weighing both ends is measured, not stylistic — NC_063920's
+  excess sits at the **inner** end (92.63 % there, 36.46 % at the outer), so "outer only" would have
+  destroyed §8.3's own finding
 
 **Phase 7 — assembly** (not built; judged on a published paper — its public reads in, its assembled plastome
 as the answer; so far run only on simulated pairs)
@@ -111,18 +122,6 @@ when the user's machine has the RAM, otherwise on the Galaxy remote path (confir
 
 ## Known defects — named, not fixed
 
-- **H-25** An IR pair whose two annotated copies differ in length by *d* measures as unrelated.
-  `measure_ir` takes the mirror constant from the two annotated boundaries (`first.start +
-  second.end - 1`), so a copy *d* bases longer shifts every base *d* positions away from its true
-  partner: measured 17/10/2026 on eight Iridaceae records, *d* = 1 (Chasmanthe NC_072562), 2 (Iris
-  hermona NC_081931) and 4 (Trimezia NC_072662) give identities of **0.2924 / 0.2636 / 0.2778** —
-  all under the 99.9 % gate — while the constant that accounts for *d* gives **1.0000 / 0.9985 /
-  0.9998**. The gate therefore refuses three genomes whose inverted repeats are exact, and
-  `plastid` cannot process them at all. Records whose difference exceeds
-  `IR_COPY_LENGTH_TOLERANCE` (Freesia 37, Olsynium 40) fail the annotation path and are rescued by
-  de-novo detection; those inside the tolerance are not. Note the interaction: a copy written
-  `join(...)` across the origin arrives as two intervals and the small piece is dropped, which is
-  one way *d* becomes non-zero. A task of its own with a regression test, never a silent fix.
 - **H-24** `trnV-UAC` is never called: ARAGORN reads that locus as `tRNA-Stop(tta)` in the Crataegus
   corpus and as `tRNA-Cys(aca)` on the golden, so an intron-containing tRNA is missing from every
   `plastid annotate` run. Three fixes are possible — transfer tRNAs from the reference, as CDS and rRNA

@@ -141,22 +141,33 @@ def test_the_golden_genome_re_annotated_measures_one_cds_short(data_dir: Path) -
 
 
 def test_one_sequence_two_verdicts_from_the_ir_gate(data_dir: Path) -> None:
-    """*Iris hermona*: the published annotation passes the gate, PGA's fails it at 26.36 %.
+    """*Iris hermona*: the published annotation passes the gate, PGA's fails it at 99.86 %.
 
     Both files hold the same 153,185 bp, and de-novo detection finds a 26,132 bp inverted repeat
     at 100.00 % on it — so the failure belongs to the annotation, not to the sequence. This is the
     case the gate exists for (PROJECT.md §9.A), and it is the regression fixture for it: 3 of the
     corpus's 34 PGA records behave this way.
+
+    **The number moved on 17/10/2026, the verdict did not.** It read 26.36 % until H-25 was fixed:
+    the two annotated copies differ in length by 2, and the mirror constant assumed they did not,
+    so the measurement paired the wrong bases and came back at the identity of two random
+    sequences. Measured with the alignment the difference implies, PGA's copies agree over
+    26,132 bp and differ in a 48 bp block at JLB — 36 mismatches — which is the honest reading:
+    *PGA's repeat is 48 bp too wide*, not *the copies are unrelated*. 99.86 % is still under the
+    99.9 % gate, so the record is still refused, which is what this fixture is for.
     """
     published = read_genbank(data_dir / "corpus/Iris_hermona_NC_081931.1.published.gb")
     pga = read_genbank(data_dir / "corpus/Iris_hermona_NC_081931.1.pga.gb")
 
     good = detect_ir(published)
     assert (good.length, good.identity) == (26_132, 1.0)
+    assert good.excess_at == "none"
 
     bad = detect_ir(pga)
     assert bad.length == 26_180
-    assert bad.identity == pytest.approx(0.2636, abs=5e-5)
+    assert bad.identity == pytest.approx(0.998625, abs=5e-7)
+    assert bad.mismatches == 36
+    assert bad.excess_at == "outer"
 
     with pytest.raises(IRGateError):
         from plastid.core.ir import enforce_ir_gate

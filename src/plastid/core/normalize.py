@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from plastid.core.ir import IRResult
+from plastid.core.ir import IRResult, mirror_constant_for
 from plastid.core.model import Gene, Genome, Interval
 
 __all__ = [
@@ -103,7 +103,9 @@ def normalize(genome: Genome, ir: IRResult) -> NormalizedFrame:
         ir,
         ira=first,
         irb=second,
-        mirror_constant=first.start + second.end - 1,
+        # Derived the same way `measure_ir` derived it, on the rotated intervals: the constant
+        # assumes equal copies, and where a length difference sits decides the answer (H-25).
+        mirror_constant=mirror_constant_for(first, second, ir.excess_at),
         frame_offset=0,
     )
     shifted_repeat_regions: list[Interval] = []
