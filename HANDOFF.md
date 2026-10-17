@@ -16,9 +16,8 @@ GenBank frame and `external/cpjsdraw.py` drives the tool. On the bundle's eight 
 reproduces the bundle's configuration **8/8** and the SVG comes out **byte-identical** (`9ae599a9…`).
 `TASKS.md` holds what is left; `ROADMAP.md` → Phase 10 holds the rest of the phase.
 
-**Not pushed.** `main` (the Phase 9 squash), `feat/phase-9` and the tag `phase-9` are committed locally;
-the push was refused by the tool-permission classifier, not by anything in the repository. Push them
-before anything else reads this branch.
+**All pushed.** `main` (the Phase 9 squash), `feat/phase-9`, the tag `phase-9` and this branch are on
+`origin`; every ref is 0/0 with its remote. anh Điềm's pull for P9-08 is `main`.
 
 ## Next
 
