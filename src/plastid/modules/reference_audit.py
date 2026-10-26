@@ -337,12 +337,15 @@ def dotplot_for(report: AuditReport, sequences: Mapping[str, str], region: str) 
     deviating = deviating_files(report)
     if not deviating or not sequences:
         return None
+    # A deviating record whose IR failed the gate has no normalized region sequence (the audit
+    # already blocked it), so it cannot be a query in this picture.
+    queries = tuple(sorted(name for name in deviating if name in sequences))
     others = [name for name in sequences if name not in deviating]
-    if not others:
+    if not others or not queries:
         return None
     return Dotplot(
         region=region,
         subject=sorted(others)[0],
         sequences=sequences,
-        queries=tuple(sorted(deviating)),
+        queries=queries,
     )

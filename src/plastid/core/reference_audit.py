@@ -861,11 +861,20 @@ def dotplot_runs(query: str, subject: str, *, word: int = DOTPLOT_WORD) -> tuple
 
 
 def region_sequences(paths: Mapping[str, str | Path], region: str) -> dict[str, str]:
-    """One region out of every named record, in the normalized frame (LSC → IRa → SSC → IRb)."""
+    """Every named record that can be normalized, one region each (LSC → IRa → SSC → IRb).
+
+    A record whose IR cannot be determined or fails the gate has no normalized frame, so it has no
+    region sequence. The audit report already names such a record as blocked; this function must
+    not turn that verdict into an uncaught exception while drawing the dot plot.
+    """
     out: dict[str, str] = {}
     for name, path in paths.items():
         genome = read_genbank(path)
-        out[name] = _region_sequence(genome, enforce_ir_gate(detect_ir(genome)), region)
+        try:
+            ir = enforce_ir_gate(detect_ir(genome))
+        except (IRDetectionError, IRGateError):
+            continue
+        out[name] = _region_sequence(genome, ir, region)
     return out
 
 

@@ -22,16 +22,24 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, replace
 
+from Bio.Align import PairwiseAligner
+
 from plastid.core.model import Genome, Interval
 from plastid.core.sequence import complement_base, reverse_complement
 
 __all__ = [
+    "IR_ALIGN_GAP_BP",
+    "IR_ALIGN_KMER",
+    "IR_ALIGN_MAX_DIAGONAL",
     "IR_COPY_LENGTH_TOLERANCE",
+    "IR_MIN_EVIDENCE_FRACTION",
     "IR_MIN_IDENTITY",
     "IR_MIN_LENGTH",
+    "AlignmentStats",
     "IRDetectionError",
     "IRGateError",
     "IRResult",
+    "align_copies",
     "detect_ir",
     "enforce_ir_gate",
     "ir_de_novo",
@@ -43,12 +51,30 @@ __all__ = [
 
 IR_MIN_LENGTH = 5_000
 IR_MIN_IDENTITY = 0.999
+# Kept for the old annotation-tolerance callers; candidate selection no longer uses it
+# (D11-5: unequal copies are legal and are measured, not discarded).
 IR_COPY_LENGTH_TOLERANCE = 5
 
-_KMER = 20  # the validated probe used K=20
+# The alignment (D11-3/D11-4): exact 20-mers seed anchors, a gap larger than 200 bp ends the
+# anchor chain, and only the small segments between anchors are aligned globally.
+IR_ALIGN_KMER = 20
+IR_ALIGN_MAX_DIAGONAL = 200
+IR_ALIGN_GAP_BP = 200
+
+# Evidence policy: identity alone can be carried by a tiny known fragment if unknown columns are
+# dropped. Unknown columns stay in the denominator, and at least half of the shorter copy must be
+# known A/C/G/T on both sides (with a 20-base floor for small constructed cases).
+IR_MIN_EVIDENCE_FRACTION = 0.5
+_MIN_EVIDENCE_FLOOR = 20
+
+_KMER = IR_ALIGN_KMER  # the validated probe used K=20
 _DIAGONALS_CONSIDERED = 12
 _DENOVO_LENGTH_WINDOW = (10_000, 35_000)  # validated validity window
 _DENOVO_MIN_IDENTITY = 0.95  # validated validity threshold
+# A pairwise global alignment larger than this is not attempted: anchors already cover an IR at
+# 99 % identity, so a segment this large means the pair diverged beyond the gate. The segment is
+# then classified without gaps, which is an upper bound and cannot manufacture a PASS.
+_MAX_ALIGN_CELLS = 4_000_000
 
 
 class IRDetectionError(Exception):
@@ -74,17 +100,42 @@ class IRResult:
     frame_offset: int = 0  # coordinates are in the frame rotated by this much
     denovo_length: int | None = None  # independent de-novo cross-check, when it ran
     # Which end of the longer copy carried the length difference: "none" when the copies are
-    # equal, else "outer" (the JLB/JLA side) or "inner" (the JSB/JSA side). It is recorded because
-    # the number alone cannot say which alignment produced it (H-25).
+    # equal, "outer" (the JLB/JLA side) or "inner" (the JSB/JSA side), and "both" when terminal
+    # gaps sit at both ends (mapping between the copies is then not supported; M11.11).
     excess_at: str = "none"
+    # End-to-end alignment evidence (D11-3). Every column is counted once:
+    # matched + mismatched + ambiguous + gap = compared_length.
+    matched: int = 0
+    known_columns: int = -1  # -1: caller did not record it; derived below from the old fields
+    ambiguous_columns: int = 0
+    internal_gaps: int = 0
+    terminal_gaps: int = 0
+    # The annotated copy lengths when the record had exactly two repeat_region copies, even when
+    # the sequence's repeat was used instead. Disagreement stays visible (D11-2).
+    annotated_lengths: tuple[int, ...] = ()
+    annotation_note: str | None = None
+    method: str = "mirror"  # "anchored" | "ungapped_fallback" | "mirror"
+
+    def __post_init__(self) -> None:
+        if self.known_columns < 0:
+            # Compatibility for callers that build an IRResult directly (tests, old manifests):
+            # compare_length was the compared copy length, so treat its known columns as such.
+            object.__setattr__(
+                self, "known_columns", max(0, self.compared_length - self.mismatches)
+            )
 
     @property
     def length(self) -> int:
         return min(self.ira.length, self.irb.length)
 
     @property
+    def minimum_known(self) -> int:
+        """The evidence floor for this pair: half the shorter copy, with a floor for tiny cases."""
+        return max(_MIN_EVIDENCE_FLOOR, int(self.length * IR_MIN_EVIDENCE_FRACTION))
+
+    @property
     def gate_passed(self) -> bool:
-        return self.identity >= IR_MIN_IDENTITY
+        return self.identity >= IR_MIN_IDENTITY and self.known_columns >= self.minimum_known
 
     @property
     def denovo_delta(self) -> int | None:
@@ -117,6 +168,261 @@ def pair_identity(sequence: str, interval: Interval, constant: int) -> tuple[flo
             core_still_open = False
     identity = (compared - mismatches) / compared if compared else 0.0
     return identity, mismatches, compared, exact_core
+
+
+@dataclass(frozen=True, slots=True)
+class AlignmentStats:
+    """One end-to-end comparison of two copies, every column classified once (D11-3)."""
+
+    identity: float
+    matched: int
+    mismatches: int
+    ambiguous: int
+    internal_gaps: int
+    terminal_gaps: int
+    columns: int
+    known: int
+    exact_core: int
+    excess_at: str
+    method: str
+
+
+_KNOWN = frozenset("ACGT")
+# A 20-mer occurring more than this many times is low-complexity, not an anchor. Indexing it
+# would make the hit walk quadratic on a homopolymer or a satellite array; dropping it leaves the
+# real anchors intact (two IR copies contribute at most two occurrences) and sends an
+# all-repetitive pair to the honest ungapped fallback instead of an unbounded loop.
+_MAX_KMER_OCCURRENCES = 32
+
+
+def _index_kmers(sequence: str, kmer: int) -> dict[str, list[int]]:
+    """Known k-mers → positions, excluding words too repetitive to be informative anchors."""
+    index: dict[str, list[int]] = {}
+    for position in range(len(sequence) - kmer + 1):
+        word = sequence[position : position + kmer]
+        if _KNOWN.issuperset(word):
+            index.setdefault(word, []).append(position)
+    return {
+        word: positions
+        for word, positions in index.items()
+        if len(positions) <= _MAX_KMER_OCCURRENCES
+    }
+
+
+def _anchor_chain(a: str, b: str) -> list[tuple[int, int, int]]:
+    """Maximal exact runs of ``a`` against ``b``, chained in increasing order.
+
+    ``b`` is already the reverse complement of the second copy, so an anchor at ``(i, j, n)``
+    means ``a[i:i+n] == b[j:j+n]``. Hits more than :data:`IR_ALIGN_MAX_DIAGONAL` away from the
+    main diagonal are ignored: the copies are the same repeat, not an arbitrary repeat pair.
+    """
+    kmer = IR_ALIGN_KMER
+    index = _index_kmers(b, kmer)
+
+    hits_by_diagonal: dict[int, list[tuple[int, int]]] = {}
+    for i in range(len(a) - kmer + 1):
+        word = a[i : i + kmer]
+        if not _KNOWN.issuperset(word):
+            continue
+        for j in index.get(word, ()):
+            diagonal = j - i
+            if abs(diagonal) <= IR_ALIGN_MAX_DIAGONAL:
+                hits_by_diagonal.setdefault(diagonal, []).append((i, j))
+
+    anchors: list[tuple[int, int, int]] = []
+    for hits in hits_by_diagonal.values():
+        hits.sort()
+        start_i = start_j = previous_i = previous_j = None
+        for i, j in hits:
+            if start_i is None:
+                start_i, start_j = i, j
+            elif (i, j) != (previous_i + 1, previous_j + 1):
+                length = previous_i - start_i + kmer
+                if length >= kmer:
+                    anchors.append((start_i, start_j, length))
+                start_i, start_j = i, j
+            previous_i, previous_j = i, j
+        if start_i is not None:
+            length = previous_i - start_i + kmer
+            if length >= kmer:
+                anchors.append((start_i, start_j, length))
+
+    anchors.sort()
+    if not anchors:
+        return []
+    # Longest increasing chain. Anchors may **overlap** at an indel: the exact run before the
+    # indel and the one after it can share a few bases (measured on NC_065154.1, NC_036733.1 and
+    # the panel's other unequal pairs). Requiring non-overlap made the chain skip the longer run
+    # and then align a large mis-set segment — 86.7 % where a full global alignment gives 99.96 %.
+    # Starts must increase; `align_copies` trims the overlap at the next anchor's start.
+    n = len(anchors)
+    best = [anchor[2] for anchor in anchors]
+    previous: list[int] = [-1] * n
+    for i, (ai, bi, li) in enumerate(anchors):
+        for j in range(i):
+            aj, bj, _ = anchors[j]
+            if aj < ai and bj < bi and best[j] + li > best[i]:
+                best[i] = best[j] + li
+                previous[i] = j
+    end = max(range(n), key=lambda idx: best[idx])
+    chain: list[tuple[int, int, int]] = []
+    while end != -1:
+        chain.append(anchors[end])
+        end = previous[end]
+    chain.reverse()
+    # Drop a small run that lies wholly inside an earlier run: it adds no coverage and would make
+    # the segment between the two real anchors look like a gap.
+    kept: list[tuple[int, int, int]] = []
+    for anchor in chain:
+        if kept:
+            last = kept[-1]
+            if (
+                anchor[0] + anchor[2] <= last[0] + last[2]
+                and anchor[1] + anchor[2] <= last[1] + last[2]
+            ):
+                continue
+        kept.append(anchor)
+    return kept
+
+
+def _classify_columns(sa: str, sb: str) -> list[str]:
+    """One class per alignment column: M (known match), X (known mismatch), G (gap), A (ambiguous).
+
+    A segment larger than :data:`_MAX_ALIGN_CELLS` is classified without gaps rather than aligned:
+    at this point the copies have already diverged far beyond the gate, and an ungapped reading is
+    an upper bound — it cannot turn a divergent pair into a PASS.
+    """
+    if not sa or not sb:
+        return ["G"] * max(len(sa), len(sb))
+    if len(sa) * len(sb) > _MAX_ALIGN_CELLS:
+        kinds: list[str] = ["G"] * abs(len(sa) - len(sb))
+        for x, y in zip(sa, sb, strict=False):
+            if x in _KNOWN and y in _KNOWN:
+                kinds.append("M" if x == y else "X")
+            else:
+                kinds.append("A")
+        return kinds
+    aligner = PairwiseAligner()
+    aligner.mode = "global"
+    aligner.match_score = 1
+    aligner.mismatch_score = -1
+    aligner.open_gap_score = -2
+    aligner.extend_gap_score = -1
+    alignment = aligner.align(sa, sb)[0]
+    kinds = []
+    for x, y in zip(alignment[0], alignment[1], strict=True):
+        if x == "-" or y == "-":
+            kinds.append("G")
+        elif x in _KNOWN and y in _KNOWN:
+            kinds.append("M" if x == y else "X")
+        else:
+            kinds.append("A")
+    return kinds
+
+
+def _ungapped_stats(a: str, b: str) -> AlignmentStats:
+    """No anchor chain: compare on the diagonal and report the length difference as terminal gaps.
+
+    This is not used to accept a repeat — the gate's minimum evidence and identity both reject
+    these pairs — it is the honest fallback when no 20-mer chain exists.
+    """
+    matched = mismatches = ambiguous = 0
+    for x, y in zip(a, b, strict=False):
+        if x in _KNOWN and y in _KNOWN:
+            if x == y:
+                matched += 1
+            else:
+                mismatches += 1
+        else:
+            ambiguous += 1
+    terminal = abs(len(a) - len(b))
+    columns = matched + mismatches + ambiguous + terminal
+    identity = matched / columns if columns else 0.0
+    return AlignmentStats(
+        identity=identity,
+        matched=matched,
+        mismatches=mismatches,
+        ambiguous=ambiguous,
+        internal_gaps=0,
+        terminal_gaps=terminal,
+        columns=columns,
+        known=matched + mismatches,
+        exact_core=0,
+        excess_at="none" if terminal == 0 else "unknown",
+        method="ungapped_fallback",
+    )
+
+
+def align_copies(a: str, b: str) -> AlignmentStats:
+    """Compare copy A with the reverse complement of copy B, end to end (D11-3).
+
+    Exact 20-mers seed anchors; the segments between consecutive anchors and the prefix/suffix
+    are aligned globally. One SNP leaves two anchors on the same diagonal and one 1-base segment
+    between them; one indel shifts the following diagonal, which the chain follows. Columns are
+    classified once, and unknown bases are **ambiguous**, never matches.
+    """
+    chain = _anchor_chain(a, b)
+    if not chain:
+        return _ungapped_stats(a, b)
+
+    kinds: list[str] = []
+    a_cursor = b_cursor = 0
+    for index, (a_start, b_start, length) in enumerate(chain):
+        # Everything between the previous anchor's end and this anchor's start.
+        kinds.extend(_classify_columns(a[a_cursor:a_start], b[b_cursor:b_start]))
+        next_a = chain[index + 1][0] if index + 1 < len(chain) else len(a)
+        next_b = chain[index + 1][1] if index + 1 < len(chain) else len(b)
+        usable_a = min(a_start + length, next_a) - a_start
+        usable_b = min(b_start + length, next_b) - b_start
+        # The overlapping runs are exact in both copies; the shorter side's length is real match
+        # columns, and a length difference at the overlap is a gap (an indel at the boundary).
+        exact = min(usable_a, usable_b)
+        kinds.extend(["M"] * exact)
+        if usable_a != usable_b:
+            kinds.extend(["G"] * abs(usable_a - usable_b))
+        a_cursor, b_cursor = a_start + usable_a, b_start + usable_b
+    kinds.extend(_classify_columns(a[a_cursor:], b[b_cursor:]))
+
+    matched = kinds.count("M")
+    mismatches = kinds.count("X")
+    ambiguous = kinds.count("A")
+    gaps = kinds.count("G")
+    first = next((index for index, kind in enumerate(kinds) if kind != "G"), None)
+    last = next((index for index in range(len(kinds) - 1, -1, -1) if kinds[index] != "G"), None)
+    if first is None or last is None:
+        internal = 0
+        terminal = gaps
+        excess_at = "unknown"
+    else:
+        terminal = sum(
+            1 for index, kind in enumerate(kinds) if kind == "G" and (index < first or index > last)
+        )
+        internal = gaps - terminal
+        prefix = sum(1 for index in range(first) if kinds[index] == "G")
+        suffix = sum(1 for index in range(last + 1, len(kinds)) if kinds[index] == "G")
+        if prefix and suffix:
+            excess_at = "both"
+        elif prefix:
+            excess_at = "outer"
+        elif suffix:
+            excess_at = "inner"
+        else:
+            excess_at = "none"
+
+    columns = len(kinds)
+    return AlignmentStats(
+        identity=matched / columns if columns else 0.0,
+        matched=matched,
+        mismatches=mismatches,
+        ambiguous=ambiguous,
+        internal_gaps=internal,
+        terminal_gaps=terminal,
+        columns=columns,
+        known=matched + mismatches,
+        exact_core=max(length for _, _, length in chain),
+        excess_at=excess_at,
+        method="anchored",
+    )
 
 
 def _trimmed_pair(
@@ -193,159 +499,270 @@ def measure_ir(
     *,
     source: str,
     frame_offset: int = 0,
+    annotated_lengths: tuple[int, ...] = (),
+    annotation_note: str | None = None,
 ) -> IRResult:
-    """Measure the identity of an IR pair on the full copies (shorter copy when unequal).
+    """Measure the two copies end to end — the one identity used by the gate (D11-3).
 
-    When the annotated copies differ in length by *d*, the mirror constant
-    (``a1 + b2 - 1``) pairs the wrong bases, and an exact repeat measures as unrelated — the
-    identity of two random sequences, ~25 %. Measured 17/10/2026 (H-25): *d* = 1, 2 and 4 on three
-    Iridaceae records gave 0.2924 / 0.2636 / 0.2778, and the gate refused all three.
+    Copy A is compared with the reverse complement of copy B. Exact 20-mers seed anchors; the
+    segments between them, and the prefix/suffix, are aligned globally, so a SNP is one mismatch
+    rather than a truncated repeat and a one-base indel is one gap rather than a shifted
+    comparison. Unknown bases are ambiguous columns, never matches. ``compared_length`` is the
+    number of alignment columns (the identity denominator).
 
-    The annotation does not say **which** end carries the difference, so both alignments it implies
-    are measured and the better is kept. That is not a search for a match: a pair that is not a
-    repeat scores ~25 % under either alignment, so neither can carry it over the gate.
+    ``mirror_constant`` is retained for the position mapping other modules still use. A pair with
+    terminal gaps at both ends has no single mirror constant; the value is 0 and ``excess_at`` says
+    ``"both"``, which ``normalize`` refuses by name rather than guessing (M11.11 owns the mapping).
     """
     first, second = sorted((ira, irb), key=lambda interval: interval.start)
     if first.end > second.start:
         raise ValueError(f"IR copies must be disjoint and ordered: {first} overlaps {second}")
-    compared_length = min(first.length, second.length)
-    excess = first.length - second.length
-    if excess == 0:
-        alignments = [_aligned(sequence, first, second, compared_length, 0, "none")]
-    else:
-        alignments = [
-            _aligned(sequence, first, second, compared_length, excess, "inner"),
-            _aligned(sequence, first, second, compared_length, excess, "outer"),
-        ]
-    identity, mismatches, compared, exact_core, constant, excess_at = max(
-        alignments, key=lambda alignment: alignment[0]
+    if first.length == 0 or second.length == 0:
+        raise ValueError("IR copies must not be empty")
+    stats = align_copies(
+        sequence[first.start : first.end],
+        reverse_complement(sequence[second.start : second.end]),
     )
+    if stats.excess_at == "none":
+        constant = first.start + second.end - 1
+    elif stats.excess_at in ("outer", "inner"):
+        constant = mirror_constant_for(first, second, stats.excess_at)
+    else:
+        constant = 0
     return IRResult(
         ira=ira,
         irb=irb,
-        identity=identity,
-        mismatches=mismatches,
-        compared_length=compared,
-        exact_core=exact_core,
+        identity=stats.identity,
+        mismatches=stats.mismatches,
+        compared_length=stats.columns,
+        exact_core=stats.exact_core,
         mirror_constant=constant,
         source=source,
         frame_offset=frame_offset,
-        excess_at=excess_at,
+        excess_at=stats.excess_at,
+        matched=stats.matched,
+        known_columns=stats.known,
+        ambiguous_columns=stats.ambiguous,
+        internal_gaps=stats.internal_gaps,
+        terminal_gaps=stats.terminal_gaps,
+        annotated_lengths=annotated_lengths,
+        annotation_note=annotation_note,
+        method=stats.method,
     )
+
+
+def _arcs_overlap(first: tuple[int, int], second: tuple[int, int], length: int) -> bool:
+    """Whether two circular arcs share a base (``(start, length)`` each)."""
+    (first_start, first_length), (second_start, second_length) = first, second
+    return (second_start - first_start) % length < first_length or (
+        first_start - second_start
+    ) % length < second_length
+
+
+def _annotation_candidates(genome: Genome) -> tuple[tuple[int, int], ...]:
+    """The record's repeat copies as circular arcs, one per repeat_region feature.
+
+    Fewer than two long copies means the record makes no IR claim (de-novo is the path); exactly
+    two is the IR; anything else is refused by name rather than silently re-read (D11-2).
+    """
+    candidates = [region for region in genome.repeat_regions if region.length >= IR_MIN_LENGTH]
+    if not candidates:
+        return ()
+    if len(candidates) != 2:
+        where = [(region.start + 1, region.end, region.length) for region in candidates]
+        raise IRDetectionError(
+            f"{genome.accession or genome.name}: expected exactly two repeat_region copies of "
+            f"at least {IR_MIN_LENGTH} bp, found {len(candidates)} ({where}) — the record's "
+            f"repeat annotation cannot be read as an IR"
+        )
+    arcs: list[tuple[int, int]] = []
+    for region in candidates:
+        try:
+            arcs.append(region.arc(len(genome)))
+        except ValueError as error:
+            raise IRDetectionError(
+                f"{genome.accession or genome.name}: repeat_region "
+                f"{region.start + 1}..{region.end} is not one circular copy — {error}"
+            ) from None
+    assert len(arcs) == 2
+    if _arcs_overlap(arcs[0], arcs[1], len(genome)):
+        raise IRDetectionError(
+            f"{genome.accession or genome.name}: the two repeat_region copies overlap "
+            f"({arcs[0]}, {arcs[1]}) — the annotation cannot be read"
+        )
+    return tuple(arcs)
 
 
 def ir_from_annotation(genome: Genome) -> IRResult | None:
-    """The IR pair from GenBank ``repeat_region`` annotations, structurally.
+    """The IR pair from GenBank ``repeat_region`` annotations, read whole (D11-1/D11-2).
 
-    No substring guessing on qualifier text (the CGAS trap): a candidate is any
-    ``repeat_region`` of at least :data:`IR_MIN_LENGTH`; exactly two must remain, they must
-    be disjoint, and their lengths may differ by at most :data:`IR_COPY_LENGTH_TOLERANCE`.
+    A joined copy is one copy. When a copy crosses the origin the pair is measured in a frame
+    rotated by the length of the piece at the start, so both copies are contiguous;
+    ``frame_offset`` records that rotation and ``normalize`` consumes it. Length differences are
+    legal and measured end to end — they are not a reason to drop the annotation.
     """
-    candidates = sorted(
-        (region for region in genome.repeat_regions if region.length >= IR_MIN_LENGTH),
+    arcs = _annotation_candidates(genome)
+    if not arcs:
+        return None
+    length = len(genome)
+    shift = 0
+    for start, arc_length in arcs:
+        if start + arc_length > length:
+            shift = start + arc_length - length
+            break
+    measurement_sequence = (
+        genome.sequence[shift:] + genome.sequence[:shift] if shift else genome.sequence
+    )
+    intervals = sorted(
+        (
+            Interval((start - shift) % length, (start - shift) % length + arc_length)
+            for start, arc_length in arcs
+        ),
         key=lambda interval: interval.start,
     )
-    if len(candidates) != 2:
+    if intervals[0].end > intervals[1].start:
+        raise IRDetectionError(
+            f"{genome.accession or genome.name}: the two copies are not disjoint after "
+            f"normalizing the frame — the annotation cannot be read"
+        )
+    return measure_ir(
+        measurement_sequence,
+        intervals[0],
+        intervals[1],
+        source="annotation",
+        frame_offset=shift,
+        annotated_lengths=tuple(interval.length for interval in intervals),
+    )
+
+
+def _mirror_chains(sequence: str, mirror: str) -> list[tuple[int, int, int]]:
+    """Exact runs on the strongest mirror diagonals, chained across small gaps.
+
+    Coordinates are ``(position in the sequence, position in the reverse complement, length)``.
+    A chain follows a SNP on the same diagonal and a small indel onto a neighbouring diagonal; it
+    stops when the next anchor is further than :data:`IR_ALIGN_GAP_BP` away in either copy.
+    """
+    length = len(sequence)
+    index = _index_kmers(sequence, _KMER)
+
+    diagonals: Counter[int] = Counter()
+    hits_by_diagonal: dict[int, list[tuple[int, int]]] = {}
+    for position in range(length - _KMER + 1):
+        word = mirror[position : position + _KMER]
+        if not _KNOWN.issuperset(word):
+            continue
+        for mate in index.get(word, ()):
+            diagonal = mate - position
+            # (sequence position, reverse-complement position) — the order the chain and geometry
+            # use. `mate` comes from the sequence index, `position` walks the reverse complement.
+            hits_by_diagonal.setdefault(diagonal, []).append((mate, position))
+            diagonals[diagonal] += 1
+    if not diagonals:
+        return []
+
+    runs: list[tuple[int, int, int]] = []
+    for diagonal, _ in diagonals.most_common(_DIAGONALS_CONSIDERED):
+        hits = sorted(hits_by_diagonal[diagonal])
+        start = previous = None
+        for position, mate in hits:
+            if start is None:
+                start = previous = (position, mate)
+            elif (position, mate) == (previous[0] + 1, previous[1] + 1):
+                previous = (position, mate)
+            else:
+                run_length = previous[0] - start[0] + _KMER
+                if run_length >= _KMER:
+                    runs.append((start[0], start[1], run_length))
+                start = previous = (position, mate)
+        if start is not None:
+            run_length = previous[0] - start[0] + _KMER
+            if run_length >= _KMER:
+                runs.append((start[0], start[1], run_length))
+
+    runs.sort()
+    if not runs:
+        return []
+    # Chain runs whose positions increase and whose gaps are small enough to be one repeat. The
+    # gap limit is what stops the chain at real divergence instead of extending on a global ratio.
+    best = [run[2] for run in runs]
+    previous_run: list[int] = [-1] * len(runs)
+    for i, (ai, bi, li) in enumerate(runs):
+        for j in range(i):
+            aj, bj, lj = runs[j]
+            a_gap = ai - (aj + lj)
+            b_gap = bi - (bj + lj)
+            if (
+                0 <= a_gap <= IR_ALIGN_GAP_BP
+                and 0 <= b_gap <= IR_ALIGN_GAP_BP
+                and best[j] + li > best[i]
+            ):
+                best[i] = best[j] + li
+                previous_run[i] = j
+    end = max(range(len(runs)), key=lambda index: best[index])
+    chain: list[tuple[int, int, int]] = []
+    while end != -1:
+        chain.append(runs[end])
+        end = previous_run[end]
+    chain.reverse()
+    return chain
+
+
+def _chain_geometry(
+    chain: list[tuple[int, int, int]], sequence_length: int
+) -> tuple[Interval, Interval] | None:
+    """The two copy intervals implied by a chained set of mirror anchors."""
+    if not chain:
         return None
-    first, second = candidates
-    if first.end > second.start:
+    first_a, first_b, _ = chain[0]
+    last_a, last_b, last_length = chain[-1]
+    a_end = last_a + last_length
+    b_end = last_b + last_length
+    ira = Interval(first_a, a_end)
+    irb = Interval(sequence_length - b_end, sequence_length - first_b)
+    if irb.start < 0 or irb.start < ira.end or ira.end > sequence_length:
         return None
-    if abs(first.length - second.length) > IR_COPY_LENGTH_TOLERANCE:
+    if irb.end > sequence_length or irb.start - ira.end <= 0:
         return None
-    return measure_ir(genome.sequence, first, second, source="annotation")
+    return ira, irb
 
 
 def ir_de_novo(genome: Genome, *, frame_offset: int = 0) -> IRResult | None:
-    """Mirror-diagonal de-novo detection — a port of the validated probe (``strict_best``).
+    """Mismatch-tolerant, circular-aware de-novo detection (D11-4).
 
-    Build the mirror-diagonal histogram from exact K-mer matches against the reverse
-    complement, walk the longest exact run on each of the top diagonals, and accept only
-    geometries inside the validated window (10–35 kb, ≥ 95 % identity on the full copies).
+    Exact 20-mers on the strongest mirror diagonals seed anchors; anchors are chained through a
+    SNP (same diagonal) or a small indel (neighbouring diagonal) until the next anchor is more
+    than :data:`IR_ALIGN_GAP_BP` away. The full chained extent is then measured by
+    :func:`measure_ir`, never the exact core — one SNP cannot truncate the repeat, and extending
+    into single-copy sequence lowers the measured identity below the validity threshold.
 
-    This replaces the mismatch-tolerant extension (``ir_probe_v2.detect_v2``): measured
-    2026-10-02, that version over-extends — 27,601 bp against the true 26,217 bp on
-    NC_086581 — because it accepts chunks on a global identity ratio. The exact-run version
-    is the one the gate's original measurements were made with.
-
-    Genomes whose origin sits inside an IR copy are handled by retrying on a half-rotated
-    sequence; the result then carries that rotation in ``frame_offset``.
+    The scan runs on the linear record and on a half-rotated record; the longer valid candidate
+    wins, so an IR copy crossing the origin is not truncated (A8).
     """
-    result = _scan_linear(genome, frame_offset)
-    if result is not None:
-        return result
-    if genome.topology != "circular":
+    candidates = [_scan_linear(genome, frame_offset)]
+    if genome.topology == "circular":
+        shift = len(genome) // 2
+        rotated = _rotate_genome(genome, shift)
+        candidates.append(_scan_linear(rotated, (frame_offset + shift) % len(genome)))
+    valid = [candidate for candidate in candidates if candidate is not None]
+    if not valid:
         return None
-    shift = len(genome) // 2
-    rotated = _rotate_genome(genome, shift)
-    return _scan_linear(rotated, (frame_offset + shift) % len(genome))
+    return max(valid, key=lambda ir: (ir.length, -ir.frame_offset))
 
 
 def _scan_linear(genome: Genome, frame_offset: int) -> IRResult | None:
     sequence = genome.sequence
-    length = len(sequence)
     mirror = reverse_complement(sequence)
-
-    index: dict[str, list[int]] = {}
-    for position in range(length - _KMER + 1):
-        index.setdefault(sequence[position : position + _KMER], []).append(position)
-
-    diagonals: Counter[int] = Counter()
-    for position in range(length - _KMER + 1):
-        for mate in index.get(mirror[position : position + _KMER], ()):
-            diagonals[mate - position] += 1
-
-    best: IRResult | None = None
-    for diagonal, _ in diagonals.most_common(_DIAGONALS_CONSIDERED):
-        geometry = _exact_run_geometry(sequence, mirror, diagonal)
-        if geometry is None:
-            continue
-        ira, irb = geometry
-        ir = measure_ir(sequence, ira, irb, source="denovo_diag", frame_offset=frame_offset)
-        if not (_DENOVO_LENGTH_WINDOW[0] <= ir.length <= _DENOVO_LENGTH_WINDOW[1]):
-            continue
-        if ir.identity < _DENOVO_MIN_IDENTITY:
-            continue
-        if best is None or ir.length > best.length:
-            best = ir
-    return best
-
-
-def _exact_run_geometry(
-    sequence: str, mirror: str, diagonal: int
-) -> tuple[Interval, Interval] | None:
-    """Longest exact run along one mirror diagonal → the two copy intervals, or None."""
-    length = len(sequence)
-    if diagonal >= 0:
-        n = length - diagonal
-        left, right = sequence[diagonal:], mirror[:n]
-        start_a, start_r = diagonal, 0
-    else:
-        n = length + diagonal
-        left, right = sequence[:n], mirror[-diagonal:]
-        start_a, start_r = 0, -diagonal
-
-    best_run = run = best_start = run_start = 0
-    for offset in range(n):
-        if left[offset] == right[offset]:
-            if run == 0:
-                run_start = offset
-            run += 1
-            if run > best_run:
-                best_run, best_start = run, run_start
-        else:
-            run = 0
-    if best_run == 0:
+    chain = _mirror_chains(sequence, mirror)
+    geometry = _chain_geometry(chain, len(sequence))
+    if geometry is None:
         return None
-
-    ira_start = start_a + best_start
-    shifted = start_r + best_start
-    ira = Interval(ira_start, ira_start + best_run)
-    irb = Interval(length - shifted - best_run, length - shifted)
-    if irb.start < 0 or irb.start < ira.end or ira.end > length or irb.end > length:
+    ira, irb = geometry
+    ir = measure_ir(sequence, ira, irb, source="denovo_diag", frame_offset=frame_offset)
+    if not (_DENOVO_LENGTH_WINDOW[0] <= ir.length <= _DENOVO_LENGTH_WINDOW[1]):
         return None
-    if irb.start - ira.end <= 0:
+    if ir.identity < _DENOVO_MIN_IDENTITY:
         return None
-    return ira, irb
+    return ir
 
 
 def _rotate_genome(genome: Genome, shift: int) -> Genome:
@@ -354,20 +771,45 @@ def _rotate_genome(genome: Genome, shift: int) -> Genome:
     return rotate_genome(genome, shift)
 
 
-def detect_ir(genome: Genome) -> IRResult:
-    """Annotation first; de-novo detection when there is none. Raises when neither works.
+def detect_ir(genome: Genome, *, source: str = "annotation") -> IRResult:
+    """Choose the IR source explicitly; never substitute one path for the other silently (D11-2).
 
-    When both paths produce a result they are cross-checked and the disagreement is stored
-    in :attr:`IRResult.denovo_length` — never silently dropped. Measured reason: NC_063920
-    annotates a 26,161 bp IR whose copies are 92.6 % identical, while de-novo detection
-    finds a perfectly matching 22,998 bp core. Annotation wins, but a 3,163 bp disagreement
-    must be visible.
+    ``source="annotation"`` uses the record's two copies, or the sequence's repeat when the record
+    has no IR annotation. A record that annotates one, three or overlapping copies is refused by
+    name, not re-read. ``source="sequence"`` uses the sequence's repeat even when the annotation
+    exists, and records the annotation it did not use. A gate failure on the annotation path is
+    reported by :func:`enforce_ir_gate` with the way out: ``--set ir_source=sequence``.
     """
-    annotated = ir_from_annotation(genome)
+    if source not in ("annotation", "sequence"):
+        raise ValueError(f"ir_source must be 'annotation' or 'sequence', got {source!r}")
+    annotation_error: IRDetectionError | None = None
+    annotated: IRResult | None = None
+    try:
+        annotated = ir_from_annotation(genome)
+    except IRDetectionError as error:
+        annotation_error = error
     detected = ir_de_novo(genome)
+
+    if source == "sequence":
+        if detected is None:
+            detail = f" ({annotation_error})" if annotation_error else ""
+            raise IRDetectionError(
+                f"{genome.accession or genome.name}: no valid sequence repeat found "
+                f"(de-novo scan failed){detail}"
+            )
+        lengths = annotated.annotated_lengths if annotated is not None else ()
+        note = str(annotation_error) if annotation_error is not None else None
+        return replace(
+            detected,
+            annotated_lengths=lengths,
+            annotation_note=note,
+        )
+
+    if annotation_error is not None:
+        raise annotation_error
     if annotated is not None:
         if detected is not None:
-            return replace(annotated, denovo_length=detected.length)
+            annotated = replace(annotated, denovo_length=detected.length)
         return annotated
     if detected is None:
         raise IRDetectionError(
@@ -378,10 +820,31 @@ def detect_ir(genome: Genome) -> IRResult:
 
 
 def enforce_ir_gate(ir: IRResult, *, min_identity: float = IR_MIN_IDENTITY) -> IRResult:
-    """Raise :class:`IRGateError` unless the two copies are identical enough."""
-    if ir.identity < min_identity:
-        raise IRGateError(
-            f"IR gate failed: the two copies are {ir.identity * 100:.2f} % identical "
-            f"(need >= {min_identity * 100:.1f} %) — position-based analysis must not run"
+    """Raise :class:`IRGateError` unless the two copies are identical enough, with evidence.
+
+    Identity alone is not enough: at least half of the shorter copy must be known A/C/G/T on both
+    sides, so a handful of matching bases surrounded by ``N`` cannot carry a PASS (K-04).
+    """
+    minimum_known = ir.minimum_known
+    if ir.identity < min_identity or ir.known_columns < minimum_known:
+        reasons = []
+        if ir.identity < min_identity:
+            reasons.append(
+                f"{ir.identity * 100:.2f} % identity (need >= {min_identity * 100:.1f} %)"
+            )
+        if ir.known_columns < minimum_known:
+            reasons.append(
+                f"{ir.known_columns} known columns (need >= {minimum_known}); "
+                f"{ir.ambiguous_columns} ambiguous"
+            )
+        message = (
+            f"IR gate failed: the two copies have {' and '.join(reasons)} — "
+            f"position-based analysis must not run"
         )
+        if ir.source == "annotation":
+            message += (
+                "; re-run with --set ir_source=sequence to use the sequence's repeat, "
+                "or correct the record's repeat_region"
+            )
+        raise IRGateError(message)
     return ir

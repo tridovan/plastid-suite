@@ -52,6 +52,7 @@ from plastid.core import reference_audit
 from plastid.core.caller import render_fasta, transfer_structure
 from plastid.core.exon_structure import Junction, render_junctions
 from plastid.core.genbank import read_genbank, to_genbank
+from plastid.core.ir import IRGateError
 from plastid.core.model import Gene, Genome, Interval, count_genes
 from plastid.core.orf import check_genome
 from plastid.core.organelle import GROUP_PLASTID, PLASTID_PATH, check_set
@@ -461,9 +462,11 @@ def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
     """
     ira, irb = ir.ira, ir.irb
     if ira.length != irb.length:
-        raise ValueError(
+        # Named refusal, exit 2 at the CLI: mapping a gene between unequal copies is alignment
+        # work (M11.11), not a bare ValueError that would be reported as an internal error.
+        raise IRGateError(
             f"plastid_annotate: the two inverted-repeat copies are {ira.length} and {irb.length} "
-            f"bp — a copy cannot be placed inside a repeat whose sides differ in length"
+            f"bp — a gene cannot be mirrored between copies of different length yet (M11.11)"
         )
     inside: list[Gene] = []
     for gene in genes:

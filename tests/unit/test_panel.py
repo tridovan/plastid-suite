@@ -188,16 +188,18 @@ def _genbank_text(record: SeqRecord) -> str:
 
 def test_pin_records_a_failed_ir_gate_instead_of_raising(tmp_path: Path, data_dir: Path) -> None:
     """A diverged IR is data at pin time; only the run-time gate may stop an analysis."""
+    # NC_063921's copies are 99.16 % end-to-end (M11.4); NC_063920 is now a harmless 99.94 %
+    # gap-aware pair, so it no longer exercises a failed gate.
     record = next(
         record
         for record in SeqIO.parse(str(data_dir / "iridaceae_edge_cases.gb"), "genbank")
-        if record.id == "NC_063920.1"
+        if record.id == "NC_063921.1"
     )
-    entries = (PanelEntry(accession="NC_063920.1", organism="Iris petrana"),)
+    entries = (PanelEntry(accession="NC_063921.1", organism="Iris petrana"),)
     pinned = pin(entries, lambda accession: _genbank_text(record), tmp_path)
 
     assert pinned[0].parse_error is None
-    assert pinned[0].ir_identity == pytest.approx(0.9263, abs=0.001)
+    assert pinned[0].ir_identity == pytest.approx(0.991609, abs=1e-5)
     assert "IR gate failed" in (pinned[0].ir_error or "")
 
 

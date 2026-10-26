@@ -750,6 +750,36 @@ def _read_input(path: str) -> Genome:
     raise ValueError(f"{path}: empty file")
 
 
+def _ir_manifest_fields(ir: IRResult) -> dict:
+    """The IR evidence a manifest records — success and refusal use the same shape.
+
+    D11-2 requires a refused annotation to stay visible: the source, the measured columns, the
+    annotated lengths and the reason the sequence path was not taken all travel in the manifest.
+    """
+    return {
+        "source": ir.source,
+        "length": ir.length,
+        "identity": ir.identity,
+        "gate_passed": ir.gate_passed,
+        "mirror_constant": ir.mirror_constant,
+        # End-to-end alignment evidence (D11-3): the denominator and every column class.
+        "matched_columns": ir.matched,
+        "compared_columns": ir.compared_length,
+        "known_columns": ir.known_columns,
+        "ambiguous_columns": ir.ambiguous_columns,
+        "internal_gaps": ir.internal_gaps,
+        "terminal_gaps": ir.terminal_gaps,
+        "alignment_method": ir.method,
+        # which end of a length difference the identity was measured at (H-25); "both" means
+        # the copies have terminal overhangs at each end and mapping is not supported
+        "excess_at": ir.excess_at,
+        "annotated_lengths": list(ir.annotated_lengths),
+        "annotation_note": ir.annotation_note,
+        "denovo_length": ir.denovo_length,
+        "denovo_delta": ir.denovo_delta,
+    }
+
+
 def _execute_run(
     *,
     genomes: Sequence[Genome],
@@ -807,27 +837,22 @@ def _execute_run(
     if any(spec.requires_ir for spec in specs):
         gated: list[IRResult] = []
         for candidate in genomes:
+            attempted: IRResult | None = None
             try:
-                gated.append(enforce_ir_gate(detect_ir(candidate)))
+                attempted = detect_ir(candidate, source=str(params.get("ir_source", "annotation")))
+                gated.append(enforce_ir_gate(attempted))
             except (IRGateError, IRDetectionError) as error:
                 # every genome in a comparison must pass: one diverged IR corrupts them all
-                manifest["ir"] = {"gate_passed": False, "error": str(error)}
+                manifest["ir"] = {
+                    **(_ir_manifest_fields(attempted) if attempted is not None else {}),
+                    "gate_passed": False,
+                    "error": str(error),
+                }
                 return _fail(
                     manifest, layout, ctx, specs[0].version, f"IR gate: {error}", EXIT_USAGE
                 )
         ctx.ir = gated[0]
-        manifest["ir"] = {
-            "source": gated[0].source,
-            "length": gated[0].length,
-            "identity": gated[0].identity,
-            "gate_passed": gated[0].gate_passed,
-            "mirror_constant": gated[0].mirror_constant,
-            # which end of a length difference the identity was measured at (H-25); "none" when
-            # the two annotated copies are the same length
-            "excess_at": gated[0].excess_at,
-            "denovo_length": gated[0].denovo_length,
-            "denovo_delta": gated[0].denovo_delta,
-        }
+        manifest["ir"] = _ir_manifest_fields(gated[0])
         manifest["coordinate_system"]["rotation_offset"] = normalize(
             genomes[0], gated[0]
         ).rotation_offset
@@ -930,7 +955,10 @@ def _execute_run(
             "version": spec.version,
             "status": outcome.status,
             "key": outcome.key,
+            # Current-run tool calls. Empty on `cached`, which is the point: the computation ran
+            # in an earlier run, and `provenance` below says which one (M11.12).
             "tools": [asdict(record) for record in ctx.tools],
+            "provenance": outcome.provenance,
             "files": [entry["path"] for entry in module_files],
         }
         if spec.reference_param and references is not None:

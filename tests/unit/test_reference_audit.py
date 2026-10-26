@@ -163,20 +163,22 @@ def test_a_missing_file_blocks_without_raising(tmp_path: Path) -> None:
     assert "gone.gb" in report.blocked[0].line
 
 
-def test_the_real_pga_record_blocks_on_translation_and_ir(tmp_path: Path) -> None:
-    """Measured 08/10/2026 on the vendored fixture: 83 of 84 CDS without /translation, IR failed.
+def test_the_real_pga_record_blocks_on_translation_not_ir(tmp_path: Path) -> None:
+    """Measured 26/10/2026: 83 of 84 CDS without /translation; the IR now aligns and passes.
 
-    This is *Iris hermona* as PGA annotated it — the same sequence as the published
-    record beside it, which passes every check. Both halves matter: the audit must block the
-    annotation a search cannot use, and must not block the one it can.
+    This is *Iris hermona* as PGA annotated it — the same sequence as the published record beside
+    it, which passes every check. Re-measuring with the end-to-end gap-aware alignment (M11.4)
+    finds the 26,182/26,180 bp copies 99.992 % identical (two internal gaps, no mismatch), so the
+    old IR block was the ungapped pairing's artefact. The translation block is real and is what
+    makes the record unusable; both halves still matter.
     """
     report = audit_files([PGA_HERMONA], confirm=None)
 
     blocked = _checks(report, BLOCK)
     assert report.records[0].cds == 84
     assert blocked.count("translation") == 83
-    assert "ir" in blocked
-    assert report.records[0].ssc_orientation == "unknown"  # no IR, no vote
+    assert "ir" not in blocked
+    assert report.records[0].ssc_orientation == "same"
 
     published = audit_files([CORPUS / "Iris_hermona_NC_081931.1.published.gb"], confirm=None)
     assert published.blocked == ()
@@ -473,11 +475,14 @@ def test_the_pinned_set_blocks_on_the_partial_record_and_reports_the_two_inversi
     paths = sorted(PANEL.glob("*.gb"))
     report = audit_files(paths, confirm=None)
 
-    assert [Path(finding.file).name for finding in report.blocked] == ["NC_024936.1.gb"] * 2
-    assert {finding.check for finding in report.blocked} == {"partial"}
+    # Two partial coordinates plus its IR (26,220/26,186 bp, 99.80 % end-to-end): annotation-first
+    # refuses the record rather than silently substituting the sequence's shorter repeat (D11-2).
+    assert [Path(finding.file).name for finding in report.blocked] == ["NC_024936.1.gb"] * 3
+    assert {finding.check for finding in report.blocked} == {"partial", "ir"}
 
     orientations = {Path(record.file).name: record.ssc_orientation for record in report.records}
-    assert sum(1 for value in orientations.values() if value == "same") == 32
+    assert sum(1 for value in orientations.values() if value == "same") == 31
+    assert sum(1 for value in orientations.values() if value == "unknown") == 1
     assert {name for name, value in orientations.items() if value == "opposite"} == {
         "NC_042827.1.gb",
         "NC_062351.1.gb",
@@ -633,14 +638,18 @@ def test_the_dotplot_figure_draws_the_matches_it_was_given() -> None:
 def test_the_gene_strand_rule_reproduces_the_measured_verdicts() -> None:
     """The rule as the corpus count ran it — same two records, same comparison of region votes."""
     from plastid.core.genbank import read_genbank
-    from plastid.core.ir import detect_ir, enforce_ir_gate
+    from plastid.core.ir import IRDetectionError, IRGateError, detect_ir, enforce_ir_gate
 
     verdicts = {}
     for path in sorted(PANEL.glob("*.gb")):
         genome = read_genbank(path)
-        verdicts[path.name] = ssc_orientation(genome, enforce_ir_gate(detect_ir(genome)))
+        try:
+            verdicts[path.name] = ssc_orientation(genome, enforce_ir_gate(detect_ir(genome)))
+        except (IRDetectionError, IRGateError):
+            verdicts[path.name] = "unknown"
 
     assert sorted(name for name, value in verdicts.items() if value == "opposite") == [
         "NC_042827.1.gb",
         "NC_062351.1.gb",
     ]
+    assert verdicts["NC_024936.1.gb"] == "unknown"  # its annotated IR fails the gate

@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from plastid.core.ir import IRResult, mirror_constant_for
-from plastid.core.model import Gene, Genome, Interval
+from plastid.core.model import Gene, Genome, Interval, RepeatRegion
 
 __all__ = [
     "NormalizedFrame",
@@ -99,19 +99,26 @@ def normalize(genome: Genome, ir: IRResult) -> NormalizedFrame:
     # After normalization: IRa = the copy adjacent to the LSC's 3' end, IRb = the copy
     # ending at the origin — reorder so the names match the region labels.
     first, second = sorted((shifted_ira[0], shifted_irb[0]), key=lambda iv: iv.start)
+    # `mirror_constant` is provenance for mapping a position between copies. That mapping is
+    # defined only for equal copies; unequal copies need the alignment-based mapping of M11.11.
+    # Normalization itself (origin, regions, sequence) does not need the constant, so it records 0
+    # rather than refusing a record the audit must still be able to describe.
+    constant = (
+        mirror_constant_for(first, second, "none")
+        if first.length == second.length and ir.excess_at == "none"
+        else 0
+    )
     normalized_ir = replace(
         ir,
         ira=first,
         irb=second,
-        # Derived the same way `measure_ir` derived it, on the rotated intervals: the constant
-        # assumes equal copies, and where a length difference sits decides the answer (H-25).
-        mirror_constant=mirror_constant_for(first, second, ir.excess_at),
+        mirror_constant=constant,
         frame_offset=0,
     )
-    shifted_repeat_regions: list[Interval] = []
-    for region in genome.repeat_regions:
-        shifted_repeat_regions.extend(_shift_interval(region, -origin, length))
-    rotated = replace(rotated, repeat_regions=tuple(shifted_repeat_regions))
+    shifted_repeat_regions = tuple(
+        _shift_region(region, -origin, length) for region in genome.repeat_regions
+    )
+    rotated = replace(rotated, repeat_regions=shifted_repeat_regions)
     return NormalizedFrame(
         genome=rotated,
         ir=normalized_ir,
@@ -129,11 +136,22 @@ def rotate_genome(genome: Genome, shift: int) -> Genome:
     sequence = genome.sequence[shift:] + genome.sequence[:shift]
     genes = tuple(_shift_gene(gene, -shift, length) for gene in genome.genes)
     repeat_regions = tuple(
-        shifted
-        for region in genome.repeat_regions
-        for shifted in _shift_interval(region, -shift, length)
+        _shift_region(region, -shift, length) for region in genome.repeat_regions
     )
     return replace(genome, sequence=sequence, genes=genes, repeat_regions=repeat_regions)
+
+
+def _shift_region(region: RepeatRegion, delta: int, length: int) -> RepeatRegion:
+    """Shift one repeat feature, keeping its parts together as one copy.
+
+    The parts are shifted independently (a part may itself cross the new origin and split), but
+    they are collected back into one :class:`RepeatRegion`; flattening them would turn one copy
+    into several candidates again (M11.3). Order is not semantic for a repeat_region — an
+    intergenic region has no transcript — so the parts are left in the order they came out.
+    """
+    return RepeatRegion(
+        tuple(shifted for part in region.parts for shifted in _shift_interval(part, delta, length))
+    )
 
 
 def _shift_gene(gene: Gene, delta: int, length: int) -> Gene:
@@ -144,12 +162,47 @@ def _shift_gene(gene: Gene, delta: int, length: int) -> Gene:
 
 
 def _shift_interval(interval: Interval, delta: int, length: int) -> tuple[Interval, ...]:
-    """Shift an interval by ``delta`` (mod length); a result crossing the origin splits in two."""
+    """Shift an interval by ``delta`` (mod length); a result crossing the origin splits in two.
+
+    Three pieces of meaning travel with the interval, and each has bitten:
+
+    * **Partial flags belong to the coordinates they describe**, not to the low/high end of the
+      new linear record. They therefore stay on the original endpoints. The cut the rotation
+      itself introduces is artificial and must not be marked partial — that would turn "the
+      record's coordinate is incomplete" into a claim this toolkit made up (K-05).
+    * **The fragments are returned in transcript order.** On the plus strand that is high then
+      low (the transcript runs through the genomic end before continuing at position 1); on the
+      minus strand it is low then high, because the transcript reads the plus strand backwards.
+      Returning a fixed order would silently change a minus-strand CDS's translation across a
+      rotation, which is the kind of quiet error the IR gate exists to prevent.
+    * ``strand`` is kept on both fragments; a split does not make a feature mixed-strand.
+    """
     start = (interval.start + delta) % length
     end = start + interval.length
     if end <= length:
-        return (Interval(start, end, interval.strand),)
-    return (
-        Interval(start, length, interval.strand),
-        Interval(0, end - length, interval.strand),
+        return (
+            Interval(
+                start,
+                end,
+                interval.strand,
+                partial_start=interval.partial_start,
+                partial_end=interval.partial_end,
+            ),
+        )
+    high = Interval(
+        start,
+        length,
+        interval.strand,
+        partial_start=interval.partial_start,
+        # the split at `length` is where the new linear record ends, not an incomplete coordinate
+        partial_end=False,
     )
+    low = Interval(
+        0,
+        end - length,
+        interval.strand,
+        # the join at position 1 is artificial for the same reason
+        partial_start=False,
+        partial_end=interval.partial_end,
+    )
+    return (high, low) if interval.strand > 0 else (low, high)

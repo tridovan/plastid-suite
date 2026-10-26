@@ -15,6 +15,25 @@
 - **Licence:** NCBI GenBank data is in the public domain.
 - **Rule:** tests never touch the network — these files are the only inputs.
 
+## The synthetic IR shape fixture (M11.2)
+
+| File | Accession | Size |
+|---|---|---|
+| `synthetic_ir_shapes.gb` | SYN_IR_0001 | 18,928 B |
+
+- **What it is:** a 14,000 bp circular record written for this repository on 2026-10-26, built as
+  LSC 1,000 + IR 6,000 + SSC 1,000 + reverse-complement(IR) 6,000. The two IR copies are therefore
+  identical by construction under the mirror pairing, and the expected regions are stated by the
+  construction rather than measured by the reader under test: LSC 1,000 · IR 6,000 · SSC 1,000.
+- **Why it exists:** the golden pair is large and already annotated in its own frame. This small
+  record exercises origin placement (single-copy, exact IR boundary, mid-IR), a joined copy split
+  into small/large pieces, strand −1, partial endpoints across the origin, and a trans-spliced
+  mixed-strand CDS without any `.panel/` data. Its features and 6,000 bp repeat regions were
+  generated deterministically (Python `random.Random(20261026)`) and written through
+  `to_genbank`; the file is the model round trip, not a third-party record.
+- **Checksum:** `sha256sum -c SHA256SUMS` from `tests/data/`.
+- **Licence:** written here; no third-party claim attaches to it.
+
 ## The stand-in submission template (P3-05)
 
 | File | Source | Size |

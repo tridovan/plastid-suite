@@ -5,13 +5,14 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from plastid.core.genbank import read_genbank
-from plastid.core.model import Genome
+from plastid.core.model import Gene, Genome, Interval
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
@@ -23,7 +24,13 @@ from plastid.run.manifest import (
     validate,
     write_manifest,
 )
-from plastid.run.runner import _input_hash, _module_source_hash, _params_hash, execute_step
+from plastid.run.runner import (
+    _input_hash,
+    _module_source_hash,
+    _package_source_hash,
+    _params_hash,
+    execute_step,
+)
 from plastid.run.tools import ToolError, run_tool, tool_version, which
 
 WHEN = datetime(2026, 10, 2, 15, 30, 0)
@@ -87,6 +94,35 @@ def test_manifest_validates_and_round_trips(tmp_path: Path) -> None:
     assert json.loads(path.read_text(encoding="utf-8"))["run_id"] == "r1"
 
 
+def test_run_info_names_the_original_computation_of_a_cached_step() -> None:
+    """A hit is not a computation that ran now: say when it ran and which tools it used."""
+    from plastid.run.runinfo import render_run_info
+
+    manifest = build_manifest(
+        run_id="r1",
+        command=["plastid", "run"],
+        package_version="1.0.0",
+        started_at="2026-10-26T12:00:00",
+        params={},
+        inputs=[],
+        coordinate_system={"name": "genbank"},
+    )
+    manifest["modules"] = [
+        {
+            "id": "ssr",
+            "version": "0.1.0",
+            "status": "cached",
+            "files": [],
+            "provenance": {
+                "computed_at": "2026-10-25T09:00:00",
+                "tools": [{"name": "misa", "version": "2.1"}],
+            },
+        }
+    ]
+    text = render_run_info(manifest, ())
+    assert "payload computed 2026-10-25T09:00:00 by misa 2.1" in text
+
+
 def test_run_tool_records_version_and_logs(tmp_path: Path) -> None:
     record = run_tool(
         "python",
@@ -120,8 +156,30 @@ def test_cache_round_trip(tmp_path: Path) -> None:
     cache = Cache(tmp_path)
     key = Cache.key(module_id="m", module_version="1", params_hash="p", input_sha256s=("a",))
     assert cache.get(key) is None
-    cache.put(key, {"tables/x.csv": "a,b\n"})
-    assert cache.get(key) == {"tables/x.csv": "a,b\n"}
+    provenance = {"module": "m", "tools": [], "computed_at": "2026-10-26T00:00:00"}
+    cache.put(key, {"tables/x.csv": "a,b\n"}, provenance=provenance)
+    entry = cache.get(key)
+    assert entry is not None
+    assert entry.files == {"tables/x.csv": "a,b\n"}
+    assert entry.provenance == provenance
+
+
+def test_an_entry_without_provenance_is_not_reused(tmp_path: Path) -> None:
+    """A payload whose origin cannot be stated is not one this runner serves (M11.12).
+
+    Old entries are the concrete case: the key changes too, but the schema guard is what makes
+    "old payload not reused" an explicit rule rather than a property of one hash function.
+    """
+    cache = Cache(tmp_path)
+    key = Cache.key(module_id="m", module_version="1", params_hash="p", input_sha256s=("a",))
+    path = tmp_path / f"{key}.json"
+    path.write_text('{"files": {"tables/x.csv": "a,b\\n"}}\n', encoding="utf-8")
+    assert cache.get(key) is None
+    path.write_text(
+        '{"schema": 1, "provenance": {}, "files": {"tables/x.csv": "a,b\\n"}}\n',
+        encoding="utf-8",
+    )
+    assert cache.get(key) is None
 
 
 def test_cache_round_trips_bytes_without_touching_them(tmp_path: Path) -> None:
@@ -133,8 +191,12 @@ def test_cache_round_trips_bytes_without_touching_them(tmp_path: Path) -> None:
     cache = Cache(tmp_path)
     blob = bytes(range(256)) * 4
     key = Cache.key(module_id="m", module_version="1", params_hash="p", input_sha256s=("a",))
-    cache.put(key, {"tables/x.csv": "a,b\n", "report.docx": blob})
-    restored = cache.get(key)
+    cache.put(
+        key, {"tables/x.csv": "a,b\n", "report.docx": blob}, provenance={"module": "m", "tools": []}
+    )
+    entry = cache.get(key)
+    assert entry is not None
+    restored = entry.files
     assert restored == {"tables/x.csv": "a,b\n", "report.docx": blob}
     assert isinstance(restored["report.docx"], bytes)
     # the cache file itself stays valid JSON — no bytes leaked into it
@@ -417,6 +479,174 @@ def test_the_cache_key_keeps_the_input_order() -> None:
         input_sha256s=("bb", "aa"),
     )
     assert first != swapped
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("transl_table", 11),
+        ("codon_start", 2),
+        ("exception", "RNA editing"),
+        ("trans_splicing", True),
+    ],
+)
+def test_each_annotation_qualifier_moves_the_input_hash(field: str, value: object) -> None:
+    """K-02, the unit half: every field an analysis can read is part of the input's identity."""
+    genome = Genome(
+        "probe",
+        "GTGAAATAA",
+        genes=(Gene("x", "CDS", (Interval(0, 9),), transl_table=1),),
+    )
+    changed = replace(genome, genes=(replace(genome.genes[0], **{field: value}),))
+    assert _input_hash(genome) != _input_hash(changed)
+
+
+def test_a_changed_translation_table_is_not_served_the_cached_orf_result(
+    tmp_path: Path,
+) -> None:
+    """K-02 through the runner, with the module really running and the files really read.
+
+    The same sequence and CDS at table 1 and table 11 must produce different status tables. A
+    hash equality check alone would have missed the defect: this asserts the exported cells,
+    then asserts that the *same* input is still a cache hit with the original provenance.
+    """
+    from plastid.modules.registry import get as get_module
+
+    spec = get_module("orf")
+    first = Genome(
+        "probe",
+        "GTGAAATAA",
+        genes=(Gene("x", "CDS", (Interval(0, 9),), transl_table=1),),
+    )
+    second = replace(first, genes=(replace(first.genes[0], transl_table=11),))
+    layout = RunLayout.create(tmp_path, "dataset", fingerprint="0" * 16, now=WHEN)
+    layout.make_dirs()
+    cache = Cache(layout.cache_dir)
+
+    def run(genome: Genome):
+        ctx = RunContext(layout=layout, params={}, module_id="orf", module_order=1)
+        return execute_step(
+            module_id=spec.id,
+            module_version=spec.version,
+            run_fn=spec.run,
+            genomes=(genome,),
+            arity=1,
+            params={},
+            ctx=ctx,
+            cache=cache,
+        )
+
+    first_outcome = run(first)
+    assert first_outcome.status == "ok"
+    status_csv = layout.module_dir(1, "orf") / "tables" / "orf_status.csv"
+    assert _status_count(status_csv, "no_start") == 1
+    assert _status_count(status_csv, "alternative_start") == 0
+
+    second_outcome = run(second)
+    assert second_outcome.status == "ok", "the table-1 payload answered a table-11 run"
+    assert _status_count(status_csv, "no_start") == 0
+    assert _status_count(status_csv, "alternative_start") == 1
+
+    hit = run(second)
+    assert hit.status == "cached"
+    assert hit.provenance == second_outcome.provenance
+    assert hit.provenance is not None and hit.provenance["tools"] == []
+
+
+def _status_count(path: Path, status: str) -> int:
+    for line in path.read_text(encoding="utf-8").splitlines():
+        cells = line.split(",")
+        if cells and cells[0] == status:
+            return int(cells[-1])
+    raise AssertionError(f"{status} not found in {path}")
+
+
+def test_shared_package_code_and_resources_move_the_key(tmp_path: Path) -> None:
+    """The module file is not the whole code (M11.12).
+
+    ``core/`` helpers and packaged resources (``defaults.yaml``, templates, name lists) can change
+    a module's output without the module's own file changing. The shared digest covers both, and
+    a new file is a change too — not just editing an existing one.
+    """
+    package = tmp_path / "plastid"
+    (package / "core").mkdir(parents=True)
+    (package / "data").mkdir()
+    (package / "core" / "helper.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (package / "data" / "defaults.yaml").write_text("orf: 1\n", encoding="utf-8")
+    baseline = _package_source_hash(package)
+
+    (package / "data" / "defaults.yaml").write_text("orf: 11\n", encoding="utf-8")
+    edited = _package_source_hash(package)
+    assert edited != baseline, "editing a packaged resource did not change the shared digest"
+
+    (package / "core" / "new.py").write_text("X = 2\n", encoding="utf-8")
+    added = _package_source_hash(package)
+    assert added not in {baseline, edited}, "adding a shared source file did not change it"
+
+
+def test_a_changed_tool_version_invalidates_a_cached_payload(tmp_path: Path) -> None:
+    """A hit restores a payload, not the tool that made it (M11.12).
+
+    The recorded provenance is revalidated on every hit. When the tool now reports another
+    version, the stored payload is not served as this run's result; the current run's tool call
+    is recorded instead, while the hit's own provenance keeps saying what originally ran.
+    """
+    calls: list[int] = []
+    script = tmp_path / "faketool"
+    script.write_text(_fake_tool(version="1.0"), encoding="utf-8")
+    script.chmod(0o755)
+
+    def run_fn(genome: Genome, params: dict, ctx: RunContext) -> Result:
+        calls.append(1)
+        ctx.tool("faketool", [str(script), "work"])
+        return _stub_result()
+
+    layout = RunLayout.create(tmp_path, "dataset", fingerprint="0" * 16, now=WHEN)
+    layout.make_dirs()
+    cache = Cache(layout.cache_dir)
+
+    def run():
+        ctx = RunContext(layout=layout, params={}, module_id="stub", module_order=1)
+        return execute_step(
+            module_id="stub",
+            module_version="0.1.0",
+            run_fn=run_fn,
+            genomes=(_stub_genome(),),
+            arity=1,
+            params={},
+            ctx=ctx,
+            cache=cache,
+        )
+
+    first = run()
+    assert first.status == "ok"
+    assert first.provenance is not None
+    assert first.provenance["tools"][0]["version"] == "1.0"
+
+    same = run()
+    assert same.status == "cached"
+    assert len(calls) == 1
+    assert same.provenance == first.provenance
+
+    script.write_text(_fake_tool(version="2.0"), encoding="utf-8")
+    script.chmod(0o755)
+    changed = run()
+    assert changed.status == "ok", "a payload made by tool 1.0 was served after the upgrade"
+    assert len(calls) == 2
+    assert changed.provenance is not None
+    assert changed.provenance["tools"][0]["version"] == "2.0"
+
+
+def _fake_tool(*, version: str) -> str:
+    # `tool_version` probes with each supported flag; the probe runs in a throwaway directory, so
+    # the script must not rely on a relative path.
+    return (
+        "#!/bin/sh\n"
+        'case "$1" in\n'
+        f"  --version|-version|-v|-V) echo '{version}'; exit 0;;\n"
+        "esac\n"
+        "echo work\n"
+    )
 
 
 def test_a_parameter_that_names_a_file_is_content_addressed(tmp_path: Path) -> None:

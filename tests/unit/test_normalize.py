@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
+from plastid.core.genbank import read_genbank, to_genbank
 from plastid.core.ir import IRResult, detect_ir, enforce_ir_gate, ir_from_annotation
-from plastid.core.model import Genome, Interval
+from plastid.core.model import Gene, Genome, Interval, coding_sequence, gene_qualifiers
 from plastid.core.normalize import _shift_interval, normalize, rotate_genome
+from plastid.modules.structure import run as structure_run
+from plastid.run.context import RunContext
 
 
 def _synthetic_ir(a: tuple[int, int], b: tuple[int, int]) -> IRResult:
@@ -84,7 +89,11 @@ def test_normalize_a_genome_that_starts_inside_an_ir(edge_genomes: dict[str, Gen
     assert frame.regions[0].start == 0
     assert frame.regions[-1].end == len(frame.genome)
     assert sum(region.length for region in frame.regions) == len(genome) == 153_162
-    assert frame.ir.length == 21_148
+    # The old detector returned a 21,148 bp exact core here; the chained de-novo detector
+    # (M11.4) finds the full 26,184 bp repeat. Independent check on the rotated sequence: the
+    # two copies are exact reverse complements over their whole length, and extending either by
+    # one base breaks the equality — so 26,184 is the extent, not an over-extension.
+    assert frame.ir.length == 26_184
 
 
 def test_rotate_genome_moves_genes_and_ir_consistently(golden_genome: Genome) -> None:
@@ -95,3 +104,196 @@ def test_rotate_genome_moves_genes_and_ir_consistently(golden_genome: Genome) ->
     assert sum(gene.length for gene in rotated.genes) == sum(
         gene.length for gene in golden_genome.genes
     )
+
+
+@pytest.mark.parametrize(
+    ("strand", "expected"),
+    [
+        # (start, end, partial_start, partial_end), in transcript order
+        (1, [(94, 100, True, False), (0, 4, False, True)]),
+        (-1, [(0, 4, False, True), (94, 100, True, False)]),
+    ],
+)
+def test_rotation_keeps_partial_flags_on_the_endpoints_they_describe(
+    strand: int, expected: list[tuple[int, int, bool, bool]]
+) -> None:
+    """K-05: a partial flag is about a coordinate, not about the new record's low/high end.
+
+    The interval [95, 105) on a 100 bp circle is already a wrap in genomic terms; rotated by one
+    base it splits at the new origin, and both flags stay on the same physical endpoints. A
+    minus-strand feature is returned in transcript order (low fragment first), because
+    ``coding_sequence`` reads the parts in the order it is given.
+    """
+    genome = Genome(
+        "partial",
+        "ACGT" * 25,
+        genes=(
+            Gene(
+                "g",
+                "CDS",
+                (Interval(95, 105, strand=strand, partial_start=True, partial_end=True),),
+            ),
+        ),
+    )
+    rotated = rotate_genome(genome, 1)
+    parts = rotated.genes[0].parts
+    assert [
+        (part.start, part.end, part.partial_start, part.partial_end) for part in parts
+    ] == expected
+
+
+def test_a_split_introduced_by_rotation_is_not_partial() -> None:
+    """A coordinate this toolkit invented must not travel as if the record had marked it."""
+    genome = Genome(
+        "plain",
+        "ACGT" * 25,
+        genes=(Gene("g", "CDS", (Interval(90, 120),)),),
+    )
+    rotated = rotate_genome(genome, 13)
+    parts = rotated.genes[0].parts
+    assert [(part.start, part.end) for part in parts] == [(77, 100), (0, 7)]
+    assert not any(part.partial_start or part.partial_end for part in parts)
+
+
+@pytest.mark.parametrize("shift", [1, 7, 12_345, 83_127, 140_000])
+def test_rotation_preserves_every_coding_sequence(golden_genome: Genome, shift: int) -> None:
+    """Only the origin moves: a CDS's bases and their transcript order do not.
+
+    This includes the golden's trans-spliced, mixed-strand rps12 copies, so a fixed
+    high-then-low fragment order or a re-sort of parts would change a protein and fail here.
+    """
+    rotated = rotate_genome(golden_genome, shift)
+    for original, moved in zip(golden_genome.genes, rotated.genes, strict=True):
+        assert coding_sequence(golden_genome, original) == coding_sequence(rotated, moved), (
+            f"{original.name} changed coding sequence after a {shift} bp rotation"
+        )
+        assert original.length == moved.length
+
+
+def test_rotation_preserves_a_multipart_trans_spliced_gene_across_the_origin() -> None:
+    """Mixed strands and transcript order survive a rotation that splits one of the parts."""
+    genome = Genome(
+        "trans-spliced",
+        "ACGT" * 25,
+        genes=(
+            Gene(
+                "rps12",
+                "CDS",
+                (Interval(90, 100, strand=-1), Interval(0, 10, strand=1)),
+                trans_splicing=True,
+            ),
+        ),
+    )
+    before = coding_sequence(genome, genome.genes[0])
+    for shift in (1, 5, 13, 95):
+        rotated = rotate_genome(genome, shift)
+        after = coding_sequence(rotated, rotated.genes[0])
+        assert after == before, f"transcript order changed at shift {shift}"
+        assert rotated.genes[0].trans_splicing is True
+        assert sum(part.length for part in rotated.genes[0].parts) == 20
+
+
+def test_read_rotate_write_read_keeps_the_annotation_model(tmp_path) -> None:
+    """K-05's acceptance path: file → rotate → file → read, not just intervals in memory.
+
+    The feature carries both partial markers, a qualifier of every kind the model writes, and a
+    mixed-strand join; the repeat region carries a partial marker too. Total bases per feature
+    must not move, and the coding sequences must be identical.
+    """
+    genome = Genome(
+        name="synthetic_circle",
+        accession="SYN0001",
+        sequence="ACGT" * 25,
+        genes=(
+            Gene(
+                "partial_plus",
+                "CDS",
+                (
+                    Interval(90, 100, partial_start=True),
+                    Interval(0, 10, partial_end=True),
+                ),
+                product="partial protein",
+                transl_table=11,
+                codon_start=1,
+                exception="RNA editing",
+            ),
+            Gene(
+                "partial_minus",
+                "tRNA",
+                (
+                    Interval(0, 5, strand=-1, partial_end=True),
+                    Interval(80, 100, strand=-1, partial_start=True),
+                ),
+                product="tRNA-Gly",
+            ),
+            Gene(
+                "trans",
+                "CDS",
+                (Interval(20, 30, strand=-1), Interval(60, 70, strand=1)),
+                product="trans-spliced protein",
+                trans_splicing=True,
+                transl_table=1,
+                translation="MKV" * 3,
+            ),
+            Gene("pseudo", "CDS", (Interval(40, 50, strand=-1),), pseudo=True),
+        ),
+        repeat_regions=(Interval(0, 10, partial_end=True),),
+        source={"organism": "Synthetic testus", "mol_type": "genomic DNA"},
+    )
+    first = read_genbank(_write(tmp_path / "first.gb", genome))
+    rotated = rotate_genome(first, 7)
+    second = read_genbank(_write(tmp_path / "second.gb", rotated))
+
+    assert second.accession == first.accession
+    assert second.topology == first.topology
+    assert second.source == first.source
+    assert second.sequence == rotated.sequence
+    assert len(second.genes) == len(first.genes)
+    for before, after in zip(rotated.genes, second.genes, strict=True):
+        assert after.name == before.name
+        assert after.kind == before.kind
+        assert after.product == before.product
+        assert after.pseudo is before.pseudo
+        assert after.trans_splicing is before.trans_splicing
+        assert after.transl_table == before.transl_table
+        assert after.codon_start == before.codon_start
+        assert after.exception == before.exception
+        assert after.translation == before.translation
+        assert gene_qualifiers(after) == gene_qualifiers(before)
+        assert after.length == before.length
+        assert coding_sequence(second, after) == coding_sequence(rotated, before)
+    assert second.repeat_regions == rotated.repeat_regions
+
+
+def _write(path, genome: Genome):
+    path.write_text(to_genbank(genome, translations=True), encoding="utf-8")
+    return path
+
+
+def test_a_module_using_the_normalized_frame_is_rotation_invariant(
+    golden_genome: Genome,
+) -> None:
+    """The module path, not just the helper: ``structure`` reads the normalized frame.
+
+    The same record at two origins must produce the same four regions with the same lengths, GC
+    and skew. Only ``rotation_offset`` — the map back to GenBank — may differ.
+    """
+
+    def regions(genome: Genome) -> dict[str, dict]:
+        ir = ir_from_annotation(genome)
+        assert ir is not None
+        ctx = RunContext(
+            layout=None,  # type: ignore[arg-type]
+            params={},
+            module_id="structure",
+            module_order=1,
+            ir=ir,
+        )
+        params = {"window": 100_000, "step": 100_000}
+        result = structure_run(genome, params, ctx)
+        return {row["region"]: row for row in result.tables["regions"].rows}
+
+    original = regions(golden_genome)
+    for shift in (1, 7, 12_345, 83_127):
+        rotated = rotate_genome(golden_genome, shift)
+        assert regions(rotated) == original, f"normalized regions moved at shift {shift}"

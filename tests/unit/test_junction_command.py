@@ -8,6 +8,7 @@ one test that draws a real figure is ``tier_b`` and skips with a named reason.
 from __future__ import annotations
 
 import os
+import random
 from pathlib import Path
 
 import pytest
@@ -19,9 +20,12 @@ from plastid.core.sequence import reverse_complement
 from plastid.run.junction import junction_table
 
 # A record whose two IR copies are exact reverse complements: IRb at 5,001-10,000 and IRa at
-# 12,001-17,000 in a 20,000 bp circle. The filler is not a repeat, so nothing else can be mistaken
-# for a copy.
-_COPY = ("ACGTTGCA" * 625)[:5_000]
+# 12,001-17,000 in a 20,000 bp circle. The copy is deterministic random, not a periodic motif:
+# a low-complexity 8 bp repeat makes every 20-mer occur hundreds of times, and the anchor index
+# deliberately drops such words as uninformative — the fixture would then test the fallback, not
+# the shifted-annotation alignment.
+_RNG = random.Random(20261026)
+_COPY = "".join(_RNG.choice("ACGT") for _ in range(5_000))
 _IR_SEQUENCE = "A" * 5_000 + _COPY + "A" * 2_000 + reverse_complement(_COPY) + "A" * 3_000
 
 ALIGNED = Genome(
@@ -31,16 +35,18 @@ ALIGNED = Genome(
     repeat_regions=(Interval(5_000, 10_000), Interval(12_000, 17_000)),
 )
 
-# The same sequence with the second copy **shifted two bases**, its length unchanged. The mirror
-# constant `measure_ir` derives from the two boundaries is then two bases away from the one that
-# pairs the copies, so every base is compared against the wrong partner and the identity collapses
-# — the shape measured on three of the bundle's eight records (H-25). Note what does *not* cause
-# it: lengthening a copy at its start leaves the constant right and the gate green.
+# The same sequence with 100 substitutions spread through the second copy: a pair that is genuinely
+# not an IR, so the gate must refuse it. (A two-base shift is a different case: the end-to-end
+# alignment reports 4,998 matches + 4 terminal gaps, 99.92 %, and `excess_at="both"`; that is the
+# H-25 shape the old ungapped mirror collapsed to < 0.5.)
+_DIVERGENT = list(_IR_SEQUENCE)
+for _position in range(12_050, 17_000, 50):  # 99 substitutions
+    _DIVERGENT[_position] = "A" if _DIVERGENT[_position] != "A" else "C"
 MISALIGNED = Genome(
     name="Misaligned example",
     accession="XX_100002.1",
-    sequence=_IR_SEQUENCE,
-    repeat_regions=(Interval(5_000, 10_000), Interval(11_998, 16_998)),
+    sequence="".join(_DIVERGENT),
+    repeat_regions=(Interval(5_000, 10_000), Interval(12_000, 17_000)),
 )
 
 
@@ -72,7 +78,31 @@ def test_the_gate_verdict_is_in_the_table_not_left_to_be_rediscovered() -> None:
     assert aligned.gate == "passed"
     assert aligned.identity == pytest.approx(1.0)
     assert misaligned.gate == "failed"
-    assert misaligned.identity is not None and misaligned.identity < 0.5
+    assert misaligned.identity is not None and misaligned.identity < 0.999
+
+
+def test_a_two_base_shift_is_terminal_overhangs_not_a_collapsed_identity() -> None:
+    """H-25's shape, re-measured with the end-to-end alignment (M11.4).
+
+    The annotation is shifted two bases, so the shorter aligned run is 4,998 known matches and the
+    four bases outside it are terminal gaps: 4,998/5,002 = 99.92 %. The old ungapped mirror paired
+    every base with the wrong partner and reported < 50 %; ``excess_at="both"`` says mapping
+    between these two spans is not supported, which is a separate statement from the gate verdict.
+    """
+    from plastid.core.ir import ir_from_annotation
+
+    shifted = Genome(
+        name="Shifted example",
+        accession="XX_100005.1",
+        sequence=_IR_SEQUENCE,
+        repeat_regions=(Interval(5_000, 10_000), Interval(11_998, 16_998)),
+    )
+    ir = ir_from_annotation(shifted)
+    assert ir is not None
+    assert (ir.matched, ir.terminal_gaps) == (4_998, 4)
+    assert ir.identity == pytest.approx(4_998 / 5_002)
+    assert ir.excess_at == "both"
+    assert ir.gate_passed
 
 
 def test_a_junction_names_the_genes_around_it() -> None:

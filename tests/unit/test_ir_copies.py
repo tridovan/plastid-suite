@@ -96,5 +96,9 @@ def test_two_sides_of_different_length_refuse_rather_than_guess() -> None:
 
     import pytest
 
-    with pytest.raises(ValueError, match="differ in length"):
+    from plastid.core.ir import IRGateError
+
+    # A named refusal (exit 2 at the CLI), not a bare ValueError: mapping genes between unequal
+    # copies is M11.11's alignment work.
+    with pytest.raises(IRGateError, match="different length"):
         _ir_copies([gene("ndhB", (2300, 2600))], _Unequal())

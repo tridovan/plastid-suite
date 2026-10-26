@@ -465,7 +465,10 @@ def test_the_corpus_pair_normalizes_into_the_references_spelling(tmp_path: Path)
     # is 'measured' — for a tRNA the name *is* the check the measurement left standing
     assert statuses <= {STATUS_MEASURED, STATUS_NOT_MEASURED, STATUS_OUTSIDE}
     assert STATUS_NOT_MEASURED in statuses
-    assert all(row["rule"] in (None, TEST_NAME) for row in pairing.rows)
+    # The PGA record's IR now passes the gate (M11.4: two internal gaps, 99.992 % identity), so
+    # the neighbours test is available and legitimately decides some tRNA pairings.
+    assert all(row["rule"] in (None, TEST_NAME, TEST_NEIGHBOURS) for row in pairing.rows)
+    assert any(row["rule"] == TEST_NEIGHBOURS for row in pairing.rows)
     summary = result.tables["normalize_summary"].rows[0]
     assert summary["reference"] == "NC_081931.1"
     assert summary["records"] == 1

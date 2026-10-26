@@ -136,6 +136,10 @@ def test_the_cds_scope_reproduces_the_golden_ts_tv(
                 str(tmp_path / "runs"),
                 "--set",
                 "scope=cds",
+                # NC_024936.1's annotated IR is 99.80 %; the sequence's own repeat is the
+                # explicit path for this comparison (D11-2).
+                "--set",
+                "ir_source=sequence",
             ]
         )
         == 0
@@ -195,6 +199,8 @@ def test_the_naming_step_does_not_move_the_golden_ts_tv(
                 str(tmp_path / "normalized"),
                 "--set",
                 "mode=normalize",
+                "--set",
+                "ir_source=sequence",
             ]
         )
         == 0
@@ -220,6 +226,9 @@ def test_the_naming_step_does_not_move_the_golden_ts_tv(
                 str(tmp_path / "runs"),
                 "--set",
                 "scope=cds",
+                # the normalized artifact keeps NC_024936.1's annotation, whose IR is 99.80 %
+                "--set",
+                "ir_source=sequence",
             ]
         )
         == 0
@@ -249,6 +258,8 @@ def test_the_whole_alignment_scope_is_a_different_number_and_says_so(
                 str(data_dir / "NC_024936.1.gb"),
                 "-o",
                 str(tmp_path / "runs"),
+                "--set",
+                "ir_source=sequence",
             ]
         )
         == 0
@@ -284,6 +295,8 @@ def test_nucleotide_diversity_runs_on_real_data_and_keeps_its_shape(
                 str(data_dir / "NC_024936.1.gb"),
                 "-o",
                 str(tmp_path / "runs"),
+                "--set",
+                "ir_source=sequence",
             ]
         )
         == 0
@@ -412,6 +425,8 @@ def test_diversity_measures_pi_per_intron_and_per_spacer(
                 str(data_dir / "NC_024936.1.gb"),
                 "-o",
                 str(tmp_path / "runs"),
+                "--set",
+                "ir_source=sequence",
             ]
         )
         == 0
@@ -475,6 +490,8 @@ def test_synteny_reproduces_the_measured_iris_pair_result(
                 "golden",
                 "--set",
                 f"mummer={directory}",
+                "--set",
+                "ir_source=sequence",
             ]
         )
         == 0
@@ -547,6 +564,8 @@ def test_kaks_reproduces_the_measured_iris_pair_result(
                 "golden",
                 "--set",
                 f"paml={directory}",
+                "--set",
+                "ir_source=sequence",
             ]
         )
         == 0
@@ -612,6 +631,8 @@ def test_barcodes_reuses_diversitys_pi_window_for_window(
                 str(tmp_path / "runs"),
                 "--dataset",
                 "golden",
+                "--set",
+                "ir_source=sequence",
             ]
         )
         == 0

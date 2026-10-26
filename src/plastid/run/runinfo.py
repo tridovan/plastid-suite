@@ -84,8 +84,24 @@ def render_run_info(manifest: dict[str, Any], tools: Sequence[ToolRecord] = ()) 
 
     lines.extend(["", "## Modules", ""])
     for entry in manifest.get("modules") or []:
-        lines.append(
+        line = (
             f"- {entry['id']} {entry['version']} — {entry['status']} "
             f"({len(entry.get('files', []))} file(s))"
         )
+        # A cache hit is not a computation that ran now. The Tools table above lists only this
+        # run's calls, so the original computation is named here — otherwise "no external tools
+        # ran" would read as "no tool was involved" (M11.12).
+        provenance = entry.get("provenance") or {}
+        if entry.get("status") == "cached" and provenance:
+            when = provenance.get("computed_at") or "an earlier run"
+            tools = provenance.get("tools") or []
+            who = (
+                ", ".join(
+                    f"{tool.get('name')} {tool.get('version') or 'version unknown'}"
+                    for tool in tools
+                )
+                or "no external tools"
+            )
+            line += f" — payload computed {when} by {who}"
+        lines.append(line)
     return "\n".join(lines) + "\n"

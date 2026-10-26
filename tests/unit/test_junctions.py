@@ -13,21 +13,22 @@ import pytest
 
 from plastid.core.genbank import read_genbank, read_genbank_records
 from plastid.core.junctions import JunctionError, junction_regions
-from plastid.core.model import Genome, Interval
+from plastid.core.model import Genome, Interval, RepeatRegion
 
 # The geometry of Chasmanthe floribunda NC_072562, whose IRa runs across the origin: the copy is
-# written `join(1..1,124854..151293)`, so it arrives as two pieces. Dropping the 1 bp piece is what
-# makes a copy's bases stop pairing with the other's — measured 17/10/2026, identity 0.2924 instead
-# of 1.0000.
+# written `join(1..1,124854..151293)`, so it arrives as two parts of **one** copy. Dropping the
+# 1 bp piece is what makes a copy's bases stop pairing with the other's — measured 17/10/2026,
+# identity 0.2924 instead of 1.0000.
 WRAPPED_LENGTH = 151_293
 WRAPPED = Genome(
     name="Chasmanthe floribunda",
     accession="NC_072562.1",
     sequence="A" * WRAPPED_LENGTH,
     repeat_regions=(
-        Interval(81_002, 107_443),  # IRb, 26,441 bp
-        Interval(0, 1),  # the piece of IRa that lies at the start of the record
-        Interval(124_853, WRAPPED_LENGTH),  # IRa, its main run
+        RepeatRegion((Interval(81_002, 107_443),)),  # IRb, 26,441 bp
+        RepeatRegion(
+            (Interval(0, 1), Interval(124_853, WRAPPED_LENGTH))
+        ),  # IRa, one copy across the origin
     ),
 )
 
@@ -82,9 +83,10 @@ def test_either_copy_may_be_the_one_across_the_origin() -> None:
         accession="XX_000005.1",
         sequence="A" * 60_000,
         repeat_regions=(
-            Interval(0, 1_000),  # the piece of IRb at the start of the record
-            Interval(5_000, 11_000),  # IRa
-            Interval(55_000, 60_000),  # IRb, its main run
+            RepeatRegion(
+                (Interval(0, 1_000), Interval(55_000, 60_000))
+            ),  # IRb, one copy across the origin
+            RepeatRegion((Interval(5_000, 11_000),)),  # IRa
         ),
     )
     regions = junction_regions(wrapped_irb)
@@ -116,19 +118,22 @@ def test_overlapping_copies_are_refused() -> None:
         junction_regions(overlapping)
 
 
-def test_a_piece_that_fits_neither_copy_is_refused() -> None:
-    """A wrap piece continues the copy that ends at the record's end — otherwise it is an error."""
+def test_a_join_that_is_not_one_arc_is_refused() -> None:
+    """A repeat_region whose parts are not contiguous is malformed, not two convenient pieces.
+
+    A bare short repeat_region is a different feature, not a wrap piece (NC_063921's 1 bp repeat is
+    ignored). A long *joined* region with two separate gaps claims to be one copy and is not.
+    """
     stranded = Genome(
-        name="stranded piece",
+        name="two gaps in one copy",
         accession="XX_000003.1",
         sequence="A" * 60_000,
         repeat_regions=(
-            Interval(5_000, 30_000),  # neither copy reaches the end of the record
-            Interval(35_000, 59_000),
-            Interval(0, 1),
+            RepeatRegion((Interval(0, 3_000), Interval(10_000, 13_000))),
+            RepeatRegion((Interval(20_000, 26_000),)),
         ),
     )
-    with pytest.raises(JunctionError, match="continues neither IR copy"):
+    with pytest.raises(JunctionError, match="not one circular copy"):
         junction_regions(stranded)
 
 

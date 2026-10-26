@@ -109,11 +109,12 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     # names are one locus, the reference says which of them the project prints.
     aliases = oriented_aliases(load_gene_aliases(), reference)
     vocabulary = vocabulary_of(reference)
-    reference_ir = _frame_of(reference)
+    ir_source = str(params.get("ir_source", "annotation"))
+    reference_ir = _frame_of(reference, source=ir_source)
 
     notes: list[str] = []
     for record in records:
-        already = duplicate_names(record, _frame_of(record))
+        already = duplicate_names(record, _frame_of(record, source=ir_source))
         if already:
             notes.append(
                 f"{_label(record)} already carries more than one gene under {_names(already)} "
@@ -148,10 +149,11 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 aliases=aliases,
                 vocabulary=vocabulary,
                 protein_hits=protein_hits,
+                ir_source=ir_source,
             )
         )
 
-    conflicts = _conflicts(records, decisions)
+    conflicts = _conflicts(records, decisions, ir_source=ir_source)
     if conflicts and on_conflict != ON_CONFLICT_CONTINUE:
         raise NamingConflictError(
             f"gene_normalize: {len(conflicts)} conflict(s) between the records and "
@@ -202,15 +204,16 @@ def _location(gene: Gene) -> str:
     return f"({start_1b}..{end_1b}{'+' if gene.strand >= 0 else '-'})"
 
 
-def _frame_of(genome: Genome) -> IRResult | None:
+def _frame_of(genome: Genome, *, source: str = "annotation") -> IRResult | None:
     """The record's IR, or None when it has none — test 4 then reports itself not measured.
 
     The gate is applied, never bypassed: a record whose IR copies disagree is exactly the record
-    whose gene order cannot be trusted, so its neighbours are not evidence either. Naming is not a
-    position-based analysis (``requires_ir=False``); this is a test's input, not a coordinate.
+    whose gene order cannot be trusted, so its neighbours are not evidence either. The run's
+    ``ir_source`` choice is honoured (annotation-first, or the explicit sequence path); this is a
+    test's input, not a coordinate.
     """
     try:
-        return enforce_ir_gate(detect_ir(genome))
+        return enforce_ir_gate(detect_ir(genome, source=source))
     except (IRGateError, IRDetectionError):
         return None
 
@@ -314,8 +317,9 @@ def _decide_record(
     aliases: AliasTable,
     vocabulary: dict[str, Gene],
     protein_hits: dict[tuple[int, int], tuple[Hit, ...]],
+    ir_source: str,
 ) -> list[GeneDecision]:
-    record_ir = _frame_of(record)
+    record_ir = _frame_of(record, source=ir_source)
     decisions: list[GeneDecision] = []
     for gene_number, gene in enumerate(record.genes):
         if gene.kind not in GENE_KINDS:
@@ -357,7 +361,10 @@ def _hypothesis(gene: Gene, aliases: AliasTable) -> str:
 
 
 def _conflicts(
-    records: Sequence[Genome], decisions: Sequence[tuple[int, GeneDecision]]
+    records: Sequence[Genome],
+    decisions: Sequence[tuple[int, GeneDecision]],
+    *,
+    ir_source: str = "annotation",
 ) -> list[str]:
     """Every case D5-09's stop tier covers, each with the coordinates it names.
 
@@ -381,7 +388,7 @@ def _conflicts(
             for row_index, decision in decisions
             if row_index == index and decision.renamed and decision.canonical
         }
-        for name in duplicate_names(renamed, _frame_of(renamed)):
+        for name in duplicate_names(renamed, _frame_of(renamed, source=ir_source)):
             if name not in created:
                 continue  # the record arrived that way: reported as a note, not stopped on
             where = ", ".join(_location(gene) for gene in renamed.genes if gene.name == name)

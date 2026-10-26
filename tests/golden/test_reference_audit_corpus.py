@@ -39,16 +39,22 @@ def _paths() -> list[Path]:
 
 
 def test_the_audit_reproduces_the_measured_corpus() -> None:
-    """32/34 one orientation · 2/34 inverted and reported · one record blocked, on partial."""
+    """31/34 one orientation · 2/34 inverted and reported · one record blocked on two checks.
+
+    Re-measured 26/10/2026: NC_024936.1's annotated IR is 26,220/26,186 bp and aligns at 99.80 %
+    end to end, so it is blocked on the IR as well as on its partial coordinates. It cannot vote on
+    orientation — 31 same, 1 unknown, 2 opposite (the same two inverted records).
+    """
     report = audit.audit_files(_paths(), confirm=None)
 
     assert len(report.records) == 34
     assert {Path(finding.file).name for finding in report.blocked} == {PARTIAL}
-    assert {finding.check for finding in report.blocked} == {"partial"}
+    assert {finding.check for finding in report.blocked} == {"partial", "ir"}
     assert not report.ok  # a blocked record stops a run — that is the gate
 
     orientations = {Path(record.file).name: record.ssc_orientation for record in report.records}
-    assert sum(1 for value in orientations.values() if value == "same") == 32
+    assert sum(1 for value in orientations.values() if value == "same") == 31
+    assert sum(1 for value in orientations.values() if value == "unknown") == 1
     assert {name for name, value in orientations.items() if value == "opposite"} == INVERTED
 
     reported = {Path(finding.file).name for finding in report.reported}
@@ -56,12 +62,20 @@ def test_the_audit_reproduces_the_measured_corpus() -> None:
 
 
 def test_every_record_carries_its_own_translation_and_translates() -> None:
-    """The two rules that make blastx transfer possible, measured across the whole set."""
+    """Every record carries and translates its proteins; one annotated IR is refused, by name.
+
+    NC_024936.1's 26,220/26,186 bp copies align at 99.80 % — below the gate — so annotation-first
+    refuses that record rather than silently substituting the sequence's repeat (D11-2). The
+    other 33 annotated IRs pass; no translation or ORF finding is present.
+    """
     report = audit.audit_files(_paths(), confirm=None)
 
     assert not [finding for finding in report.findings if finding.check == "translation"]
     assert not [finding for finding in report.findings if finding.check == "orf"]
-    assert not [finding for finding in report.findings if finding.check == "ir"]
+    ir_findings = [finding for finding in report.findings if finding.check == "ir"]
+    assert [Path(finding.file).name for finding in ir_findings] == [PARTIAL]
+    assert all(finding.blocks for finding in ir_findings)
+    assert "99.80 %" in ir_findings[0].reason
 
 
 def test_the_gene_set_report_names_the_records_that_spell_a_locus_differently() -> None:

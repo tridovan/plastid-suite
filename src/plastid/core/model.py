@@ -19,6 +19,7 @@ __all__ = [
     "GeneCounts",
     "Genome",
     "Interval",
+    "RepeatRegion",
     "cds_features",
     "coding_sequence",
     "count_genes",
@@ -161,6 +162,96 @@ def gene_qualifiers(gene: Gene) -> dict[str, str | None]:
     return dict(qualifiers)
 
 
+@dataclass(frozen=True, slots=True)
+class RepeatRegion:
+    """One ``repeat_region`` feature: one copy, even when its location is a ``join``.
+
+    A GenBank location that crosses the origin is written as ``join(m..L,1..k)``; BioPython
+    hands those over as separate parts. Keeping the parts together is what makes the copy whole
+    (M11.3): a copy one base short no longer pairs with the other, and a flattened list cannot say
+    which piece belongs to which copy. ``parts`` is the one source; everything else is derived.
+
+    ``start``/``end``/``length`` are the outer bounds in the record's frame. For a wrapped copy
+    they are not a useful linear interval — use :meth:`arc` with the genome length when the
+    circular extent matters.
+    """
+
+    parts: tuple[Interval, ...]
+
+    def __post_init__(self) -> None:
+        if not self.parts:
+            raise ValueError("a repeat_region has no location parts")
+
+    @property
+    def length(self) -> int:
+        return sum(part.length for part in self.parts)
+
+    @property
+    def strand(self) -> int:
+        strands = {part.strand for part in self.parts}
+        return strands.pop() if len(strands) == 1 else 0
+
+    @property
+    def start(self) -> int:
+        return min(part.start for part in self.parts)
+
+    @property
+    def end(self) -> int:
+        return max(part.end for part in self.parts)
+
+    @property
+    def partial_start(self) -> bool:
+        first = min(self.parts, key=lambda part: part.start)
+        return first.partial_start
+
+    @property
+    def partial_end(self) -> bool:
+        last = max(self.parts, key=lambda part: part.end)
+        return last.partial_end
+
+    def arc(self, genome_length: int) -> tuple[int, int]:
+        """``(start, length)`` of the single circular arc the parts cover.
+
+        A joined copy is contiguous on the circle: its parts may be written in either order, and
+        the gap between them (at most one) is the origin. More than one gap means the location is
+        not one repeat — a malformed annotation, refused by the caller rather than silently
+        stitched. ``start`` is the first base after the gap, so a wrapped copy has
+        ``start + length > genome_length``.
+        """
+        if genome_length <= 0:
+            raise ValueError("genome_length must be positive")
+        parts = sorted(self.parts, key=lambda part: (part.start, part.end))
+        for earlier, later in zip(parts, parts[1:], strict=False):
+            if earlier.end > later.start:
+                raise ValueError(
+                    f"repeat_region parts overlap: {earlier.start + 1}..{earlier.end} and "
+                    f"{later.start + 1}..{later.end}"
+                )
+            if later.end > genome_length:
+                raise ValueError(
+                    f"repeat_region part {later.start + 1}..{later.end} is past the sequence "
+                    f"end ({genome_length} bp)"
+                )
+        gaps = [
+            (earlier.end, later.start)
+            for earlier, later in zip(parts, parts[1:], strict=False)
+            if later.start > earlier.end
+        ]
+        circular_gap = parts[-1].end, parts[0].start + genome_length
+        if circular_gap[1] > circular_gap[0]:
+            gaps.append(circular_gap)
+        if len(gaps) > 1:
+            raise ValueError(
+                "repeat_region parts do not form one circular arc "
+                f"({len(gaps)} gaps: {[(a + 1, b) for a, b in gaps]})"
+            )
+        if not gaps:
+            # The parts tile the whole circle. That is not an IR copy; keep the answer explicit.
+            return 0, genome_length
+        gap_end = gaps[0][1] % genome_length
+        return gap_end, self.length
+
+
 @dataclass(slots=True)
 class Genome:
     """One organelle genome. ``sequence`` is uppercase; ``genes`` keeps every copy (both IRs)."""
@@ -170,12 +261,22 @@ class Genome:
     accession: str | None = None
     topology: str = "circular"
     genes: tuple[Gene, ...] = ()
-    repeat_regions: tuple[Interval, ...] = ()
+    # One entry per ``repeat_region`` feature. A bare Interval is accepted for callers that build
+    # a single-part region and is wrapped here; there is no second, independently mutable form.
+    repeat_regions: tuple[RepeatRegion, ...] = ()
     # the record's own source qualifiers (organism · organelle · mol_type · cultivar · …). They
     # travel with the record for the same reason /transl_table does: a submission has to state
     # them, and inventing an organism would be worse than refusing. Measured 2026-10-03 — a
     # table without them fails NCBI's own validator twice.
     source: dict[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Single-part callers (tests, annotation writers) may pass an Interval. Normalizing here
+        # keeps one representation in the model instead of two that can drift.
+        self.repeat_regions = tuple(
+            region if isinstance(region, RepeatRegion) else RepeatRegion((region,))
+            for region in self.repeat_regions
+        )
 
     def __len__(self) -> int:
         return len(self.sequence)

@@ -22,7 +22,7 @@ from Bio.SeqFeature import (
 )
 from Bio.SeqRecord import SeqRecord
 
-from plastid.core.model import Gene, Genome, Interval, gene_qualifiers
+from plastid.core.model import Gene, Genome, Interval, RepeatRegion, gene_qualifiers
 
 __all__ = ["read_fasta", "read_genbank", "read_genbank_records", "to_genbank"]
 
@@ -75,11 +75,17 @@ def _to_genome(record: SeqRecord) -> Genome:
     genes = tuple(
         _to_gene(feature) for feature in record.features if feature.type in _GENE_FEATURE_TYPES
     )
+    # One feature is one copy. A join that crosses the origin arrives as several parts; keeping
+    # them in one RepeatRegion is what makes a wrapped copy whole (M11.3, K-03).
     repeat_regions = tuple(
-        _to_interval(location)
+        RepeatRegion(
+            tuple(
+                _to_interval(location)
+                for location in getattr(feature.location, "parts", [feature.location])
+            )
+        )
         for feature in record.features
         if feature.type == "repeat_region"
-        for location in getattr(feature.location, "parts", [feature.location])
     )
     return Genome(
         name=str(record.annotations.get("organism", record.id)),
@@ -226,7 +232,7 @@ def _to_record(genome: Genome, *, translations: bool = False) -> SeqRecord:
     if source is not None:
         features.append(source)
     features.extend(_gene_feature(gene, length, translations) for gene in genome.genes)
-    features.extend(_repeat_feature(interval, length) for interval in genome.repeat_regions)
+    features.extend(_repeat_feature(region, length) for region in genome.repeat_regions)
     record.features = features
     return record
 
@@ -273,9 +279,9 @@ def _gene_feature(gene: Gene, length: int, translations: bool = False) -> SeqFea
     )
 
 
-def _repeat_feature(interval: Interval, length: int) -> SeqFeature:
+def _repeat_feature(region: RepeatRegion, length: int) -> SeqFeature:
     return SeqFeature(
-        _location((interval,), length, "repeat_region"),
+        _location(region.parts, length, "repeat_region"),
         type="repeat_region",
     )
 

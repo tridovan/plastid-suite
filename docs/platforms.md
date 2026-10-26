@@ -67,5 +67,7 @@ either fed from the module's own citations or dropped; it must not become a seco
 of truth (recorded as a finding, not silently fixed here).
 
 The previous module-list check was removed with `tests/unit/test_project_docs.py` during the
-documentation cleanup. Restoring that product check independently of private session documents is
-planned; this table is not currently protected by that deleted test.
+documentation cleanup. It is restored in `tests/unit/test_product_docs.py` (M11.14), independently
+of private session documents: that test asserts every registered module has a row here and that the
+README status line names the version in `pyproject.toml`, and it includes negative controls that
+prove both checks can fail.

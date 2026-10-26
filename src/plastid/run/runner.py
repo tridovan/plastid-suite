@@ -9,8 +9,10 @@ import hashlib
 import inspect
 import json
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from plastid.core.ir import IRResult
 from plastid.core.model import Genome
@@ -18,6 +20,7 @@ from plastid.result.export import Payload, export_csv, export_json
 from plastid.result.result import Result
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
+from plastid.run.tools import tool_version
 
 __all__ = [
     "DATA_LABEL_PARAM",
@@ -49,6 +52,11 @@ class StepOutcome:
     status: str  # "ok" | "cached"
     key: str
     files: tuple[str, ...]  # absolute paths, deterministic order
+    # The computation behind these files: module/source/input digests and the tool calls made.
+    # On "ok" it describes this run; on "cached" it is the *original* run's record, while
+    # ``RunContext.tools`` stays empty — the two together say what made the payload and what ran
+    # now (M11.12).
+    provenance: dict[str, Any] | None = None
 
 
 def _params_hash(params: dict) -> str:
@@ -107,6 +115,15 @@ def _input_hash(genome: Genome) -> str:
                     gene.kind,
                     gene.product,
                     gene.pseudo,
+                    # The record's own declarations can each change a module's answer:
+                    # /transl_table decides a CDS's status, /codon_start its frame,
+                    # /exception whether the CDS may be submitted as-is, and
+                    # /trans_splicing what the feature means. Omitting them let two annotations
+                    # share a payload (K-02, M11.12).
+                    gene.trans_splicing,
+                    gene.transl_table,
+                    gene.codon_start,
+                    gene.exception,
                     # The annotator searches the record's own /translation (D5-08): two records
                     # with one sequence and one gene list but different proteins are two
                     # different inputs, and the cache may not conflate them.
@@ -118,8 +135,15 @@ def _input_hash(genome: Genome) -> str:
                 )
                 for gene in genome.genes
             ],
+            # One repeat_region feature is one copy, possibly joined across the origin. Hashing
+            # its parts (not the outer bounds) keeps a wrapped copy distinct from a shorter one
+            # that happens to share its span.
             "repeat_regions": [
-                (region.start, region.end, region.strand) for region in genome.repeat_regions
+                tuple(
+                    (part.start, part.end, part.strand, part.partial_start, part.partial_end)
+                    for part in region.parts
+                )
+                for region in genome.repeat_regions
             ],
         },
         sort_keys=True,
@@ -138,6 +162,63 @@ def _module_source_hash(run_fn: RunFn) -> str:
     """
     source = inspect.getsourcefile(run_fn) or inspect.getfile(run_fn)
     return hashlib.sha256(Path(source).read_bytes()).hexdigest()
+
+
+_PACKAGE_ROOT = Path(__file__).resolve().parents[1]  # src/plastid
+
+
+def _package_source_hash(root: Path = _PACKAGE_ROOT) -> str:
+    """Every packaged source and data file, hashed together — the shared-code half of the key.
+
+    A module imports ``core/``, ``result/`` and ``run/`` helpers, and reads packaged resources
+    (``data/defaults.yaml``, report templates, R scripts, gene-name lists). Any of those can change
+    what the module produces while the module file itself is untouched, so ``_module_source_hash``
+    alone was a narrower identity than the key claimed (M11.12). The digest covers relative path
+    *and* content, so a rename or a move is a change too.
+
+    Coarser than it could be — editing any module invalidates every module's payload — and that is
+    deliberate: over-invalidation costs a recomputation, while under-invalidation serves a result
+    the current code would not produce. ``__pycache__`` is excluded because its bytes are an
+    interpreter artefact, not source.
+    """
+    digest = hashlib.sha256()
+    for path in sorted(
+        candidate
+        for candidate in root.rglob("*")
+        if candidate.is_file() and "__pycache__" not in candidate.parts
+    ):
+        digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _tools_still_current(tools: object) -> bool:
+    """Whether every tool an entry recorded still reports what it recorded.
+
+    A cache hit restores a payload, not the computation that made it. If the version probe now
+    answers differently — an upgraded BLAST+, a moved Rscript, a tool that has vanished — the
+    stored payload was produced by a *different environment* and must not be served as this run's
+    result (M11.12). ``pinned``/``vendored`` versions are declared by the package, whose contents
+    are already in the shared-code digest.
+    """
+    if not isinstance(tools, list):
+        return False
+    for record in tools:
+        if not isinstance(record, dict):
+            return False
+        stored = (record.get("version"), record.get("version_source"))
+        if stored[1] == "pinned":
+            continue
+        current = tool_version(
+            str(record.get("name", "")),
+            str(record.get("kind", "binary")),
+            record.get("path"),
+        )
+        if current != stored:
+            return False
+    return True
 
 
 def _ir_fingerprint(ir: IRResult | None) -> str:
@@ -231,26 +312,37 @@ def execute_step(
             f"module {module_id!r} needs at least {arity} genomes, got {len(genomes)} — "
             f"the v0.2 contract is run(genomes, …)"
         )
+    module_source = _module_source_hash(run_fn)
+    shared_code = _package_source_hash()
+    params_hash = _params_hash(params)
+    input_sha256s = tuple(_input_hash(genome) for genome in genomes)
+    ir_fingerprint = _ir_fingerprint(ctx.ir)
+    # What the step is asked to *produce* is part of what it is: a run asking for a Word
+    # document must not be served a payload that has none (H-14, measured 05/10/2026 — a
+    # `--docx` run came back `cached` with 0 .docx files, and the manifest's `command`
+    # did not carry the flag either).
+    payload_kinds = ("report" if render_report is not None else "") + (
+        "+document" if render_document is not None else ""
+    )
     key = Cache.key(
         module_id=module_id,
         module_version=module_version,
-        module_source=_module_source_hash(run_fn),
-        params_hash=_params_hash(params),
-        input_sha256s=tuple(_input_hash(genome) for genome in genomes),
-        ir_fingerprint=_ir_fingerprint(ctx.ir),
-        # What the step is asked to *produce* is part of what it is: a run asking for a Word
-        # document must not be served a payload that has none (H-14, measured 05/10/2026 — a
-        # `--docx` run came back `cached` with 0 .docx files, and the manifest's `command`
-        # did not carry the flag either).
-        payload_kinds=(
-            ("report" if render_report is not None else "")
-            + ("+document" if render_document is not None else "")
-        ),
+        module_source=module_source,
+        shared_code=shared_code,
+        params_hash=params_hash,
+        input_sha256s=input_sha256s,
+        ir_fingerprint=ir_fingerprint,
+        payload_kinds=payload_kinds,
     )
     if not force:
         cached = cache.get(key)
-        if cached is not None:
-            return StepOutcome(status="cached", key=key, files=_write(ctx, cached))
+        if cached is not None and _tools_still_current(cached.provenance.get("tools")):
+            return StepOutcome(
+                status="cached",
+                key=key,
+                files=_write(ctx, cached.files),
+                provenance=cached.provenance,
+            )
 
     result = run_fn(genomes[0], params, ctx) if arity == 1 else run_fn(genomes, params, ctx)
     if result.module != module_id:
@@ -258,5 +350,22 @@ def execute_step(
     result = label_result(result, params.get(DATA_LABEL_PARAM))
     payload = export_files(result, render_report, render_document)
     files = _write(ctx, payload)
-    cache.put(key, payload)
-    return StepOutcome(status="ok", key=key, files=files)
+    provenance: dict[str, Any] = {
+        "module": module_id,
+        "version": module_version,
+        "module_source": module_source,
+        "shared_code": shared_code,
+        "params": params_hash,
+        "inputs": list(input_sha256s),
+        "ir": ir_fingerprint,
+        "payload": payload_kinds,
+        # The tools this computation actually called — not the ones it might have called. A
+        # cache hit leaves this record untouched while the current run's `ctx.tools` stays empty.
+        "tools": [asdict(record) for record in ctx.tools],
+        "computed_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    # The cache stores JSON, which turns tuples into lists. Normalize here so a fresh outcome and
+    # the later cache hit describe the same computation in the same shape (a tuple != a list).
+    provenance = json.loads(json.dumps(provenance))
+    cache.put(key, payload, provenance=provenance)
+    return StepOutcome(status="ok", key=key, files=files, provenance=provenance)

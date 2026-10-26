@@ -101,6 +101,10 @@ def test_cli_comparison_module_reports_a_missing_aligner(
             str(tmp_path),
             "--dataset",
             "pair",
+            # NC_024936.1's annotated IR is below the gate; this test is about MAFFT, so use the
+            # explicit sequence path (the manifest records that choice).
+            "--set",
+            "ir_source=sequence",
         ]
     )
     assert code == 3
@@ -140,6 +144,8 @@ def test_cli_comparison_output_carries_the_group_label(
             "pair",
             "--groups",
             str(groups),
+            "--set",
+            "ir_source=sequence",
         ]
     )
     assert code == 0
@@ -169,6 +175,8 @@ def test_cli_run_reports_an_input_with_no_group_label(
             "pair",
             "--groups",
             str(groups),
+            "--set",
+            "ir_source=sequence",
         ]
     )
     assert code == 1

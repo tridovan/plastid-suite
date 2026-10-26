@@ -120,10 +120,10 @@ def test_second_identical_run_is_cached_and_identical(tmp_path: Path, data_dir: 
 
 
 def test_failed_gate_stops_the_run_with_exit_2(tmp_path: Path, data_dir: Path) -> None:
-    # NC_063920's IR copies are 92.6 % identical — position-based analysis must not run.
+    # NC_063921's IR copies are 99.16 % identical end to end — position-based analysis must not run.
     records = SeqIO.parse(str(data_dir / "iridaceae_edge_cases.gb"), "genbank")
-    target = next(record for record in records if record.id == "NC_063920.1")
-    single = tmp_path / "NC_063920.1.gb"
+    target = next(record for record in records if record.id == "NC_063921.1")
+    single = tmp_path / "NC_063921.1.gb"
     SeqIO.write(target, str(single), "genbank")
 
     assert _run(tmp_path, single, dataset="diverged") == 2
@@ -151,34 +151,82 @@ def test_golden_numbers_reach_the_report_and_the_csv(tmp_path: Path, data_dir: P
 
 
 def test_second_golden_genome_runs_cleanly(tmp_path: Path, data_dir: Path) -> None:
-    """The comparison genome NC_024936.1 (Iris gatesii) must run end-to-end as well."""
-    assert _run(tmp_path, data_dir / "NC_024936.1.gb", dataset="iris_gatesii") == 0
+    """The comparison genome NC_024936.1 runs end-to-end on the explicit sequence path.
+
+    Its annotated copies are 26,220/26,186 bp and align at 99.80 % end to end — below the gate, so
+    the default annotation-first run refuses it (D11-2). The sequence's own repeat is used only when
+    the user asks for it; this is that labelled path.
+    """
+    assert (
+        _run(
+            tmp_path,
+            data_dir / "NC_024936.1.gb",
+            dataset="iris_gatesii",
+            extra=["--set", "ir_source=sequence"],
+        )
+        == 0
+    )
     run_dir = _only_run_dir(tmp_path, "iris_gatesii")
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "ok"
+    assert manifest["params"]["ir_source"] == "sequence"
     assert manifest["ir"]["gate_passed"] is True
+    assert manifest["ir"]["source"] == "denovo_diag"
+    # the annotation it did not use is still recorded, so the choice is visible
+    assert manifest["ir"]["annotated_lengths"] == [26_220, 26_186]
+    assert manifest["ir"]["alignment_method"] == "anchored"
+    assert manifest["ir"]["known_columns"] >= manifest["ir"]["compared_columns"] // 2
 
 
-def test_both_diverged_ir_genomes_stop_with_exit_2(tmp_path: Path, data_dir: Path) -> None:
-    """Every genome whose two IR copies disagree must be stopped by the gate, loudly.
+def test_the_annotation_source_is_refused_with_the_way_out(
+    tmp_path: Path, data_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The default path refuses NC_024936.1 and names ``ir_source=sequence`` (D11-2)."""
+    assert _run(tmp_path, data_dir / "NC_024936.1.gb", dataset="iris_gatesii_refused") == 2
+    stderr = capsys.readouterr().err
+    assert "99.80 % identity" in stderr
+    assert "--set ir_source=sequence" in stderr
+    run_dir = _only_run_dir(tmp_path, "iris_gatesii_refused")
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "failed"
+    assert manifest["ir"]["gate_passed"] is False
+    assert manifest["ir"]["annotated_lengths"] == [26_220, 26_186]
 
-    Measured: NC_063920.1 is 92.63 % and NC_063921.1 is 98.87 % — both below 99.9 %.
+
+def test_only_the_diverged_ir_genome_stops_after_gap_aware_measurement(
+    tmp_path: Path, data_dir: Path
+) -> None:
+    """NC_063920 now passes; NC_063921 still fails. Both verdicts come from the full copies.
+
+    Re-measured 26/10/2026 with the end-to-end alignment (M11.4): NC_063920's copies differ by 10
+    mismatches and 5 internal gaps over 26,164 columns (99.94 %), while NC_063921's differ by 147
+    mismatches and 72 gaps over 26,219 (99.16 %). The old 92.63 % for NC_063920 was the ungapped
+    mirror pairing shifting every base after a 1 bp indel.
     """
-    records = [
-        record
+    records = {
+        record.id: record
         for record in SeqIO.parse(str(data_dir / "iridaceae_edge_cases.gb"), "genbank")
         if record.id in {"NC_063920.1", "NC_063921.1"}
-    ]
-    assert len(records) == 2
-    for record in records:
-        single = tmp_path / f"{record.id}.gb"
-        SeqIO.write(record, str(single), "genbank")
-        label = record.id.lower()  # dataset labels are slugified (RunLayout)
-        assert _run(tmp_path, single, dataset=label) == 2
-        run_dir = _only_run_dir(tmp_path, label)
-        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-        assert manifest["status"] == "failed"
-        assert not (run_dir / "01_genome_stats").exists(), "no module output after a failed gate"
+    }
+    assert set(records) == {"NC_063920.1", "NC_063921.1"}
+
+    passing = tmp_path / "NC_063920.1.gb"
+    SeqIO.write(records["NC_063920.1"], str(passing), "genbank")
+    assert _run(tmp_path, passing, dataset="nc_063920") == 0
+    passed_manifest = json.loads(
+        (_only_run_dir(tmp_path, "nc_063920") / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert passed_manifest["ir"]["gate_passed"] is True
+    assert passed_manifest["ir"]["identity"] == pytest.approx(26_149 / 26_164)
+
+    failing = tmp_path / "NC_063921.1.gb"
+    SeqIO.write(records["NC_063921.1"], str(failing), "genbank")
+    assert _run(tmp_path, failing, dataset="nc_063921") == 2
+    failed_manifest = json.loads(
+        (_only_run_dir(tmp_path, "nc_063921") / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert failed_manifest["status"] == "failed"
+    assert not (_only_run_dir(tmp_path, "nc_063921") / "01_genome_stats").exists()
 
 
 def test_structure_run_reports_regions_and_skew(tmp_path: Path, data_dir: Path) -> None:
@@ -340,6 +388,8 @@ def test_a_run_writes_its_figure_and_a_second_run_writes_the_same_bytes(
                 str(tmp_path),
                 "--dataset",
                 "golden_figures",
+                "--set",
+                "ir_source=sequence",
                 "--figures",
             ]
         )
@@ -402,6 +452,8 @@ def test_asking_for_a_figure_without_the_extra_is_a_named_exit_3(
             str(tmp_path),
             "--dataset",
             "no_figures_extra",
+            "--set",
+            "ir_source=sequence",
             "--figures",
         ]
     )

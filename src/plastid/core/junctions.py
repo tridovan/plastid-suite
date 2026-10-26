@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from plastid.core.model import Genome, Interval
+from plastid.core.model import Genome
 
 __all__ = [
     "JunctionError",
@@ -120,10 +120,10 @@ class JunctionRegions:
 def junction_regions(genome: Genome) -> JunctionRegions:
     """Cut one record into LSC/IRb/SSC/IRa from its own ``repeat_region`` annotation.
 
-    The two copies are told apart by geometry, not by qualifier text: the larger of the two gaps
-    between them is the LSC, and the copy that follows the LSC is IRb. A qualifier would be the
-    direct answer, but the model does not carry ``/note`` — and guessing at text is the CGAS trap
-    (``core/ir.py``).
+    Each ``repeat_region`` feature is one copy, read whole: a copy the record writes as
+    ``join(m..L,1..k)`` is one circular arc, not two candidates (M11.3, K-03). The two copies are
+    told apart by geometry, not by qualifier text: the larger of the two gaps between them is the
+    LSC, and the copy that follows the LSC is IRb.
     """
     length = len(genome)
     if length == 0:
@@ -137,24 +137,32 @@ def junction_regions(genome: Genome) -> JunctionRegions:
             f"({[(r.start + 1, r.end) for r in genome.repeat_regions]}) — the junction figure is "
             f"drawn from the record's own annotation and cannot be drawn without it"
         )
-    first, second = sorted(copies, key=lambda region: region.start)
-    if first.end > second.start:
+    arcs: list[tuple[int, int]] = []
+    for region in copies:
+        try:
+            arcs.append(region.arc(length))
+        except ValueError as error:
+            raise JunctionError(
+                f"{genome.accession or genome.name}: repeat_region "
+                f"{region.start + 1}..{region.end} is not one circular copy — {error}"
+            ) from None
+    first, second = sorted(arcs, key=lambda arc: arc[0])
+    if _arcs_overlap(first, second, length):
         raise JunctionError(
             f"{genome.accession or genome.name}: the two IR copies overlap "
-            f"({first.start + 1}-{first.end} and {second.start + 1}-{second.end})"
+            f"({first[0] + 1}..{first[0] + first[1]} and {second[0] + 1}..{second[0] + second[1]})"
         )
 
     # The larger gap is the LSC; the copy after it is IRb.
-    between = second.start - first.end
-    across = (length - second.end) + first.start
+    between = (second[0] - (first[0] + first[1])) % length
+    across = length - first[1] - second[1] - between
     if between >= across:
-        irb, ira = second, first
+        irb_arc, ira_arc = second, first
     else:
-        irb, ira = first, second
+        irb_arc, ira_arc = first, second
 
-    wraps = _wraps_for(genome, ira, irb)
-    ira_span = _span("IRa", ira, wraps.get("IRa"))
-    irb_span = _span("IRb", irb, wraps.get("IRb"))
+    ira_span = _arc_span("IRa", ira_arc, length)
+    irb_span = _arc_span("IRb", irb_arc, length)
 
     # LSC runs from the end of IRa to the start of IRb; SSC from the end of IRb to the start of
     # IRa. Either copy may wrap the origin — which of them does depends on where the record's
@@ -176,54 +184,43 @@ def junction_regions(genome: Genome) -> JunctionRegions:
     )
 
 
+def _arcs_overlap(first: tuple[int, int], second: tuple[int, int], length: int) -> bool:
+    (first_start, first_length), (second_start, second_length) = first, second
+    return (second_start - first_start) % length < first_length or (
+        first_start - second_start
+    ) % length < second_length
+
+
 def _after(region: RegionSpan, length: int) -> int:
     """The base that follows a region — position 1 when the region ends at the record's end."""
     last = region.wrap_end_1b if region.wrap_end_1b is not None else region.end_1b
     return 1 if last >= length else last + 1
 
 
-def _wraps_for(genome: Genome, ira: Interval, irb: Interval) -> dict[str, Interval]:
-    """The small ``repeat_region`` pieces that start at position 1, and the copy each belongs to.
-
-    A piece at the very start of the record continues the copy that ends at the record's end: the
-    two are one run across the origin. A piece that fits neither copy is an error, not a piece to
-    file somewhere convenient.
-    """
-    length = len(genome)
-    pieces = [
-        region for region in genome.repeat_regions if region.start == 0 and region.end < length
-    ]
-    if not pieces:
-        return {}
-    attached: dict[str, Interval] = {}
-    for piece in pieces:
-        for name, copy in (("IRa", ira), ("IRb", irb)):
-            if copy.end == length:
-                attached[name] = piece
-                break
-        else:
-            raise JunctionError(
-                f"{genome.accession or genome.name}: a repeat_region piece at 1-{piece.end} "
-                f"continues neither IR copy (they end at {ira.end} and {irb.end}, the record at "
-                f"{length}) — the annotation cannot be read"
-            )
-    return attached
-
-
-def _span(name: str, copy: Interval, wrap: Interval | None) -> RegionSpan:
-    if wrap is None:
-        return RegionSpan(name=name, start_1b=copy.start + 1, end_1b=copy.end, length=copy.length)
+def _arc_span(name: str, arc: tuple[int, int], length: int) -> RegionSpan:
+    """One whole copy as a region span; a copy across the origin keeps both pieces."""
+    start, region_length = arc
+    if start + region_length <= length:
+        return RegionSpan(
+            name=name, start_1b=start + 1, end_1b=start + region_length, length=region_length
+        )
     return RegionSpan(
         name=name,
-        start_1b=copy.start + 1,
-        end_1b=copy.end,
-        length=copy.length + wrap.length,
-        wrap_end_1b=wrap.end,
+        start_1b=start + 1,
+        end_1b=length,
+        length=region_length,
+        wrap_end_1b=start + region_length - length,
     )
 
 
 def _span_between(name: str, start_1b: int, end_1b: int, length: int) -> RegionSpan:
-    """A region given by its first and last base; ``end < start`` runs across the origin."""
+    """A region given by its first and last base; ``end < start`` runs across the origin.
+
+    ``end_1b == 0`` means the region runs to the record's end and the next base is 1, so there is
+    no wrapped tail to print: a copy at position 1 is not a piece wrapping onto itself.
+    """
+    if end_1b == 0:
+        return RegionSpan(name=name, start_1b=start_1b, end_1b=length, length=length - start_1b + 1)
     if end_1b < start_1b:
         return RegionSpan(
             name=name,

@@ -66,7 +66,11 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     alignment = align(
         [(genome.accession or genome.name, genome.sequence) for genome in genomes], ctx
     )
-    frame = normalize(reference, detect_ir(reference))
+    # The CLI already chose the IR source for this run (annotation or the explicit
+    # `ir_source=sequence`); re-detecting here would ignore that choice. A direct module call
+    # (tests, a library user) has no CLI choice to honour, so it detects its own.
+    ir = ctx.ir if ctx.ir is not None else detect_ir(reference)
+    frame = normalize(reference, ir)
     positions = reference_positions(alignment)
 
     labels: dict[str, str] = params.get("groups", {})
