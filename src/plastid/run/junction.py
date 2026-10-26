@@ -89,7 +89,7 @@ class JunctionRow:
         return (
             f"{self.species} ({self.accession}): the IR gate {self.gate}{measured}. The figure is "
             f"drawn from the record's own annotation; a position-based analysis of this record "
-            f"will refuse it (H-25, ROADMAP.md → Known defects)"
+            f"will refuse it (H-25)"
         )
 
 

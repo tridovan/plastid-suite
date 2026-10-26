@@ -218,7 +218,7 @@ def test_the_workbook_holds_one_sheet_per_table_and_is_byte_identical() -> None:
 def test_the_workbook_pins_both_timestamps() -> None:
     """`modified` too — and it is the one openpyxl overwrites.
 
-    Measured 10/10/2026 (§9.C-38): `ExcelWriter.write_workbook` sets
+    Measured 10/10/2026: `ExcelWriter.write_workbook` sets
     ``workbook.properties.modified = datetime.datetime.now(...)`` **after** the caller has pinned
     it, so the pin on that field never reached the file and the byte-identity test above failed
     once in a full run (3 times in 300 exports — a clock-second race). This asserts the contract
@@ -235,7 +235,7 @@ def test_the_workbook_pins_both_timestamps() -> None:
 
 
 def test_a_core_xml_without_the_stamp_stops_the_export() -> None:
-    """The negative case: openpyxl changing the shape of ``core.xml`` must be loud (§9.C-38).
+    """The negative case: openpyxl changing the shape of ``core.xml`` must be loud.
 
     Silently returning the file unchanged is the failure this helper removes — a workbook whose
     bytes depend on the second it was written in, promised as reproducible.

@@ -4,13 +4,13 @@
 # this, and every tier-B test skips with a printed reason when a tool is absent rather than
 # failing. This file is for the analyses that *do* need a tool.
 #
-# VERSIONS ARE PART OF THE RESULT. PROJECT.md §9.B-14 measured the same input giving Ts/Tv 2.667
+# VERSIONS ARE PART OF THE RESULT. The same input was measured giving Ts/Tv 2.667
 # with one aligner and 2.686 with MAFFT — an unpinned `mafft` here would hand two users two
-# different golden numbers from the same genome. Every version below is the one PROJECT.md §7.8
-# records; where §7.8 records none, the line says so instead of pretending to be pinned.
+# different golden numbers from the same genome. Every version below is the one the
+# golden numbers were measured with; where none was recorded, the line says so instead of pretending to be pinned.
 #
 # Installing:  conda env create -f environment.yml
-# Windows users run the toolkit through docker/ instead (ROADMAP.md M9.2).
+# Windows users run the toolkit through docker/ instead.
 name: plastid-suite
 channels:
   - conda-forge
@@ -22,14 +22,14 @@ dependencies:
   - perl=5.32.1 # MISA 2.1 is a Perl script, and it is NOT bundled (its zip states no licence:
                 # D-q, docs/tools/misa.md has the download line and both hashes). perl is
                 # installed here; the script is obtained separately
-  - mafft=7.526 # §7.8 pins it AND records the tarball md5. conda-forge only — bioconda stops
-                # at 7.525, and §9.B-14 shows the aligner changes the Ts/Tv number
-  - cpstools=3.0 # bioconda only — NOT on conda-forge (§7.8). A CROSS-CHECK tool, not a module
+  - mafft=7.526 # pinned, tarball md5 recorded. conda-forge only — bioconda stops
+                # at 7.525, and the aligner build changes the Ts/Tv number
+  - cpstools=3.0 # bioconda only — NOT on conda-forge. A CROSS-CHECK tool, not a module
                 # dependency (D-j): no module of this toolkit calls it, and the minimum install
                 # stays pip-only. The dev machine runs the same 3.0 as a pip install in its own
                 # env — docs/tools/cpstools.md, measured 10/10/2026
   - kakscalculator2=2.0.1 # the KaKs_Calculator binary cpstools' KaKs sub-command shells out to;
-                # cross-check only (§8.61). Our own Ka/Ks module uses PAML's yn00, pinned below
+                # cross-check only. Our own Ka/Ks module uses PAML's yn00, pinned below
 
   # --- Phase 3: annotation --------------------------------------------------------------
   - aragorn=1.2.41 # the mito tRNA caller (P3A-04): 147 kB on bioconda, GPLv3, and the tool PMGA
@@ -41,14 +41,13 @@ dependencies:
 
   # --- Phase 4+: comparison, figures, dating ---------------------------------------------
   - mummer4=4.0.1 # nucmer + delta-filter + show-coords, the synteny pipeline (P4-01, D4-02),
-                 # and repeat-match, the repeats module's engine (M2.12, D-f). §7.8 recorded no
-                 # version; this is the build the block numbers were measured with
+                 # and repeat-match, the repeats module's engine (M2.12, D-f). No version was
+                 # recorded before; this is the build the block numbers were measured with
                  # (docs/tools/mummer4.md). The block count moves with the parameters, and the
                  # alignment can move with the build — not pinned means not reproducible
-  - mreps # §7.8 records no version
-  - trf # §7.8 records no version
-  - vmatch=2.3.1 # academic-only licence (§7.8)
-  - pycirclize=1.10.1 # conda-forge (§7.8)
+  - mreps # no version recorded
+  - trf # no version recorded
+  - vmatch=2.3.1 # academic-only licence
 
   # --- Phase 10: the manuscript's figures -------------------------------------------------
   - r-base=4.3 # the plotting engine behind the seven figure scripts (docs/tools/r.md). R is a
@@ -59,7 +58,7 @@ dependencies:
                # src/plastid/data/r_scripts/
   - r-ggplot2 # the nine the scripts call. NOT pinned, and the reason is the opposite of MAFFT's:
               # these draw a picture, they do not produce a number that reaches a table, so a
-              # version bump cannot move a golden figure's data. §7.8 records no version for any
+              # version bump cannot move a golden figure's data. No version is recorded for any
               # of them. A missing one is named before any figure is attempted
   - r-dplyr
   - r-tidyr
@@ -77,23 +76,23 @@ dependencies:
   - bandage=0.9.0
   - oatk=1.0 # needs an external HMM DB: github.com/c-zhou/OatkDB
   - raven-assembler=1.8.3
-  - novoplasty # §7.8 records no version
-  - minimap2 # §7.8 records no version
-  - samtools # §7.8 records no version
-  - wgsim # §7.8 records no version
+  - novoplasty # no version recorded
+  - minimap2 # no version recorded
+  - samtools # no version recorded
+  - wgsim # no version recorded
   - paml=4.10.10 # two programs of one package: yn00 is Phase 4's Ka/Ks estimator (P4-02, D4-01,
-                 # docs/tools/paml.md); mcmctree is Phase 6's (§7.8)
+                 # docs/tools/paml.md); mcmctree is Phase 6's
   - beast2=2.7.7
 
   # --- NOT here, on purpose ---------------------------------------------------------------
-  # PGA        retired from the toolkit 10/10/2026 (P3B-11, §8.56) and never a dependency; its
+  # PGA        retired from the toolkit 10/10/2026 (P3B-11) and never a dependency; its
   #            outputs survive as measured counter-examples in tests/data/corpus/*.pga.gb. Its
-  #            pinned source (commit 0683a0ec…, sha256 0d55b70e…) is in PROJECT.md §7.8, and it
-  #            is GPL-3.0 — it must not be bundled into the MIT-licensed package (docs/licensing.md).
+  #            pinned source is commit 0683a0ec… (sha256 0d55b70e…), and it is GPL-3.0 —
+  #            it must not be bundled into the MIT-licensed package (docs/licensing.md).
   # table2asn  not on conda — NCBI ships it directly:
   #            ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/
-  # mito       MITOS2 is a METAZOAN annotator and cannot do a plant mitochondrion (§7.8b). PMGA
+  # mito       MITOS2 is a METAZOAN annotator and cannot do a plant mitochondrion. PMGA
   #            (MAKER, CPGAVAS2, ARAGORN, tRNAscan-SE, TRF, Vmatch…) is far heavier and never ran
-  #            here; the mito annotate step is this project's own caller (P3A, §8.22), covered by
+  #            here; the mito annotate step is this project's own caller (P3A), covered by
   #            the blast/aragorn pinned above — nothing here is open.
-  # deepred-mt needs TensorFlow ~2 GB (§7.8); PMGA's RNA-editing module uses it
+  # deepred-mt needs TensorFlow ~2 GB; PMGA's RNA-editing module uses it

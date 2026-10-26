@@ -9,7 +9,7 @@ cpstools' (D-j).
 annotation · gene comparison · GenBank conversion · comparative analysis · codon usage · amino
 acids · SNP · introns · SSR · diversity · phylogeny. Source: `.data/cgas-review/`
 (`github.com/abdullah30/Chloroplast-Genome-Analysis-Suite-CGAS`, 19 `.py` files, ~21,400 lines —
-read and reviewed 02/10/2026, PROJECT.md §7.7 · §7.9).
+read and reviewed 02/10/2026).
 
 **Install line** (its own environment; nothing here may move the pinned builds in the shared
 toolbox env):
@@ -27,10 +27,10 @@ uv pip install --python /root/toolbox/env/cgas/bin/python -e .data/cgas-review
 | Python-only modules | 3, 4, 5, 6, 7, 10, 11 — these ran |
 | R-dependent modules | 8, 9, 12, 13 **compute their numbers in Python and skip only the plots** when R is absent (`⚠ R is not installed or not in PATH → Skipping visualization`) — measured, not assumed |
 | R on this machine | **absent** — so no CGAS figure was produced |
-| Not run here | 1 (needs FASTQ reads), 2 (annotation — PGA, retired from this project, §8.56), 14 (needs IQ-TREE and MACSE) |
+| Not run here | 1 (needs FASTQ reads), 2 (annotation — PGA, retired from this project), 14 (needs IQ-TREE and MACSE) |
 | License | MIT |
 
-**The argv the cross-check used** (§8.62 is the results):
+**The argv the cross-check used:**
 
 ```sh
 cgas -m 7  -i <dir>                              # genome structure: LSC/SSC/IR + GC
@@ -47,7 +47,7 @@ cgas -m 12 -i <dir> -t "10,6,5,5,5,5"            # … and again on MISA's thres
 * **It fails silently where it cannot detect.** On `NC_024936.1` module 7 prints the species name,
   finds no region, prints **no warning**, reports `LSC 0 · SSC 0 · IR 0` in the table and still
   counts the record under *"Successfully analyzed: 2/2 genomes"*. Our own paths find
-  26,184 bp @ 100.00 % on that record. This is the §7.9 failure family ("no IR ⇒ silent") seen from
+  26,184 bp @ 100.00 % on that record. This is the known failure family ("no IR ⇒ silent") seen from
   the other side: the record is not wrong, the zero is.
 * **Module 12's defaults are not MISA's.** `{1:10, 2:5, 3:4, 4:3, 5:3, 6:3}` against MISA's
   `{1:10, 2:6, 3:5, 4:5, 5:5, 6:5}` — 54 SSRs versus 37 on the golden, one parameter apart.

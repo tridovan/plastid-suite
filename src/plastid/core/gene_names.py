@@ -7,7 +7,7 @@ thing, so they are handled and reported separately:
   case and whitespace. This needs no external knowledge.
 * **semantics** — a different name for the same locus: ``pafI`` *is* ``ycf3``. That mapping is
   external knowledge and lives in ``data/gene_aliases.yaml`` with the evidence it rests on; the
-  canonical direction was D3-02 (PROJECT.md §8.10) and is **superseded 07/10/2026 by D5-09** — it
+  canonical direction was D3-02 and is **superseded 07/10/2026 by D5-09** — it
   will follow the project's naming reference once the naming step is built, and the alias table
   keeps D3-02's direction until then.
 * **sequence** — a bare tRNA name (``trnK``, no anticodon). Measured 2026-10-03: reading the
@@ -478,13 +478,13 @@ def references_from(
 # ---------------------------------------------------------------------------------------------
 # Reference-driven naming (D5-09, P3B-04): the name proposes, the sequence disposes.
 #
-# Four tests, in order, stopping at the first that decides (D5-09 §4): the name (syntax, then the
+# Four tests, in order, stopping at the first that decides (D5-09): the name (syntax, then the
 # alias table oriented by the naming reference), the sequence ranking, the margin between the best
 # and the runner-up, and the neighbours within one region. What is decided here is a *pairing*
 # between a gene of a record and a gene of the project's naming reference — the vocabulary the
-# whole project prints (D5-09 §3, vocabulary A).
+# whole project prints (D5-09, vocabulary A).
 #
-# The thresholds are measured, not chosen (PROJECT.md §8.41): on 2,838 cross-record CDS queries
+# The thresholds are measured, not chosen: on 2,838 cross-record CDS queries
 # the smallest true margin was 19.2 bits (median 298.0) and none fell under 5; with coverage ≥ 0.7
 # the best a genuinely different locus reached was 44.93 % identity while the worst a true ortholog
 # reached was 67.75 %. The mito path's coverage floor of 0.5 does **not** hold for plastid CDS —
@@ -498,7 +498,7 @@ TEST_SEQUENCE = "sequence"
 TEST_MARGIN = "margin"
 TEST_NEIGHBOURS = "neighbours"
 
-# The status column (D5-09 §5). Three values that must stay distinguishable, because a blank and
+# The status column (D5-09). Three values that must stay distinguishable, because a blank and
 # a zero look alike in every aggregate: the check ran, it could not run, or it ran and found
 # nothing in the reference. See :class:`GeneDecision` for the exact definitions used here.
 STATUS_MEASURED = "measured"
@@ -510,15 +510,15 @@ OUTCOME_CONFIRMED = "confirmed"
 OUTCOME_RENAMED = "renamed"
 OUTCOME_CONFLICT = "conflict"
 # Nothing changes in the output, and nothing confirmed the pairing either: the gene is written
-# as it arrived and a person is told what could not be settled (D5-09 §5's "reported" tier).
+# as it arrived and a person is told what could not be settled (D5-09's "reported" tier).
 OUTCOME_REPORTED = "reported"
 
-# The measured floors (§8.41). Named here so a module never carries a bare number.
+# The measured floors. Named here so a module never carries a bare number.
 IDENTITY_FLOOR = 50.0
 COVERAGE_FLOOR = 0.7
 MARGIN_FLOOR_BITS = 10.0
 
-# The pairwise-alignment parameters §8.41 measured the tRNA numbers with. They are part of the
+# The pairwise-alignment parameters the tRNA numbers were measured with. They are part of the
 # number: with cheaper gaps the same trnG pair reads 78.9 % instead of 73.2 %, which is why these
 # are constants here rather than literals at the call site.
 TRNA_MATCH_SCORE = 1.0
@@ -531,7 +531,7 @@ class Hit:
     """One candidate in the naming reference, as the sequence ranking put it.
 
     ``bits`` is BLAST's score and exists only for protein searches; a nucleotide comparison
-    carries identity without a score, because nothing measured a threshold for one (§8.41: for
+    carries identity without a score, because nothing measured a threshold for one (for
     tRNA no identity floor works at all, so the decision has to come from the name and the
     neighbours — the comparison is recorded as evidence, never as a verdict).
     """
@@ -614,7 +614,7 @@ class Neighbours:
 def oriented_aliases(aliases: AliasTable, reference: Genome) -> AliasTable:
     """The alias table with each locus's canonical form set to the **reference's** spelling.
 
-    D5-09 §8: the canonical direction stops being the group's dialect and becomes the naming
+    D5-09: the canonical direction stops being the group's dialect and becomes the naming
     reference's. The file says which names are one locus (external knowledge, unaffected by who
     the reference is); the reference says which of them the project prints. A locus the reference
     does not use keeps the file's direction — a gene the reference has nothing to say about is not
@@ -667,7 +667,7 @@ def duplicate_names(genome: Genome, ir: IRResult | None = None) -> tuple[str, ..
     Where the frame cannot be established, exact sequence equality is the fallback.
 
     The golden's two ``trnG-UCC`` genes are the case this must catch: both sit in the **LSC**,
-    they are 73.24 % identical (§8.41), and they are two different genes wearing one name.
+    they are 73.24 % identical, and they are two different genes wearing one name.
     """
     regions = _regions_by_gene(genome, ir) if ir is not None else {}
     by_name: dict[str, list[Gene]] = {}
@@ -718,7 +718,7 @@ def _regions_by_gene(genome: Genome, ir: IRResult) -> dict[Gene, str]:
 
 
 def nucleotide_identity(left: str, right: str) -> float:
-    """Percent identity of the best global alignment — the metric §8.41 measured tRNA with.
+    """Percent identity of the best global alignment — the metric the tRNA measurement used.
 
     BLAST needs seeds a tRNA does not have, so the comparison is a pairwise alignment, and its
     parameters are part of the number (see the constants above). Sequences too short to align
@@ -742,7 +742,7 @@ def protein_fasta_rows(genome: Genome, *, vocabulary: str) -> tuple[tuple[str, s
 
     The key is the three-field contract BLAST and the mito reference already share —
     ``accession|gene|vocabulary`` — with the record's own spelling and the vocabulary it is being
-    read as. The record's own ``/translation`` is used and never a self-translation (D5-08 §8.21);
+    read as. The record's own ``/translation`` is used and never a self-translation (D5-08);
     a CDS without one is left out here and reported by the caller, not translated by us.
     """
     accession = genome.accession or genome.name
@@ -763,11 +763,11 @@ def decide_gene(
     neighbours: Neighbours | None = None,
     reference_neighbours: Neighbours | None = None,
 ) -> GeneDecision:
-    """Run D5-09 §4's four tests over one gene and say what they decided.
+    """Run D5-09's four tests over one gene and say what they decided.
 
     ``molecules`` is ``"protein"`` for a CDS and ``"nucleotide"`` for a tRNA or rRNA, and it
-    changes which tests may decide — not as a shortcut, but because the measurement says so
-    (§8.41): for a tRNA the true and the wrong loci overlap in identity (53.76–100 % against up
+    changes which tests may decide — not as a shortcut, but because the measurement says so:
+    for a tRNA the true and the wrong loci overlap in identity (53.76–100 % against up
     to 73.97 %), so a ranking that prefers another serine tRNA is not evidence of anything, and
     only the name and the neighbours can decide.
 
@@ -809,7 +809,7 @@ def decide_gene(
     # --- test 1: the name, and whether the reference uses it -----------------------------------
     if in_vocabulary:
         if molecules == "nucleotide":
-            # The ranking cannot decide for a tRNA (§8.41); the name does, and the neighbours
+            # The ranking cannot decide for a tRNA; the name does, and the neighbours
             # are the only second opinion available.
             if neighbours is not None and reference_neighbours is not None:
                 if neighbours.agrees_with(reference_neighbours):
@@ -842,7 +842,8 @@ def decide_gene(
                 rule=TEST_NAME,
                 reason=(
                     "the name is the reference's; a nucleotide ranking cannot separate tRNA loci "
-                    "(measured §8.41) and no IR frame was available for the neighbours test"
+                    "(measured on the reference corpus) and no IR frame was available for the "
+                    "neighbours test"
                     if best is not None
                     else "the name is the reference's; no nucleotide comparison was made"
                 ),
@@ -924,7 +925,8 @@ def decide_gene(
                 f"the reference does not use the name {named}"
                 + (
                     f"; the closest nucleotide match is {best.locus} "
-                    f"({best.identity:.2f} %), which cannot separate tRNA loci (measured §8.41)"
+                    f"({best.identity:.2f} %), which cannot separate tRNA loci "
+                    "(measured on the reference corpus)"
                     if best is not None
                     else ""
                 )
@@ -1033,14 +1035,14 @@ def neighbours_of(
 
 
 # ---------------------------------------------------------------------------------------------
-# The project's naming reference (D5-09 §7): one record, chosen by the end user, recorded here.
+# The project's naming reference (D5-09): one record, chosen by the end user, recorded here.
 # ---------------------------------------------------------------------------------------------
 
 RECORDED_REFERENCE_FILE = "naming_reference.json"
 
 
 class NamingConflictError(Exception):
-    """A naming conflict stopped the step — every case named with its coordinates (D5-09 §5).
+    """A naming conflict stopped the step — every case named with its coordinates (D5-09).
 
     Raised by the module and mapped to the project's conflict exit code by ``cli.py``. It is an
     exception rather than a return value because a half-normalized record is not a result: the
@@ -1053,7 +1055,7 @@ class RecordedReference:
     """The recorded standard: which file, which bytes, who recorded it, and whether it is final.
 
     ``provisional`` is the field that stops an override from quietly becoming the decision: a
-    provisional entry stands in until the end user picks from the audit report (D5-09 §7.1), and
+    provisional entry stands in until the end user picks from the audit report (D5-09), and
     every report that used it can say so.
     """
 
@@ -1077,7 +1079,7 @@ class RecordedReference:
         if not candidate.is_file():
             raise FileNotFoundError(
                 f"the recorded naming reference is not at {candidate} — the standard this "
-                f"project prints is a file that has to be there (D5-09 §7.2). If you installed "
+                f"project prints is a file that has to be there (D5-09). If you installed "
                 f"the toolkit rather than cloning it, that file is yours to choose: pass it with "
                 f"--set naming_reference=<file>"
             )
@@ -1100,7 +1102,7 @@ def checkout_root(start: Path | None = None) -> Path | None:
     used to raise, and an **installed** package lives in ``site-packages`` with no
     ``pyproject.toml`` anywhere above it, so ``gene_normalize`` could not run from the wheel at all
     ("no pyproject.toml above …/site-packages/plastid/core/gene_names.py"). Found by the release's
-    Docker check — WSL and CI both run from a checkout and could never have seen it (§8.76).
+    Docker check — WSL and CI both run from a checkout and could never have seen it.
     """
     here = (start or Path(__file__)).resolve()
     for candidate in (here, *here.parents):

@@ -4,11 +4,12 @@ Three rules shape this module, and each is tested:
 
 * **A figure reads cells, it never recomputes.** Every series is built by a ``series()`` function
   that returns plain data taken from table cells, so a figure and its table cannot disagree —
-  the §8.25 failure in a new costume. ``Figure.source_tables`` records what it read.
+  a measured failure of the early toolkit in a new costume. ``Figure.source_tables`` records
+  what it read.
 * **One theme.** Fonts, colours and sizes live in :data:`THEME`, not in each figure, so eleven
   figure types read as one system.
 * **Byte-identical across runs.** matplotlib stamps a date and a per-process random salt into its
-  vector output; both are pinned here, measured rather than assumed (PROJECT.md §8.36). SVG needs
+  vector output; both are pinned here, measured rather than assumed. SVG needs
   the salt *and* the date pinned, PDF has a metadata hook, and the PostScript backend has none —
   its ``%%CreationDate`` is rewritten to a fixed stamp.
 
@@ -179,7 +180,7 @@ def themed(theme: Theme = THEME) -> Iterator[Any]:
     """Apply the theme to matplotlib's global state and put it back — no hidden globals.
 
     ``svg.hashsalt`` is what makes the SVG's element ids stable: without it matplotlib salts them
-    with a per-process random value and two runs of the same input differ (measured, §8.36).
+    with a per-process random value and two runs of the same input differ (measured).
     """
     pyplot = require_module("matplotlib.pyplot", extra="figures", purpose="Figure export")
     matplotlib = require_module("matplotlib", extra="figures", purpose="Figure export")

@@ -34,7 +34,7 @@ from plastid.run.context import RunContext
 from plastid.run.tools import ToolError
 
 MODULE_ID = "kaks"
-MODULE_VERSION = "0.3.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-35)
+MODULE_VERSION = "0.3.0"  # behaviour changed 2026-10-04 after the first runs
 
 ESTIMATOR = "Yang & Nielsen 2000 (yn00)"
 STOPS = ("TAA", "TAG", "TGA")

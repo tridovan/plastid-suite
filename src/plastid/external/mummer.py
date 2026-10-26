@@ -1,7 +1,7 @@
 """MUMmer 4 — the whole-genome alignment behind the synteny module (P4-01; decision D4-02).
 
-The pipeline is the one PROJECT.md §7 records for the %identity-by-coordinate plot, and the
-module's numbers are only comparable to that record while every step of it is the same:
+The pipeline is the standard one for the %identity-by-coordinate plot, and the
+module's numbers are only comparable to an earlier run while every step of it is the same:
 
     nucmer --maxmatch -l 20 -c 65 -t 1 -p out <target.fa> <query.fa>
     delta-filter -1 out.delta > out.filter.delta

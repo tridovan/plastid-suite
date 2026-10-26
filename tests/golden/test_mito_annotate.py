@@ -18,7 +18,7 @@ P3A-06/review owns judging it.
 **Differences are printed, not hidden.** 18 of 31 spans come out byte-identical and the other 13
 differ by at most 75 bp at one end (a reference protein's ends are not the query gene's ends); the
 exon counts differ on the trans-spliced genes, where the caller reports the exons the alignment
-supports and claims no join. Both are findings to record (PROJECT.md §9), never numbers to tune.
+supports and claims no join. Both are findings to record, never numbers to tune.
 
 Run with ``PTS_REQUIRE_TOOLS=1`` to turn the skips into failures.
 """
@@ -51,20 +51,20 @@ NEEDS_PANEL = pytest.mark.skipif(
     not PANEL.is_dir(),
     reason=(
         "the pinned mitogenome is not on this machine — re-fetch it with the 'plastid panel pin' "
-        "command in PROJECT.md §8.6"
+        "command"
     ),
 )
 
 # Measured 03/10/2026 with BLAST+ 2.17.0 against the committed reference set. Not a target: a
 # change that moves one of these is a finding to read first.
 #
-# **Moved 18 -> 19 on 10/10/2026, read first, and it is a fix** (P3B-10, §8.55). The change is one
+# **Moved 18 -> 19 on 10/10/2026, read first, and it is a fix** (P3B-10). The change is one
 # shared rule reaching this path: the stop codon is now read whether or not the alignment reached
 # the reference's 3' end, because blastx cannot align past a stop and a target whose gene is
 # shorter than the reference's therefore presents an alignment that simply ends. On the mito
 # record that is ``rps1``, which was `(3, 0)` — three bases short at the 3' end, that being the low
 # coordinate on a minus-strand gene — and is now `(0, 0)`, matching the published CDS. The other
-# twelve differences are unchanged; §8.22's 18/31 stays in the log as what it measured then.
+# twelve differences are unchanged; the earlier 18/31 was what it measured then.
 EXACT_SPANS = 19
 MAX_END_DIFFERENCE = 75
 
@@ -187,7 +187,7 @@ def test_the_coordinates_agree_within_the_measured_bound(tmp_path: Path, blast_t
 
 
 # Measured 03/10/2026 with ARAGORN 1.2.41 on OX459128.1. The two sets have the same size and are
-# not the same set — each difference is a finding (PROJECT.md §9), printed by the test and never
+# not the same set — each difference is a finding, printed by the test and never
 # adjusted away here.
 TRNA_MISSING = 1  # trnA-UGC 13244-13348: in the record, not called by ARAGORN
 TRNA_EXTRA = 1  # trnL-AAG 36355-36427: called by ARAGORN, not in the record
@@ -348,7 +348,7 @@ def test_the_three_counts_are_printed_next_to_the_published_ones(
     """P3A-06: the check prints what it counted **beside** what the record carries, and itemizes
     every difference instead of summarizing it into one word.
 
-    A count that disagreed would be recorded in PROJECT.md §9 as a finding and this test would
+    A count that disagreed would be as a finding and this test would
     still be a finished task — the failure mode it exists to prevent is a number quietly tuned
     until it matched.
     """

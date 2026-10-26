@@ -6,7 +6,7 @@ quietly favours one side would make that comparison meaningless, so the rule is 
 locus in one place matches, a different spelling is vocabulary, and anything else — a locus missing,
 a locus invented, a gene not covered — is a conclusion.
 
-The cases below are the ones the corpus actually produced (§8.50): the golden's `psbZ`/`lhbA`
+The cases below are the ones the corpus actually produced: the golden's `psbZ`/`lhbA`
 pair, the IR's second copy, the trans-spliced `rps12`, and a tRNA whose ends moved by a base.
 """
 
@@ -44,7 +44,7 @@ def test_another_spelling_of_one_locus_is_a_vocabulary_difference() -> None:
 def test_a_gene_the_call_does_not_cover_is_a_conclusion_difference() -> None:
     """The golden's `petB`, measured: published 74233-75632, our call 74985-75632. The intron's
     first exon is 6 bp and `blastx` cannot align two codons across it, so the call starts at the
-    second exon — 752 bp of the gene uncovered, and counted, not smoothed over (§8.50)."""
+    second exon — 752 bp of the gene uncovered, and counted, not smoothed over."""
     differences = compare([gene("petB", 74_233, 75_632)], [gene("petB", 74_985, 75_632)])
 
     assert [(d.verdict, d.detail) for d in differences] == [("conclusion", "extent")]
@@ -70,7 +70,7 @@ def test_one_envelope_two_different_exon_splits_is_a_conclusion() -> None:
 def test_an_end_that_moved_one_base_is_reported_as_a_boundary_not_a_conclusion() -> None:
     """The corpus's dominant class, measured on 719 of 1,264 matched pairs: ARAGORN ends a tRNA
     one base outside where the record does. Same gene, same anticodon, same place — reported, and
-    not counted as a conclusion (§8.51). Kept to one base on purpose: the tighter setting, since a
+    not counted as a conclusion. Kept to one base on purpose: the tighter setting, since a
     tolerance chosen to make a total come out right would measure nothing."""
     differences = compare(
         [gene("trnD-GUC", 30_541, 30_614, kind="tRNA", strand=-1)],

@@ -4,7 +4,7 @@
 strand, which is exactly the two classes the ``repeats`` module publishes: **dispersed** (a
 direct repeat) and **palindromic** (an inverted one).
 
-Which MUMmer this binary is — measured 10/10/2026, because PROJECT.md §7.8's line said "MUMmer3":
+Which MUMmer this binary is — measured 10/10/2026, because the tool survey said "MUMmer3":
 the program the toolkit runs comes from the **mummer4 4.0.1** bioconda package (``conda-meta``
 names it, and it sits beside ``nucmer``). It has **no version flag of its own** — ``--version`` is
 an invalid option and prints the usage — so the release is read from its sibling ``mummer``, and a

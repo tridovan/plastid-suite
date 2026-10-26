@@ -1,4 +1,4 @@
-"""The three numbers D5-09 §9.3 asks for, measured (P3B-02, PROJECT.md §8.41).
+"""The three numbers D5-09 asks for, measured (P3B-02).
 
 D5-09's naming arbitration has four tests; three of its numbers were *open* until they were
 measured, and the design record's own reasons for two of them do not survive the measurement:
@@ -55,10 +55,10 @@ _ALIGNER.extend_gap_score = -0.5
 def identity(a: str, b: str) -> float:
     """Percent identity of the best global alignment — for sequences too short for BLAST seeds.
 
-    The alignment parameters are part of the number and are recorded with it (§8.41): gaps cost
+    The alignment parameters are part of the number and are recorded with it: gaps cost
     -2 to open and -0.5 to extend, so the metric stays close to an ungapped comparison at tRNA
     length. With cheaper gaps the same pair of trnG sequences reads 78.9 % instead of 73.2 %,
-    which is why §8.41 states the parameters and not just the identity.
+    which is why the measurement states the parameters and not just the identity.
     """
     alignment = _ALIGNER.align(a, b)[0]
     matches = sum(1 for x, y in zip(alignment[0], alignment[1], strict=True) if x == y and x != "-")
@@ -151,7 +151,7 @@ def blastp_hits(
 def test_the_golden_carries_two_trnG_genes_under_one_name() -> None:
     """A duplicate name in the contract record itself — and the two genes are not the same gene.
 
-    Measured 08/10/2026 (§8.41): `NC_050833.1` annotates **two** tRNA features as `trnG-UCC`,
+    Measured 08/10/2026: `NC_050833.1` annotates **two** tRNA features as `trnG-UCC`,
     at 8889-8911/9586-9633 and 36413-36483, and the two spliced sequences are 73.2 % identical.
     One name, two genes: the naming step may not merge them, and the ★ pick inherits the problem.
     """
@@ -174,7 +174,7 @@ def test_the_two_trnG_sequences_carry_both_names_across_the_corpus() -> None:
     The golden's first sequence is called `trnG-GCC` by *Gladiolus* and `trnG-UCC` by the rest;
     the golden's second is called `trnG-GCC` by 25 records and `trnG-UCC` by the comparison
     genome and seven others. So H-04 is not a spelling the toolkit may normalise away — it is a
-    curator's call, and a rename that would merge the two is exactly what §5's stop tier is for.
+    curator's call, and a rename that would merge the two is exactly what the stop tier is for.
     """
     golden = trna_rows(CORPUS / f"{GOLDEN}.gb")
     first, second = [sequence for _, _, sequence in golden if _.startswith("trnG")][:2]
@@ -197,7 +197,7 @@ def test_the_two_trnG_sequences_carry_both_names_across_the_corpus() -> None:
 def test_the_margin_and_the_floor_are_where_the_naming_step_will_read_them(
     tmp_path: Path, blast_tools: dict[str, str | None]
 ) -> None:
-    """The numbers P3B-04's thresholds have to sit inside (PROJECT.md §8.41).
+    """The numbers P3B-04's thresholds have to sit inside.
 
     * **The margin is a score margin, in bits.** The smallest a *true* match achieved is 19.2
       bits, so a floor of 10 — half of it — refuses a tie and nothing else. A margin in identity
@@ -210,7 +210,7 @@ def test_the_margin_and_the_floor_are_where_the_naming_step_will_read_them(
       coverage floor is not enough for plastid CDS, whose short genes are the whole problem.
     * **Three hits sit above the floor and are not counterexamples.** `lhbA` vs `psbZ` and
       `ycf4` vs `psbN` reach 97.7-100 % because they *are* the same gene under a name the record
-      spells differently (§8.31's vocabulary gap). A floor refuses noise; it must not refuse a
+      spells differently (the corpus's vocabulary gap). A floor refuses noise; it must not refuse a
       misnamed real gene — that is what the naming step exists to surface.
     """
     require_tools(blast_tools, "blastp", "makeblastdb")
@@ -244,7 +244,7 @@ def test_the_margin_and_the_floor_are_where_the_naming_step_will_read_them(
     assert max(wrong) == pytest.approx(100.0, abs=0.05)
     # What sits above the floor is the same locus under another name, and nothing else: the
     # distinct values are asserted rather than their count, because how many *features* spell a
-    # locus that way depends on the corpus's own annotation (measured after the D5-09 §8 flip:
+    # locus that way depends on the corpus's own annotation (measured after the D5-09 flip:
     # 97.674 % is `pafII` matched against the golden's `ycf4`, 100 % is `lhbA` against `psbZ` and
     # a short `ycf4`-named feature against `psbN`).
     assert sorted({value for value in wrong if value >= min(ortholog)}) == pytest.approx(
@@ -261,7 +261,7 @@ def test_the_margin_and_the_floor_are_where_the_naming_step_will_read_them(
 def test_the_serine_trnas_are_where_the_ranking_fails() -> None:
     """For tRNA the sequence ranking alone is not enough — and the failing family is trnS.
 
-    Measured (§8.41): of 1,182 cross-record tRNA comparisons, **26** rank a different locus
+    Measured: of 1,182 cross-record tRNA comparisons, **26** rank a different locus
     first, every one a `trnS` query whose best match is another serine tRNA, by up to 15.05
     identity points. The true locus can be as low as 53.76 % identical while a *different* locus
     reaches 73.97 % — the two ranges overlap, so **no identity floor separates tRNA loci**; the
@@ -295,7 +295,7 @@ def test_the_serine_trnas_are_where_the_ranking_fails() -> None:
     assert min(true_scores) == pytest.approx(53.76, abs=0.05)
 
 
-# --------------------------------------------------------- one locus, one name (H-18, §8.54)
+# --------------------------------------------------------- one locus, one name (H-18)
 
 PINNED = ROOT / ".panel" / "plastid-reference"
 
@@ -307,7 +307,7 @@ PINNED = ROOT / ".panel" / "plastid-reference"
 def test_the_pinned_set_spells_every_cds_locus_once() -> None:
     """H-18: `lhbA` and `psbZ` are one locus, and the vocabulary says so — 80 names → 79.
 
-    Measured 10/10/2026 (§8.54): 33 of the 34 pinned records write `psbZ`, `NC_042827.1` writes
+    Measured 10/10/2026: 33 of the 34 pinned records write `psbZ`, `NC_042827.1` writes
     `lhbA`, and both carry the **same** `/product` ("photosystem II protein Z") at the **same**
     length, 189 bp / 62 aa, between the same neighbours (psbC … rps14). Without the alias the
     vocabulary carries 80 names for 79 loci, and the caller — which makes one call per locus —

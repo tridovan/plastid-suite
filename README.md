@@ -2,27 +2,33 @@
 
 [![CI](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml)
 
-Toolkit for **plastid (chloroplast) and mitochondrial genome analysis** — academic, non-commercial,
+Toolkit for **plastid (chloroplast) genome analysis**, developed for academic research and
 **MIT licensed**. Twenty-two analysis modules: genome statistics, structure (LSC/SSC/IR), gene
 tables, codon usage, amino-acid composition, introns, SSR, repeats, substitutions (Ts/Tv),
 diversity (π), barcodes, Ka/Ks, population genetics, synteny, group statistics, ORF checks,
-gene-name unification, annotation, NCBI submission files, and the mitochondrial path
-(`mito annotate` · `mito genes`).
+gene-name unification, annotation and NCBI submission files. The existing mitochondrial path
+(`mito annotate` · `mito genes`) is an experimental prototype; current development targets plastids.
 
-Every run writes its own directory: the tables, a draft report, and the **name, version and command
-line of every external tool** it used. Nothing is overwritten in place.
+Every run writes its own directory with tables and a draft report. External tool calls record
+their name, version and command line. Output from a new analysis run does not overwrite an older run.
 
-**Status: v1.0.0.** What is finished, what is open and what is left is kept in
-[ROADMAP.md](ROADMAP.md) — this line is only the version. What the toolkit deliberately does **not** do is in
+**Status: v1.0.0.** This is the code version, not a claim that acceptance is complete. Open
+[correctness issues](docs/known_issues.md) affect IR detection, caching and annotation handling;
+the toolkit is under corrective development. What it currently does **not** do is in
 [docs/things_we_do_not_do.md](docs/things_we_do_not_do.md); which modules need which tool, and how
 much memory they take, is in [docs/platforms.md](docs/platforms.md).
 
+The [canonical pipeline](docs/pipeline.md) shows reference preparation, annotation, analysis and
+outputs, including deferred assembly, the open RNA-editing work and the integration still missing.
+
 ## Install
 
-**Linux** — the minimum install runs every pure-Python analysis, with no external tool:
+**Linux — install from a source checkout.** The minimum install supports the pure-Python analyses;
+the open correctness issues still apply. These instructions do not assume a published PyPI release:
 
 ```bash
-pip install plastid-suite
+git clone https://github.com/tridovan/plastid-suite && cd plastid-suite
+uv sync                 # or: pip install .
 ```
 
 **Windows** — the toolkit does not run natively on Windows; the supported route is Docker (build
@@ -31,13 +37,6 @@ once, then use `docker run` for every command in this file):
 ```bash
 docker build -f docker/Dockerfile -t plastid-suite .
 docker run --rm -v "$PWD:/work" plastid-suite plastid --version
-```
-
-**From a source checkout** (also what to use while a release is not on PyPI yet):
-
-```bash
-git clone https://github.com/tridovan/plastid-suite && cd plastid-suite
-uv sync                 # or: pip install .
 ```
 
 Some analyses need external tools (MAFFT, MISA, BLAST+, MUMmer, PAML…). The toolkit never bundles
@@ -85,12 +84,12 @@ make check     # lint + test + golden
 ```
 
 The corpus half of `make golden` needs the pinned panels under `.panel/`, which are not in git by
-design — those tests skip with a named reason in a fresh clone. What a pip user runs is the
-analyses, not the golden set.
+design — those tests skip with a named reason in a fresh clone. Record skips explicitly: skipped
+cases are unverified, and passing golden tests alone do not establish correctness on other records.
 
 **Golden sample:** *Iris domestica* NC_050833.1 — **153,724 bp · 37.85 % GC · 132 genes = 86 CDS +
 38 tRNA + 8 rRNA** · IR 26,214 bp at 100.00 % identity · LSC 83,127 · SSC 18,169 · 37 SSRs
-(31 mono · 4 di · 2 tri). Full provenance: `PROJECT.md` §6.
+(31 mono · 4 di · 2 tri). Provenance of every pinned record: `tests/data/PROVENANCE.md`.
 
 ## Licence and citation
 

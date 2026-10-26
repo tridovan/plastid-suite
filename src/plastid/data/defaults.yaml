@@ -1,20 +1,20 @@
 # Central defaults — thresholds in one place, not scattered through modules.
 
 ir:
-  min_identity: 0.999 # the mandatory gate (PROJECT.md §9A)
+  min_identity: 0.999 # the mandatory gate
   min_length: 5000
   copy_length_tolerance: 5
 
 ssr:
   misa:
-    # MISA defaults as shipped in the IPK zip (PROJECT.md §10.2) — do not "tune" them.
+    # MISA defaults as shipped in the IPK zip — do not "tune" them.
     unit_repeats: { 1: 10, 2: 6, 3: 5, 4: 5, 5: 5, 6: 5 }
     interruptions: 100
 
 codon:
   # D2-03 (03/10/2026): the toolkit compiles NCBI table 1 (standard) — plastid CDS declare table
   # 11, whose amino acids are identical (the tables differ only in initiation codons), and the
-  # initiator is read as its own amino acid (measured 05/10/2026, PROJECT.md §9.J). The table is
+  # initiator is read as its own amino acid (measured 05/10/2026). The table is
   # compiled into core/codon.py; a test keeps this record and that constant in step.
   translation_table: 1
   # CAI · CBI · Fop are only meaningful against a declared reference. Until a highly-expressed
@@ -27,7 +27,7 @@ orf:
   # on purpose — but it is a different decision (what to do when the record is silent), so it
   # is recorded separately. Measured: all 1,099 CDS in the project's dataset declare 11.
   #
-  # It is also organelle-blind (measured 05/10/2026, §9.J): a *plastid* record that declares
+  # It is also organelle-blind (measured 05/10/2026): a *plastid* record that declares
   # nothing is checked against table 1's smaller initiator set, while the plastid annotator
   # stamps 11 for the same silence — the two paths answer one question two ways. Choosing per
   # organelle needs the run to know its organelle, which is H-09's job; until then this stays
@@ -56,7 +56,7 @@ repeats:
   # as `-n`, and a match the tool returns below it is refused rather than published (the
   # adapter checks). It is part of what the count means, so it travels into the summary and the
   # scope label. Measured on the golden: 9 maximal exact matches at 30 bp, the 26,214 bp IR
-  # pair among them (both engines agree — §8.58).
+  # pair among them (both engines agree).
   min_length_bp: 30
 
 report:
@@ -78,10 +78,10 @@ mito:
 
 plastid:
   # P3B-07/P3B-08 (08/10/2026): the floors a transferred plastid call must clear, and the code it
-  # is read in. Measured on the golden as the answer key against the 33 other pinned records
-  # (§8.46): 4,382 HSPs, 80 CDS calls, every one landing on a published locus. The golden is a
+  # is read in. Measured on the golden as the answer key against the 33 other pinned records:
+  # 4,382 HSPs, 80 CDS calls, every one landing on a published locus. The golden is a
   # close relative and **cannot choose the coverage floor** — 0.5 through 0.8 give the identical
-  # called set — so 0.7 is §8.41's corpus number (the gap runs 44.93 % to 67.75 %, and psbJ is
+  # called set — so 0.7 is the corpus-measured number (the gap runs 44.93 % to 67.75 %, and psbJ is
   # 36 aa, which is why 0.5 does not hold here). P3B-10 re-checks it on the corpus.
   min_identity: 50.0
   min_coverage: 0.7
@@ -92,14 +92,14 @@ plastid:
   translation_table: 11
 
 naming:
-  # D5-09 §7 (P3B-04). The **naming reference** is the record whose spelling every table this
+  # D5-09 (P3B-04). The **naming reference** is the record whose spelling every table this
   # project prints; it is genomes[0] of a gene_normalize run, supplied with
   # `--set naming_reference=<file>`, and this file records which record that is until the end user
   # picks one from the audit report. The parameter is deliberately not called `reference`: that
   # key already carries two meanings in this toolkit (a module's own reference and a record's
   # /reference qualifier), and a third would be read as one of them.
   reference_record: src/plastid/data/naming_reference.json
-  # The four tests' thresholds — measured, not chosen (PROJECT.md §8.41): the smallest true
+  # The four tests' thresholds — measured, not chosen: the smallest true
   # margin was 19.2 bits, and with coverage ≥ 0.7 no wrong locus reached 44.93 % while no true
   # ortholog fell below 67.75 %. The mito path's coverage floor of 0.5 does not hold here —
   # psbJ is 36 aa, and a 21-aa alignment of it reaches 52.38 % against matK.

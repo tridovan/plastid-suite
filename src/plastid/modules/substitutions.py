@@ -1,10 +1,10 @@
-"""Substitutions — pairwise counts against a reference genome (PROJECT.md §13.2, ROADMAP M2.6).
+"""Substitutions — pairwise counts against a reference genome (ROADMAP M2.6).
 
 Every count is stated against the genome it was measured from: row 0 of the MAFFT alignment is
 the reference, and each other row is compared to it. Columns where either row is a gap or an
 ambiguous base are skipped and reported, never scored as a match or a substitution.
 
-Scope matters more here than anywhere: §6's golden Ts/Tv was measured over **CDS only, shared
+Scope matters more here than anywhere: the golden Ts/Tv was measured over **CDS only, shared
 genes, IR excluded** — 2.6917 over 79 genes since the shared set was re-measured by locus
 (2026-10-04) — which is narrower than this module's default whole-alignment comparison. The two
 must never be quoted as if they were the same number. Ts/Tv is left blank when there are no
@@ -34,15 +34,13 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "substitutions"
-MODULE_VERSION = (
-    "0.3.0"  # 0.3.0 adds substitutions_by_type; 0.2.0 changed behaviour 2026-10-04 (§9.C-35)
-)
+MODULE_VERSION = "0.3.0"  # 0.3.0 adds substitutions_by_type; 0.2.0 changed behaviour 2026-10-04
 
 
-# The two scopes this module can report, and why the difference is not cosmetic: §6's golden
+# The two scopes this module can report, and why the difference is not cosmetic: the golden
 # Ts/Tv is measured over CDS only, the genes the genomes share, IR excluded. The whole-alignment
 # default is a different number over different bases, and the two must never be quoted as one
-# another (PROJECT.md §6, §8.25, §9.B-14). The label says *which scope*, not *what number* — a
+# another. The label says *which scope*, not *what number* — a
 # number written into a label goes stale the moment the shared set is re-measured.
 SCOPES: tuple[str, ...] = ("whole", "cds")
 DEFAULT_SCOPE = "whole"
@@ -140,7 +138,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         scope=Scope(
             label=(
                 "whole aligned plastome against the reference (row one of the alignment); "
-                "gap and ambiguous columns skipped; not the CDS-only scope of PROJECT.md §6"
+                "gap and ambiguous columns skipped; not the CDS-only scope of the golden Ts/Tv"
             ),
             coord_system="normalized",
         ),
@@ -211,7 +209,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         },
         notes=(
             "Ts/Tv is blank when no transversion was found: it is undefined, not infinite.",
-            "§6's golden Ts/Tv has the narrower scope CDS only · 76 shared genes · IR excluded.",
+            "The golden Ts/Tv has the narrower scope CDS only · 76 shared genes · IR excluded.",
             "substitutions_by_type holds the twelve directed changes the transitions and "
             "transversions totals are summed from; a manuscript's six complementary pairs "
             "(A↔G, C↔T, A↔C, T↔G, C↔G, A↔T) are two rows each.",
@@ -221,12 +219,12 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
 
 def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
-    """§6's method: the shared CDS, one copy per gene, IR excluded, aligned gene by gene.
+    """The golden method: the shared CDS, one copy per gene, IR excluded, aligned gene by gene.
 
-    This is the scope PROJECT.md §6 fixed for the golden ratio — CDS only, shared genes, IR
+    This is the scope fixed for the golden ratio — CDS only, shared genes, IR
     excluded — and the scope in which the toolkit's Ts/Tv is comparable to that table at all.
     The numbers it reproduces today (2026-10-04: 323 Ts / 120 Tv = 2.6917 over 79 shared genes)
-    live in PROJECT.md, not here.
+    are pinned by the golden tests, not here.
     """
     reference = genomes[0]
     # No table is passed: the record's own organelle picks the vocabulary (aliases_for) —
@@ -305,7 +303,7 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
     summary_scope = Scope(
         label=(
             "CDS only; the genes both genomes share, one copy each (IR excluded); each gene "
-            "aligned on its own — the scope PROJECT.md §6 fixed for the golden Ts/Tv"
+            "aligned on its own — the scope fixed for the golden Ts/Tv"
         ),
         include=("CDS",),
         exclude_regions=("IRa", "IRb"),
@@ -394,7 +392,7 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
     )
     notes = [
         "CDS scope: the genes the genomes share, one copy each (the inverted repeat is "
-        "therefore counted once), aligned gene by gene — the scope PROJECT.md §6 fixed.",
+        "therefore counted once), aligned gene by gene — the scope fixed for the golden Ts/Tv.",
         "A gene one genome does not carry is not in this table: this scope compares shared "
         "coding sequence, and a missing gene is a different finding (Phase 3's).",
         "Ts/Tv is blank when no transversion was found: it is undefined, not infinite.",

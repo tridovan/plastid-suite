@@ -31,7 +31,7 @@ def gc_skew(sequence: str) -> float:
     """GC-skew ``(G − C) / (G + C)``: positive where G outnumbers C on this strand.
 
     The sign convention is part of the contract, not an implementation detail — a silent
-    flip is this project's classic quiet error (TASKS.md P2-02), so every caller publishes
+    flip is this project's classic quiet error, so every caller publishes
     it in the column header. Undefined, and therefore an error, with no G and no C.
     """
     if not sequence:

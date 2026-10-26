@@ -31,7 +31,7 @@ WHEN = datetime(2026, 10, 2, 15, 30, 0)
 
 def test_slugify_strips_diacritics() -> None:
     assert slugify("Iris domestica — NC_050833.1") == "iris-domestica-nc_050833.1"
-    assert slugify("chạy Trí") == "chay-tri"  # PROJECT.md §9.30: Vietnamese paths caused bugs
+    assert slugify("chạy Trí") == "chay-tri"  # measured: Vietnamese paths caused bugs
     assert slugify("iris_domestica") == "iris_domestica"
 
 
@@ -49,7 +49,7 @@ def test_layout_builds_run_scoped_paths(tmp_path: Path) -> None:
 def test_two_runs_never_share_a_directory_however_the_clock_behaves(tmp_path: Path) -> None:
     """One run = one directory, even in the same second — and even when the clock steps back.
 
-    Measured 08/10/2026 (PROJECT.md §9.C-37): this machine's clock moved ~1 s *backwards* between
+    Measured 08/10/2026: this machine's clock moved ~1 s *backwards* between
     two runs, so a later run was stamped earlier than the one before it and the run directories
     no longer sorted into the order they were made. The guarantee that survives a clock that is
     not monotonic is not "the names sort" but "no run overwrites another".
@@ -420,7 +420,7 @@ def test_the_cache_key_keeps_the_input_order() -> None:
 
 
 def test_a_parameter_that_names_a_file_is_content_addressed(tmp_path: Path) -> None:
-    """D5-09 §7.2: a path is not an identity — the ★ record's sha256 has to reach the key."""
+    """D5-09: a path is not an identity — the ★ record's sha256 has to reach the key."""
     reference = tmp_path / "naming_reference.gb"
     reference.write_text("LOCUS       NC_050833\n", encoding="utf-8")
     before = _params_hash({"naming_reference": str(reference)})

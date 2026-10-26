@@ -26,7 +26,7 @@ def data_dir() -> Path:
 
 @pytest.fixture(scope="session")
 def golden_genome() -> Genome:
-    """Iris domestica NC_050833.1 — the golden sample (PROJECT.md §6)."""
+    """Iris domestica NC_050833.1 — the golden sample."""
     return read_genbank(DATA_DIR / "NC_050833.1.gb")
 
 
@@ -100,7 +100,7 @@ def mummer_tools() -> dict[str, str | None]:
 def vmatch_tools() -> dict[str, str | None]:
     """Vmatch 2.3.1 — from ``PATH`` or from ``PTS_VMATCH_DIR``.
 
-    Its own fixture, and usually absent: Vmatch is **academic-only** (PROJECT.md §7.8), so it is
+    Its own fixture, and usually absent: Vmatch is **academic-only**, so it is
     not part of the minimum install and the module that publishes the count runs on
     ``repeat-match`` instead. It is the *second engine* that count is checked against — the way
     MISA and cpstools both give the golden's 37 SSRs — so the check skips with a named reason
@@ -152,7 +152,7 @@ def require_tools(tools: dict[str, str | None], *names: str) -> None:
 
 @pytest.fixture(scope="session")
 def edge_genomes() -> dict[str, Genome]:
-    """Known-hard genomes from PROJECT.md §8–§9: two silently-wrong IR cases, one that
+    """Known-hard genomes: two silently-wrong IR cases, one that
     starts inside an IR copy, all with their real GenBank annotations."""
     records = read_genbank_records(DATA_DIR / "iridaceae_edge_cases.gb")
     return {genome.accession: genome for genome in records}

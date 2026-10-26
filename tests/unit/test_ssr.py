@@ -5,7 +5,7 @@ and 3 in the IR, and **each** CDS feature lists all three. Read by its outer spa
 gene covering 68,975–139,634 — most of the genome — so every SSR between those two numbers came
 out "Intron", whatever gene it actually sits in.
 
-Measured 10/10/2026 in the CPStools cross-check (P8-02, §8.61): **11 of the golden's 37 rows were
+Measured 10/10/2026 in the CPStools cross-check (P8-02): **11 of the golden's 37 rows were
 wrong**, and cpstools' table named the genes they sit in (``ycf1`` · ``ndhA`` · the ``rpl32``
 spacer). The rule that keeps it right is the one ``core/spans.py`` already states — a gap between
 two parts of one gene is an intron only when both ends sit in the **same region**; when it

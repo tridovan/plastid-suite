@@ -286,7 +286,7 @@ def test_two_renders_of_one_result_are_byte_identical_in_every_format() -> None:
 
 @requires_figures
 def test_the_vector_output_carries_no_wall_clock_stamp() -> None:
-    """The measured reason the render is deterministic (PROJECT.md §8.36)."""
+    """The measured reason the render is deterministic."""
     figure = pi_window.build({"diversity": _diversity_result()})
     assert b"<dc:date>" not in figure.payload("svg")
     assert b"%%CreationDate: Thu Jan  1 00:00:00 1970" in figure.payload("eps")

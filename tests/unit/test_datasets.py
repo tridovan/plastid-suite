@@ -1,6 +1,6 @@
 """The committed stand-in dataset definitions — guarded offline so they cannot drift.
 
-What these guard (PROJECT.md §8.6): the exact measured record set, the mito/plastome split,
+What these guard: the exact measured record set, the mito/plastome split,
 and the five GenBank records left out because their sequence is byte-identical to a RefSeq
 already listed.
 """

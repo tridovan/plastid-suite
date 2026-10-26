@@ -1,4 +1,4 @@
-"""Canonical origin and the LSC → IRa → SSC → IRb split (decision 2026-10-02, PROJECT.md §3)."""
+"""Canonical origin and the LSC → IRa → SSC → IRb split (decision 2026-10-02)."""
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ def test_shift_splits_a_feature_that_crosses_the_origin() -> None:
 
 def test_normalize_a_genome_that_starts_inside_an_ir(edge_genomes: dict[str, Genome]) -> None:
     # NC_085783.1 has no repeat_region annotation and its origin sits inside an IR copy —
-    # the case that forces the detector's half-rotation retry (PROJECT.md §8.3).
+    # the case that forces the detector's half-rotation retry.
     genome = edge_genomes["NC_085783.1"]
     ir = detect_ir(genome)
     enforce_ir_gate(ir)

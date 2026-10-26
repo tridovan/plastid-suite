@@ -42,14 +42,14 @@ plastid run --module ssr --input <genome>.gb --out .runs --dataset <name> \
 
 **The release is checked, not assumed.** MISA has no version flag; `external/misa.py` reads
 `(version 2.1)` out of the script's first lines and **refuses any other release by name** — the
-same rule `repeat_match_version` applies to MUMmer, and for the same reason: §6's golden SSR
+same rule `repeat_match_version` applies to MUMmer, and for the same reason: the golden SSR
 numbers (**37 = mono 31 · di 4 · tri 2**) were measured with 2.1, and a different caller's counts
 are a different number.
 
 **`misa.ini` is the toolkit's own file** (`src/plastid/data/misa.ini`), not the zip's: it writes
 down MISA's **default** definitions (unit sizes `1-10 2-6 3-5 4-5 5-5 6-5`, interruptions `100`,
 `GFF: true`). Those are the tool's documented defaults and the project uses exactly them —
-re-measured 10/10/2026: at the defaults our table reproduces the published answer key (§8.73),
+re-measured 10/10/2026: at the defaults our table reproduces the published answer key,
 while the thresholds that paper *states* in its Methods do not.
 
 **Not vendored, deliberately** — the licence paragraph above. The consequence, stated so it is not

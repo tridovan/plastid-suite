@@ -1,6 +1,6 @@
 """Genome statistics — the first end-to-end module.
 
-Golden expectations (PROJECT.md §6) live in the tests; this file must simply report what
+Golden expectations live in the tests; this file must simply report what
 the reader and the gate measured, with every table labelled by its coordinate frame.
 """
 

@@ -13,17 +13,17 @@ family; a run takes the records it is given). Two reasons this is the family, bo
 what this project already has to check against:
 
 - the **contract genome is Iridaceae** — *Iris domestica* `NC_050833.1` and its comparison genome
-  *Iris gatesii* `NC_024936.1` (PROJECT.md §6);
+  *Iris gatesii* `NC_024936.1`;
 - the **answer key is Iridaceae** — the Điềm corpus is 34 Iridaceae plastomes with a **published
-  annotation** on every one, which is what makes a transfer result checkable at all (§8.31).
+  annotation** on every one, which is what makes a transfer result checkable at all.
 
 A sample from another family is annotated by a set pinned for *its* family, by the same rule —
 the set is per-family data, not a per-run choice.
 
 ## Sources — pinned 2026-10-08, NCBI RefSeq plastomes, complete and annotated
 
-The 34 records are the pinned Iridaceae corpus (`.panel/iridaceae-34/`, sha256 for sha256,
-PROJECT.md §8.31), re-pinned as the reference set: `.panel/plastid-reference/`, **34/34 passing
+The 34 records are the pinned Iridaceae corpus (`.panel/iridaceae-34/`, sha256 for sha256),
+re-pinned as the reference set: `.panel/plastid-reference/`, **34/34 passing
 the IR gate**, 5,204,491 bp in all. Every sha256 below was measured on the file in that
 directory, not copied from a table.
 
@@ -79,7 +79,7 @@ source is pinned; a sample of another family gets a set pinned for that family b
 
 For a transfer result to mean anything, the reference set that annotates a record must not
 contain that record: the corpus carries the golden's own sequence annotated by PGA, and PGA's
-reading is 85 CDS where the contract says 86 (§8.31) — the answer key inside the reference set
+reading is 85 CDS where the contract says 86 — the answer key inside the reference set
 would let an annotator agree with itself.
 
 So, for every record in the set, the reference set that annotates it is **the same 34 minus

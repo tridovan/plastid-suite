@@ -1,4 +1,4 @@
-"""Normalized result schema (decision §10.7, PROJECT.md §3).
+"""Normalized result schema.
 
 Every number a report shows comes from a table cell; an unresolvable reference raises
 :class:`ResultRefError` — it is never printed blank. Cell references:
@@ -30,7 +30,7 @@ class Scope:
 
     @classmethod
     def cds_no_ir(cls) -> Scope:
-        """The fixed Ts/Tv scope (PROJECT.md §6): CDS only, IR excluded."""
+        """The fixed Ts/Tv scope: CDS only, IR excluded."""
         return cls(label="CDS only; IR excluded", include=("CDS",), exclude_regions=("IRa", "IRb"))
 
 

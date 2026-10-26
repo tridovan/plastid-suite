@@ -245,7 +245,7 @@ def test_entry_from_summary_never_assumes_genbank_annotation() -> None:
 def test_a_file_produced_elsewhere_is_pinned_with_its_provenance(
     tmp_path: Path, data_dir: Path
 ) -> None:
-    """A heavy tool runs where it fits — this machine, a web service, a cluster (PROJECT.md §3,
+    """A heavy tool runs where it fits — this machine, a web service, a cluster (
     P1-12). Either way its answer arrives as a file, and a pinned file is what makes the number
     reproducible: the same checksums as an NCBI download, the same read-back, plus the note
     saying where it came from."""

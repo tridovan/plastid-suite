@@ -7,12 +7,12 @@ CDS, `blastn` against its rRNA sequences for the four rRNA loci, and — where t
 ``core/caller.py``; this module is what is **measured about this organelle**:
 
 * **the reference index.** A plastid reference record is a GenBank file, so a CDS entry is that
-  CDS's own ``/translation`` (never a self-translation — D5-08 §8.21, and the mito measurement
+  CDS's own ``/translation`` (never a self-translation — D5-08, and the mito measurement
   behind it: plant organellar CDS begin with codons no table accepts as an initiator) and an rRNA
   entry is the feature's own nucleotide sequence, read through ``coding_sequence`` so a spliced
   feature comes back in transcript order.
-* **the floors** — identity ≥ 50 %, coverage ≥ 0.7 — measured on the golden as the answer key
-  (PROJECT.md §8.46). They are deliberately **not** the mito path's (50 % / 0.5): §8.41 measured
+* **the floors** — identity ≥ 50 %, coverage ≥ 0.7 — measured on the golden as the answer key.
+They are deliberately **not** the mito path's (50 % / 0.5): it was measured
   that a short plastid CDS walks through a 0.5 coverage floor (`psbJ` is 36 aa and reaches 52.38 %
   against `matK` over 21 aa), and each path states the pair it measured.
 * **the translation table** — 11, the plastid code, which is what every CDS in this project's
@@ -28,10 +28,10 @@ set spells with a name outside the vocabulary is kept and **reported** rather th
 24 of the 34 records carry **two** ``ycf1`` CDS features — a complete one (~1,800 aa) and a
 truncated copy of it (~300 aa, the part that sits inside the inverted repeat) — and the truncated
 one scored *higher* on identity, so an identity-first choice called the golden's 5,421 bp ``ycf1``
-as 900 bp. Structure decides first (D5-08 §3): the truncated feature is not searched, and it is
+as 900 bp. Structure decides first (D5-08): the truncated feature is not searched, and it is
 named (``truncated_annotations``) rather than dropped in silence.
 
-**The inverted repeat is read behind the structural gate, never instead of it.** §9.A is the
+**The inverted repeat is read behind the structural gate, never instead of it.** The
 measured reason: naive IR detection got 2 of 9 published plastomes wrong, one of them silently.
 So the frame is established by ``core/ir.py`` and the ≥ 99.9 % gate, and a self-search only has to
 **agree** with it — :func:`read_inverted_repeat` turns a self-blast's hits into the repeat pair,
@@ -76,13 +76,13 @@ __all__ = [
 # The plastid code. Every CDS in the records this project measured declares it (D3-03).
 PLASTID_TRANSL_TABLE = 11
 
-# The floors, measured on the golden as the answer key (§8.46) — see the module docstring for why
+# The floors, measured on the golden as the answer key — see the module docstring for why
 # they are not the mito path's pair.
 DEFAULT_MIN_IDENTITY = 50.0
 DEFAULT_MIN_COVERAGE = 0.7
 
 # What a self-search must show before two spans are called one inverted repeat. 99 % is PGA's own
-# threshold (D5-08 §1) and sits below the ≥ 99.9 % the structural gate asks of the copies
+# threshold (D5-08) and sits below the ≥ 99.9 % the structural gate asks of the copies
 # themselves: this reading proposes the frame, it never certifies it.
 IR_MIN_IDENTITY = 99.0
 # A plastid IR is ~10–30 kb; 1 kb keeps a short duplicated tRNA from being read as the repeat
@@ -119,7 +119,7 @@ class TruncatedAnnotation:
     """One locus a record annotated twice, where the shorter feature is a truncated copy.
 
     The complete feature is what a call is transferred from; this row is the reason the other one
-    is not (D5-08 §3 — structure decides before any score).
+    is not (D5-08 — structure decides before any score).
     """
 
     accession: str
@@ -200,8 +200,8 @@ def reference_entries(
 ) -> tuple[ReferenceEntry, ...]:
     """One record's genes of one ``kind`` as reference entries, with the sequence to search.
 
-    A CDS entry carries the record's own ``/translation`` — never a self-translation (D5-08
-    §8.21): no protein means no protein to search with, and the audit in front of every run
+    A CDS entry carries the record's own ``/translation`` — never a self-translation
+    (D5-08): no protein means no protein to search with, and the audit in front of every run
     blocks such a record before it gets here. An rRNA entry carries the feature's own nucleotide
     sequence, read through ``coding_sequence`` so a spliced feature comes back in transcript
     order.
@@ -248,7 +248,7 @@ def reference_index(
 
     The two are separate searches against separate databases because they are separate questions
     — a protein against proteins, a nucleotide against nucleotides — and pooling them would put a
-    ``blastn`` percentage and a ``blastx`` one on the same scale, which is the comparison D5-08 §3
+    ``blastn`` percentage and a ``blastx`` one on the same scale, which is the comparison D5-08
     forbids.
     """
     return ReferenceIndex.from_entries(
@@ -312,7 +312,7 @@ def call_rrna(
 
 
 # ---------------------------------------------------------------------------------------------
-# The inverted repeat, as a self-search reads it (D5-08 §1 layer 1, behind core/ir.py's gate)
+# The inverted repeat, as a self-search reads it (D5-08 layer 1, behind core/ir.py's gate)
 # ---------------------------------------------------------------------------------------------
 
 
@@ -381,7 +381,7 @@ def repeat_agreement(structural: IRResult | None, searched: InvertedRepeat | Non
     """One sentence saying whether the two readings of the repeat agree — and how they differ.
 
     The structural reading is the one that governs: it is what the ≥ 99.9 % gate certifies and
-    what every position-based module is normalized against (§9.A). The self-search is a second
+    what every position-based module is normalized against. The self-search is a second
     opinion, and a disagreement is a **finding** — never a reason to prefer one silently.
     """
     if structural is None:

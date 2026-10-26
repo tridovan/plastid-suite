@@ -1,6 +1,6 @@
-"""Reference Panel — propose comparison genomes in four taxonomy tiers (PROJECT.md §13.1).
+"""Reference Panel — propose comparison genomes in four taxonomy tiers.
 
-Policy (decision §10.8): the engine only **proposes**, from a dated local cache of RefSeq
+Policy: the engine only **proposes**, from a dated local cache of RefSeq
 records. The user picks the final list; pinning downloads the chosen genomes and records
 their checksums, so every later run works offline and stays reproducible.
 
@@ -100,7 +100,7 @@ class PinnedGenome:
     bytes: int
     # where the bytes came from: "ncbi" (fetched by accession) or "file" (produced elsewhere —
     # a web service, a cluster, a colleague's machine). A heavy tool runs where it fits
-    # (PROJECT.md §3, P1-12); either way its answer arrives as a file, and a file that is not
+    # (P1-12); either way its answer arrives as a file, and a file that is not
     # pinned is a number nobody can reproduce.
     source: str = "ncbi"
     note: str | None = None  # which service/when, for a pinned file
@@ -348,7 +348,7 @@ def pin_files(
 ) -> tuple[PinnedGenome, ...]:
     """Pin records **produced somewhere else** — a web service, a cluster, another machine.
 
-    This is the other half of the plan's rule for a heavy tool (PROJECT.md §3, P1-12): it runs
+    This is the other half of the plan's rule for a heavy tool (P1-12): it runs
     where it fits, on this machine when it can and elsewhere when it cannot, and its answer
     arrives as a *file*. Pinning that file is what makes the answer reproducible — the same
     bytes, sha256 and md5 as an NCBI download, the same re-read with our own reader, and the

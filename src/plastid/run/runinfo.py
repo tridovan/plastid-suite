@@ -1,6 +1,6 @@
 """``00_run_info/run_info.md`` — the Materials & Methods page for a run.
 
-Requirement 02/10 (PROJECT.md §2): every run states its tools, versions, parameters, inputs
+Requirement 02/10: every run states its tools, versions, parameters, inputs
 and the IR verdict, so the methods section can be written from the output folder alone.
 """
 

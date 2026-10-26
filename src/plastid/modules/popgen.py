@@ -37,7 +37,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "popgen"
-MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-35)
+MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs
 
 
 @module(
@@ -237,7 +237,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     )
 
     notes = [
-        "Estimators are written here from their published formulas (PROJECT.md §8.28); no "
+        "Estimators are written here from their published formulas; no "
         "external tool is needed, so the minimum install runs this module.",
         "Tajima's D and Fu & Li's D*/F* need at least four sequences — at n ≤ 3 their variance "
         "is identically zero — and a blank cell carries that reason in the Note column.",

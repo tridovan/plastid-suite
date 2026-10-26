@@ -4,8 +4,8 @@
 tool is declared in the repo — `environment.yml` (pinned), `vendor/` + `SOURCE.json` (small
 scripts), or this file. MUMmer 4 is a set of compiled C++ binaries that bioconda ships, so it is
 pinned in `environment.yml` and described here. It is the aligner of Phase 4's synteny module
-(P4-01, decision **D4-02**): `nucmer` → `delta-filter` → `show-coords` is the pipeline PROJECT.md
-§7 records for the %identity-by-coordinate (mVISTA-style) result, and another tool would make the
+(P4-01, decision **D4-02**): `nucmer` → `delta-filter` → `show-coords` is the standard pipeline
+for the %identity-by-coordinate (mVISTA-style) result, and another tool would make the
 phase check unreproducible.
 
 **What it is.** MUMmer 4 (Marçais et al. 2018) aligns whole genomes by exact-match anchoring
@@ -43,7 +43,7 @@ show-coords -rcl out.filter.delta
 ```
 
 * `--maxmatch` — every maximal exact match is an anchor, not only matches unique in both
-  sequences. It is the flag PROJECT.md §7 records, and it is what a plastome comparison wants:
+  sequences. It is the standard flag, and it is what a plastome comparison wants:
   the inverted repeat is by definition a repeat, and uniqueness filtering would drop half of it.
 * `-l 20 -c 65` — MUMmer 4's own defaults, **passed explicitly**: they live in
   `src/plastid/data/defaults.yaml` (`synteny:`) because the block count moves with them (measured: 12 raw
@@ -53,10 +53,10 @@ show-coords -rcl out.filter.delta
   modes answer different questions and can list one target region in several rows, which would
   make a coverage number lie.
 * `show-coords -rcl` — sorted by reference, with coverage and sequence lengths. `-rcl` is the
-  exact flag set §7 recorded.
+  exact flag set recorded here.
 
 **`repeat-match` — the same package, measured 10/10/2026.** The repeats module (M2.12, D-f) runs
-`repeat-match`, and PROJECT.md §7.8's own line said it "belongs to MUMmer3" (the SourceForge
+`repeat-match`, and the original tool survey said it "belongs to MUMmer3" (the SourceForge
 tarball) — the binary is in fact **this package's**: `conda-meta` names `mummer4-4.0.1`, and it
 sits beside `nucmer`. It is so recorded rather than assumed because the count is a number a
 manuscript prints. Two consequences the adapter carries:

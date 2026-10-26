@@ -7,21 +7,29 @@ are **decisions, not steps** — the version number and who is named as an autho
 
 ## Before anything is published
 
+Publication is deferred while the [known correctness issues](known_issues.md) remain unresolved
+for the advertised scope. Passing the existing suite alone is not product acceptance: each fixed
+defect needs an independently justified regression and a recorded before/after result. Record
+missing tools and panels; skipped acceptance cases remain unverified.
+Use the [pipeline coverage and acceptance criteria](pipeline.md) to check reference preparation,
+both genome entry paths, analyses, figures/exports/QC and submission; do not infer end-to-end
+coverage merely because each component has some tests. Deferred branches are not release promises.
+
 | Check | Command | What it proves |
 |---|---|---|
-| The suite | `make check` | lint · 850+ fast tests · the golden numbers, tier A and B |
-| The package | `uv build` then install the wheel into a **fresh** venv | the artifact works somewhere that has nothing of the dev's in it (§8.75) |
+| The suite | `make check`, with required tools present and skips reviewed | lint, fast tests and golden cases that actually ran; this does not replace input/output acceptance |
+| The package | `uv build` then install the wheel into a **fresh** venv | the artifact works somewhere that has nothing of the dev's in it |
 | The container | `docker build -f docker/Dockerfile -t plastid-suite .` | the golden numbers reproduce **inside** the image — one input, one set of numbers, three environments (WSL · CI · Docker) |
 | The citation | `uv tool run cffconvert --validate` | `CITATION.cff` parses against CFF 1.2.0 |
 
 ## The steps, in order
 
-1. **Decide the version** (the dev; D-r on the board). It goes in `pyproject.toml` **and**
-   `README.md`'s status line and `CITATION.cff` — a test fails if the README and `pyproject.toml`
-   disagree, so this cannot be half-done.
+1. **Decide the version**. It goes in `pyproject.toml`, `README.md`'s status line and
+   `CITATION.cff`. Check all three agree. Restoring the automated README/package version guard
+   removed during the documentation cleanup is pending; do not assume that guard currently runs.
 2. **Decide the authors** — `CITATION.cff` currently names "PlastidToolSuite contributors"
    deliberately. A Zenodo deposit records its authors permanently, so the real list is fixed
-   **before** step 5, by the team (CLAUDE.md → who decides).
+   **before** step 5, by the team.
 3. **Commit the release state** on `main`, then
    `git tag v<version> && git push origin main --tags`. `main` is one commit per phase — a release
    tag points at a state somebody can check out and trust.
@@ -38,7 +46,7 @@ are **decisions, not steps** — the version number and who is named as an autho
    archives it and mints the DOI. **Note:** Zenodo's integration works on public repositories —
    this repository is private, so either the release is cut after the repository is made public, or
    the tarball is uploaded to Zenodo by hand. *Not yet done; decided by the dev at release time.*
-7. **Put the DOI back into the tree** — `CITATION.cff` (`doi:`), `README.md`, and `PROJECT.md` §3 —
+7. **Put the DOI back into the tree** — `CITATION.cff` (`doi:`) and `README.md` —
    and commit. A DOI that lives only in a web page is a DOI the next reader has to go looking for.
 8. **The how-to video**: recorded by the team, linked from the README. No code produces it, and the
    release is not "done" without it (M9.6).

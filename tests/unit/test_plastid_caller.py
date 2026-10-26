@@ -51,7 +51,7 @@ def _genome() -> Genome:
 
 
 def test_a_reference_entry_carries_the_records_own_translation() -> None:
-    """Never a self-translation (D5-08 §8.21) — and no protein at all means no entry at all."""
+    """Never a self-translation (D5-08) — and no protein at all means no entry at all."""
     entries = reference_entries([_genome()], kind="CDS", vocabulary=("psbA",))
     assert [entry.sequence for entry in entries] == ["MADV"]
     assert entries[0].source_gene == "psbA"
@@ -88,7 +88,7 @@ def test_the_vocabulary_is_the_reference_sets_own_spelling() -> None:
 
 
 def test_the_two_kinds_are_two_indexes_never_one_pool() -> None:
-    """A blastn percentage and a blastx one are not one scale (D5-08 §3)."""
+    """A blastn percentage and a blastx one are not one scale (D5-08)."""
     genome = _genome()
     cds = reference_index([genome], kind="CDS", vocabulary=("psbA",))
     rrna = reference_index([genome], kind="rRNA", vocabulary=("rrn16",))
@@ -99,7 +99,7 @@ def test_the_two_kinds_are_two_indexes_never_one_pool() -> None:
 
 
 def test_the_plastid_callers_state_their_own_floors() -> None:
-    """Measured on the answer key (§8.46); the mito path's coverage of 0.5 is not enough here."""
+    """Measured on the answer key; the mito path's coverage of 0.5 is not enough here."""
     assert (DEFAULT_MIN_IDENTITY, DEFAULT_MIN_COVERAGE) == (50.0, 0.7)
     assert PLASTID_TRANSL_TABLE == 11
     # the two wrappers must send their own pair on, not the shared core's required arguments
@@ -149,7 +149,7 @@ def _twice(first: str, second: str) -> Genome:
 def test_a_locus_a_record_annotated_twice_is_searched_once() -> None:
     """Measured 08/10/2026 (H-19): 24 of the 34 pinned records carry a **truncated** ``ycf1``
     beside the complete one, and the truncated copy scores *higher* on identity — so the golden's
-    5,421 bp gene was called as 900 bp. Structure decides first (D5-08 §3), and the feature the
+    5,421 bp gene was called as 900 bp. Structure decides first (D5-08), and the feature the
     run does not search is **named**, not dropped in silence.
     """
     long_protein = "M" + "A" * 1799
@@ -187,7 +187,7 @@ def test_a_lone_short_feature_is_still_searchable() -> None:
     """The rule fires on a *comparison*, and one feature offers none — so it does not fire here.
 
     A record that annotates a locus once, briefly, may be carrying a short ortholog; a partial CDS
-    is the audit's own case and it blocks on the coordinates themselves (§8.43 blocked
+    is the audit's own case and it blocks on the coordinates themselves (the audit blocked
     ``NC_024936.1`` that way). Dropping this one would take a locus out of the search on no
     evidence at all — which is why the audit, not this rule, is where such a record is answered.
     """
@@ -329,12 +329,12 @@ def _one_hsp(entry: ReferenceEntry, *, qstart: int, qend: int, pident: float, bi
 
 
 def test_a_record_that_starts_a_gene_late_does_not_win_on_identity() -> None:
-    """Measured on the golden's ``rps19`` (§8.55): three references spell it 225 bp / 74 aa, and
+    """Measured on the golden's ``rps19``: three references spell it 225 bp / 74 aa, and
     that protein is the **suffix** of the 92 aa protein the target's own record carries — the same
     gene annotated from an inner ATG. They score 100.00 % against 98.91 % for the complete ones,
     so identity alone transfers the truncation and the call lands 54 bp short of the published CDS.
 
-    Structure decides before the score (D5-08 §3): H-19 keeps a truncated duplicate out of the
+    Structure decides before the score (D5-08): H-19 keeps a truncated duplicate out of the
     *index*; this is the same rule between candidates.
     """
     protein = "MK" + "A" * 90

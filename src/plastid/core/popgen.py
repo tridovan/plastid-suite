@@ -170,7 +170,7 @@ def fu_li_d_star(alignment: Alignment) -> float | None:
     ``η`` is the number of mutations (= S under the infinite-sites model this test assumes) and
     ``η_e`` the singletons. The variance constants are Fu & Li (1993) as written by Simonsen,
     Churchill & Aquadro (1995) and implemented in EggLib 3.6.1 — the module's numbers are
-    cross-checked against that implementation (PROJECT.md §8.28). ``None`` for n ≤ 3, where
+    cross-checked against that implementation. ``None`` for n ≤ 3, where
     uD = vD = 0.
     """
     n = alignment.n_rows

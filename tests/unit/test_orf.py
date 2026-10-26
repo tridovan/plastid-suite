@@ -1,7 +1,7 @@
 """ORF checks (P3-01): the classes, the negative cases, and what is refused rather than guessed.
 
 The rule these tests encode is measured, not assumed: 5 of the golden genome's 86 CDS do not
-start with ATG (PROJECT.md §6, TASKS.md pitfalls), so "must be ATG" would fail 3.7 % of real
+start with ATG (a measured pitfall), so "must be ATG" would fail 3.7 % of real
 plastid CDS. Every negative case here is a silent-wrong mode the check exists to make loud.
 """
 

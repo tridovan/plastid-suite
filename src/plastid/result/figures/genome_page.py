@@ -172,7 +172,7 @@ def _build(data: GenomePageSeries, title: str) -> Any:
         skew.set_axisbelow(True)
 
         # Above the drawings, not beside them: a page whose summary sits on the plot is a page
-        # nobody can read — the first render had exactly that (§8.39).
+        # nobody can read — the first render had exactly that.
         for index, line in enumerate(data.stat_lines()):
             figure.text(
                 0.10, 0.89 - index * 0.032, line, fontsize=THEME.font_size, color=THEME.line

@@ -16,7 +16,7 @@ by chance. Loci are therefore collapsed by their **normalized name**, first copy
 many rows were collapsed is reported rather than hidden.
 
 A test the data cannot support — a group with one genome in it, which is what the mito panel has —
-is reported *not computable* with its reason (§8.30's rule), never as a p-value.
+is reported *not computable* with its reason, never as a p-value.
 """
 
 from __future__ import annotations

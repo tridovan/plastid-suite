@@ -1,8 +1,8 @@
 """One run serves one organelle (D5-06, H-09) — the declaration, and the two refusal directions.
 
 The rule arrived in P3B-09 because only *one* of the two mismatch directions had a gate: the IR
-gate stopped a plastid module on a mitogenome (measured 03/10, §8.6), and nothing stopped
-``mito_genes`` on a plastome (measured 05/10, §9.J). Both directions are the same question, so
+gate stopped a plastid module on a mitogenome (measured 03/10), and nothing stopped
+``mito_genes`` on a plastome (measured 05/10). Both directions are the same question, so
 both are answered here.
 """
 
@@ -107,12 +107,12 @@ def test_an_unknown_group_is_a_programming_error_not_a_data_one() -> None:
 def test_the_registry_carries_each_modules_group() -> None:
     """H-09's first clause: the declaration lives in the registry, not in a reader's memory.
 
-    The two exact sets are deliberate tripwires: a module added to §13's table without a group —
+    The two exact sets are deliberate tripwires: a module added without a group —
     or a group changed without the table — makes this fail, and updating it means reading the
     table. ``plastid_annotate`` is in the plastid row because it transfers from plastid records
     and reads the inverted repeat; the seven "transitional" analyses are ``shared`` because that
     is what the table calls them, and what keeps them off a mitogenome today is ``requires_ir``,
-    a different question with its own gate (§8.6).
+    a different question with its own gate.
     """
     from plastid.modules import registry
 

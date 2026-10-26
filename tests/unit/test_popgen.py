@@ -2,8 +2,8 @@
 
 Every expected value here is arithmetic done by hand from the published formula, written out in
 the comment beside it — not a number copied from a previous run of this code. The cross-check
-against an independent implementation (EggLib 3.6.1) is a separate, recorded measurement
-(PROJECT.md §8.28), because a test that asserts what the code already produces proves nothing.
+against an independent implementation (EggLib 3.6.1) is a separate, recorded measurement,
+because a test that asserts what the code already produces proves nothing.
 
 The vector used throughout: four sequences, ten sites, one segregating site where the odd base
 appears once.

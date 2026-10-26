@@ -3,8 +3,7 @@
 Vmatch prints **0-based** starts and marks the class with a letter (``D`` direct, ``P``
 palindromic); ``repeat-match`` prints 1-based ones and marks the strand with an ``r``. Both
 convert into the same :class:`~plastid.external.repeatmatch.ExactMatch`, which is what makes the
-two counts comparable at all — measured 10/10/2026, the golden's two runs agree row for row
-(§8.58).
+two counts comparable at all — measured 10/10/2026, the golden's two runs agree row for row.
 """
 
 from __future__ import annotations

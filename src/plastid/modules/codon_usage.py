@@ -1,4 +1,4 @@
-"""Codon usage — RSCU · ENC · CAI · CBI · Fop (PROJECT.md §13.2, ROADMAP M2.4).
+"""Codon usage — RSCU · ENC · CAI · CBI · Fop (ROADMAP M2.4).
 
 The CDS set is the counted one: every ``CDS`` feature with ``pseudo`` excluded, both IR copies
 included — the same rule as ``count_genes`` (golden genome: 86). Sequences come from

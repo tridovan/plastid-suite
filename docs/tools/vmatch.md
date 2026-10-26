@@ -22,10 +22,10 @@ comparable at all. It is the same software family as REPuter.
 | | |
 |---|---|
 | Software | Vmatch **2.3.1**, build 2020-01-06 (`vmatch -version`, `mkvtree -version`) |
-| Package | bioconda `vmatch=2.3.1` (PROJECT.md §7.8) — `http://www.vmatch.de` is the author's page |
+| Package | bioconda `vmatch=2.3.1` — `http://www.vmatch.de` is the author's page |
 | Path here | `/root/toolbox/env/vmatch/bin/` — `mkvtree`, `vmatch` (its own env: installing it into the shared toolbox env risked moving the pinned `mafft`/`mummer4` builds) |
 | Licence | academic only — see above |
-| Measured on | the golden: **9** matches at ≥30 bp, the same nine `repeat-match` gives, coordinates and classes agreeing row for row (§8.58) |
+| Measured on | the golden: **9** matches at ≥30 bp, the same nine `repeat-match` gives, coordinates and classes agreeing row for row |
 
 **Install line** (its own environment, so the pinned builds in the toolbox env cannot move):
 

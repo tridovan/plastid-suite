@@ -1,12 +1,12 @@
 """The reference-set audit: what blocks, what is reported, and what a pin may waive (P3B-03).
 
 The negative cases are the point. D5-08's whole gate exists because the failures it catches are
-silent ones — a record with no ``/translation`` produces a search that finds nothing rather than
-an error, a partial coordinate produced **zero genes and a success exit** on the real query
-(§8.15 trap 1), and two published records genuinely invert their SSC without anything being wrong
-(§8.34). A file's own fixture here is the PGA annotation of *Iris hermona*: 85 CDS with no
-``/translation`` and an IR that fails the gate at 26.36 % (§8.31) — a real record, and exactly
-what the gate is for.
+silent ones — a record with no ``/translation`` produces a search that finds nothing rather
+than an error, a partial coordinate produced **zero genes and a success exit** on the real
+query (PGA's measured trap), and two published records genuinely invert their SSC without
+anything being wrong. A file's own fixture here is the PGA annotation of *Iris hermona*: 85
+CDS with no ``/translation`` and an IR that fails the gate at 26.36 % — a real record, and
+exactly what the gate is for.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ CORPUS = REPO / "tests" / "data" / "corpus"
 PANEL = REPO / ".panel" / "plastid-reference"
 
 # The PGA annotation of Iris hermona: a real record this project did not annotate, whose faults
-# are measured in §8.31 — 85 CDS without /translation, and an IR pair 26.36 % identical.
+# are measured on the corpus — 85 CDS without /translation, and an IR pair 26.36 % identical.
 PGA_HERMONA = CORPUS / "Iris_hermona_NC_081931.1.pga.gb"
 
 
@@ -89,7 +89,7 @@ def _edited_golden(tmp_path: Path, name: str, *, drop: str, add: str = "") -> Pa
 
 
 def test_a_cds_without_translation_blocks(tmp_path: Path) -> None:
-    """The engine searches the record's own protein (D5-08 §8.21) — no protein, no transfer."""
+    """The engine searches the record's own protein (D5-08) — no protein, no transfer."""
     record = _edited_golden(
         tmp_path,
         "no_translation.gb",
@@ -105,7 +105,7 @@ def test_a_cds_without_translation_blocks(tmp_path: Path) -> None:
 
 
 def test_a_partial_coordinate_blocks(tmp_path: Path) -> None:
-    """The class §8.34 caught: one published record, and PGA returned zero genes from it."""
+    """The class the corpus count caught: one published record, and PGA returned no genes."""
     record = _edited_golden(
         tmp_path,
         "partial.gb",
@@ -166,7 +166,7 @@ def test_a_missing_file_blocks_without_raising(tmp_path: Path) -> None:
 def test_the_real_pga_record_blocks_on_translation_and_ir(tmp_path: Path) -> None:
     """Measured 08/10/2026 on the vendored fixture: 83 of 84 CDS without /translation, IR failed.
 
-    This is *Iris hermona* as PGA annotated it (§8.31) — the same sequence as the published
+    This is *Iris hermona* as PGA annotated it — the same sequence as the published
     record beside it, which passes every check. Both halves matter: the audit must block the
     annotation a search cannot use, and must not block the one it can.
     """
@@ -230,7 +230,7 @@ def test_a_finding_refuses_a_check_this_audit_does_not_know() -> None:
 
 
 def test_an_inverted_ssc_is_reported_and_never_blocks() -> None:
-    """§8.34 measured why: 2/34 published records are inverted with every SSC CDS translating."""
+    """Measured why: 2/34 published records are inverted with every SSC CDS translating."""
     records = [_record(f"r{index}") for index in range(3)]
     records[2] = _record("r2", orientation="opposite")
 
@@ -294,7 +294,7 @@ def test_an_unknown_vote_is_not_a_verdict() -> None:
 
 
 def test_a_gene_set_that_differs_is_named_name_by_name() -> None:
-    """The report is about spelling, because that is what the ★ pick decides (D5-09 §7.1)."""
+    """The report is about spelling, because that is what the ★ pick decides (D5-09)."""
     records = [
         _record("a", names=("rbcL", "ndhI", "trnL-UAA")),
         _record("b", names=("rbcL", "ndhI", "trnL-UAA")),
@@ -468,7 +468,7 @@ def test_the_pinned_set_blocks_on_the_partial_record_and_reports_the_two_inversi
 
     Blocking the two inverted records would refuse two published plastomes, one of them an
     *Iris*; blocking the partial record is the price of a search that needs coordinates, and
-    §8.34 predicted exactly this one.
+    The corpus count predicted exactly this one.
     """
     paths = sorted(PANEL.glob("*.gb"))
     report = audit_files(paths, confirm=None)
@@ -631,7 +631,7 @@ def test_the_dotplot_figure_draws_the_matches_it_was_given() -> None:
 
 @pytest.mark.skipif(not PANEL.is_dir(), reason="the pinned reference set lives outside the repo")
 def test_the_gene_strand_rule_reproduces_the_measured_verdicts() -> None:
-    """The rule as §8.34 ran it — same two records, from the same comparison of region votes."""
+    """The rule as the corpus count ran it — same two records, same comparison of region votes."""
     from plastid.core.genbank import read_genbank
     from plastid.core.ir import detect_ir, enforce_ir_gate
 

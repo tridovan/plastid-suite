@@ -1,7 +1,7 @@
 """Gene-name normalization (P3-02): syntax, semantic aliases, and resolution by sequence.
 
-The dialects these tests exercise were measured on the project's own dataset (PROJECT.md
-§8.10): bracket tRNA names in one record, bare ``trnK``/``trnI`` in two, ``rrn16S`` beside
+The dialects these tests exercise were measured on the project's own dataset:
+bracket tRNA names in one record, bare ``trnK``/``trnI`` in two, ``rrn16S`` beside
 ``rrn16``, and four functional names beside their classic ones.
 """
 
@@ -106,7 +106,7 @@ def test_normalizing_is_idempotent() -> None:
 
 
 def test_the_alias_resolves_to_the_naming_references_spelling_and_prints_both() -> None:
-    """D5-09 §8 (flipped 08/10/2026): canonical is the naming reference's spelling.
+    """D5-09 (flipped 08/10/2026): canonical is the naming reference's spelling.
 
     The shipped direction is the **recorded standard**'s (``data/naming_reference.json``, the
     golden ``NC_050833.1``): it spells ``ycf3``, so ``pafI`` is the synonym that travels beside
@@ -139,12 +139,12 @@ def test_the_measured_loci_are_the_only_ones_shipped() -> None:
     ndhI joined it on 2026-10-03 (the golden record's ndhL and Chloe's ndhI are one locus with
     one protein); atpI, psaI and psbB joined it on 2026-10-04, when P4-02's Ka/Ks run listed the
     genes the two golden records "did not share" and three of them turned out to be the same
-    locus under NC_024936.1's own spelling (see data/gene_aliases.yaml, PROJECT.md §8.27); and
+    locus under NC_024936.1's own spelling (see data/gene_aliases.yaml); and
     trnI-GAU the same day, when P4-04's barcode run listed the loci a record carries and
-    NC_024936.1's trnl-GUA turned out to be that locus's tRNA, byte for byte (§8.28).
+    NC_024936.1's trnl-GUA turned out to be that locus's tRNA, byte for byte.
     """
     assert {locus.canonical for locus in ALIASES.loci} == {
-        # five flipped 08/10/2026 with D5-09 §8 — the recorded reference spells the classic names
+        # five flipped 08/10/2026 with D5-09 — the recorded reference spells the classic names
         "ycf3",
         "ycf4",
         "psbN",
@@ -155,7 +155,7 @@ def test_the_measured_loci_are_the_only_ones_shipped() -> None:
         "psaI",
         "psbB",
         "trnI-GAU",
-        # joined 10/10/2026 (§8.54) — NC_042827.1's lhbA against 33 records' psbZ
+        # joined 10/10/2026 — NC_042827.1's lhbA against 33 records' psbZ
         "psbZ",
     }
     assert all(locus.evidence for locus in ALIASES.loci)
@@ -277,11 +277,11 @@ def test_normalizing_a_genome_keeps_every_name_it_arrived_with(data_dir: Path) -
         gene.name for gene in golden.genes
     ]
     counted = [gene for gene in golden.genes if gene.kind in GENE_KINDS]
-    assert len({names.canonical(gene) for gene in counted}) == 112  # §6's distinct-name count
+    assert len({names.canonical(gene) for gene in counted}) == 112  # golden's distinct-name count
 
 
 def test_the_golden_genome_reports_the_four_aliased_loci(data_dir: Path) -> None:
-    """The golden spells five of the aliased loci itself (D5-09 §8), so its labels are its own."""
+    """The golden spells five of the aliased loci itself (D5-09), so its labels are its own."""
     golden = read_genbank(data_dir / "NC_050833.1.gb")
     names = normalize_genome(golden, ALIASES)
     labels = {gene.name: names.label(gene) for gene in golden.genes}
@@ -438,7 +438,7 @@ NEEDS_PANEL = pytest.mark.skipif(
     not PANEL.is_dir(),
     reason=(
         "the pinned panel is not on this machine — re-fetch it with the two 'plastid panel pin "
-        "--groups' commands in PROJECT.md §8.6"
+        "--groups' commands"
     ),
 )
 
@@ -560,7 +560,7 @@ def test_cds_by_canonical_name_keeps_one_copy_per_name(data_dir: Path) -> None:
     assert len(set(by_name)) == len(by_name)
     assert "rbcL" in by_name
     assert "ndhL" in by_name  # the golden's own spelling: the naming reference decides the
-    #                           canonical form (D5-09 §8), and the golden writes ndhL
+    #                           canonical form (D5-09), and the golden writes ndhL
     # every value is a real CDS of that genome, and at most one feature per canonical name
     features = set(cds_features(genome))
     assert set(by_name.values()) <= features

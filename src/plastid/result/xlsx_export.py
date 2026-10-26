@@ -8,7 +8,7 @@ Deterministic for the same reason the Word document is: ``openpyxl`` writes a zi
 carry the wall-clock time and a ``docProps/core.xml`` with created/modified stamps. Both are
 pinned here — fixed properties, then the archive rebuilt entry by entry.
 
-Pinning ``modified`` at the workbook is not enough, and that was measured the hard way (§9.C-38,
+Pinning ``modified`` at the workbook is not enough, and that was measured the hard way (
 10/10/2026): ``ExcelWriter.write_workbook`` assigns ``properties.modified = datetime.now(...)``
 **after** the caller has set it, so the field reached the file with the wall clock and two exports
 in different seconds were not byte-identical — the export test failed once in a full ``make check``
@@ -48,7 +48,7 @@ def _pin_modified(core: bytes) -> bytes:
 
     Raises when the stamp is not found exactly once: openpyxl having changed the shape of
     ``core.xml`` must stop the export, not quietly restore a file whose bytes depend on the
-    second it was written in — the failure mode this function exists to remove (§9.C-38).
+    second it was written in — the failure mode this function exists to remove.
     """
     pinned, count = _MODIFIED.subn(rb"\g<1>" + _STAMP.encode("ascii") + rb"\g<2>", core)
     if count != 1:
@@ -114,7 +114,7 @@ def export_xlsx(results: Mapping[str, Result]) -> bytes:
     buffer = io.BytesIO()
     workbook.save(buffer)
     # The properties are pinned, but the archive's own entries still carry "now" — rebuild them,
-    # and rewrite the one stamp `save()` overwrote with the clock (§9.C-38).
+    # and rewrite the one stamp `save()` overwrote with the clock.
     parts = zip_parts(buffer.getvalue())
     parts["docProps/core.xml"] = _pin_modified(parts["docProps/core.xml"])
     return deterministic_zip(parts)

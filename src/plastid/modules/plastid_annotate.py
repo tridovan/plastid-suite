@@ -9,7 +9,7 @@ consumes. The calling rules and every measurement behind them live in ``core/cal
 candidate that passes the floors and reports every other reference sequence it chose over
 (``competing_references``, one row each, with the numbers it lost on). PGA pooled every
 reference's sequences and annotated each independently — measured: 147 genes where the golden has
-132, four loci called twice under two spellings (§8.15). Here a locus is one row.
+132, four loci called twice under two spellings. Here a locus is one row.
 
 **Overlap is not error by default.** Measured on the golden: four overlapping pairs are *in the
 contract* (psbC×psbD 53 bp · ndhC×ndhK 10 · atpB×atpE 4 · rps12×rps12 114). A rule that dropped
@@ -29,7 +29,7 @@ the weaker overlap would delete real genes, so both calls stand and the pair is 
   the mito artifact was measured missing.
 
 **The inverted repeat is read behind the gate, never instead of it.** ``ctx.require_ir()`` stops
-the run when the two copies are not ≥ 99.9 % identical (§9.A: naive detection got 2 of 9 published
+the run when the two copies are not ≥ 99.9 % identical (naive detection got 2 of 9 published
 plastomes wrong, one silently). The self-search is a second opinion and a disagreement is a
 finding (``core/plastid_caller.repeat_agreement``); the structural frame is what the artifact
 writes and what positions are normalized against.
@@ -123,7 +123,7 @@ def _reference_directory(params: dict[str, Any], target: str) -> tuple[Path, tup
     The pinned set lives outside the repository (``.panel/`` is gitignored), so a run has to be
     told where it is; the recorded manifest supplies both the default directory and the
     **leave-one-out** rule — a record must never annotate a copy of itself, which is the corpus's
-    own measured trap (§8.31: the PGA set carried the golden's sequence and read 85 CDS where the
+    own measured trap (the PGA set carried the golden's sequence and read 85 CDS where the
     contract says 86).
     """
     manifest = load_recorded_manifest()
@@ -146,7 +146,7 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
     searched — the same set the caller is about to build its index from. That placement is what
     makes the gate a gate: it stops the run before the first BLAST, so a set that cannot be
     transferred from produces no annotation at all rather than a plausible one (D5-08: "every
-    audit failure stops the run — exit 2, nothing annotated"). Measured 09/10/2026 (H-19, §8.48):
+    audit failure stops the run — exit 2, nothing annotated"). Measured 09/10/2026 (H-19):
     the module did not call the audit at all, so a record the audit BLOCKs was still a candidate
     in a run on the golden.
 
@@ -191,7 +191,7 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
     if unmatched:
         # A name that matches nothing is not a no-op: the user believes a record was left out and
         # the run searched it. The same rule the audit's own exceptions follow — a pin that
-        # applies to nothing is reported, never implied (measured 08/10/2026, §8.43).
+        # applies to nothing is reported, never implied (measured 08/10/2026).
         raise ReferenceSetMissing(
             f"plastid_annotate: --set exclude={', '.join(unmatched)} matches no record in "
             f"{directory} — nothing was left out, and a run that silently searched it anyway "
@@ -355,7 +355,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         )
         # The reference's own exon structure, for the loci the caller just decided — the protein
         # search cannot see an exon shorter than one of its words, and it has no evidence at all
-        # about where an intron inside one alignment starts (§8.55). Searched only for the
+        # about where an intron inside one alignment starts. Searched only for the
         # entries that were chosen, never for the whole set: this answers a question about the
         # calls this run made, and the corpus measures what it is worth.
         junctions = _chosen_junctions(cds.calls)
@@ -443,7 +443,7 @@ def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
 
     The repeat is two copies of the same sequence in opposite orientations, so a plastome's
     published annotation lists each IR gene twice: the golden counts **86 CDS** where its distinct
-    loci are 79, and all four rRNA loci are inside the repeat (§8.34's 132 = 86 + 38 + 8). The
+    loci are 79, and all four rRNA loci are inside the repeat (132 = 86 + 38 + 8). The
     caller makes **one call per locus** on purpose; the copies are the *export's* job, and they
     are the same fact written in the record's own coordinates rather than a second measurement.
 
@@ -454,7 +454,7 @@ def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
     region *and* the repeat — is copied too, and only its exons inside the repeat are mirrored;
     the shared exon is written as it was called, so the two features overlap there. That is what
     the published record does with the golden's ``rps12``: it writes the gene **twice**, each
-    feature carrying the same LSC exon 1 and its own copy's exons (measured 10/10/2026, §8.54).
+    feature carrying the same LSC exon 1 and its own copy's exons (measured 10/10/2026).
     ``rps12`` is the only gene on the golden that straddles — ``ycf1`` runs from the SSC into the
     repeat as one call, and one call is not a second copy, which is why the record carries one
     ``ycf1`` and two ``rps12``.
@@ -821,7 +821,7 @@ def _truncated_notes(truncated: Sequence[TruncatedAnnotation]) -> tuple[str, ...
     return tuple(
         f"{row.accession} annotates {row.locus} twice: the {row.kept}-residue feature is used "
         f"and its {row.dropped}-residue copy ({row.ratio:.0%} of it) is not searched — structure "
-        f"decides before any score (D5-08 §3)"
+        f"decides before any score (D5-08)"
         for row in truncated
     )
 
@@ -869,7 +869,7 @@ def _overlaps(calls: Sequence[Any]) -> Iterator[dict[str, Any]]:
 
     **Parts, not envelopes.** A trans-spliced call's envelope spans everything between its first
     and last exon — measured on the golden, ``rps12`` is 68,976–98,016, so an envelope test made
-    it "overlap" 27 other genes and buried the four pairs that are real (§8.34: psbC×psbD 53 bp ·
+    it "overlap" 27 other genes and buried the four pairs that are real (psbC×psbD 53 bp ·
     rps12×rps12 114 · ndhC×ndhK 10 · atpB×atpE 4). Two genes overlap when their *exons* do.
     """
     for index, left in enumerate(calls):

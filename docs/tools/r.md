@@ -4,10 +4,10 @@
 the manuscript's seven figure scripts run under, and a missing interpreter must be **named**, never
 guessed at.
 
-**What it is.** R (the R Foundation), used here as a **plotting engine and nothing else**: seven
-scripts that read a table the toolkit exported and write PNG + PDF. None of them computes a number
-the toolkit does not already hold in a table cell — if a script and its table disagree, the table is
-right.
+**What it is.** R (the R Foundation), used for seven scripts that write PNG + PDF. Six consume
+tables exported by the toolkit; the tree script instead reads a user-supplied tree and can alter
+its root and included tips. Every figure needs traceable inputs and transformations. A table/figure
+disagreement needs investigation; neither output is automatically an independent answer key.
 
 **Versions measured:**
 
@@ -33,7 +33,7 @@ sudo apt-get install -y r-base-core \
   r-cran-zoo r-cran-scales r-cran-pheatmap r-cran-ape
 ```
 
-Conda route, if the toolkit is installed through `environment.yml` — the same nine, pinned there:
+Conda route through `environment.yml`: R's series is pinned; the nine package versions are not:
 
 ```yaml
 - r-base=4.3
@@ -83,8 +83,23 @@ the run's provenance. Four things are worth knowing:
 * **F9, the tree, reads no table at all.** This toolkit builds no tree, so the figure takes the
   user's own file — `--set tree=<file.treefile>` — hands it to the script as its input, and never
   copies it into the run. Its caption carries that file's path and sha256 where the others carry a
-  scope label. `R_F9` drops two *Asparagus* tips and roots on two Orchidaceae unless told
-  otherwise, so a tree of another family loses nothing and silently midpoint-roots instead.
+  scope label. `R_F9` defaults drop two *Asparagus* tips and root on two Orchidaceae, falling back
+  to a midpoint root when the outgroup is absent. The CLI currently does not forward overrides
+  for these choices; `--set root=none`, `outgroup=...` or `drop-tips=...` does not control them.
+
+**Controlling the tree directly.** Until CLI option forwarding is repaired (K-06 in
+[known issues](../known_issues.md)), a source checkout can call the packaged script explicitly:
+
+```sh
+Rscript src/plastid/data/r_scripts/R_F9_phylogeny_tree.R \
+  --input /absolute/path/to/my.treefile --outdir /absolute/path/to/tree-output \
+  --drop-tips "" --root none --og-nhan ""
+```
+
+This keeps the existing root and tips. To choose another root, supply the script's explicit
+`--root`/`--outgroup` arguments. A direct call is outside the toolkit run recorder; retain the
+input checksum, command, R version and output yourself. This example was checked against the
+script's argument handling; it was not executed during the documentation-only session.
 
 **Three limits of the scripts themselves**, all measured 17/10/2026 and each turned into a **named
 skip** or a pinned test rather than left to a cryptic R error:
@@ -104,9 +119,9 @@ skip** or a pinned test rather than left to a cryptic R error:
   from parts: on the golden pair a gene-name label collides twice over, and neither collision is
   visible from the name (two IR copies of one intron, and two introns of one gene).
 
-**The scripts are not edited.** The one change M10.2 made is the absolute-path fix in
-`00_ham_chung.R`. Everything a figure needs beyond that is supplied by its pivot, never by editing
-the manuscript's code.
+**Current script status.** The absolute-path fix is in `00_ham_chung.R`; the scripts otherwise
+retain manuscript-specific behavior. General species selection and configurable tree behavior
+are planned work, not a reason to preserve these defaults as permanent toolkit requirements.
 
 **Cite it.** R Core Team. *R: A Language and Environment for Statistical Computing.* R Foundation
 for Statistical Computing, Vienna, Austria. https://www.R-project.org/

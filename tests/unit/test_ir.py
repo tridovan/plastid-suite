@@ -1,4 +1,4 @@
-"""IR detection and the mandatory gate — the highest-risk component (PROJECT.md §9A).
+"""IR detection and the mandatory gate — the highest-risk component.
 
 The measured failure modes this file guards (each one stays forever):
   * naive detection was silently wrong on 2/9 published plastomes;
@@ -34,7 +34,7 @@ def test_annotation_ir_on_the_golden_genome(golden_genome: Genome) -> None:
     assert ir.length == 26_214
     assert ir.identity == 1.0
     assert ir.mismatches == 0
-    assert ir.mirror_constant == 236_850  # = a1 + b2 - 1, matches PROJECT.md §8.3
+    assert ir.mirror_constant == 236_850  # = a1 + b2 - 1, the measured pairing constant
     enforce_ir_gate(ir)  # must not raise
 
 
@@ -142,19 +142,19 @@ def test_equal_copies_are_measured_exactly_as_before() -> None:
     result = measure_ir(sequence, ira, irb, source="annotation")
     assert result.identity == 1.0
     assert result.excess_at == "none"  # no excess to place: the copies are the same length
-    assert result.mirror_constant == ira.start + irb.end - 1  # the rule stated in §8.3
+    assert result.mirror_constant == ira.start + irb.end - 1  # the measured pairing rule
 
 
 def test_identity_is_measured_on_full_copies_not_the_exact_core(
     edge_genomes: dict[str, Genome],
 ) -> None:
     # NC_063920: a perfect 22,998 bp exact core, but the full 26,162 bp copies are 92.62 %
-    # identical (PROJECT.md §8.3). The gate must use the full copies.
+    # identical. The gate must use the full copies.
     ir = ir_from_annotation(edge_genomes["NC_063920.1"])
     assert ir is not None
     assert ir.exact_core == 22_998
     # 1,929 mismatches over the 26,161 compared bases (the shorter copy; the two differ by
-    # 1 bp). PROJECT.md §8.3 rounds this to 92.63 %.
+    # 1 bp). The original measurement rounds this to 92.63 %.
     assert ir.compared_length == 26_161
     assert ir.mismatches == 1_929
     assert ir.identity == pytest.approx(1 - 1_929 / 26_161)
@@ -164,7 +164,7 @@ def test_identity_is_measured_on_full_copies_not_the_exact_core(
 
 def test_gate_flags_the_second_diverged_genome(edge_genomes: dict[str, Genome]) -> None:
     # Re-measured 2026-10-02 with the structural pairing (a1 + b2 - 1): 98.87 %, not the
-    # 53.65 % recorded in PROJECT.md §8.3. Verdict unchanged: below 99.9 % → gate fails.
+    # 53.65 %. Verdict unchanged: below 99.9 % → gate fails.
     ir = ir_from_annotation(edge_genomes["NC_063921.1"])
     assert ir is not None
     assert ir.identity == pytest.approx(0.988695, abs=1e-5)
@@ -193,14 +193,14 @@ def test_copies_of_unequal_length_are_measured_over_the_shorter(
     assert ir.length == 26_161
     # …and its excess sits at the **inner** end: 92.63 % here against 36.46 % at the outer end.
     # This is the measurement that says H-25's fix must weigh both ends rather than assume one —
-    # "take it at the outer end" would have turned §8.3's 92.63 % finding into 36.46 % and taken
+    # "take it at the outer end" would have turned the 92.63 % finding into 36.46 % and taken
     # the corpus's known-divergent case with it.
     assert ir.excess_at == "inner"
     assert ir.identity == pytest.approx(1 - 1_929 / 26_161)
 
 
 def test_de_novo_reproduces_the_two_known_failures(edge_genomes: dict[str, Genome]) -> None:
-    # PROJECT.md §8.3: the validated detector matches GenBank on 7/9 annotated genomes and
+    # Measured: the validated detector matches GenBank on 7/9 annotated genomes and
     # fails on exactly these two — one loudly, one silently. Both must stay visible.
     loud = ir_de_novo(edge_genomes["NC_063921.1"])
     assert loud is None  # no candidate passes the validity window — loud failure

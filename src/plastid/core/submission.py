@@ -47,7 +47,7 @@ SUBMITTED_KINDS: tuple[str, ...] = ("gene", "CDS", "tRNA", "rRNA")
 
 _QUALIFIER_KEYS: tuple[str, ...] = ("gene", "product", "transl_table", "codon_start")
 
-# Source qualifiers that are not qualifiers *in this format*. Measured 2026-10-03 (§8.18):
+# Source qualifiers that are not qualifiers *in this format*. Measured 2026-10-03:
 # table2asn calls both "Unrecognized qualifier name" and exits non-zero while still writing a
 # correct .sqn — a submission table carrying them is noisier than one that does not, and NCBI
 # derives both anyway (the molecule type from the submission, the taxon from the organism).
@@ -92,8 +92,7 @@ def to_tbl(genome: Genome, seq_id: str) -> str:
     Features are written in position order — the order the format expects a reader (and NCBI)
     to meet them — and every interval of one feature stays together on consecutive lines.
 
-    Two things are added to what the gene model holds, both measured against NCBI's own validator
-    (PROJECT.md §8.18):
+    Two things are added to what the gene model holds, both measured against NCBI's own validator:
 
     * the **source feature** comes first, carrying the record's own qualifiers. Without it
       table2asn reports ``NoSourceDescriptor`` and ``BioSourceMissing`` — a submission has to say

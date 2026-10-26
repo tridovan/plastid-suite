@@ -3,7 +3,7 @@
 **Why this file exists.** CLAUDE.md's invariant: the moment a tool is used, it is declared in the
 repo. CPStools is **not a module dependency** — no module of this toolkit calls it, and the minimum
 install stays pip-only. It is the other side of M8.1's cross-check, so it is declared here, with the
-version and the argv every number in §8.61 was produced with. The shape is Vmatch's (D-f): a
+version and the argv every cross-check number was produced with. The shape is Vmatch's (D-f): a
 comparison tool the release notes have to name.
 
 **What it is.** CPStools (Xu Wenbo, China Pharmaceutical University → CACMS) — a package for
@@ -23,7 +23,7 @@ uv pip install --python /root/toolbox/env/cpstools/bin/python "cpstools==3.0"
 ```sh
 # cpstools' KaKs route shells out to KaKs_Calculator (it does not bundle one)
 micromamba create -y -p /root/toolbox/env/kakscalculator -c conda-forge -c bioconda kakscalculator2=2.0.1
-# MAFFT 7.526 — the project's own pinned build (§7.8), reused through -m
+# MAFFT 7.526 — the project's own pinned build, reused through -m
 ```
 
 **Measured 10/10/2026 on the dev WSL machine:**
@@ -36,7 +36,7 @@ micromamba create -y -p /root/toolbox/env/kakscalculator -c conda-forge -c bioco
 | KaKs_Calculator | **2.0.1** (bioconda `kakscalculator2`), `KaKs_Calculator` on `PATH` |
 | `environment.yml` | `cpstools=3.0` (bioconda) — the same release this pip install is |
 
-**The argv the cross-check used** (§8.61 is the results):
+**The argv the cross-check used:**
 
 ```sh
 cpstools IR   -i NC_050833.1.gb
@@ -47,7 +47,7 @@ cpstools KaKs -i <reference.gb> -m YN
 ```
 
 **Defects measured in the tool itself** — recorded because a cross-check tool's behaviour is data to
-explain, never a benchmark (the §7.9 lesson):
+explain, never a benchmark (a lesson from reading CGAS's source):
 
 1. **`Pi` only runs when `-d` is absolute.** The work dir is resolved with `abspath()` when
    `gene_cp_sort.txt` is *written*, and with the raw argument when it is *read* — so `-d .` writes
@@ -64,7 +64,7 @@ explain, never a benchmark (the §7.9 lesson):
 5. **Its common-gene set is an intersection by name**, so two records that spell one locus
    differently lose it from both sides — measured: `atpI`, `psaI`, `psbB` are in neither the gene
    table nor any spacer name, because NC_024936.1 spells them `atpL`, `psaL`, `bspB`. This is
-   **§8.27's trap**, reproduced independently by another tool.
+   **the gene-set-by-name trap the Ka/Ks module hit**, reproduced independently by another tool.
 
 **Not vendored, deliberately:** a pip/conda package with its own dependency tree, resolved per
 platform — the same reasoning as MUMmer, BLAST+ and ARAGORN.

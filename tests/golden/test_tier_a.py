@@ -1,4 +1,4 @@
-"""Tier A golden numbers (PROJECT.md §6) — pure Python, no external tools, no network.
+"""Tier A golden numbers — pure Python, no external tools, no network.
 
 Golden sample: Iris domestica NC_050833.1.
 """
@@ -35,7 +35,7 @@ def test_gene_counts_follow_the_fixed_rule(golden_genome: Genome) -> None:
 
 
 def test_feature_gene_count_is_a_diagnostic_only(golden_genome: Genome) -> None:
-    # PROJECT.md §6: `gene` features = 133 (one truncated ycf1 copy has no CDS);
+    # The golden: `gene` features = 133 (one truncated ycf1 copy has no CDS);
     # unique names = 112; names repeated in the IR = 21.
     counts = count_genes(golden_genome)
     assert counts.gene_features == 133
@@ -44,7 +44,7 @@ def test_feature_gene_count_is_a_diagnostic_only(golden_genome: Genome) -> None:
 
 
 def test_truncated_ycf1_copy(golden_genome: Genome) -> None:
-    # PROJECT.md §9.10: ycf1 has two `gene` features — a truncated pseudo copy at
+    # Measured: ycf1 has two `gene` features — a truncated pseudo copy at
     # 108,448–109,347 (gene + misc_feature, no CDS) and the real copy at
     # 122,984–128,404, which is the only one carrying a CDS.
     copies = [gene for gene in golden_genome.genes if gene.name == "ycf1"]
@@ -192,9 +192,9 @@ def test_the_shared_span_derivation_reproduces_the_introns_module(golden_genome:
 
 
 def test_the_golden_spacers_are_measured_not_inherited(golden_genome: Genome) -> None:
-    """P2B-01's own numbers — measured 10/10/2026, a new §8 entry, never a survey's count.
+    """P2B-01's own numbers — measured 10/10/2026, never a survey's count.
 
-    The phase's trap is the 26/9 survey's numbers measured on *other* data (§9.H). These are the
+    The phase's trap is the 26/9 survey's numbers measured on *other* data. These are the
     golden's: 91 spacers in the single-copy regions, 38 more inside the IR (excluded — its two
     copies are one sequence annotated twice), 2 crossing a region boundary, and 4 gene pairs
     that leave no gap at all (psbD·psbC −53, ndhK·ndhC −10, atpE·atpB −4, and rps12's two CDS
@@ -279,7 +279,7 @@ def test_orf_checks_pass_on_the_golden_genome(golden_genome: Genome) -> None:
 def test_orf_check_reports_the_truncated_ycf1_as_annotated_not_coding(
     golden_genome: Genome,
 ) -> None:
-    """PROJECT.md §9.B-10: ycf1's truncated copy is a ``gene`` + ``misc_feature`` with no CDS.
+    """Measured: ycf1's truncated copy is a ``gene`` + ``misc_feature`` with no CDS.
     It is reported in its own table — not as a failed CDS, and never "repaired"."""
     from plastid.modules import orf
 
@@ -338,7 +338,7 @@ def test_gene_table_lists_tirna_by_anticodon_with_copy_counts(golden_genome: Gen
     assert "trnL-TAA" not in trna["genes"]
 
     # ycf3/ycf4 are printed under their canonical names — the naming reference's spelling
-    # (D5-09 §8, flipped 08/10/2026) — and sit with
+    # (D5-09, flipped 08/10/2026) — and sit with
     # photosystem I, so only ycf1 and the two ycf2 copies remain in the unknown-function group
     assert rows["Conserved open reading frames"]["copies"] == 3  # ycf1, ycf2 x2
     assert "ycf3 (pafI)" in rows["Subunits of photosystem I"]["genes"]

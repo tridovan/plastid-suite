@@ -1,10 +1,10 @@
-"""Amino-acid composition, GRAVY and aromaticity (PROJECT.md §13.2, ROADMAP M2.5).
+"""Amino-acid composition, GRAVY and aromaticity (ROADMAP M2.5).
 
 The CDS set comes from ``cds_features`` — the same source P2-03 uses, so the two modules can
 never disagree about which sequences they describe. Every translation is built with
 ``coding_sequence`` and NCBI table 1, compiled here (D2-03) — and the output names the table the
 record's own CDS declare (plastid records declare 11; the two share every amino acid and differ
-only in initiation codons, and the initiator is read as its own amino acid — §9.J).
+only in initiation codons, and the initiator is read as its own amino acid).
 
 Cross-check that must hold (and is asserted in the golden tests): the residue total equals the
 sense-codon total of `codon_usage`, because every sense codon contributes exactly one residue.

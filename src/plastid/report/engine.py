@@ -1,4 +1,4 @@
-"""Sentence-report engine (decision §10.7, PROJECT.md §3).
+"""Sentence-report engine.
 
 Templates reference table cells (``{{table.column}}`` / ``{{table.rowkey.column}}``) and never
 contain literal numbers — the scan test enforces that. An unresolvable reference raises; the

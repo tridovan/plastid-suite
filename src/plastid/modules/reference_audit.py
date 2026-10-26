@@ -190,7 +190,7 @@ def _records(report: AuditReport) -> Table:
 def _name_sets(report: AuditReport) -> Table | None:
     """Every name every record carries, and whether the majority carries it too.
 
-    The ★ pick (D5-09 §7.1) is a choice between **vocabularies**, so the report has to show the
+    The ★ pick (D5-09) is a choice between **vocabularies**, so the report has to show the
     names as the records spell them — pivot this table by ``name`` and ``in_majority`` and the
     two spellings of one locus stand next to each other, with the records that use each.
     """
