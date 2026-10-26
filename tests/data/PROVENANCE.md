@@ -6,10 +6,10 @@
 | `NC_024936.1.gb` | NC_024936.1 | *Iris gatesii* | 298,692 B |
 
 - **Source:** NCBI Nucleotide, fetched 2026-09-26 via E-utilities
-  (`efetch … rettype=gbwithparts&retmode=text`) — PROJECT.md §8.3.
+  (`efetch … rettype=gbwithparts&retmode=text`).
 - **Copied into the repo:** 2026-10-02 from the validated probe dataset
-  (`/mnt/d/business/pts/probe/data/`, PROJECT.md §11) — the exact files behind every measured
-  number in PROJECT.md §8–§9.
+  (`/mnt/d/business/pts/probe/data/`) — the exact files behind every measured
+  number.
 - **Pinned:** `sha256sum -c SHA256SUMS` from this directory.
   (`NC_050833.1.gb` = `a946f23e…`, `NC_024936.1.gb` = `fd441727…`)
 - **Licence:** NCBI GenBank data is in the public domain.
@@ -71,11 +71,11 @@
   annotations of the *same sequences* — the published NCBI record and a **PGA** re-annotation —
   plus the bare sequences (`.fasta`). 136 files · 28 MB. Both annotation sets and the FASTA
   manifest are pinned under `.panel/iridaceae-34{,-pga}/` (gitignored, re-pinnable); the full
-  characterisation is PROJECT.md §8.31.
+  characterisation was measured when the corpus was pinned.
 - **Why these five files:** the corpus is far too large to vendor, so what ships is the smallest
   subset in which **every file carries a written-down expected answer** — three pairs, three jobs:
   the golden genome both ways (the contract is already written down, and PGA's annotation of the
-  same sequence measures **85 CDS where §6 says 86**), *Iris hermona* both ways (one sequence; the
+  same sequence measures **85 CDS where the golden says 86**), *Iris hermona* both ways (one sequence; the
   IR gate passes on one annotation and fails on the other at **26.36 %**, while de-novo finds
   100.00 % on the same bases), and the group's own *E. bulbosa* (133 = 87 + 38 + 8 published,
   131 = 85 + 38 + 8 by PGA). `tests/golden/test_corpus.py` asserts each one.
@@ -93,7 +93,7 @@
   pinned record), and anything about *their* numbers — the corpus is a test dataset, not a
   manuscript's data: no species here is Oldenlandia or Coleus.
 - **Licence:** NCBI GenBank data is in the public domain. The PGA annotation is a derived work on
-  the same public sequences (PGA is GPL-3.0, PROJECT.md §3 — it is not redistributed here).
+  the same public sequences (PGA is GPL-3.0 — it is not redistributed here).
 
 ## A real delta file (P4-01)
 

@@ -52,7 +52,7 @@ from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
 
 MODULE_ID = "barcodes"
-MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs (see §9.C-35)
+MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs
 
 
 @module(

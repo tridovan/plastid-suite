@@ -350,7 +350,7 @@ def search_argv(
 # sides already carry a curated protein (/translation), so blastx's six-frame translation would
 # add cost and no sensitivity, and it would let a frame error hide inside a good score.
 #
-# The E-value and the flags are the ones §8.41's thresholds were measured with, and that is the
+# The E-value and the flags are the ones the thresholds were measured with, and that is the
 # only reason they are not the module's defaults: identity ≥ 50 %, coverage ≥ 0.7 and a margin
 # ≥ 10 bits are numbers *of this command line*, and a different one would make them folklore.
 

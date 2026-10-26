@@ -3,13 +3,13 @@
 34 Iridaceae plastomes arrived in **two annotations of the same sequences**: the published NCBI
 record, and a PGA re-annotation — the tool named by the records themselves, `/note="Annotation
 Method :: PGA-Plastid Genome Annotator"`, present in 34/34 of the second set and in none of the
-first (measured 04/10/2026, PROJECT.md §8.31). The corpus is 28 MB and lives outside the repo;
+first (measured 04/10/2026). The corpus is 28 MB and lives outside the repo;
 what is vendored here is the smallest subset in which every file carries a written-down expected
 answer.
 
 Three pairs, three different jobs:
 
-* **the golden genome both ways** — the contract is already written down (§6), and the PGA
+* **the golden genome both ways** — the contract is already written down, and the PGA
   annotation of the very same sequence measures **85 CDS where the contract says 86**;
 * ***Iris hermona* both ways** — one sequence, and the IR gate passes on one annotation while
   failing on the other at 26.36 %;
@@ -35,7 +35,7 @@ from plastid.core.ir import IRGateError, detect_ir
 from plastid.core.model import count_genes
 
 # The measured corpus fixtures: file → (accession, length, GC %, CDS, tRNA, rRNA).
-# Every number was measured on these files (PROJECT.md §8.31); none is a copy of a published
+# Every number was measured on these files; none is a copy of a published
 # table, and the two annotations of one genome deliberately sit next to each other.
 CORPUS: dict[str, tuple[str, int, float, int, int, int]] = {
     "corpus/Iris_domestica_NC_050833.1.pga.gb": (
@@ -89,7 +89,7 @@ def _gc(sequence: str) -> float:
 def test_every_vendored_corpus_record_measures_what_was_recorded(
     data_dir: Path, relative: str
 ) -> None:
-    """Each fixture's own numbers, measured when it was vendored (PROJECT.md §8.31)."""
+    """Each fixture's own numbers, measured when it was vendored."""
     accession, length, gc, cds, trna, rrna = CORPUS[relative]
     genome = read_genbank(data_dir / relative)
     counts = count_genes(genome)
@@ -102,7 +102,7 @@ def test_every_vendored_corpus_record_measures_what_was_recorded(
 def test_the_corpus_pairs_carry_identical_sequences(data_dir: Path) -> None:
     """The fixtures' whole point: two annotations of one sequence, never two sequences.
 
-    Measured on the full corpus as well — 34/34 pairs identical (PROJECT.md §8.31) — but this is
+    Measured on the full corpus as well — 34/34 pairs identical — but this is
     what makes the fixture pair a controlled comparison, so it is asserted where it is used.
     """
     pairs = [
@@ -121,7 +121,7 @@ def test_the_corpus_pairs_carry_identical_sequences(data_dir: Path) -> None:
 
 
 def test_the_golden_genome_re_annotated_measures_one_cds_short(data_dir: Path) -> None:
-    """§6 says 132 = 86 + 38 + 8. PGA's annotation of the same 153,724 bp says **85 CDS**.
+    """The golden says 132 = 86 + 38 + 8. PGA's annotation of the same 153,724 bp says **85 CDS**.
 
     The missing feature is the second `rps12` copy, and that is the whole finding: the contract
     is not a property of the sequence, it is a property of the annotation, and a pipeline that
@@ -145,7 +145,7 @@ def test_one_sequence_two_verdicts_from_the_ir_gate(data_dir: Path) -> None:
 
     Both files hold the same 153,185 bp, and de-novo detection finds a 26,132 bp inverted repeat
     at 100.00 % on it — so the failure belongs to the annotation, not to the sequence. This is the
-    case the gate exists for (PROJECT.md §9.A), and it is the regression fixture for it: 3 of the
+    case the gate exists for, and it is the regression fixture for it: 3 of the
     corpus's 34 PGA records behave this way.
 
     **The number moved on 17/10/2026, the verdict did not.** It read 26.36 % until H-25 was fixed:
@@ -193,8 +193,8 @@ def test_the_ndh_locus_resolves_to_one_key_under_both_spellings(data_dir: Path) 
     """`ndhL` (published) and `ndhI` (PGA) are one locus, and the alias table already says so.
 
     Measured on the golden genome: both annotations place it at `118156-118698(-)` with the
-    identical 543 bp sequence — the same evidence §8.17 recorded on 03/10, re-confirmed here on
-    a second corpus and 8/34 pairs (PROJECT.md §8.31). The check is that the *code* joins them:
+    identical 543 bp sequence — the same evidence recorded on 03/10, re-confirmed here on
+    a second corpus and 8/34 pairs. The check is that the *code* joins them:
     a comparison spanning the two annotations must not see two different genes.
     """
     published = read_genbank(data_dir / "NC_050833.1.gb")
@@ -202,7 +202,7 @@ def test_the_ndh_locus_resolves_to_one_key_under_both_spellings(data_dir: Path) 
 
     assert "ndhL" in {gene.name for gene in published.genes}
     assert "ndhI" in {gene.name for gene in pga.genes}
-    # and the canonical key is the naming reference's spelling since D5-09 §8 — the published
+    # and the canonical key is the naming reference's spelling since D5-09 — the published
     # record is the recorded standard, so its own spelling leads
 
     for genome in (published, pga):

@@ -1,4 +1,4 @@
-"""The queryable-number check over *generated* reports (Phase 5, M5.4 — PROJECT.md §13.5).
+"""The queryable-number check over *generated* reports (Phase 5, M5.4).
 
 A shipped template may not carry a digit — the engine's scan test enforces that — so every number
 a generated report shows came from a table cell, or entered through one of three spans that no
@@ -15,7 +15,7 @@ inside the rendered value of a cell of the module's own tables.
 A **text column** is prose, not a quantity: a report quoting ``mean + 1 sd of this run's windows``
 or ``NC_057983.1#10`` carries digits that claim nothing, so a text value containing a letter is
 set aside — removed from the scanned body and never counted as a cell that carries a number. The
-measurement that forced this rule is in PROJECT.md §8.35: the strict rule failed on the Phase-4
+measurement that forced this rule is: the strict rule failed on the Phase-4
 deliverable run with exactly six collisions, every one of them a quantity colliding with a number
 printed inside a quoted text cell.
 """

@@ -1,14 +1,14 @@
 """Which organelle a record is, and the rule that one run serves exactly one (D5-06, H-09).
 
-The toolkit serves plastids and mitochondria, but **a run belongs to one organelle** (PROJECT.md
-§3, 05/10/2026). The declaration is the record's own ``/organelle`` qualifier; a bare sequence —
+The toolkit serves plastids and mitochondria, but **a run belongs to one organelle** (decided
+05/10/2026). The declaration is the record's own ``/organelle`` qualifier; a bare sequence —
 an assembler's output, which is what the annotate step takes — has no record to ask, so it
 declares itself **by the path it enters**: ``plastid annotate`` is the plastid path, ``plastid
 mito annotate`` the mitochondrial one.
 
 **Why this is a module and not a line in the CLI.** Until P3B-09 the only signal a module carried
 was ``requires_ir``, which answers "does this need the inverted repeat" and *not* "which organelle
-does it serve" — measured 05/10/2026 (§9.J, H-09): running ``mito_genes`` on a plastome was
+does it serve" — measured 05/10/2026 (H-09): running ``mito_genes`` on a plastome was
 stopped by nothing at all, because only one of the two mismatch directions had a gate. The two
 directions are the same question, so they are answered in one place, and the registry carries each
 module's group (:mod:`plastid.modules.registry`) so the answer does not depend on remembering.
@@ -44,8 +44,8 @@ __all__ = [
 PLASTID = "plastid"
 MITO = "mitochondrion"
 
-# The three module groups of PROJECT.md §13 → "Hai bào quan". The table is the source of truth;
-# these constants are how a module says which row it is in.
+# The three module groups: shared · plastid-only · mito-only. Every module declares one in the
+# registry; these constants are how it says which.
 GROUP_SHARED = "shared"
 GROUP_PLASTID = "plastid"
 GROUP_MITO = "mito"
@@ -64,7 +64,7 @@ _PLASTID_WORDS = ("plastid", "chloroplast")
 _MITO_WORDS = ("mitochond",)
 
 # What a *record* is called versus what a *module group* is called. The two vocabularies differ on
-# purpose — the group names are the project's own (`mito_annotate`, `mito_caller`, §13's table),
+# purpose — the group names are the project's own (`mito_annotate`, `mito_caller`),
 # while the organelle name is GenBank's — so the mapping is written down rather than relying on
 # the two happening to share a string for plastids.
 _GROUP_OF = {PLASTID: GROUP_PLASTID, MITO: GROUP_MITO}

@@ -1,6 +1,6 @@
 """Canonical origin and the four-region split.
 
-Decision 2026-10-02 (PROJECT.md §3, closing §10.6): per-genome tables keep **GenBank
+Decision 2026-10-02: per-genome tables keep **GenBank
 coordinates**; cross-genome comparisons use the **normalized frame**; every table states
 which frame it uses, and the rotation offset is recorded in the run info.
 

@@ -1,6 +1,6 @@
 """NCBI E-utilities client — the only module in the package that talks to the network.
 
-Reference Panel policy (PROJECT.md §10.8): search and summaries build a *dated cache*; runs
+Reference Panel policy: search and summaries build a *dated cache*; runs
 never query NCBI. Without an API key NCBI allows 3 requests/second, so calls are spaced.
 Tests inject a transport callable — no test ever touches the network.
 """

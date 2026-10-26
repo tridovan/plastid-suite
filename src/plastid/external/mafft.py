@@ -1,9 +1,9 @@
-"""MAFFT — the aligner behind the comparison modules (tier B; PROJECT.md §7.8 pins 7.526).
+"""MAFFT — the aligner behind the comparison modules (tier B; `environment.yml` pins 7.526).
 
 One job: sequences in, an :class:`Alignment` out, through the single tool door so the version
 and the command line land in the run's provenance. A missing aligner raises a named ToolError —
 the comparison modules cannot quietly fall back to a hand-rolled alignment (measuring that
-fallback against MAFFT once gave 2.667 where the true Ts/Tv was 2.686; PROJECT.md §9.B).
+fallback against MAFFT once gave 2.667 where the true Ts/Tv was 2.686).
 """
 
 from __future__ import annotations
@@ -82,8 +82,7 @@ def _run(rows: Sequence[tuple[str, str]], ctx: RunContext, *, extra: Sequence[st
     binary = which("mafft")
     if binary is None:
         raise ToolError(
-            f"mafft not found — the comparison modules need MAFFT {MAFFT_VERSION}; "
-            f"install it as recorded in PROJECT.md §7.8"
+            f"mafft not found — the comparison modules need MAFFT {MAFFT_VERSION}; install it"
         )
     version, _ = tool_version("mafft", "mafft", binary)
     with tempfile.TemporaryDirectory(prefix="mafft_") as work:

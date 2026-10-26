@@ -1,7 +1,7 @@
 # PMGA (MGAVAS) — declared, and measured as far as it can be without running it
 
 > **Pipeline decision changed 05/10/2026.** The mito annotate step is this project's **own**
-> reference-transfer caller (`core/mito_caller.py` + `modules/mito_annotate.py`, Phase 3A, §8.22) —
+> reference-transfer caller (`core/mito_caller.py` + `modules/mito_annotate.py`, Phase 3A) —
 > PMGA never ran here and **nothing waits on it** (H-05: its web service still refuses
 > connections). "Route 2" below stays as the record of the 03/10 decision and as the fallback if a
 > machine that can run the container ever appears; `external/pmga.py` remains unwritten on purpose.
@@ -65,7 +65,7 @@ mitochondrion (NC_037304) and plastome (NC_000932).
 * It therefore belongs to the **declared-external-tool tier**, exactly like Chloe and table2asn —
   never to the pip-only tier, which must keep working with no external tool at all.
 
-**This is not a new question: the plan already answered it** (PROJECT.md §3, P1-12 — the backend
+**This is not a new question: the plan already answered it** (P1-12 — the backend
 rule): *a heavy step runs where it fits*. Locally on an ordinary machine when it can, on a web
 service or a bigger server when it cannot. The same rule D3-01 applied to GeSeq applies here:
 
@@ -82,7 +82,7 @@ service or a bigger server when it cannot. The same rule D3-01 applied to GeSeq 
    The pin records what an NCBI download records — bytes · sha256 · md5 · the record re-read with
    our own reader — plus where it came from. Every later run is offline, and the biologist's
    computer never holds the container. This is the route for the team's own machines, and the
-   `--file` half was built on 2026-10-03 precisely because the rule requires it (PROJECT.md §8.19).
+   `--file` half was built on 2026-10-03 precisely because the rule requires it.
 
 **Decided 03/10 (dev, confirmed by anh Trí): route 2 is what this project uses, and
 `external/pmga.py` is not written.** The reason is measured, not a preference: the container is
@@ -110,7 +110,7 @@ Until it runs somewhere, these stay open:
   survives WSL2);
 * **peak RAM and wall-clock time** for one mitogenome — the number that decides question 1 above;
 * whether the gene set it returns agrees with `modules/mito_genes.py` on the stand-in
-  `OX459128.1` (51 = 31 CDS + 17 tRNA + 3 rRNA, PROJECT.md §8.14).
+  `OX459128.1` (51 = 31 CDS + 17 tRNA + 3 rRNA).
 
 `external/pmga.py` is **not written yet, deliberately**: an adapter is written against observed
 argv and observed output file names, and neither has been observed. The moment the container runs,

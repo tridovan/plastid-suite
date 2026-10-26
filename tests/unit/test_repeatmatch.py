@@ -4,7 +4,7 @@ The output is three columns and an ``r`` suffix, and the suffix is the whole tra
 copy read on the reverse strand, and it sits on that copy's **start in the reverse-complement
 frame** — not on the forward coordinate a table wants. The golden's own IR pair is the check:
 ``83128 153724r 26214`` must convert to ``[83127, 109341)`` and ``[127510, 153724)``, which are
-exactly IRa and IRb (§8.58). Getting this wrong gives two intervals that still look plausible.
+exactly IRa and IRb. Getting this wrong gives two intervals that still look plausible.
 """
 
 from __future__ import annotations

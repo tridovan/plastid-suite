@@ -2,9 +2,9 @@
 
 A plastome is annotated by transferring a curated annotation from relatives
 (:mod:`plastid.core.plastid_reference`). That only works if the relatives themselves are usable:
-a record whose CDS carry no ``/translation`` cannot be searched (D5-08 §8.21 — the engine never
+a record whose CDS carry no ``/translation`` cannot be searched (D5-08 — the engine never
 self-translates), a record with partial coordinates stamps partial flags on whatever it annotates
-(§8.15 trap 1, where PGA returned **zero** genes from exactly such a record), and a record whose
+(PGA was measured returning **zero** genes from exactly such a record), and a record whose
 IR pair does not hold up has no frame to normalize positions against. So the set is audited
 *before* anything is annotated, and this module is that audit.
 
@@ -14,11 +14,12 @@ Two verdicts, and the difference is measured rather than stylistic (D5-08, 05/10
   annotated. The classes are: unreadable · no gene features · a CDS without ``/translation`` ·
   a gene feature with partial coordinates · the IR gate · a CDS whose own sequence fails the ORF
   check.
-* **REPORT** — the set is not uniform and a person has to know. Measured in §8.34: 32/34
-  published records share one SSC orientation and **2/34 are inverted with all their SSC CDS
-  translating cleanly** — the plastome's known flip-flop, not an error, and blocking would refuse
-  two published records, one of them an *Iris*. Gene-set deviations are reported for the same
-  reason: presence genuinely varies between annotations (§8.31: ``ycf1`` 24/34). A majority is
+* **REPORT** — the set is not uniform and a person has to know. Measured on the 34-record
+  corpus: 32/34 published records share one SSC orientation and **2/34 are inverted with all
+  their SSC CDS translating cleanly** — the plastome's known flip-flop, not an error, and
+  blocking would refuse two published records, one of them an *Iris*. Gene-set deviations are
+  reported for the same
+  reason: presence genuinely varies between annotations (``ycf1`` in 24/34). A majority is
   only called with **N ≥ 3**; with N = 2 the report says the two references disagree.
 
 **A confirmed exception is pinned to bytes.** The REPORT classes are the ones no rule settles
@@ -255,7 +256,7 @@ class AuditReport:
 
     @property
     def ok(self) -> bool:
-        """True when nothing blocks — REPORT findings do not stop a run (measured, §8.34)."""
+        """True when nothing blocks — REPORT findings do not stop a run (measured)."""
         return not self.blocked
 
     def lines(self) -> tuple[str, ...]:
@@ -419,7 +420,7 @@ def _set_reports(facts: Sequence[RecordFacts]) -> list[Finding]:
 
     Both are measured over **every record that could be read**, blocked ones included: a blocked
     record is still a published record, its gene strands still say which way its SSC runs, and
-    §8.34's 32/34 is a statement about the corpus rather than about the records that survived
+    the corpus's 32/34 is a statement about the corpus rather than about the records that survived
     this audit. Usability is the block list's business.
     """
     findings = majority_report(
@@ -564,7 +565,7 @@ def gene_set_report(records: Sequence[RecordFacts]) -> list[Finding]:
     Deliberately a statement about *spelling*: which names a record uses. D5-09 settles which
     vocabulary the project writes (the ★ record) and forbids mixing the two, so the audit may not
     presuppose that answer by canonicalizing first. It reports what the set says, which is also
-    what the ★ pick has to be made from (D5-09 §7.1).
+    what the ★ pick has to be made from (D5-09).
     """
     if len(records) < 2:
         return []
@@ -790,11 +791,11 @@ def confirm_findings(
 def ssc_orientation(genome: Genome, ir: IRResult) -> str:
     """Is the SSC's coding strand the same as the LSC's, inside this one record?
 
-    Measured as §8.34 measured it: after :func:`plastid.core.normalize.normalize` (which rotates
-    the origin and never flips a strand), each region votes with the strand of its own CDS and the
-    two votes are compared. Comparing raw coordinates between records would be meaningless — every
-    record has its own origin. ``"unknown"`` when a region holds no CDS, or its vote is tied: an
-    empty or split vote is not a verdict.
+    Measured the way the corpus was measured: after :func:`plastid.core.normalize.normalize`
+    (which rotates the origin and never flips a strand), each region votes with the strand of
+    its own CDS and the two votes are compared. Comparing raw coordinates between records would
+    be meaningless — every record has its own origin. ``"unknown"`` when a region holds no CDS,
+    or its vote is tied: an empty or split vote is not a verdict.
     """
     frame = normalize(genome, ir)
     regions = {region.name: region for region in regions_from_ir(frame.genome, frame.ir)}

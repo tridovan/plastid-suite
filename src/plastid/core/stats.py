@@ -7,7 +7,7 @@ that does not carry here. What is ours is the discipline around it:
 
 * every result carries the **test's name**, the **n** it used and the **assumption** it rests on;
 * a statistic the data cannot support is ``NOT_COMPUTABLE`` with a reason — never a number
-  (§8.30's rule, applied to every function here);
+  (applied to every function here);
 * every function is pinned by a hand-computed vector in the tests, not by scipy against itself.
 
 scipy is an optional dependency (``pip install 'plastid-suite[stats]'``), imported inside the

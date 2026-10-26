@@ -13,8 +13,8 @@ was extracted. What stays here is what is **measured about this organelle**:
 
 They are the defaults this path's own callers get, and they are deliberately *not* defaults in
 ``core/caller.py``: a plastid run that inherited a mitochondrial floor would be quoting a number
-it never measured (PROJECT.md §8.41 measured 0.7 for the plastid path, and says why 0.5 is not
-enough there).
+it never measured (0.7 was measured for the plastid path, where 0.5 is not
+enough).
 
 Everything else — ``Hsp``, ``ReferenceIndex``, ``CallResult``, the chaining, the codon
 refinement — is re-exported so the mito modules and their tests read exactly as they did.

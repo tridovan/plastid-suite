@@ -1,12 +1,12 @@
-"""The audit against the real corpus — the Done-when of P3B-03 (D5-08, §8.34).
+"""The audit against the real corpus — the Done-when of P3B-03 (D5-08).
 
-The pinned reference set is the 34 Iridaceae plastomes of §8.31, and §8.34 already measured what
+The pinned reference set is the 34 Iridaceae plastomes of the corpus, and a hand count measured what
 an audit of them has to say: **32/34 share one SSC orientation, 2/34 are inverted with all their
 SSC CDS translating cleanly**, and exactly one record carries a partial coordinate. Those three
 numbers are the contract here — the audit may not block the two inverted records (blocking would
 refuse two published plastomes, one of them an *Iris*) and may not let the partial one through.
 
-The set itself is 37 MB and lives outside the repo (`.panel/`, PROJECT.md §8.31), so these tests
+The set itself is 37 MB and lives outside the repo (`.panel/`), so these tests
 skip on a machine that has not pinned it; the negative cases that need no corpus live in
 tests/unit/test_reference_audit.py and run everywhere.
 """
@@ -25,7 +25,7 @@ from plastid.run.layout import RunLayout
 
 PANEL = Path(__file__).resolve().parents[2] / ".panel" / "plastid-reference"
 
-# Both measured by §8.34 on 05/10/2026 and reproduced by the audit on 08/10/2026.
+# Both measured by hand on 05/10/2026 and reproduced by the audit on 08/10/2026.
 INVERTED = {"NC_042827.1.gb", "NC_062351.1.gb"}
 PARTIAL = "NC_024936.1.gb"
 
@@ -65,7 +65,7 @@ def test_every_record_carries_its_own_translation_and_translates() -> None:
 
 
 def test_the_gene_set_report_names_the_records_that_spell_a_locus_differently() -> None:
-    """§8.31: 34/34 records spell something differently — so the report cannot be empty, and it
+    """Measured: 34/34 records spell something differently — so the report cannot be empty, and it
     has to be about names rather than loci, because which spelling wins is D5-09's decision."""
     report = audit.audit_files(_paths(), confirm=None)
 

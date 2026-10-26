@@ -1,6 +1,6 @@
 """Where PTS already draws the figure, the R version must show the same numbers.
 
-TASKS.md: "a disagreement is a defect in one of them, and the test says which table each read".
+A disagreement is a defect in one of them, and the test says which table each read.
 Both figures read the *same* table — that is the whole point of the R pass being a second source —
 so any difference is one of the two paths reading a cell wrong, and the assertion names the table
 under test rather than leaving a picture to be eyeballed.

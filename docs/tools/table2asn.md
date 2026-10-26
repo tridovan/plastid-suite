@@ -40,7 +40,7 @@ loads. The repository's stand-in (`tests/data/standin_template.sbt`, placeholder
 whole `.sqn` step to completion — `exit 0`, a 361 kB ``.sqn``, and NCBI's validator report beside
 it. What the two failed attempts had was a wrong ASN.1 spelling, not a wrong idea.
 
-**What the step then reports is the point** (PROJECT.md §8.18): run on the golden genome, NCBI's
+**What the step then reports is the point**: run on the golden genome, NCBI's
 validator found **13 errors** in our table at first — a missing source feature, an RNA-edited
 start written without its `/exception`, and that same start without a partial marker. Three
 fixes later it reports **7**, every one of them the ``GeneXrefStrandProblem`` class that the same

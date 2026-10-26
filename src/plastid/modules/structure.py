@@ -1,12 +1,12 @@
-"""Genome structure — region boundaries, %GC and GC-skew per region (PROJECT.md §13.2).
+"""Genome structure — region boundaries, %GC and GC-skew per region.
 
-Golden numbers (§6): LSC 83,127 · IRa = IRb = 26,214 · SSC 18,169 — the four regions tile the
+Golden numbers: LSC 83,127 · IRa = IRb = 26,214 · SSC 18,169 — the four regions tile the
 genome exactly (153,724 bp). Boundaries come from the IR pair and are reported in the
 **normalized** frame (LSC → IRa → SSC → IRb); ``rotation_offset`` maps back to GenBank.
 
 Both skew column headers state their convention — ``(G − C)/(G + C)``, and a cumulative column
 that is the running sum *within* its region — because a silent sign flip is this phase's
-classic quiet error (TASKS.md P2-02).
+classic quiet error.
 """
 
 from __future__ import annotations

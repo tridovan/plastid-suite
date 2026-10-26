@@ -131,7 +131,7 @@ def _translation(feature: SeqFeature) -> str | None:
 
     GenBank wraps a long translation across lines and our reader gets the joined value from
     BioPython; the internal spaces some records carry are removed here so the sequence is what
-    the record means. Never reconstructed by translating the CDS (D5-08 §8.21).
+    the record means. Never reconstructed by translating the CDS (D5-08).
     """
     raw = _first_qualifier(feature, "translation")
     if raw is None:
@@ -196,7 +196,7 @@ def to_genbank(genome: Genome, *, translations: bool = False) -> str:
     one. Off by default, and the split is a decision rather than a default: ``/translation`` is
     NCBI's to assign on a record this toolkit *annotates*, but a curated record being
     re-normalized is a different thing — that protein is exactly what the annotator searches
-    (D5-08 §8.21), and a normalization that dropped it would silently disarm the step behind it
+    (D5-08), and a normalization that dropped it would silently disarm the step behind it
     (``gene_normalize``'s artifact is the worked example).
     """
     handle = StringIO()

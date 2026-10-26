@@ -133,7 +133,7 @@ def test_the_recorded_decision_matches_the_compiled_table() -> None:
 
 
 def test_the_table_label_names_the_tables_the_record_declares() -> None:
-    """Measured 05/10/2026 (§9.J): the report said "NCBI table 1" for records whose CDS declare
+    """Measured 05/10/2026: the report said "NCBI table 1" for records whose CDS declare
     11, so the column read as if the toolkit had used the record's own table. The label now
     carries both — and silence (no CDS declares one) changes nothing."""
     from plastid.core.model import Gene, Interval

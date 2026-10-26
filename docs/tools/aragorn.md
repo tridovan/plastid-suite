@@ -11,7 +11,7 @@ sequences by searching both strands for the canonical cloverleaf, scoring each c
 the tool the heavier annotators run inside — PMGA's own dependency list names it — which is the
 reason it is the right choice rather than a hand-written structural caller: an in-house caller
 tuned until it returned the expected count would be overfitting with a straight face
-(`TASKS.md` → D3A-01).
+(D3A-01).
 
 **Versions and provenance, measured 2026-10-03 on the dev WSL machine:**
 

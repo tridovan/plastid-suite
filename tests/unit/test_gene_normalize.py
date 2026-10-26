@@ -1,6 +1,6 @@
 """Reference-driven naming: the four tests, the three statuses, and the stop tier (P3B-04).
 
-The design is D5-09; the numbers are PROJECT.md §8.41's measurement, and the two things this
+The design is D5-09; the numbers are the corpus measurement, and the two things this
 file exists to hold are the ones the measurement changed. First, **the sequence tests can decide
 for a CDS and not for a tRNA** — true and wrong tRNA loci overlap in identity (53.76–100 %
 against up to 73.97 %), so a tRNA is never renamed on a ranking. Second, **a name the reference
@@ -105,13 +105,13 @@ def _hits(*rows: tuple[str, float, float, float | None]) -> tuple[Hit, ...]:
 
 
 def test_the_thresholds_are_the_measured_ones() -> None:
-    """PROJECT.md §8.41: the smallest true margin was 19.2 bits, and with coverage ≥ 0.7 no wrong
+    """Measured: the smallest true margin was 19.2 bits, and with coverage ≥ 0.7 no wrong
     locus reached 44.93 % while no true ortholog fell below 67.75 %."""
     assert (IDENTITY_FLOOR, COVERAGE_FLOOR, MARGIN_FLOOR_BITS) == (50.0, 0.7, 10.0)
 
 
 def test_the_alias_direction_follows_the_reference_not_the_file() -> None:
-    """D5-09 §8: the file says which names are one locus; the reference says which one is printed.
+    """D5-09: the file says which names are one locus; the reference says which one is printed.
 
     Two references, one alias file, two answers — which is the whole point of orienting the table
     at run time rather than editing the YAML every time the ★ changes.
@@ -135,7 +135,7 @@ def test_the_alias_direction_follows_the_reference_not_the_file() -> None:
 
 
 def test_a_name_the_reference_does_not_use_is_renamed_only_on_evidence() -> None:
-    """The measured case this step exists for: NC_024936.1 spells `atpI` as `atpL` (§8.27).
+    """The measured case this step exists for: NC_024936.1 spells `atpI` as `atpL`.
 
     Two ways the step may find out, and both say which one it was: the alias table knows the
     locus (rule ``name``), or the sequence identifies it (rule ``sequence``). What it may never do
@@ -205,7 +205,7 @@ def test_the_alias_table_turns_a_synonym_into_the_references_spelling() -> None:
 
 
 def test_a_name_whose_sequence_ranks_another_locus_first_is_a_conflict() -> None:
-    """D5-09 §5's stop tier: same name, different locus — the one case that stops a CDS."""
+    """D5-09's stop tier: same name, different locus — the one case that stops a CDS."""
     decision = decide_gene(
         _cds("rbcL"),
         molecules="protein",
@@ -312,7 +312,7 @@ def test_neighbours_confirm_what_the_ranking_could_not() -> None:
 
 
 def test_neighbours_that_disagree_report_a_trna_and_never_rename_or_stop_it() -> None:
-    """§8.41: for a tRNA the ranking decides nothing, so a disagreement is a report."""
+    """For a tRNA the ranking decides nothing, so a disagreement is a report."""
     decision = decide_gene(
         _gene("trnS-GCU", "tRNA"),
         molecules="nucleotide",
@@ -366,7 +366,7 @@ def test_a_gene_with_no_way_to_check_it_says_so_rather_than_agreeing() -> None:
 
 def test_an_inverted_repeat_is_not_a_duplicate_name() -> None:
     """Two identical copies of one gene are one locus; two *different* genes under one name are
-    the golden's own trnG problem (73.24 % identical, §8.41) — and only the second is a conflict."""
+    the golden's own trnG problem (73.24 % identical) — and only the second is a conflict."""
     copies = Genome(
         name="x",
         sequence="ACGT" * 40,
@@ -393,7 +393,10 @@ def test_the_protein_fasta_carries_the_subject_key_and_skips_records_without_pro
 
 
 def test_the_nucleotide_metric_is_the_one_the_measurement_recorded() -> None:
-    """§8.41's parameters are part of the number: cheaper gaps read a different identity."""
+    """The measurement's parameters are part of the number.
+
+    Cheaper gaps read a different identity.
+    """
     assert nucleotide_identity("ACGTACGT", "ACGTACGT") == 100.0
     assert nucleotide_identity("ACGTACGT", "ACGTACGA") == pytest.approx(87.5)
     assert nucleotide_identity("", "ACGT") == 0.0
@@ -459,7 +462,7 @@ def test_the_corpus_pair_normalizes_into_the_references_spelling(tmp_path: Path)
     assert pairing.columns[2].name == "gene"  # B's spelling, in its own column
     statuses = {row["status"] for row in pairing.rows}
     # the CDS cannot be checked (no protein) and say so; a tRNA whose name the reference carries
-    # is 'measured' — for a tRNA the name *is* the check the measurement left standing (§8.41)
+    # is 'measured' — for a tRNA the name *is* the check the measurement left standing
     assert statuses <= {STATUS_MEASURED, STATUS_NOT_MEASURED, STATUS_OUTSIDE}
     assert STATUS_NOT_MEASURED in statuses
     assert all(row["rule"] in (None, TEST_NAME) for row in pairing.rows)
@@ -475,7 +478,7 @@ def test_the_reference_normalizes_to_itself_with_nothing_to_change(tmp_path: Pat
 
     The measured standard is the golden, whose names are already canonical. *Iris hermona*'s
     published record is not: it spells ``trnk-UUU`` and ``trnl-GUA`` — lowercase slips the syntax
-    rules correct on any record, the reference included (D5-09 §5's automatic tier), which is why
+    rules correct on any record, the reference included (D5-09's automatic tier), which is why
     this test uses the record the project actually names after.
     """
     golden = _without_translations(read_genbank(GOLDEN))
@@ -488,7 +491,7 @@ def test_the_reference_normalizes_to_itself_with_nothing_to_change(tmp_path: Pat
 
 
 def test_a_rename_that_would_duplicate_a_name_stops_the_run(tmp_path: Path) -> None:
-    """D5-09 §5's stop tier, and the coordinates come with it."""
+    """D5-09's stop tier, and the coordinates come with it."""
     reference = read_genbank(HERMONA_PUBLISHED)
     record = _without_translations(read_genbank(HERMONA_PGA))
     # the record already carries psbN; adding the other spelling of that locus makes the
@@ -576,13 +579,13 @@ def test_the_recorded_reference_is_what_the_audit_and_the_flip_agree_about() -> 
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
 
     assert digest == recorded.sha256
-    assert recorded.provisional, "the end user's pick is still open (D5-09 §7.1)"
+    assert recorded.provisional, "the end user's pick is still open (D5-09)"
     assert path.name == "NC_050833.1.gb"
 
     golden = read_genbank(path)
     aliases = oriented_aliases(ALIASES, golden)
     # the direction of the shipped table is the standard's own spelling: five loci flipped
-    # (D5-09 §8) and four did not
+    # (D5-09) and four did not
     for locus in aliases.loci:
         assert locus.canonical in {gene.name for gene in golden.genes}, (
             f"{locus.canonical} is not how the recorded reference spells that locus"
@@ -633,7 +636,7 @@ def test_the_sequence_tests_decide_on_real_proteins(
     ``psbB`` at 99.80 %, and the two syntax slips by gene order. Five tRNA names the reference
     does not use are **reported** rather than renamed — one of them, ``trnL-CAU``, is 100 %
     identical to the reference's ``trnI-CAU``, which is exactly the naming difference a ranking
-    may not settle (§8.41: for tRNA, identity decides nothing).
+    may not settle (for tRNA, identity decides nothing).
     """
     from conftest import require_tools
 
@@ -666,7 +669,7 @@ def test_the_sequence_tests_decide_on_real_proteins(
 
 
 def test_the_run_resolves_audits_and_records_the_naming_reference(tmp_path: Path) -> None:
-    """D5-09 §7.2: the standard is a file, its digest is recorded, and it is genomes[0].
+    """D5-09: the standard is a file, its digest is recorded, and it is genomes[0].
 
     The run does not ask the user to repeat the reference on the command line, and it does not
     let an unauditable record become the standard: the audit runs in front of it, so a reference
@@ -757,7 +760,7 @@ def test_a_reference_that_cannot_be_used_is_refused_by_its_audit(tmp_path: Path)
     assert not (tmp_path / "runs").exists()  # nothing was written at all
 
 
-# --- The release's Docker check found these (11/10/2026, §8.76) --------------------------------
+# --- The release's Docker check found these (11/10/2026) --------------------------------
 #
 # `gene_normalize` could not run from an **installed** package: resolving the recorded naming
 # reference went through `repo_root()`, which walks up looking for `pyproject.toml` — and a wheel

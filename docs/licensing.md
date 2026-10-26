@@ -59,7 +59,7 @@ by us* — which is **none of them**.
 | CPStools | 3.0 | **cross-check only** — no module calls it | MIT | `docs/tools/cpstools.md` | no |
 | KaKs_Calculator | 2.0.1 | cross-check only (via CPStools) | GPL-3.0-or-later | bioconda metadata | no |
 | CGAS | 1.0.1 | cross-check only (dropped from the plan, D5-08) | MIT | `docs/tools/cgas.md` | no |
-| PGA | 2.0 | **retired** from the toolkit 10/10/2026 (§8.56); its output survives as a fixture | GPL-3.0 | PROJECT.md §7.8 | no |
+| PGA | 2.0 | **retired** from the toolkit 10/10/2026; its output survives as a fixture | GPL-3.0 | upstream repository | no |
 | PMGA | — | never ran here | GPL-3.0+ | `docs/tools/pmga.md` | no |
 
 **The obvious question — "PAML and ARAGORN are GPL, how is your package MIT?"** — has one answer,
@@ -78,7 +78,7 @@ and its missing licence is why it no longer is.
   reading the script's own header.
 * **Cost, stated plainly.** `ssr` is now a tier-B module in the full sense: without `misa.pl` it
   **fails with a message naming the download line** (and the golden test skips with a named reason,
-  as MAFFT's does). Nothing else changed, and §6's golden SSR numbers are unchanged —
+  as MAFFT's does). Nothing else changed, and the golden SSR numbers are unchanged —
   `37 = mono 31 · di 4 · tri 2` reproduced after the move, with the toolkit's own `misa.ini`.
 * **The Docker image** (M9.2) obtains MISA at build time from the recorded URL with the md5
   checked — the image a user builds is their own copy. **Publishing a prebuilt image containing

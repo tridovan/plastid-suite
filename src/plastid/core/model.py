@@ -93,10 +93,10 @@ class Gene:
     # the record's own /exception — a statement only the submitter can make ("RNA editing",
     # "trans-splicing", …). Kept because dropping it is not neutral: measured 2026-10-03, a CDS
     # whose start codon is created by RNA editing is rejected by NCBI's validator unless its
-    # /exception travels with it (PROJECT.md §8.18).
+    # /exception travels with it.
     exception: str | None = None
     # the record's own /translation — the curator's protein, kept **because it is the thing an
-    # annotation is transferred from** (D5-08 §8.21): the search layer aligns a query against
+    # annotation is transferred from** (D5-08): the search layer aligns a query against
     # these, never against a translation this toolkit made. It is read, never written: /translation
     # is NCBI's to assign on a new record (see ``gene_qualifiers``).
     translation: str | None = None
@@ -174,7 +174,7 @@ class Genome:
     # the record's own source qualifiers (organism · organelle · mol_type · cultivar · …). They
     # travel with the record for the same reason /transl_table does: a submission has to state
     # them, and inventing an organism would be worse than refusing. Measured 2026-10-03 — a
-    # table without them fails NCBI's own validator twice (§8.18).
+    # table without them fails NCBI's own validator twice.
     source: dict[str, str] = field(default_factory=dict)
 
     def __len__(self) -> int:

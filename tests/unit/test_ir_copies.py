@@ -1,11 +1,11 @@
 """The inverted repeat as the export writes it — the copy rule, on a synthetic plastome.
 
 `_ir_copies` is where the toolkit writes the same gene twice, and the rule has two halves that
-were measured separately: a gene **inside** one side is mirrored into the other (§8.50 caught the
-arithmetic being one repeat-length out, and no count could see it), and a gene that **straddles**
-a boundary — trans-spliced, one exon in the single-copy region and one inside the repeat — is
-copied too, with the shared exon written into both features (§8.54: the golden's `rps12`, which
-the published record writes twice).
+were measured separately: a gene **inside** one side is mirrored into the other (a measured
+failure caught the arithmetic being one repeat-length out, and no count could see it), and a
+gene that **straddles** a boundary — trans-spliced, one exon in the single-copy region and one
+inside the repeat — is copied too, with the shared exon written into both features (the
+golden's `rps12`, which the published record writes twice).
 
 The counter-case is `ycf1`: it runs from the SSC into the repeat as **one** call, and one call is
 not a second copy — the published golden carries one `ycf1` and two `rps12`. A rule that copied
@@ -87,7 +87,7 @@ def test_a_call_that_only_reaches_into_the_repeat_gets_no_second_copy() -> None:
 
 def test_two_sides_of_different_length_refuse_rather_than_guess() -> None:
     """A copy cannot be placed inside a repeat whose sides differ — the mirror would be off by
-    the difference, which is the §8.50 failure all over again."""
+    the difference, which is the mirrored-from-the-wrong-end failure all over again."""
 
     class _Unequal(_Repeat):
         def __init__(self) -> None:

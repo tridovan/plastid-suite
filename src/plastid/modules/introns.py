@@ -1,4 +1,4 @@
-"""Introns — count, length, position and phase per gene (PROJECT.md §13.2, ROADMAP M2.7).
+"""Introns — count, length, position and phase per gene (ROADMAP M2.7).
 
 Introns are derived from the CDS exon boundaries: the gap between two consecutive parts of one
 gene. Not every gap is an intron — a junction whose parts sit in **different plastid regions**

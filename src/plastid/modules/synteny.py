@@ -271,7 +271,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             "delta file, so the table and the curve describe one alignment.",
             f"A window with no aligned base pair has no identity — {window} bp window, "
             f"{step} bp step.",
-            "PROJECT.md §7's recorded pipeline is nucmer --maxmatch -> delta-filter -> "
+            "The pipeline is nucmer --maxmatch -> delta-filter -> "
             "show-coords; the parameters of this run are in the manifest's argv.",
         ),
         citations=("mummer",),

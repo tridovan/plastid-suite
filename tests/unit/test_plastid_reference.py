@@ -203,7 +203,7 @@ def test_the_committed_manifest_is_what_the_pinned_set_builds(tmp_path: Path) ->
     reason="the corpus panel is not in this working tree (.panel/ is gitignored)",
 )
 def test_the_reference_set_holds_the_corpus_records_byte_for_byte() -> None:
-    """The reference bytes *are* the corpus bytes (§8.31) — re-pinning must not have changed them.
+    """The reference bytes *are* the corpus bytes — re-pinning must not have changed them.
 
     Worth a test of its own: the answer keys (the published annotations) belong to the corpus
     files, so a reference set that quietly held a re-downloaded or edited copy would be a

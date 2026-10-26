@@ -1,8 +1,8 @@
 """ORF checks — report, never repair (M3.3, P3-01).
 
 Every ``CDS`` feature is checked against its own declared translation table and reported with
-one headline status; ``gene`` features no CDS covers (the truncated-ycf1 shape, PROJECT.md
-§9.B-10) get their own table rather than a failure. Nothing here rewrites a CDS to make it pass:
+one headline status; ``gene`` features no CDS covers (the truncated-ycf1
+shape) get their own table rather than a failure. Nothing here rewrites a CDS to make it pass:
 a sequence that disagrees with its annotation is the finding.
 """
 

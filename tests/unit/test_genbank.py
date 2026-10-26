@@ -58,7 +58,7 @@ def _assert_same_feature(before: Gene, after: Gene) -> None:
 
 
 def test_the_records_own_translation_is_read_and_never_written(golden_genome: Genome) -> None:
-    """``/translation`` is the thing an annotation is transferred from (D5-08 §8.21) — so it is
+    """``/translation`` is the thing an annotation is transferred from (D5-08) — so it is
     read; and it is NCBI's to assign on a new record, so it is never written back out.
 
     Measured 08/10/2026 on the golden: 86/86 CDS carry one, and a CDS's translation is its

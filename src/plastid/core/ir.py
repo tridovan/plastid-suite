@@ -1,14 +1,14 @@
 """IR detection and the mandatory gate.
 
 The gate is the project's most important safety net: naive IR detection was silently
-wrong on 2/9 published plastomes (PROJECT.md §9A), and every position-based analysis
+wrong on 2/9 published plastomes, and every position-based analysis
 below it inherits the error. Rules:
 
 * identity is always measured on the **full copies**, never on the exact-match core
   (a perfect 22,998 bp core sat inside copies that are only 92.62 % identical);
 * the two copies are related by a mirror: position ``i`` in copy A pairs with
   ``C - i`` in copy B (reverse-complemented), with ``C = a1 + b2 - 1`` — this is the
-  pairing constant measured in PROJECT.md §8.3;
+  pairing constant measured;
 * **that constant assumes the two copies are the same length.** Annotations do not always
   give them so (`IR_COPY_LENGTH_TOLERANCE`), and when they differ the constant pairs the
   wrong bases and an exact repeat measures as unrelated — H-25. The difference is therefore
@@ -126,7 +126,7 @@ def _trimmed_pair(
 
     ``where`` is ``"outer"`` — the first copy's start or the second copy's end, the JLB/JLA side —
     or ``"inner"``, the first copy's end or the second copy's start, the JSB/JSA side. Trimming the
-    longer copy to the shorter's length is what makes the mirror constant of §8.3 valid again: the
+    longer copy to the shorter's length is what makes the mirror constant valid again: the
     formula assumes the two copies are the same length, and the annotation does not say which end
     the difference sits at.
     """
@@ -176,7 +176,7 @@ def _aligned(
     excess: int,
     where: str,
 ) -> tuple[float, int, int, int, int, str]:
-    """One alignment of the pair: the longer copy trimmed at ``where``, then the §8.3 constant."""
+    """One alignment of the pair: the longer copy trimmed at ``where``, then the mirror constant."""
     trimmed_first, _trimmed_second = _trimmed_pair(first, second, excess, where)
     span = Interval(
         trimmed_first.start, trimmed_first.start + compared_length, trimmed_first.strand
@@ -196,7 +196,7 @@ def measure_ir(
 ) -> IRResult:
     """Measure the identity of an IR pair on the full copies (shorter copy when unequal).
 
-    When the annotated copies differ in length by *d*, the mirror constant that §8.3 states
+    When the annotated copies differ in length by *d*, the mirror constant
     (``a1 + b2 - 1``) pairs the wrong bases, and an exact repeat measures as unrelated — the
     identity of two random sequences, ~25 %. Measured 17/10/2026 (H-25): *d* = 1, 2 and 4 on three
     Iridaceae records gave 0.2924 / 0.2636 / 0.2778, and the gate refused all three.
@@ -265,7 +265,7 @@ def ir_de_novo(genome: Genome, *, frame_offset: int = 0) -> IRResult | None:
     This replaces the mismatch-tolerant extension (``ir_probe_v2.detect_v2``): measured
     2026-10-02, that version over-extends — 27,601 bp against the true 26,217 bp on
     NC_086581 — because it accepts chunks on a global identity ratio. The exact-run version
-    is the one behind the §8.3 numbers.
+    is the one the gate's original measurements were made with.
 
     Genomes whose origin sits inside an IR copy are handled by retrying on a half-rotated
     sequence; the result then carries that rotation in ``frame_offset``.

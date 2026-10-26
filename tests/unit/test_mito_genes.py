@@ -1,7 +1,7 @@
 """The mitochondrial path (P3-04): no IR gate, and a name that is really a product sentence.
 
-The annotator this path calls is the project's own reference-transfer caller (P3A, PROJECT.md
-§8.22); PMGA, the tool P3-04 first chose, was dropped — it cannot run here. The two things the
+The annotator this path calls is the project's own reference-transfer caller (P3A);
+PMGA, the tool P3-04 first chose, was dropped — it cannot run here. The two things the
 path must get right do not depend on the caller: a plant mitogenome must be describable
 without the inverted-repeat gate, and a gene must be called by a symbol rather than by the
 sentence its record happens to carry.
@@ -24,7 +24,7 @@ NEEDS_PANEL = pytest.mark.skipif(
     not PANEL_MITO.is_dir(),
     reason=(
         "the pinned mitogenome is not on this machine — re-fetch it with the 'plastid panel pin' "
-        "command in PROJECT.md §8.6"
+        "command"
     ),
 )
 

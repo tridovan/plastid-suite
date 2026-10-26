@@ -43,9 +43,9 @@ failing gate anywhere stops the run with exit 2 and no module output.
 
 ## The alignment
 
-The comparison modules align through MAFFT (`src/plastid/external/mafft.py`, pinned 7.526 per
-PROJECT.md §7.8) and never fall back to a hand-rolled aligner — a measured fallback once produced
-Ts/Tv 2.667 where MAFFT gave 2.686 (PROJECT.md §9.B). A missing aligner is a named `ToolError`
+The comparison modules align through MAFFT (`src/plastid/external/mafft.py`, pinned 7.526 in
+`environment.yml`) and never fall back to a hand-rolled aligner — a measured fallback once produced
+Ts/Tv 2.667 where MAFFT gave 2.686. A missing aligner is a named `ToolError`
 and exit 3.
 
 All alignment maths lives in `src/plastid/core/align.py` as pure functions, so a number in a

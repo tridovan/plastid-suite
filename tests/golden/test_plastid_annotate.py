@@ -25,7 +25,7 @@ from plastid.result.export import read_result
 ROOT = Path(__file__).resolve().parents[2]
 PANEL = ROOT / ".panel" / "plastid-reference"
 GOLDEN = "NC_050833.1"
-# The one record of the pinned set the audit blocks — measured 09/10/2026, §8.43's own prediction.
+# The one record of the pinned set the audit blocks — measured 09/10/2026, as predicted.
 BLOCKED = "NC_024936.1"
 
 pytestmark = [
@@ -88,7 +88,7 @@ def annotated(
 
 
 def test_the_published_overlaps_survive_annotation(annotated: Path) -> None:
-    """§8.34's measured pairs, on the *called* output rather than on the published record.
+    """The measured overlapping pairs, on the *called* output rather than on the published record.
 
     Three of the four are pairs of different genes and are asserted exactly. The fourth —
     ``rps12`` against itself, 114 bp — is the published record listing a trans-spliced gene as
@@ -106,7 +106,7 @@ def test_the_published_overlaps_survive_annotation(annotated: Path) -> None:
 
 
 def test_one_call_per_locus_and_every_loser_listed(annotated: Path) -> None:
-    """PGA's measured failure (§8.15: 147 genes from 7 references, four loci called twice).
+    """PGA's measured failure (147 genes from 7 references, four loci called twice).
 
     Every locus in ``competing_references`` marks exactly one candidate chosen — and at least one
     locus has a loser, or the table would be evidence of nothing.
@@ -134,7 +134,7 @@ def test_ycf1_lands_on_the_published_gene_not_on_a_truncated_reference(annotated
     identity, from a reference whose own ycf1 is a 300-residue truncated copy of the gene — where
     the published gene is **5,421 bp** at 122,984-128,404. 24 of the 34 pinned records annotate the
     locus twice, complete and truncated, and the truncated copy scores *higher*: an identity-first
-    choice prefers it. Structure decides first (D5-08 §3), so the complete feature is the one
+    choice prefers it. Structure decides first (D5-08), so the complete feature is the one
     searched — and the run says which feature it did not search rather than dropping it in silence.
     """
     rows = {row[0]: row for row in _rows(annotated, "called_genes")}
@@ -156,7 +156,7 @@ def test_the_audit_gate_stops_the_run_on_a_record_it_blocks(
 ) -> None:
     """P3B-09's wiring, measured on the project's own pinned set — and **before any search**.
 
-    H-19 named this hole (§8.48): ``plastid_annotate`` did not call the audit at all, so a record
+    H-19 named this hole: ``plastid_annotate`` did not call the audit at all, so a record
     the audit BLOCKs was still a candidate in a run. The gate now runs over exactly the records
     the run would search, ahead of the first BLAST — which is why this check needs no BLAST
     itself, and why "nothing annotated" is literal rather than hopeful.
@@ -201,7 +201,7 @@ def test_a_record_dropped_by_name_is_not_searched_and_the_run_says_which() -> No
 
 def test_an_exclusion_that_matches_nothing_stops_the_run() -> None:
     """A name that matches no record is not a no-op — it is a run that searched what the user
-    asked it not to (the audit's rule for a pin that applies to nothing, §8.43)."""
+    asked it not to (the audit's rule for a pin that applies to nothing)."""
     from plastid.modules import plastid_annotate
 
     with (
@@ -217,14 +217,14 @@ def test_the_artifact_re_reads_and_says_which_organelle_it_is(annotated: Path) -
     """H-11, measured: the mito artifact copied an empty ``source`` through and failed
     ``submission``'s first pass 24 times. A record this toolkit writes declares its organelle,
     and the inverted repeat's genes are written **twice** — the golden counts 86 CDS where its
-    distinct loci are 79, and all four rRNA loci are inside the repeat (§8.34's 132 = 86+38+8).
+    distinct loci are 79, and all four rRNA loci are inside the repeat (132 = 86+38+8).
     """
     genome = read_genbank(annotated / "plastid_annotation.gb")
     assert genome.source.get("organelle") == "plastid"
     counts = Counter(gene.kind for gene in genome.genes)
     assert counts["CDS"] == 86, f"the inverted repeat's copies are not both written: {counts}"
     assert counts["rRNA"] == 8, f"the four rRNA loci are inside the repeat: {counts}"
-    # The contract itself: 132 = 86 + 38 + 8 (PROJECT.md §6, the invariant that is never written
+    # The contract itself: 132 = 86 + 38 + 8 (the invariant that is never written
     # any other way). Measured 09/10/2026: the tRNA count was **30** until ARAGORN was asked for
     # intron-containing genes — it skips them in silence unless `-i` is passed, and eight of this
     # record's thirty-eight tRNAs carry an intron (trnK-UUU · trnL-UAA · trnV-UAC · one trnG ·
@@ -257,7 +257,7 @@ def test_every_copy_the_inverted_repeat_is_given_lands_where_the_record_puts_it(
         )
 
     checked = 0
-    # `rps12` is deliberately absent: its envelope is short by a *missing exon* (§8.54), not by
+    # `rps12` is deliberately absent: its envelope is short by a *missing exon*, not by
     # a misplaced copy, and this check is about where a copy lands. The difference list above
     # is where that shortfall is asserted.
     for name in ("rpl2", "rpl23", "ndhB", "ycf2", "rps7", "rrn16", "rrn5"):
@@ -282,10 +282,10 @@ def test_every_copy_the_inverted_repeat_is_given_lands_where_the_record_puts_it(
 
 # P3B-10's Done-when asks for the golden's differences from the published record "kind + span,
 # nothing summarized away" — so they are written down, all 35, and the check below fails on any
-# that moves. Measured 10/10/2026 with the code as it stands (§8.55), from the run this module's
+# that moves. Measured 10/10/2026 with the code as it stands, from the run this module's
 # fixture makes; a change here is a change in the claim, not a test that needs loosening.
 #
-# What landed on 10/10/2026: the exon-structure transfer (§8.55) took the golden from 44
+# What landed on 10/10/2026: the exon-structure transfer took the golden from 44
 # differences to 36 — the first exons of `petB` · `petD` · `rpl16` · `rps16`, `rpoC1`'s and
 # `clpP`'s intron boundaries and `rps12`'s 26 bp third exon are now the published record's own —
 # and reading the stop codon past an alignment that stopped short took `psaJ` (35).

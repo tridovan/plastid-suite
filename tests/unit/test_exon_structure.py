@@ -1,6 +1,6 @@
 """The reference's own exon structure, placed on the target — the rule, on synthetic DNA.
 
-Every case here is one the corpus measured (P3B-10, §8.55): an exon the protein search cannot
+Every case here is one the corpus measured (P3B-10): an exon the protein search cannot
 seed on (`petB`'s 6 bp), a boundary an alignment ran straight through (`rpoC1`), a call exon the
 transfer must **not** lose (`rps12`'s, across the trans-splice), a record whose exons are not
 colinear at all (`NC_072562.1`), and a hit that lands somewhere else (the inverted repeat's other

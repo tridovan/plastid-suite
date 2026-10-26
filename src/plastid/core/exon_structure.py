@@ -2,7 +2,7 @@
 
 **Why this exists.** A call is transferred from a reference *protein*, and blastx seeds on
 amino-acid words: an exon shorter than a word is invisible to it, and so is any boundary the
-alignment happens to run straight through. Measured on the corpus (34 records, §8.51–§8.55), that
+alignment happens to run straight through. Measured on the corpus (34 records), that
 is where most of this annotator's remaining differences came from and none of them were noise:
 
 * the first exons of ``petB`` (6 bp) · ``petD`` (8) · ``rpl16`` (9) · ``rps16`` (40) are missed in
@@ -75,7 +75,7 @@ class Alignment(Protocol):
     """What the transfer needs of one hit: a subject position's place on the target, and its score.
 
     Stated as a protocol so this module depends on the *shape* of an alignment rather than on the
-    program that produced it — the layering rule (§13.1) keeps ``core`` free of ``external``.
+    program that produced it — the layering rule keeps ``core`` free of ``external``.
     """
 
     bitscore: float

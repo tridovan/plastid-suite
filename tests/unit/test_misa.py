@@ -161,7 +161,7 @@ def test_misa_version_is_read_from_the_scripts_own_header(tmp_path: Path) -> Non
 
 
 def test_misa_version_refuses_another_release(tmp_path: Path) -> None:
-    """A different release is a different caller — §6's numbers were measured with 2.1."""
+    """A different release is a different caller — the golden numbers were measured with 2.1."""
     script = tmp_path / "misa.pl"
     script.write_text(HEADER.replace("version 2.1", "version 2.2"), encoding="utf-8")
     with pytest.raises(ToolError, match="expected MISA 2.1"):

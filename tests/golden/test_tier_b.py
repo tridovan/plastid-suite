@@ -68,7 +68,7 @@ def test_ssr_reproduces_the_golden_numbers(
     )
     header = next(rows)
     values = dict(zip(header, next(rows), strict=True))
-    assert values["Total SSRs"] == "37"  # PROJECT.md §6 golden number
+    assert values["Total SSRs"] == "37"  # golden number
     assert values["Monomeric"] == "31"
     assert values["Dinucleotide"] == "4"
     assert values["Trinucleotide"] == "2"
@@ -104,16 +104,16 @@ def test_ssr_reproduces_the_golden_numbers(
 def test_the_cds_scope_reproduces_the_golden_ts_tv(
     tools: dict[str, str | None], data_dir: Path, tmp_path: Path
 ) -> None:
-    """PROJECT.md §6, measured by the toolkit's own path: **2.6917 = 323 Ts / 120 Tv** over the
+    """The golden Ts/Tv, measured by the toolkit's own path: **2.6917 = 323 Ts / 120 Tv** over the
     **79** shared CDS and **68,448** alignment columns, IR excluded.
 
     The scope is unchanged since 02/10 — CDS only · shared genes · MAFFT · IR excluded — but the
     *set* it ranges over was re-measured on 04/10: three loci (atpI, psaI, psbB) that
     NC_024936.1 spells differently are the same loci, so the shared set is 79, not 76, and the
-    ratio is 2.6917 (PROJECT.md §8.27). The old 2.686 = 317/118 over 66,066 columns was correct
+    ratio is 2.6917. The old 2.686 = 317/118 over 66,066 columns was correct
     for a shared set counted by spelling, and stays in the log as that.
 
-    This check is why the module's CDS scope exists at all — §6's number is *not* the
+    This check is why the module's CDS scope exists at all — the golden number is *not* the
     whole-alignment one (measured 03/10/2026: 1.8416 over 152,338 comparable columns), and the two
     must never be quoted as one another.
 
@@ -163,11 +163,11 @@ def test_the_naming_step_does_not_move_the_golden_ts_tv(
     data_dir: Path,
     tmp_path: Path,
 ) -> None:
-    """P3B-06: §6's number re-measured **under the new naming direction** — and unchanged.
+    """P3B-06: the golden number re-measured **under the new naming direction** — and unchanged.
 
     P3B-04 flipped the alias direction (five of nine loci now print the naming reference's
     spelling) and the three comparison modules read those canonical names, so 2.6917 was a
-    *prediction* until it was re-run (PROJECT.md §6). This is the re-run, in the order the
+    *prediction* until it was re-run. This is the re-run, in the order the
     pipeline actually uses: `gene_normalize` writes the sample in vocabulary A, and the CDS scope
     compares what comes out — not the published spelling as it arrived.
 
@@ -175,8 +175,8 @@ def test_the_naming_step_does_not_move_the_golden_ts_tv(
     table maps every member of a locus to that locus whichever member is canonical, so the flip
     **relabels** the shared set instead of re-selecting it. It could only re-select if a record
     carried two *different* genes whose names fall in one locus — measured 08/10/2026 on both
-    Iris records: 86 CDS → 79 canonical names each, and no locus reached by two spellings
-    (PROJECT.md §8.45). The artifact is checked to be in vocabulary A below, so a run where the
+    Iris records: 86 CDS → 79 canonical names each, and no locus reached by two spellings.
+    The artifact is checked to be in vocabulary A below, so a run where the
     naming step quietly did nothing cannot pass this test.
     """
     require_tools(tools, "mafft")
@@ -235,7 +235,7 @@ def test_the_whole_alignment_scope_is_a_different_number_and_says_so(
     tools: dict[str, str | None], data_dir: Path, tmp_path: Path
 ) -> None:
     """The default scope is not wrong — it is *wider*, and its label has to keep it apart from
-    §6's. Measured 03/10/2026: 1.8416 over the whole aligned plastome."""
+    the golden's. Measured 03/10/2026: 1.8416 over the whole aligned plastome."""
     require_tools(tools, "mafft")
     assert (
         main(
@@ -267,7 +267,7 @@ def test_nucleotide_diversity_runs_on_real_data_and_keeps_its_shape(
     conserved part and its two copies diverge by the same amount** (IRa 0.001682 · IRb 0.001681),
     while the single-copy regions are several times more diverse (LSC 0.009185 · SSC 0.014066).
 
-    There is no §6 golden value for π, so this check holds the *relationships* — which is what
+    There is no golden value for π, so this check holds the *relationships* — which is what
     makes it worth having: a regression that quietly stopped counting columns (the lowercase bug
     of `external/mafft.py`) would make every number zero and every relationship vanish.
     """
@@ -308,7 +308,7 @@ def test_repeats_reproduces_the_measured_golden_count(
     **9** maximal exact matches at 30 bp or more: 4 dispersed, 5 palindromic, and the longest is
     the inverted-repeat pair itself — 26,214 bp between IRa and IRb, which is the match the board
     asks to be pinned rather than checked by eye. The phase's own trap was inheriting the 26/9
-    survey's "9 matches ≥30 bp", measured on other data (§9.H); this number is this record's, and
+    survey's "9 matches ≥30 bp", measured on other data; this number is this record's, and
     the coordinates below are the proof it is not the survey's.
     """
     require_tools(mummer_tools, "repeat-match")
@@ -391,7 +391,7 @@ def test_vmatch_agrees_with_repeat_match_on_the_golden(
 def test_diversity_measures_pi_per_intron_and_per_spacer(
     tools: dict[str, str | None], data_dir: Path, tmp_path: Path
 ) -> None:
-    """P2B-01 on the golden pair — measured 10/10/2026, a new §8 entry, never inherited.
+    """P2B-01 on the golden pair — measured 10/10/2026, never inherited.
 
     The numbers below are the golden's own: 17 introns (the `introns` module's set — the
     cross-check the board asks for) and 91 spacers (79 LSC · 12 SSC, 32,134 bp). The three IR
@@ -453,7 +453,7 @@ def test_synteny_reproduces_the_measured_iris_pair_result(
 
     The board carried "21 blocks, %IDY 83.7–98.2 (mean 91.5)" as this check. It could not be
     reproduced from the probe's own inputs under any nucmer setting (a sweep of -l/-c and every
-    delta-filter mode is recorded in PROJECT.md §9); the golden pair are congeners and align at
+    delta-filter mode is); the golden pair are congeners and align at
     ~98–99 %, while a cross-genus pair aligns at ~89 %. The measured numbers are asserted here
     and the finding is recorded — the check was changed by evidence, not the number tuned.
     """
@@ -526,7 +526,7 @@ def test_kaks_reproduces_the_measured_iris_pair_result(
       row with that reason instead of a number yn00 would have misread;
     * the three loci NC_024936.1 spells differently (atpL/psaL/bspB) are **in** this table under
       their canonical names — before the aliases were added they looked like genes the genome
-      does not carry (PROJECT.md §8.27).
+      does not carry.
     """
     require_tools(tools, "mafft")
     require_tools(paml_tools, "yn00")
@@ -656,15 +656,15 @@ def test_popgen_over_the_pinned_panel(tools: dict[str, str | None], tmp_path: Pa
     exist; n = 3 and n = 1 rows keep a blank with the reason**, which is the point of the check:
     a statistic that needed more sequences must not appear as a number.
 
-    The panel is gitignored (re-fetch with PROJECT.md §8.6) so this skips with a named reason when
-    it is absent — and what it does read is verified against ``PINNED.json``'s sha256 first, so a
-    drifted download cannot quietly change the numbers.
+    The panel is gitignored (re-fetch with `plastid panel pin`) so this skips with a named
+    reason when it is absent — and what it does read is verified against ``PINNED.json``'s
+    sha256 first, so a drifted download cannot quietly change the numbers.
     """
     require_tools(tools, "mafft")
     if not (PANEL / "PINNED.json").is_file():
         pytest.skip(
             f"the pinned stand-in panel is not on this machine ({PANEL}) — re-fetch it with the "
-            f"two 'plastid panel pin --groups' commands in PROJECT.md §8.6"
+            f"two 'plastid panel pin --groups' commands"
         )
     import hashlib
     import json as _json
@@ -777,7 +777,7 @@ def test_the_sqn_step_runs_and_ncbi_reads_the_table(
     NCBI's form generates from cô Trang's details (``tests/data/PROVENANCE.md``). What is checked
     here is the pipeline: the tool exits 0, the ``.sqn`` exists, and every error NCBI reports
     belongs to the one class a duplicated inverted-repeat plastome produces (measured 2026-10-03
-    against a published plastome submission, PROJECT.md §8.18) — a new class would fail this test,
+    against a published plastome submission) — a new class would fail this test,
     which is the point of asserting it.
     """
     require_tools(submission_tools, "table2asn")

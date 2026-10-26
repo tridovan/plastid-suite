@@ -139,7 +139,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     notes = [
         "A name is only changed by the normalizer in core/gene_names.py — no module renames one.",
         "A canonical name is the one this toolkit compares and prints; the other name of the "
-        "same locus is printed in parentheses beside it (D3-02, PROJECT.md §8.10).",
+        "same locus is printed in parentheses beside it (D3-02).",
     ]
     total_unresolved = sum(len(names.unresolved) for names in normalized)
     if total_unresolved:

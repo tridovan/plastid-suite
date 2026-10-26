@@ -3,8 +3,8 @@
 Compiled table: **NCBI table 1 (standard)** — decision D2-03. Plastid CDS declare **table 11**,
 whose amino-acid assignments are identical (the two tables differ only in initiation codons), so
 one code table answers both — and :func:`translate` renders every codon, the initiator included,
-as its own amino acid. Measured on the golden genome: 5 of its 86 CDS start with GTG/ACG/ATC
-(PROJECT.md §9.J), so a published protein begins with M there; a report that prints a translation
+as its own amino acid. Measured on the golden genome: 5 of its 86 CDS start with GTG/ACG/ATC,
+so a published protein begins with M there; a report that prints a translation
 table must therefore say which table it used *and* which one the record declares —
 :func:`translation_table_label` is what builds that string.
 
@@ -69,7 +69,7 @@ TABLE_LABEL = "NCBI table 1 (standard)"
 
 
 def translation_table_label(genes: Iterable[Gene]) -> str:
-    """``TABLE_LABEL`` plus the table(s) the record's own CDS declare (D3-03; measured §9.J).
+    """``TABLE_LABEL`` plus the table(s) the record's own CDS declare (D3-03).
 
     A module that compiles one code table still has to name the record's, or the column reads as
     if the two were the same table. A record whose CDS declare nothing (silence is not a value)
@@ -85,7 +85,7 @@ def translate(sequence: str) -> str:
     """Translate complete codons; a trailing partial codon is ignored, ``*`` marks a stop.
 
     Every codon is read as its own amino acid — the initiator included, so a CDS annotated with a
-    GTG/ACG/ATC start translates to V/T/I there where a published protein has M (§9.J).
+    GTG/ACG/ATC start translates to V/T/I there where a published protein has M.
     """
     upper = sequence.upper().replace("U", "T")
     return "".join(

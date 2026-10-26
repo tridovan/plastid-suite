@@ -76,7 +76,7 @@ def _artifacts(out: Path) -> list[Path]:
 
 
 def test_a_mito_sample_is_refused_by_name_and_nothing_is_annotated(tmp_path: Path) -> None:
-    """H-09's mismatch direction that had no gate at all (measured 05/10/2026, §9.J).
+    """H-09's mismatch direction that had no gate at all (measured 05/10/2026).
 
     ``mito_genes`` ran on a plastome and said nothing; here the plastid path is handed a record
     that declares itself a mitogenome, and the answer has to name both the record and the command
@@ -224,7 +224,7 @@ def test_a_failed_sample_is_marked_and_named_without_killing_the_batch(
 def test_every_sample_of_a_batch_gets_its_own_run_directory_and_artifact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """One artifact per sample: the batch is a batch of *runs* (PROJECT.md §2 — output split by
+    """One artifact per sample: the batch is a batch of *runs* (output split by
     run/dataset, never overwritten in place), so two samples never share a directory."""
     _stub(monkeypatch)
     first = _write(tmp_path, "one.fa", ">ONE.1\nACGTACGTACGTACGTACGT\n")

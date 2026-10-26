@@ -34,7 +34,7 @@ citations)`.
 Internal coordinates are **0-based half-open**; GenBank and every export are **1-based inclusive**.
 Per-genome tables use the GenBank frame; cross-genome comparisons use the normalized frame
 (LSC → IRa → SSC → IRb). Every table states its frame in `Scope.coord_system`; the rotation offset
-lives in `manifest.json → coordinate_system.rotation_offset` (PROJECT.md §3, §10.6).
+lives in `manifest.json → coordinate_system.rotation_offset`.
 
 ## 4. IR gate
 

@@ -179,7 +179,7 @@ def test_a_gap_that_is_not_positive_is_refused_not_published() -> None:
     """Parts that overlap or nest leave a negative "gap" — published as a length until P2B-01.
 
     The check it replaces ("exons + gaps tile the span") was algebraic and could not fail for any
-    pair of parts (§9.H-2). Measured 10/10/2026 over 131 available records: 2,850 multi-part
+    pair of parts. Measured 10/10/2026 over 131 available records: 2,850 multi-part
     genes, exactly one with nested parts — OX459128.1, a stand-in mitogenome.
     """
     broken = Genome(

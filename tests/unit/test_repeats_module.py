@@ -22,7 +22,7 @@ from plastid.run.context import RunContext
 from plastid.run.layout import RunLayout
 
 DATA = Path(__file__).parents[1] / "data"
-# Two matches on the golden, in the shape the real tool printed for this record (§8.58): the IR
+# Two matches on the golden, in the shape the real tool printed for this record: the IR
 # pair itself, and the 42 bp match inside IRa.
 STUB_OUTPUT = "  83128  153724r  26214\n  88397   88418   42\n"
 

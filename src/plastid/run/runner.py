@@ -54,7 +54,7 @@ class StepOutcome:
 def _params_hash(params: dict) -> str:
     """Parameters, with any parameter that names a file replaced by that file's content digest.
 
-    A path is not an identity (D5-09 §7.2): a run told ``--set naming_reference=ref.gb`` must not
+    A path is not an identity (D5-09): a run told ``--set naming_reference=ref.gb`` must not
     be served a result computed against a *different* ``ref.gb``. Any string parameter that
     resolves to a file on disk therefore contributes its sha256, so editing the file changes the
     key; a parameter that is not a path is hashed as itself.
@@ -89,7 +89,7 @@ def _input_hash(genome: Genome) -> str:
     """Everything a module can read: the sequence **and** the annotation and the source qualifiers.
 
     Hashing the sequence alone made two *annotations* of one sequence share a cache key — measured
-    05/10/2026 on the corpus's own pair (§8.31): the published and PGA records of *Iris domestica*
+    05/10/2026 on the corpus's own pair: the published and PGA records of *Iris domestica*
     carry the same 153,724 bp and different gene sets (86 vs 85 CDS), so the second run was served
     the first's tables (H-15). A module that reads genes has to be keyed on the genes; one that
     reads ``source`` (submission, for one) has to be keyed on that too.

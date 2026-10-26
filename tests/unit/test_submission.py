@@ -45,7 +45,7 @@ def _genome(*genes: Gene, length: int = 400) -> Genome:
     """A synthetic genome whose CDS all start with ATG.
 
     The submission writer marks a CDS whose first codon is not an initiator as partial — NCBI's
-    own rule, measured against its validator (§8.18) — and these tests are about the *format*, so
+    own rule, measured against its validator — and these tests are about the *format*, so
     the sequence is built to have a real start codon. The tests that are about that rule build
     their own genome instead.
     """
@@ -224,7 +224,7 @@ def test_the_golden_genome_round_trips_through_the_table(data_dir: Path) -> None
         )
 
     # The writer adds two things the gene model does not hold, both measured against NCBI's own
-    # validator (§8.18): the record's source feature, and a partial start on the CDS whose first
+    # validator: the record's source feature, and a partial start on the CDS whose first
     # codon is not an initiator (rpl2, both copies — ACG, edited to AUG in the transcript).
     # Everything else must come back identical, which is what the two assertions below say.
     marked = {(gene.kind, gene.name, *gene.span) for gene in partial_start_genes(golden)}
@@ -475,11 +475,11 @@ def test_the_conventions_the_real_tables_pin_down(data_dir: Path) -> None:
     assert starts == sorted(starts)
 
 
-# --- what a submission needs that a gene model does not hold (measured 2026-10-03, §8.18) ------
+# --- what a submission needs that a gene model does not hold (measured 2026-10-03) ------
 #
 # All three below came out of running table2asn on the golden genome's table with a real
 # submission template: 13 ERROR-level messages, of which these rules removed four. The remaining
-# ones are inherent to the format and are recorded in PROJECT.md §8.18.
+# ones are inherent to the format and are.
 
 
 def test_the_source_feature_comes_first_with_the_records_own_qualifiers() -> None:
@@ -608,7 +608,7 @@ def test_the_two_source_qualifiers_this_format_has_no_place_for_are_left_out() -
     assert genome.source["mol_type"] == "genomic DNA"  # left out of the table, not off the record
 
 
-# --- what NCBI's own validator said about the table (measured 2026-10-03, §8.18) ---------------
+# --- what NCBI's own validator said about the table (measured 2026-10-03) ---------------
 
 _VALIDATOR_STATS = """Total messages:\t\t104
 

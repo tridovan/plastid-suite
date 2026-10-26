@@ -161,7 +161,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
 
     notes = [
         "The .tbl carries the name each gene arrived with: it describes this record, and "
-        "renaming a gene would change a submitted record (TASKS.md pitfall).",
+        "renaming a gene would change a submitted record.",
         "Partial coordinates travel from the record into the table; a partial marker on an "
         "internal interval is refused rather than dropped.",
     ]
@@ -210,7 +210,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             "submitting, which is what NCBI asks of every submission. A finding here is about "
             "the record, not about the writer: a feature whose gene and CDS disagree about the "
             "strand is one this format produces for every duplicated inverted-repeat gene "
-            "(measured against a published plastome submission, PROJECT.md §8.18)."
+            "(measured against a published plastome submission)."
         )
 
     return Result(

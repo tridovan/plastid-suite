@@ -1,4 +1,4 @@
-"""Run-scoped output layout (PROJECT.md §2, requirement 02/10).
+"""Run-scoped output layout (requirement 02/10).
 
 Every run gets its own directory: ``<out_root>/<dataset_slug>/<run_id>/``. Modules never
 name paths themselves — the layout owns naming (seam 5).
@@ -25,7 +25,7 @@ _UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 def slugify(text: str) -> str:
     """ASCII-safe path segment: strip diacritics, collapse unsafe runs to ``-``.
 
-    Vietnamese accents in paths caused real cross-machine breakage (PROJECT.md §9.30).
+    Vietnamese accents in paths caused real cross-machine breakage.
     """
     ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     slug = _UNSAFE.sub("-", ascii_text).strip("-._").lower()
@@ -91,7 +91,7 @@ class RunLayout:
         suffix = 2
         while (root / dataset_slug / run_id).exists():
             # Two runs inside the same second must still get their own directory —
-            # one run = one folder, always (PROJECT.md §2).
+            # one run = one folder, always.
             run_id = f"{base}-{suffix}"
             suffix += 1
         return cls(out_root=root, dataset=dataset_slug, run_id=run_id)

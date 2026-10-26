@@ -11,10 +11,10 @@ Panel and the mito reference set already follow. The rule is applied when the se
 takes 1..N reference records and the engine searches them.
 
 **Leave-one-out is the validation design, written down here because it is a rule and not a
-script.** The corpus (P4a, PROJECT.md §8.31) is 34 Iridaceae plastomes whose published
+script.** The corpus (P4a) is 34 Iridaceae plastomes whose published
 annotation is the answer key. Annotating a record with a reference set that contains that very
 record would be the annotation grading its own homework — the corpus's PGA set carries the
-golden's own sequence and reads 85 CDS where the contract says 86 (§8.31). So for every record
+golden's own sequence and reads 85 CDS where the contract says 86. So for every record
 in the corpus, the reference set that annotates it is **the same set minus itself**, and
 :func:`leave_one_out` is that rule as data: target → the records that may annotate it.
 

@@ -26,7 +26,7 @@ categories:
     groups:
       - name: Subunits of photosystem I
         # ycf3/ycf4 sit with photosystem I in the conventional published table, and pafI/pafII
-        # are the same two loci under the functional nomenclature (D3-02, PROJECT.md §8.10).
+        # are the same two loci under the functional nomenclature (D3-02).
         # Both dialects are listed so the grouping answers the same way whether or not the
         # gene-name normalizer ran — one locus must never land in two different groups.
         genes: [psaA, psaB, psaC, psaI, psaJ, pafI, pafII, ycf3, ycf4]

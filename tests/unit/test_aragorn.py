@@ -147,7 +147,7 @@ def test_an_intron_splits_the_hit_into_the_two_exons_a_join_needs() -> None:
     conversion depends on the strand: on the minus strand the 5' end is the *higher* coordinate,
     and walking towards the 3' end means walking down the genome.
 
-    **The second field is the intron's length, not its end** — corrected 10/10/2026 (§8.52), and
+    **The second field is the intron's length, not its end** — corrected 10/10/2026, and
     this test asserted the wrong reading until then. Read as an end, ``trnL-UAA``'s ``i(36,406)``
     spliced into 120 nt and ``trnK-UUU``'s ``i(39,2618)`` into 112 — lengths no tRNA has — while
     read as a length they splice into 35+50 = 85 and 38+36 = 74, and the published record's own

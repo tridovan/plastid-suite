@@ -387,7 +387,7 @@ def test_the_stop_extension_moves_the_transcript_end_on_the_minus_strand() -> No
 
 
 def test_a_stop_after_an_alignment_that_stopped_short_is_still_the_end() -> None:
-    """Measured (P3B-10, §8.55): the stop codon is read whether or not the alignment reached the
+    """Measured (P3B-10): the stop codon is read whether or not the alignment reached the
     reference's 3' end. A target whose gene is shorter than the reference's presents an alignment
     that simply ends — blastx stops translating at a stop and cannot align past one — and
     requiring the alignment to reach the reference's end left every such call one codon short of

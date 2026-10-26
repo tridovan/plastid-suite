@@ -1,5 +1,5 @@
-# Public stand-in plastomes for the Oldenlandia / Coleus manuscripts — NOT the team's samples.
-# Rule: CLAUDE.md -> "Data — real samples vs development stand-ins".
+# Public Oldenlandia / Coleus plastomes — a TEST panel, judged input → output.
+# Rule: every output made from it carries its provenance label (`--label`).
 #
 # Pin (once; every later run is offline):
 #   plastid panel pin --groups data/oldenlandia-coleus.yaml --out .panel/oldenlandia-coleus

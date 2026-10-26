@@ -1,7 +1,7 @@
 {
  "directory": ".panel/plastid-reference",
  "family": "Iridaceae",
- "rule": "same family first (D-b): every record is an Iridaceae plastome, pinned from the Diem corpus (PROJECT.md 8.31)",
+ "rule": "same family first (D-b): every record is an Iridaceae plastome, pinned from the Diem corpus",
  "built_at": "2026-10-08T10:03:58",
  "records": [
   "NC_024936.1",

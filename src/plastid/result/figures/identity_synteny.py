@@ -48,7 +48,7 @@ _SERIES_COLOURS = (THEME.line, THEME.accent, THEME.muted)
 _BLOCK_COLOURS = {"forward": THEME.line, "reverse": THEME.accent}
 _BAR_HEIGHT = 0.6
 
-# Measured, not guessed (P5-02 / §8.37): the same figure at N = 2, 8 and 34. At 8 the seven
+# Measured, not guessed (P5-02): the same figure at N = 2, 8 and 34. At 8 the seven
 # series and their legend read; at 34 the legend covered the panel and 33 lines merged into one
 # grey mass — an unreadable figure is a failed figure, not a dense one (D5-04). Above the cap the
 # panel switches to the span the genomes cover, whose two edges are still cell values.
@@ -187,7 +187,7 @@ def _build(data: IdentitySyntenySeries, title: str) -> Any:
             1,
             sharex=True,
             # The block panel is one row per genome, so it takes the space its rows need rather
-            # than a fixed third of the canvas (measured at N = 34, §8.37).
+            # than a fixed third of the canvas (measured at N = 34).
             height_ratios=(2, max(1.0, rows / 8)),
             gridspec_kw={"hspace": 0.08},
         )
@@ -245,7 +245,7 @@ def build(results: Mapping[str, Result]) -> Figure:
         source_tables=(f"synteny.{_IDENTITY}", f"synteny.{_BLOCKS}", f"synteny.{_SUMMARY}"),
         build=_build(data, text),
         # The block panel is one row per genome; a fixed height would smear 33 labels into a
-        # line, so the canvas grows with them (measured at N = 34, §8.37).
+        # line, so the canvas grows with them (measured at N = 34).
         figsize=(7.2, 3.0 + 0.12 * max(len(data.per_genome), 1)),
     )
 

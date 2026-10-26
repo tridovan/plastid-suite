@@ -2,7 +2,7 @@
 
 The defect this file exists to prevent was **measured, not imagined**: `uv build --wheel` shipped
 `plastid/vendor/misa/misa.pl`, a third-party script whose source zip states no licence
-(docs/licensing.md §4). A work with no licence is all rights reserved, so bundling it was the one
+(docs/licensing.md). A work with no licence is all rights reserved, so bundling it was the one
 act we may not do — MISA left the package on 11/10/2026. These checks keep the rule from decaying:
 **a file we redistribute must state its licence, and every tool the code calls must be named in
 the inventory**.

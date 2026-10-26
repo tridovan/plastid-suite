@@ -22,7 +22,7 @@ measure nothing):
 
 `BOUNDARY_TOLERANCE` is 1 bp, and it is the **tighter** of the two defensible settings rather than
 the convenient one — a rule chosen to make a total come out right measures nothing. The measurement
-behind it (§8.51): across the 34 records, **719 of 1,264** matched pairs move by exactly one base
+behind it: across the 34 records, **719 of 1,264** matched pairs move by exactly one base
 at one or both ends, 634 of them with our call strictly containing the record's, and running
 ARAGORN by hand on the golden returns the coordinates we emit to the base
 (`tRNA-Asp c[30540,30615]` against the record's `complement(30541..30614)`). That is two methods
@@ -184,7 +184,7 @@ def compare(published: list[Gene], called: list[Gene]) -> list[Difference]:
                 # Every exon end, not the envelope: two readings of the golden's `rpoC1` share
                 # 20179-22962 and differ by 27 bp *inside* it, and the strand is not in the
                 # coordinates at all — a call on the other strand is a different call wherever its
-                # ends sit. Both were holes in the first version of this rule (§8.51).
+                # ends sit. Both were holes in the first version of this rule.
                 moves = end_moves(reference, best)
                 if moves is None:
                     verdict = "conclusion"  # another strand, or another number of exons
@@ -252,7 +252,7 @@ class Panel:
         Never by file name or by accession: PGA's own records carry the organism as their
         accession (`Eleutherine_bulbosa`), and the two halves of the corpus are one sequence
         under two annotations — which is the property that makes the comparison controlled, so
-        it is the property the lookup uses (§8.31). A duplicate digest is a broken pair and
+        it is the property the lookup uses. A duplicate digest is a broken pair and
         stops rather than picking one.
         """
         index: dict[str, Path] = {}

@@ -1,10 +1,10 @@
-"""Run manifest — the index that fixes CGAS's untraceable output (PROJECT.md §7.7).
+"""Run manifest — the index that fixes CGAS's untraceable output.
 
 ``manifest.json`` records what ran, with what parameters, on what inputs, and where every
 file went. ``validate()`` is hand-written on purpose: no schema library for one dict.
 
 **Version 2** (08/10/2026, P3B-04) adds a per-module ``reference`` entry: the privileged record a
-step worked against (its path, accession and sha256 — the naming reference, D5-09 §7.2). Version 1
+step worked against (its path, accession and sha256 — the naming reference, D5-09). Version 1
 manifests do not validate against this build, which is the point of a version number: a reader can
 tell which fields a file may be missing.
 """

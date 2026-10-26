@@ -5,8 +5,8 @@
 # wants the pinned tools without conda on their own machine — the same versions CI installs, so a
 # number measured here is the number measured there.
 #
-# **Versions are part of the result** (PROJECT.md §9.B-14: two MAFFT builds gave two Ts/Tv numbers
-# from one genome). Every pin below is the one `environment.yml` and §7.8 record, and the build
+# **Versions are part of the result** (two MAFFT builds gave two Ts/Tv numbers
+# from one genome). Every pin below is the one `environment.yml` records, and the build
 # *prints* them: a version nobody can read is not a pin.
 #
 # **Licence (M9.3 — docs/licensing.md).** This image is built on the user's machine, from recorded

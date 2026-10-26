@@ -1,8 +1,8 @@
 """Vmatch 2.3.1 — the independent second engine for the exact-repeat count (M2.12, D-f).
 
 **Not a module's engine.** ``repeats`` runs on ``repeat-match``, which carries no licence
-constraint, so the minimum install keeps working without this. Vmatch is **academic-only**
-(PROJECT.md §7.8), and it is here for the check this project publishes a repeat count with: two
+constraint, so the minimum install keeps working without this. Vmatch is **academic-only**,
+and it is here for the check this project publishes a repeat count with: two
 independent tools agreeing, the way MISA 2.1 and cpstools 3.0 both give the golden's 37 SSRs. A
 toolkit that needs Vmatch cannot ship to everyone; a count that two engines agree on can.
 
@@ -29,7 +29,7 @@ from plastid.run.tools import ToolError, tool_version, which
 
 __all__ = ["VMATCH_VERSION", "VmatchResult", "parse_vmatch", "run_vmatch"]
 
-# The pinned release (§7.8, environment.yml). A different Vmatch can define the classes
+# The pinned release (environment.yml). A different Vmatch can define the classes
 # differently, and the whole point of this adapter is that a *count* can be checked.
 VMATCH_VERSION = "2.3.1"
 

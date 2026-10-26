@@ -48,7 +48,7 @@ def _run_dirs(tmp_path: Path, dataset: str = "iris_domestica") -> set[Path]:
     A run id starts with a **wall-clock** stamp, so sorting the directories by name is not
     sorting them by time: measured 08/10/2026, this machine's clock stepped ~1 s backwards
     between two runs of this very test, and `sorted(...)[2]` then pointed at the second run —
-    whose output the test had just deleted (PROJECT.md §9.C-37). Identify a run's directory by
+    whose output the test had just deleted. Identify a run's directory by
     the difference before/after it, never by its name.
     """
     return set((tmp_path / dataset).iterdir())
@@ -162,7 +162,7 @@ def test_second_golden_genome_runs_cleanly(tmp_path: Path, data_dir: Path) -> No
 def test_both_diverged_ir_genomes_stop_with_exit_2(tmp_path: Path, data_dir: Path) -> None:
     """Every genome whose two IR copies disagree must be stopped by the gate, loudly.
 
-    PROJECT.md §8.5: NC_063920.1 is 92.63 % and NC_063921.1 is 98.87 % — both below 99.9 %.
+    Measured: NC_063920.1 is 92.63 % and NC_063921.1 is 98.87 % — both below 99.9 %.
     """
     records = [
         record

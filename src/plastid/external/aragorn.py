@@ -4,7 +4,7 @@ The mito annotator takes its CDS from BLAST+ hits against a reference protein se
 from here. ARAGORN searches both strands for the canonical tRNA cloverleaf and scores what it
 finds; it is also the caller the heavier annotators run inside, which is why it was chosen over a
 hand-written structural search — a caller written here and tuned until it returned the published
-count would be overfitting with a straight face (TASKS.md → D3A-01).
+count would be overfitting with a straight face (D3A-01).
 
 Three things about its output are handled rather than discovered later:
 
@@ -85,7 +85,7 @@ AMINO_ACIDS: dict[str, str] = {
 # ``8   tRNA-Met              c[107050,107126]	35  	(cat)``
 # ``1   tRNA-Lys              c[1367,4058]	34  	(ttt)i(39,2618)``  — with -i, the intron, as
 # ``(start, length)``. The group is named for what the field is, because reading the second one
-# as an end coordinate is a mistake this parser made for a day and no count could see (§8.52).
+# as an end coordinate is a mistake this parser made for a day and no count could see.
 _LINE = re.compile(
     r"^\s*(?P<index>\d+)\s+(?P<kind>tRNA|tmRNA)(?:-(?P<amino>\S+))?\s+"
     r"(?P<strand>c?)\[(?P<start>\d+),(?P<end>\d+)\]\s+(?P<score>\d+)?\s*"
@@ -111,7 +111,7 @@ class TrnaHit:
     # own ``i(39,2618)``. Kept in gene coordinates rather than converted here because the
     # conversion depends on the strand and the origin: see `parts`.
     #
-    # The second field is the intron's **length, not its end**. Measured 10/10/2026 (§8.52): read
+    # The second field is the intron's **length, not its end**. Measured 10/10/2026: read
     # as an end, the golden's eight intron tRNAs spliced into 104–134 nt, which no tRNA is, and
     # the corpus counted the difference as a wrong call on every one of them; read as a length they
     # come out 72–95 nt, and `trnL-UAA` (35 + 50 = 85) and `trnA-UGC` (38 + 35 = 73) land exactly
@@ -321,7 +321,7 @@ def run_aragorn(
                 # tRNA genes **with introns**, when the caller asks for them. ARAGORN's own help
                 # states it plainly — "Unless -i is specified, tRNA genes containing introns are
                 # not detected" — and it says nothing when it skips them, which makes this the
-                # same silent-shortfall shape as the truncating `-max_target_seqs` (§9.L-1).
+                # same silent-shortfall shape as the truncating `-max_target_seqs`.
                 #
                 # It is the caller's decision because each organelle path measures its own, and
                 # the two measurements disagree (09/10/2026, P3B-10): on the plastid golden the

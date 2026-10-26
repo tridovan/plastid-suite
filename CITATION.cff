@@ -1,10 +1,9 @@
 # Citation metadata for PlastidToolSuite (Citation File Format 1.2.0).
 #
 # Authorship note (deliberate, 11/10/2026): the author below is the project, not a list of people.
-# Who is named on a citable artifact is the team's decision (CLAUDE.md → who decides: what goes in
-# a manuscript is the PI's), and it must be settled BEFORE the DOI is minted — a Zenodo deposit
-# records its authors permanently. Replace `authors` with the real list at that point; the rest of
-# this file needs no change.
+# Who is named on a citable artifact is the team's decision, and it must be settled BEFORE the
+# DOI is minted — a Zenodo deposit records its authors permanently. Replace `authors` with the
+# real list at that point; the rest of this file needs no change.
 #
 # `doi:` is absent on purpose: the release's DOI does not exist until Zenodo mints it from the
 # GitHub release (docs/release.md). A placeholder here would be the kind of plausible-looking

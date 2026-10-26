@@ -8,7 +8,7 @@ Exit codes:
     1 — general error (bad input, unknown module, internal failure)
     2 — usage error, or a failed gate (e.g. the IR gate, the reference audit)
     3 — missing or failed external tool, or a missing optional dependency
-    4 — a naming conflict stopped the step (gene_normalize, D5-09 §5)
+    4 — a naming conflict stopped the step (gene_normalize, D5-09)
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_USAGE = 2
 EXIT_TOOL = 3
-# 4 — a naming conflict stopped the step (D5-09 §5). Its own number, because it is not a usage
+# 4 — a naming conflict stopped the step (D5-09). Its own number, because it is not a usage
 # error and not a missing tool: the run was well-formed and the data disagrees with the reference.
 EXIT_CONFLICT = 4
 
@@ -657,7 +657,7 @@ def _resolve_reference(
     """Put a module's declared reference in front of the run's inputs — read, audited, recorded.
 
     A module that names a ``reference_param`` is working against a *privileged record*, not
-    against one of the run's equal inputs (D5-09 §7: the naming reference, chosen by the end user
+    against one of the run's equal inputs (D5-09: the naming reference, chosen by the end user
     and fixed for the project). Three things follow, and all three happen here rather than inside
     the module — modules never touch the filesystem:
 
@@ -724,7 +724,7 @@ def _resolve_recorded_reference(recorded: RecordedReference) -> Path:
     ``pyproject.toml``, and ``gene_normalize`` died for anyone who had installed the toolkit rather
     than cloned it. There the path is taken as it comes — absolute, or relative to the working
     directory — and when it is not there the error names the way out: the naming reference is the
-    user's own choice (D5-09 §7.2), not a toolkit default.
+    user's own choice (D5-09), not a toolkit default.
     """
     root = checkout_root()
     if root is None:
@@ -902,7 +902,7 @@ def _execute_run(
             )
         except NamingConflictError as error:
             # 4, not 2: the run was well-formed and the data disagrees with the reference — a
-            # number of its own keeps it apart from the IR gate and the audit (D5-09 §5, §9.7).
+            # number of its own keeps it apart from the IR gate and the audit (D5-09).
             return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_CONFLICT)
         except ExportDependencyError as error:
             return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
@@ -935,7 +935,7 @@ def _execute_run(
         }
         if spec.reference_param and references is not None:
             # The identity of the privileged record this step worked against — path *and*
-            # digest, because a path alone cannot say whether the reference changed (D5-09 §7.2).
+            # digest, because a path alone cannot say whether the reference changed (D5-09).
             module_entry["reference"] = references
         manifest["modules"].append(module_entry)
 
@@ -1350,7 +1350,7 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
 
     **The batch is a batch of runs, not one run with N samples.** Each sample gets the run
     directory, manifest, tool record and report that every other output in this toolkit has
-    (PROJECT.md §2: output is split by run/dataset and never overwritten in place), so a sample's
+    (output is split by run/dataset and never overwritten in place), so a sample's
     annotation is traceable on its own — and the command's own numbers are the reference set it
     searched, recorded in each manifest, plus its exit code.
 
@@ -1578,7 +1578,7 @@ def _reference_audit(args: argparse.Namespace) -> int:
     because the audit *is* something that ran, on inputs that can be named by digest, and because
     the confirmation layer calls an external aligner whose argv and version have to land somewhere.
     Blocking findings stop here with exit 2 and nothing is annotated; reporting findings are named
-    and the run proceeds, because the classes they cover are real published data (§8.34).
+    and the run proceeds, because the classes they cover are real published data.
     """
     panel = Path(args.panel)
     exceptions_path = (
@@ -1928,7 +1928,7 @@ def _panel_propose(args: argparse.Namespace) -> int:
 def _panel_pin(args: argparse.Namespace) -> int:
     """Pin chosen genomes; accessions a panel index cannot hold are resolved live from NCBI.
 
-    A heavy tool runs where it fits (PROJECT.md §3, P1-12) — this machine when it can, a web
+    A heavy tool runs where it fits (P1-12) — this machine when it can, a web
     service or a cluster when it cannot — so ``--file`` pins what such a tool produced: the same
     checksums, the same read-back, and the note saying where it came from.
 

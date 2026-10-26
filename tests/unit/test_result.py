@@ -1,6 +1,6 @@
 """Result schema: tables, cell addressing, deterministic exports.
 
-Decision §10.7 (PROJECT.md §3): every number in a report resolves to exactly one table
+Decision: every number in a report resolves to exactly one table
 cell; an unresolvable reference raises — it never prints blank.
 """
 

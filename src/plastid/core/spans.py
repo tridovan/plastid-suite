@@ -259,7 +259,7 @@ def _check_gap(gene: Gene, first: Interval, second: Interval, gap: int) -> None:
     """A gap between two parts of a CDS is at least one base — otherwise the record is wrong.
 
     This replaces the algebraic "exons + gaps tile the span" check the ``introns`` module carried
-    until 10/10/2026 (PROJECT.md §9.H-6): measured on that date, the identity holds for **any**
+    until 10/10/2026: measured on that date, the identity holds for **any**
     pair of parts, so that check could never fail. What it silently allowed is the case it was
     meant to catch — parts that overlap or nest give a negative "intron", which was published as
     a length. The gap below is a fact about the record, so this check can fail.

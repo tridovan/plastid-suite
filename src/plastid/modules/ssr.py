@@ -4,7 +4,7 @@ MISA is **obtained, not bundled** (D-q: its source zip states no licence — `do
 has the download line and both hashes). Pass ``--set misa=/path/to/misa.pl`` when it is not on
 ``PATH``; the run refuses any release but the pinned 2.1.
 
-Golden numbers (PROJECT.md §6): 37 = mono 31 · di 4 · tri 2, compound 3.
+Golden numbers: 37 = mono 31 · di 4 · tri 2, compound 3.
 Counts are MISA's; the module adds the plastid region (LSC/IRa/SSC/IRb) and the gene
 context (Gene/Intron/IGS) for every SSR, both scope-labelled.
 """
@@ -30,10 +30,10 @@ MODULE_ID = "ssr"
 # 0 of PX413282's 16 components while MISA counted 8 clusters (P8B-01, found by the Crataegus
 # answer-key corpus). The run cache keys on this version, not on the source (H-08).
 # 0.2.0 (10/10/2026): the Context column changed — a trans-spliced gene's outer span no longer
-# makes everything inside it an "Intron" (§9.M-1, found by the CPStools cross-check §8.61).
+# makes everything inside it an "Intron" (found by the CPStools cross-check).
 MODULE_VERSION = "0.4.0"
 
-_THRESHOLDS = "(1/10) (2/6) (3/5) (4/5) (5/5) (6/5)"  # MISA defaults, PROJECT.md §10.2
+_THRESHOLDS = "(1/10) (2/6) (3/5) (4/5) (5/5) (6/5)"  # MISA defaults
 _GENE_KINDS = ("CDS", "tRNA", "rRNA")
 
 
@@ -238,7 +238,7 @@ def _gene_context(span: Interval, genome: Genome, ir: IRResult) -> str:
     golden's trans-spliced ``rps12`` — exon 1 in the LSC, exons 2 and 3 in the IR, all three
     listed on each CDS feature — is one gene covering 68,975–139,634, so every SSR in between
     came out "Intron" whichever gene it actually sits in. Measured 10/10/2026 in the CPStools
-    cross-check (§8.61): 11 of the golden's 37 rows, and cpstools' table named the genes they sit
+    cross-check: 11 of the golden's 37 rows, and cpstools' table named the genes they sit
     in (``ycf1`` · ``ndhA`` · the ``rpl32`` spacer).
 
     So a gap between two parts of one gene is an intron only when **both ends sit in one region**

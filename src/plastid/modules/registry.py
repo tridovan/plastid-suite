@@ -43,15 +43,15 @@ class ModuleSpec:
     requires_ir: bool = False
     arity: int = 1
     citations: tuple[str, ...] = ()
-    # Which organelle this module serves — PROJECT.md §13 → "Hai bào quan" is the table, and this
-    # is how a module says which row of it it is in (H-09). It is deliberately *not* `requires_ir`:
+    # Which organelle this module serves: shared · plastid-only · mito-only (H-09).
+    # It is deliberately *not* `requires_ir`:
     # that flag answers "does this need the inverted repeat", which `gene_table` (a plastome table
     # that needs no IR) and `codon_usage` (no positions at all, still gated) both show is a
     # different question. Default `shared` — a module that says nothing is claiming to run on
     # either organelle, which is the claim the run then checks.
     group: str = GROUP_SHARED
     # The parameter naming a *file* this module works against — a privileged record rather than
-    # one of the run's equal inputs (D5-09 §7: the naming reference). Declared here so the CLI can
+    # one of the run's equal inputs (D5-09: the naming reference). Declared here so the CLI can
     # resolve it, audit it and record its digest without knowing which module is asking: the
     # module says what it needs, the command line says how it is supplied.
     reference_param: str | None = None
@@ -78,7 +78,7 @@ def module(
     receives genomes it does not use, so the two contracts stay separate.
 
     ``group`` has no default on purpose: a module that declares nothing would be claiming to run
-    on either organelle (PROJECT.md §13 → "Hai bào quan"), and an omission is not a claim. Making
+    on either organelle, and an omission is not a claim. Making
     it required means the claim is made at the one place that already fails loudly — import time.
     """
 

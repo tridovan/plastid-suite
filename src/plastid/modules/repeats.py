@@ -11,7 +11,7 @@ inverted-repeat pair among them: on the golden the longest match *is* the IR pai
 between IRa and IRb, and that is a test rather than something a reader checks by eye.
 
 The count is measured per run and never inherited: the "9 matches ≥30 bp" the phase's board
-carried came from the 26/9 tool survey, measured on other data (§9.H). It happens to be the same
+carried came from the 26/9 tool survey, measured on other data. It happens to be the same
 number here — recorded as a coincidence, not as a reason.
 
 A **tandem** array is a different class and is not this module: ``repeat-match`` reports its

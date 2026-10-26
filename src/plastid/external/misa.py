@@ -1,4 +1,4 @@
-"""MISA adapter — the external MISA 2.1 (docs/tools/misa.md, PROJECT.md §7.8, §10.2).
+"""MISA adapter — the external MISA 2.1 (docs/tools/misa.md).
 
 **MISA is not bundled** (D-q, 11/10/2026): its source zip states no licence, and shipping the
 script in a wheel is the one act a missing licence forbids. It is obtained instead — download
@@ -8,8 +8,7 @@ flag, so it is read out of the script's own header and anything but the pinned 2
 
 The ``misa.ini`` it runs with **is** the toolkit's own file (``data/misa.ini``): MISA's default
 unit/repeat definitions written down rather than copied, because the project uses MISA's defaults
-and nothing else — re-measured 10/10/2026, the defaults are what reproduces the published table
-(§8.73).
+and nothing else — re-measured 10/10/2026, the defaults are what reproduces the published table.
 
 MISA writes its outputs next to its input, so every invocation runs in an isolated
 temporary directory.
@@ -126,7 +125,7 @@ def misa_version(script: Path) -> str:
     version = match.group(1)
     if version != MISA_VERSION:
         raise ToolError(
-            f"{script}: expected MISA {MISA_VERSION} (the release §6's golden SSR numbers were "
+            f"{script}: expected MISA {MISA_VERSION} (the release the golden SSR numbers were "
             f"measured with), got {version} — install the pinned release, or re-measure and "
             f"update MISA_VERSION ({MISA_DOC})"
         )

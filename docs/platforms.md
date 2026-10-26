@@ -3,7 +3,7 @@
 **Why this file exists.** A researcher deciding whether to install this toolkit asks three
 questions: *does it run on my machine · what does it need installed · will it fit in my RAM*. The
 answers are here, per module, with the measurement each number comes from and the honest "not
-measured" where there is none. The cost figures are `docs/M8.3_scale.md`'s, measured on **one
+measured" where there is none. The cost figures were measured on **one
 stated machine** — an **Intel i7-1165G7 @ 2.80 GHz, 6 vCPU under WSL2, 8,135,488 kB RAM (~7.8 GB)**,
 the ordinary-laptop class this project targets. A RAM number without its machine is not a number.
 
@@ -11,7 +11,7 @@ the ordinary-laptop class this project targets. A RAM number without its machine
 
 | Level | What it means | What it is verified by |
 |---|---|---|
-| **Linux — official** | The supported path. Native install, `pip install plastid-suite` (or `uv sync` in a checkout). | The dev machine (WSL2 Ubuntu) **and** CI (`ubuntu-latest`): ruff + the whole fast suite (860+ tests) + tier-A golden + tier-B golden with the pinned tools — green on every push (`.github/workflows/ci.yml`) |
+| **Linux — supported development path** | Native install from a checkout: `uv sync` or `pip install .`. | Tested on WSL2 Ubuntu; CI runs fast and golden tests with its declared tools. This is not complete product acceptance; see [known correctness issues](known_issues.md) |
 | **Windows — official, through Docker** | The toolkit does **not** run natively on Windows (`docs/things_we_do_not_do.md`). Windows users build `docker/Dockerfile` and run everything inside it. | The image builds and the golden suite runs **inside** it, with `PTS_REQUIRE_TOOLS=1` so a missing tool fails rather than skipping — the same numbers as WSL and CI |
 | **macOS — experimental, unverified** | Nothing here has ever run on a Mac. The pure-Python path should work (no platform-specific code), and every pinned tool is available from conda-forge/bioconda for osx-64/arm64 — but *should* is not *measured*. | **Nothing.** No machine, so the column stays empty rather than guessed (ROADMAP → Waiting on data/people) |
 
@@ -19,7 +19,7 @@ the ordinary-laptop class this project targets. A RAM number without its machine
 
 `arity` = how many genomes one run takes. **IR** = the module needs the IR gate (the two IR copies
 ≥ 99.9 % identical), which the framework enforces for every position-based analysis. The cost
-column is one row of `docs/M8.3_scale.md` unless it says otherwise; the scope of each measurement
+column is one measured row unless it says otherwise; the scope of each measurement
 is named, because a 34-genome number and a 1-genome number are different numbers.
 
 | Module | What it does | Group | arity | IR | External tool | Measured cost |
@@ -66,5 +66,6 @@ adapters each module actually calls (`src/plastid/external/`), not from that fie
 either fed from the module's own citations or dropped; it must not become a second, quieter source
 of truth (recorded as a finding, not silently fixed here).
 
-*The module list is guarded: `tests/unit/test_project_docs.py` fails if a registered module is
-missing from this table, so a module added later cannot quietly go undocumented.*
+The previous module-list check was removed with `tests/unit/test_project_docs.py` during the
+documentation cleanup. Restoring that product check independently of private session documents is
+planned; this table is not currently protected by that deleted test.

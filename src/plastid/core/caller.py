@@ -398,12 +398,12 @@ def call_cds(
     """Call the protein-coding genes of ``genome`` from a blastx run's hits.
 
     The floors and the translation table are **required**: each organelle path measures its own
-    (§8.22 for the mito path, §8.46 for the plastid one) and neither may inherit the other's.
+    and neither may inherit the other's.
 
     ``structure_first`` is the same kind of per-path statement (see :func:`_choose`): it drops a
     candidate whose protein is the C-terminal stretch of another candidate's, which is what a
     record annotating one gene from an inner start codon looks like. The plastid path measured a
-    case for it (``rps19``, §8.55) and asks for it; the mito path does not, so it does not.
+    case for it (``rps19``) and asks for it; the mito path does not, so it does not.
     """
     if transl_table not in START_CODONS:
         raise ValueError(
@@ -1031,7 +1031,7 @@ def _refine_end(
     end**, because it is what says where *this* gene ends. blastx stops translating at a stop, so
     a target whose gene is shorter than the reference's presents an alignment that simply ends —
     and requiring the alignment to reach the reference's end left every such call one codon short
-    of the published CDS. Measured (P3B-10, §8.55): of the corpus's differences that survived the
+    of the published CDS. Measured (P3B-10): of the corpus's differences that survived the
     exon-structure transfer, **65 were exactly this** — the published end 3 bp past ours with a
     stop codon sitting there, ``psaJ`` (30 records) at the top of them.
 
