@@ -89,13 +89,19 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             _type_rows(alignment.names[index], labels.get(alignment.names[index], ""), counts)
         )
 
+    columns_by_region: dict[str, list[int]] = {region.name: [] for region in frame.regions}
+    for column, position in enumerate(positions):
+        if position is None:
+            continue
+        # ``positions`` are the reference's own (raw) positions; region names live in the
+        # normalized frame. Mapping beats comparing the two directly: at rotation 0 they happen
+        # to coincide, which is how the direct comparison survived — see Frame.region_at.
+        region = frame.region_at(position)
+        if region is not None:
+            columns_by_region[region.name].append(column)
     regions = []
     for region in frame.regions:
-        columns = tuple(
-            column
-            for column, position in enumerate(positions)
-            if position is not None and region.start <= position < region.end
-        )
+        columns = tuple(columns_by_region[region.name])
         totals = {"compared": 0, "substitutions": 0, "transitions": 0, "transversions": 0}
         for index in range(1, alignment.n_rows):
             counts = _counts_in_columns(alignment, index, columns)
@@ -213,7 +219,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         },
         notes=(
             "Ts/Tv is blank when no transversion was found: it is undefined, not infinite.",
-            "The golden Ts/Tv has the narrower scope CDS only · 76 shared genes · IR excluded.",
+            "The golden Ts/Tv has the narrower scope: CDS only, shared genes, IR excluded.",
             "substitutions_by_type holds the twelve directed changes the transitions and "
             "transversions totals are summed from; a manuscript's six complementary pairs "
             "(A↔G, C↔T, A↔C, T↔G, C↔G, A↔T) are two rows each.",
@@ -321,6 +327,7 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
             Column("organism", "Reference organism"),
             Column("n_genomes", "Genomes compared", dtype="int"),
             Column("n_genes", "Shared genes", dtype="int"),
+            Column("n_partial_genes", "Shared genes partial in the reference", dtype="int"),
             Column("alignment_length", "Alignment columns", dtype="int", unit="bp"),
             Column("compared_columns", "Comparable columns", dtype="int"),
             Column("substitutions", "Substitutions", dtype="int"),
@@ -336,6 +343,7 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
                 "organism": reference.name,
                 "n_genomes": 1 + len(annotated),
                 "n_genes": len(shared),
+                "n_partial_genes": sum(1 for name in shared if ref_genes[name].partial),
                 "alignment_length": sum(row["columns"] for row in per_gene),
                 "compared_columns": totals["compared"],
                 "substitutions": totals["substitutions"],

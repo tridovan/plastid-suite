@@ -290,3 +290,56 @@ def test_an_r_figure_id_must_be_a_plain_name() -> None:
             input_mode="stdin",
             frame=lambda results: None,  # type: ignore[arg-type,return-value]
         )
+
+
+def test_the_cli_forwards_the_species_options_to_f3(tmp_path: Path) -> None:
+    """``--set species-order``/``exclude-species`` reach R from the real command (M11.7).
+
+    Measured 27/10/2026: F3/F4 parse both options and the golden passed them straight to
+    ``run_figure``, but ``plastid figures`` forwarded only the tree's flags, so a user could not
+    order or exclude species through the product.
+    """
+    from types import SimpleNamespace
+
+    from plastid.cli import _render_r_figures
+
+    run_dir = _run_dir(tmp_path)
+    rscript = tmp_path / "Rscript"
+    rscript.write_text(
+        "#!/bin/sh\n"
+        'case "$1" in\n'
+        "  --version|-version|-v|-V) echo 'R 4.1.2'; exit 0;;\n"
+        "  -e) exit 0;;\n"
+        "esac\n"
+        'out=""\nprev=""\n'
+        'for a in "$@"; do\n'
+        '  if [ "$prev" = "--outdir" ]; then out="$a"; fi\n'
+        '  prev="$a"\n'
+        "done\n"
+        'mkdir -p "$out/Figures"\n'
+        'echo png > "$out/Figures/rscu.png"\n',
+        encoding="utf-8",
+    )
+    rscript.chmod(0o755)
+
+    args = SimpleNamespace(
+        figure=["r_rscu"],
+        sets=[
+            f"rscript={rscript}",
+            "species-order=Beta,Alpha",
+            "exclude-species=Gamma",
+            "width=10",
+            "height=12",
+        ],
+    )
+    outcome, ctx = _render_r_figures(run_dir, args)
+
+    assert outcome.files, "the stub Rscript should have drawn a figure"
+    argv = next(record.argv for record in ctx.tools if record.name == "rscript:rscu")
+    for flag, value in (
+        ("--species-order", "Beta,Alpha"),
+        ("--exclude-species", "Gamma"),
+        ("--width", "10"),
+        ("--height", "12"),
+    ):
+        assert argv[argv.index(flag) + 1] == value

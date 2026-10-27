@@ -165,3 +165,60 @@ def test_the_default_scope_is_whole_and_each_scope_names_itself(
 
     cds = substitutions.run((golden_genome, golden_genome), {"scope": "cds"}, _ctx(tmp_path))
     assert "CDS only" in cds.tables["substitutions_summary"].scope.label
+
+
+def test_the_region_table_uses_the_normalized_frame_on_a_rotated_reference(
+    tmp_path: Path, stubbed, golden_genome: Genome
+) -> None:
+    """Measured 27/10/2026: the region loop compared the reference's **raw** positions with
+    region boundaries that live in the **normalized** frame. At the golden's ``rotation_offset``
+    of 0 the two coincide, so only a record that starts anywhere else shows it: the same
+    biological substitution is then counted in whichever region holds the raw coordinate.
+
+    A per-region column count cannot see the bug — the four regions cover the genome and keep
+    their lengths under rotation — so the test puts one substitution at a known LSC base and
+    asks which region the table credits it to.
+    """
+    from plastid.core.normalize import rotate_genome
+
+    def mutated_at(genome: Genome, raw_position: int) -> Genome:
+        base = genome.sequence[raw_position]
+        change = {"A": "G", "G": "A", "C": "T", "T": "C"}[base]
+        sequence = genome.sequence[:raw_position] + change + genome.sequence[raw_position + 1 :]
+        return replace(genome, sequence=sequence)
+
+    def credited_region(reference: Genome, raw_position: int) -> str:
+        result = substitutions.run(
+            (reference, mutated_at(reference, raw_position)), {}, _ctx(tmp_path)
+        )
+        rows = [
+            row
+            for row in result.tables["substitutions_by_region"].rows
+            if row["substitutions"] == 1
+        ]
+        assert len(rows) == 1
+        return str(rows[0]["region"])
+
+    shift = 7500
+    rotated = rotate_genome(golden_genome, shift)
+    normal_base = 100  # inside the golden's LSC (IRa starts at 83,127)
+    assert credited_region(golden_genome, normal_base) == "LSC"
+    assert credited_region(rotated, (normal_base - shift) % len(golden_genome)) == "LSC"
+
+
+def test_a_partial_reference_gene_is_counted_in_the_cds_scope(tmp_path: Path, stubbed) -> None:
+    from dataclasses import replace
+
+    reference = _genome("REF.1", {"rbcL": _GENE})
+    reference = replace(
+        reference,
+        genes=(
+            replace(
+                reference.genes[0],
+                parts=(replace(reference.genes[0].parts[0], partial_start=True),),
+            ),
+        ),
+    )
+    query = _genome("QRY.1", {"rbcL": _GENE})
+    result = substitutions.run((reference, query), {"scope": "cds"}, _ctx(tmp_path))
+    assert result.tables["substitutions_summary"].rows[0]["n_partial_genes"] == 1

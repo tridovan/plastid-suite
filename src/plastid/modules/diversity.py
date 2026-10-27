@@ -28,6 +28,7 @@ from plastid.core.align import (
     reference_positions,
     window_diversity,
 )
+from plastid.core.gene_names import aliases_for, normalize_genome
 from plastid.core.model import GENE_KINDS, Genome
 from plastid.core.normalize import NormalizedFrame, normalize
 from plastid.core.organelle import GROUP_SHARED
@@ -128,6 +129,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
     windows_table = Table(
         id="diversity_windows",
+        allow_empty=True,
         title="Nucleotide diversity windows",
         columns=(
             Column("window_start_1b", "Start (alignment column)", dtype="int"),
@@ -165,6 +167,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
     genes = Table(
         id="diversity_genes",
+        allow_empty=True,
         title="Nucleotide diversity by gene (reference annotation)",
         columns=(
             Column("gene", "Gene"),
@@ -174,7 +177,10 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         ),
         rows=tuple(_gene_rows(reference, alignment)),
         scope=Scope(
-            label="reference genome's features mapped onto alignment columns; gaps dropped",
+            label=(
+                "reference genome's features mapped onto alignment columns; gaps dropped; "
+                "canonical gene names; pseudogenes excluded; IR copies keep their copy suffix"
+            ),
             coord_system="normalized",
         ),
         key="gene",
@@ -192,6 +198,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     ]
     intron_table = Table(
         id="diversity_introns",
+        allow_empty=True,
         title="Nucleotide diversity by intron (reference annotation)",
         columns=(
             Column("intron_id", "Intron (gene.copy.n)"),
@@ -224,6 +231,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     ]
     spacer_table = Table(
         id="diversity_igs",
+        allow_empty=True,
         title="Nucleotide diversity by intergenic spacer (reference annotation)",
         columns=(
             Column("igs_id", "Spacer (left–right)"),
@@ -245,23 +253,42 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         key="igs_id",
     )
 
+    tables = {
+        "diversity_summary": summary,
+        "diversity_regions": regions,
+    }
+    notes = [
+        f"π over {alignment.n_rows} aligned genomes; {usable} of {alignment.length} "
+        f"alignment columns were usable.",
+        "π = mean over sites of (n/(n−1))·(1 − Σp²); a gapped column is dropped, not scored.",
+        *_span_notes(introns.introns, spacers),
+    ]
+    if window_rows:
+        tables["diversity_windows"] = windows_table
+    else:
+        notes.append(
+            "the alignment is shorter than one window — the windows table is absent rather "
+            "than empty; the summary's alignment length is what says so."
+        )
+    if genes.rows:
+        tables["diversity_genes"] = genes
+    else:
+        notes.append("the reference carries no gene to measure — the genes table is absent.")
+    if intron_rows:
+        tables["diversity_introns"] = intron_table
+    else:
+        notes.append("the reference carries no intron to measure — the introns table is absent.")
+    if spacer_rows:
+        tables["diversity_igs"] = spacer_table
+    else:
+        notes.append(
+            "the reference carries no intergenic spacer to measure — the spacers table is absent."
+        )
     return Result(
         module=MODULE_ID,
         module_version=MODULE_VERSION,
-        tables={
-            "diversity_summary": summary,
-            "diversity_windows": windows_table,
-            "diversity_regions": regions,
-            "diversity_genes": genes,
-            "diversity_introns": intron_table,
-            "diversity_igs": spacer_table,
-        },
-        notes=(
-            f"π over {alignment.n_rows} aligned genomes; {usable} of {alignment.length} "
-            f"alignment columns were usable.",
-            "π = mean over sites of (n/(n−1))·(1 − Σp²); a gapped column is dropped, not scored.",
-            *_span_notes(introns.introns, spacers),
-        ),
+        tables=tables,
+        notes=tuple(notes),
         citations=("mafft",),
     )
 
@@ -332,20 +359,29 @@ def _region_rows(
 
 
 def _gene_rows(reference: Genome, alignment: Alignment) -> list[dict[str, Any]]:
-    """π per annotated feature, built from its **exons** — an intron is not part of its gene."""
+    """π per annotated feature, built from its **exons** — an intron is not part of its gene.
+
+    One naming rule with the other per-gene modules (``kaks``, ``popgen``, ``substitutions``,
+    ``stats``): the canonical vocabulary, and no pseudogene. Measured 27/10/2026: this table
+    alone printed the record's raw spellings (``ndhI`` beside ``ndhL`` elsewhere) and scored
+    pseudogenes as if they were expressed genes. The IR copies keep their ``.1``/``.2`` suffix
+    because they are different sequence copies, not different loci.
+    """
+    names = normalize_genome(reference, aliases_for(reference))
     copies: Counter[str] = Counter()
     rows: list[dict[str, Any]] = []
     for gene in reference.genes:
-        if gene.kind not in GENE_KINDS:
+        if gene.kind not in GENE_KINDS or gene.pseudo:
             continue
-        copies[gene.name] += 1
+        canonical = names.normalized(gene).canonical
+        copies[canonical] += 1
         columns: list[int] = []
         for part in gene.parts:
             columns.extend(columns_for_span(alignment, 0, (part.start, part.end)))
         pi, usable = nucleotide_diversity(alignment, columns)
         rows.append(
             {
-                "gene": f"{gene.name}.{copies[gene.name]}",
+                "gene": f"{canonical}.{copies[canonical]}",
                 "kind": gene.kind,
                 "usable_columns": usable,
                 "pi": pi,

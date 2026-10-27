@@ -51,3 +51,35 @@ def test_an_intron_whose_ends_share_one_ir_copy_still_counts(golden_genome: Geno
 
 def test_an_ssr_in_an_intergenic_spacer_is_igs(golden_genome: Genome) -> None:
     assert _context(golden_genome, 4562, 4572) == "IGS"
+
+
+def test_a_genome_with_no_ssr_reports_zero_instead_of_an_empty_table(
+    tmp_path, monkeypatch, golden_genome
+) -> None:
+    """A legitimate "no SSR" result must not be a schema exception (measured 27/10/2026).
+
+    ``Table`` refuses zero rows, so the first version raised while building the per-SSR and
+    by-unit tables. The summary keeps the zero, the by-region table keeps its four zero rows
+    (the report template reads them), and the two empty tables are absent with a note saying so.
+    """
+    import plastid.modules.ssr as ssr_module
+    from plastid.core.ir import detect_ir, enforce_ir_gate
+    from plastid.external.misa import MisaResult
+    from plastid.run.context import RunContext
+    from plastid.run.layout import RunLayout
+
+    monkeypatch.setattr(
+        ssr_module, "run_misa", lambda genome, ctx, script=None: MisaResult(0, {}, 0, ())
+    )
+    layout = RunLayout.create(tmp_path / "runs", "ssr", fingerprint="test")
+    layout.make_dirs()
+    ctx = RunContext(layout=layout, params={}, module_id="ssr", module_order=1)
+    ctx.ir = enforce_ir_gate(detect_ir(golden_genome))
+
+    result = ssr_module.run(golden_genome, {}, ctx)
+
+    assert result.tables["ssr_summary"].rows[0]["total"] == 0
+    assert "ssrs" not in result.tables
+    assert "ssr_by_unit" not in result.tables
+    assert len(result.tables["ssr_by_region"].rows) == 4
+    assert any("absent rather than empty" in note for note in result.notes)

@@ -300,6 +300,10 @@ def call_cds(
         # measured 27/10/2026 on 39 Crataegus records, psbL is 114 bp starting ACA unless the
         # ACG one codon upstream is read (117 bp, complete ORF, the reference's own length).
         read_upstream_start=True,
+        # Three of those 39 references carry models with extra residues before the start and
+        # scored highest at every locus, so every genome inherited the extension. A rare model
+        # that the majority model is a suffix of does not win; see core/caller._choose.
+        model_guard=True,
     )
 
 

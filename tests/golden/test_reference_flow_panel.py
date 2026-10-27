@@ -118,6 +118,8 @@ def test_a_non_iridaceae_target_is_annotated_from_its_own_family(
                 str(PANEL / f"{TARGET}.gb"),
                 "--reference",
                 str(reference_dir),
+                "--set",
+                "reannotate=yes",
                 "-o",
                 str(out),
             ]

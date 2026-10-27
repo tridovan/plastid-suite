@@ -18,7 +18,9 @@ the weaker overlap would delete real genes, so both calls stand and the pair is 
 **Four things this module refuses to do**, each for a measured reason:
 
 * **merge with the input's own annotation.** An assembled plastome arrives bare; if it carries
-  features, they are not the answer and appending them would double the gene count.
+  features, they are not the answer and appending them would double the gene count. The CLI
+  refuses an already-annotated GenBank by name unless the run says `--set reannotate=yes`, so
+  replacing an external annotation is a decision rather than an accident (M11.16).
 * **invent a product string.** Features are named by their symbol; the product wording belongs to
   a submitter, and the vocabulary's synonyms were quoted *from* the records this run is checked
   against.

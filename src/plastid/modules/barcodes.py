@@ -78,8 +78,15 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     threshold_k = float(params.get("threshold_sd", DEFAULT_THRESHOLD_SD))
     min_windows = int(params.get("min_windows", DEFAULT_MIN_WINDOWS))
 
+    # One frame for the reference, its windows and its loci: the normalized record is row 0 of
+    # the alignment, so ``reference_positions`` and the genes found below are the same
+    # coordinates. Measured 27/10/2026: aligning the raw record while locating genes on the
+    # normalized one put every candidate and window off by the rotation on a record that does
+    # not start at the LSC.
     alignment = align(
-        [(genome.accession or genome.name, genome.sequence) for genome in genomes], ctx
+        [(reference_name, reference.sequence)]
+        + [(genome.accession or genome.name, genome.sequence) for genome in genomes[1:]],
+        ctx,
     )
     positions = reference_positions(alignment)
     series = window_diversity(alignment, window=window, step=step)
@@ -201,6 +208,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
     windows_table = Table(
         id="barcodes_windows",
+        allow_empty=True,
         title="π by window, ranked",
         columns=(
             Column("window", "Window", dtype="int"),
@@ -226,6 +234,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
     regions_table = Table(
         id="barcodes_regions",
+        allow_empty=True,
         title="Hypervariable regions",
         columns=(
             Column("region", "Region"),
@@ -277,22 +286,36 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
     not_found = [row["locus"] for row in candidate_rows if row["found"] == "no"]
     notes = [
-        "π is computed by the core function the diversity module uses, over the same alignment "
-        "and the same window and step — a window's value here is that window's value there.",
+        "π is computed by the core function the diversity module uses, over the same window and "
+        "step — a window's value here is that window's value there; the reference row is the "
+        "normalized frame, so the coordinates are the normalized ones.",
         "A barcode locus the reference does not carry keeps its row and says so"
         + (f": {', '.join(not_found)}." if not_found else "."),
         "Each candidate locus carries the source of its claim in data/barcode_loci.yaml; a locus "
         "not in that file is not a barcode this toolkit knows about.",
     ]
+    tables: dict[str, Table] = {
+        "barcodes_summary": summary,
+        "barcodes_candidates": candidates_table,
+    }
+    if window_rows:
+        tables["barcodes_windows"] = windows_table
+    else:
+        notes.append(
+            "no alignment window was long enough to measure — the windows table is absent "
+            "rather than empty; the summary's n_windows is the zero."
+        )
+    if region_rows:
+        tables["barcodes_regions"] = regions_table
+    else:
+        notes.append(
+            "no run of windows exceeded mean + k sd — the regions table is absent rather than "
+            "empty; the summary's n_regions is the zero."
+        )
     return Result(
         module=MODULE_ID,
         module_version=MODULE_VERSION,
-        tables={
-            "barcodes_summary": summary,
-            "barcodes_windows": windows_table,
-            "barcodes_regions": regions_table,
-            "barcodes_candidates": candidates_table,
-        },
+        tables=tables,
         notes=tuple(notes),
         citations=("mafft", "cbol"),
     )
@@ -304,7 +327,7 @@ def _candidates(reference: Genome, alignment: Alignment) -> list[dict[str, Any]]
     copies: dict[str, list[Gene]] = {}
     features: list[Gene] = []
     for gene in reference.genes:
-        if gene.kind not in GENE_KINDS:
+        if gene.kind not in GENE_KINDS or gene.pseudo:
             continue
         features.append(gene)
         copies.setdefault(names.normalized(gene).canonical, []).append(gene)

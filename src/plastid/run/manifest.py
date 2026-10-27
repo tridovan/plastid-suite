@@ -7,6 +7,12 @@ file went. ``validate()`` is hand-written on purpose: no schema library for one 
 step worked against (its path, accession and sha256 — the naming reference, D5-09). Version 1
 manifests do not validate against this build, which is the point of a version number: a reader can
 tell which fields a file may be missing.
+
+**Version 3** (27/10/2026, M11.16) adds the two typed statements a downstream step needs before it
+may read anything: ``artifacts`` (format, schema, sample, sha256, topology, frame, status and the
+reference-set digest each output was built against — :mod:`plastid.run.contract`) and
+``reference_sets`` (every search directory, its record count and digest). A version-2 manifest has
+neither, so it still refuses to load rather than being read as "no artifacts".
 """
 
 from __future__ import annotations
@@ -23,7 +29,7 @@ __all__ = [
     "write_manifest",
 ]
 
-MANIFEST_SCHEMA_VERSION = 2
+MANIFEST_SCHEMA_VERSION = 3
 
 _REQUIRED: dict[str, type] = {
     "schema_version": int,
@@ -37,6 +43,8 @@ _REQUIRED: dict[str, type] = {
     "coordinate_system": dict,
     "modules": list,
     "files": list,
+    "artifacts": list,
+    "reference_sets": list,
 }
 
 
@@ -54,6 +62,7 @@ def build_manifest(
     inputs: list[dict[str, Any]],
     coordinate_system: dict[str, Any],
     dataset: str = "",
+    reference_sets: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """A fresh manifest; the runner fills ``modules``/``files``/``status`` as it goes.
 
@@ -75,10 +84,12 @@ def build_manifest(
         "dataset": dataset,
         "params": params,
         "inputs": list(inputs),
+        "reference_sets": list(reference_sets or []),
         "ir": None,
         "coordinate_system": coordinate_system,
         "modules": [],
         "files": [],
+        "artifacts": [],
     }
 
 

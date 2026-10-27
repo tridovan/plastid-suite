@@ -82,12 +82,13 @@ def series(results: Mapping[str, Result]) -> JunctionSeries:
         PlacedGene(
             name=row["name"],
             kind=row["kind"],
-            start_1b=frame.to_normalized(row["start_1b"]),
-            end_1b=frame.to_normalized(row["end_1b"]),
+            start_1b=start,
+            end_1b=end,
             strand=row["strand"] if row["strand"] in _LANES else "+",
         )
         for row in stats.tables["genes"].rows
         if row["kind"] in _TYPED_KINDS
+        for start, end in frame.span_to_normalized(row["start_1b"], row["end_1b"])
     ]
     regions = {row["region"]: row for row in structure.tables["regions"].rows}
     junctions: list[Junction] = []

@@ -74,11 +74,16 @@ class Table:
     # Key values to render emphasised — a totals row, in every table that has one. Presentation
     # only: it changes no value and no export other than the Word document's weight.
     emphasis: tuple[str, ...] = ()
+    # A module may build a table shape before it knows whether there is anything to put in it,
+    # then omit it from the Result when there is not (``repeats`` and ``ssr`` both do). An empty
+    # table must never reach a Result — Result.__post_init__ refuses it — because an exported
+    # empty table is indistinguishable from a table nobody filled.
+    allow_empty: bool = False
 
     def __post_init__(self) -> None:
         if "." in self.id:
             raise ValueError(f"table id must not contain a dot: {self.id!r}")
-        if not self.rows:
+        if not self.rows and not self.allow_empty:
             raise ValueError(f"table {self.id!r} has no rows")
         names = {column.name for column in self.columns}
         if self.key is not None and self.key not in names:
@@ -172,6 +177,11 @@ class Result:
         for table_id, table in self.tables.items():
             if table.id != table_id:
                 raise ValueError(f"tables[{table_id!r}].id is {table.id!r} — they must match")
+            if not table.rows:
+                raise ValueError(
+                    f"tables[{table_id!r}] is empty — a module that measured nothing omits the "
+                    f"table and says so in its notes"
+                )
 
     def _table_for(self, ref: str) -> tuple[Table, str]:
         table_id, separator, rest = ref.partition(".")

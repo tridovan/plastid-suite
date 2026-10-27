@@ -17,7 +17,7 @@ import argparse
 import hashlib
 import json
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from datetime import datetime
 from functools import partial
@@ -35,7 +35,15 @@ from plastid.core.gene_names import (
     checkout_root,
     load_recorded_reference,
 )
-from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
+from plastid.core.ir import (
+    IR_SCORING_POLICY,
+    IR_SCORING_POLICY_VERSION,
+    IRDetectionError,
+    IRGateError,
+    IRResult,
+    detect_ir,
+    enforce_ir_gate,
+)
 from plastid.core.junctions import JunctionError
 from plastid.core.model import Genome
 from plastid.core.normalize import normalize
@@ -57,8 +65,15 @@ from plastid.report.package import build_package
 from plastid.report.qc import render_qc_for_run
 from plastid.result.docx_export import DocxMeta, export_docx, merge_documents
 from plastid.result.result import Result
+from plastid.run import batch as batch_run
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
+from plastid.run.contract import (
+    ContractError,
+    describe_artifact,
+    describe_reference_set,
+    sha256_file,
+)
 from plastid.run.figures import read_run_results, render_run_figures
 from plastid.run.junction import junction_config, junction_rows, junction_table
 from plastid.run.layout import RunLayout
@@ -148,6 +163,52 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="KEY=VALUE",
         help="module parameter (repeatable)",
+    )
+
+    batch_parser = subparsers.add_parser(
+        "batch",
+        help="run one or more single-sample modules over N genomes and aggregate their tables",
+    )
+    batch_parser.add_argument(
+        "-m",
+        "--module",
+        required=True,
+        action="append",
+        help="arity-1 module id (e.g. genome_stats); repeat the flag to run several",
+    )
+    batch_parser.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        action="append",
+        help="GenBank or FASTA sample, one record; repeat the flag for one run per sample",
+    )
+    batch_parser.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
+    batch_parser.add_argument(
+        "--dataset", default=None, help="batch dataset label (default: 'batch')"
+    )
+    batch_parser.add_argument(
+        "--label",
+        default=None,
+        metavar="TEXT",
+        help="data-provenance label written into every exported table's scope",
+    )
+    batch_parser.add_argument(
+        "--docx",
+        action="store_true",
+        help="also write report.docx in each sample's module directories (needs the 'docx' extra)",
+    )
+    batch_parser.add_argument("--force", action="store_true", help="ignore the cache and re-run")
+    batch_parser.add_argument(
+        "--figures",
+        action="store_true",
+        help=(
+            "after the aggregate, draw the multi-sample R figures from it (needs R; "
+            "the same pass as `plastid figures <batch-dir>`)"
+        ),
+    )
+    batch_parser.add_argument(
+        "--set", action="append", default=[], metavar="KEY=VALUE", help="module parameter"
     )
 
     package_parser = subparsers.add_parser(
@@ -438,8 +499,12 @@ def _coerce(raw: str) -> object:
     return raw
 
 
+def _truthy(value: object) -> bool:
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
 def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return sha256_file(path)
 
 
 def _finish(manifest: dict, layout: RunLayout, ctx: RunContext, version: str, code: int) -> int:
@@ -454,6 +519,11 @@ def _finish(manifest: dict, layout: RunLayout, ctx: RunContext, version: str, co
     return code
 
 
+def _downstream(specs: Sequence[registry.ModuleSpec], order: int) -> list[tuple[str, str]]:
+    """The modules still to run after the one at 1-based ``order`` — recorded as skipped."""
+    return [(spec.id, spec.version) for spec in specs[order:]]
+
+
 def _fail(
     manifest: dict,
     layout: RunLayout,
@@ -461,7 +531,14 @@ def _fail(
     version: str,
     message: str,
     code: int,
+    downstream: Sequence[tuple[str, str]] = (),
 ) -> int:
+    """Record the failed step, then every step that therefore did not run.
+
+    A failure stops the remaining modules; leaving them out of the manifest made "the run never
+    reached them" look like "they were never asked for". ``downstream`` carries
+    ``(module_id, version)`` for each, recorded as ``skipped`` with the reason (M11.16).
+    """
     print(message, file=sys.stderr)
     manifest["modules"].append(
         {
@@ -473,6 +550,17 @@ def _fail(
             "files": [],
         }
     )
+    for module_id, module_version in downstream:
+        manifest["modules"].append(
+            {
+                "id": module_id,
+                "version": module_version,
+                "status": "skipped",
+                "reason": f"skipped: {ctx.module_id} failed, so this step did not run",
+                "tools": [],
+                "files": [],
+            }
+        )
     manifest["status"] = "failed"
     return _finish(manifest, layout, ctx, version, code)
 
@@ -649,6 +737,164 @@ def _cmd_run(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_batch(args: argparse.Namespace) -> int:
+    """Run each arity-1 module once per sample, then copy the stored cells into one table.
+
+    This is the multi-sample orchestrator M11.6 needs, and it is deliberately thin: every sample
+    goes through ``_execute_run`` (the same body as ``plastid run``), and the aggregate only reads
+    what those runs stored. No value is recomputed, and a failed sample contributes a status, not
+    a zero.
+    """
+    specs: list[registry.ModuleSpec] = []
+    try:
+        for module_id in args.module:
+            spec = registry.get(module_id)
+            if spec.id not in {item.id for item in specs}:
+                specs.append(spec)
+    except registry.UnknownModuleError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_ERROR
+    multi = [spec.id for spec in specs if spec.arity != 1]
+    if multi:
+        print(
+            f"batch applies arity-1 modules only; {', '.join(multi)} compares genomes within one "
+            f"run — run it once over the whole set with `plastid run`",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+
+    try:
+        params = _parse_sets(args.set or [])
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_USAGE
+    if args.label:
+        params[DATA_LABEL_PARAM] = args.label
+
+    records: list[batch_run.SampleRecord] = []
+    results: dict[str, dict] = {}
+    codes: list[int] = []
+    for text in args.input:
+        try:
+            genome = _read_input(text)
+        except (OSError, ValueError) as error:
+            print(f"{text} — {error}", file=sys.stderr)
+            records.append(
+                batch_run.SampleRecord(
+                    sample_id=Path(text).stem,
+                    species="",
+                    accession="",
+                    input=text,
+                    sha256="",
+                    status="failed",
+                    exit_code=EXIT_ERROR,
+                    error=str(error),
+                )
+            )
+            codes.append(EXIT_ERROR)
+            continue
+        species = genome.name
+        accession = genome.accession or genome.name
+        label = accession
+        taken = {record.sample_id for record in records}
+        suffix = 2
+        while label in taken:
+            label = f"{accession}#{suffix}"
+            suffix += 1
+        layout = RunLayout.create(args.out, label, fingerprint=_run_fingerprint((genome,), params))
+        code = _execute_run(
+            genomes=(genome,),
+            specs=tuple(specs),
+            params=dict(params),
+            out=args.out,
+            dataset=label,
+            force=args.force,
+            docx=args.docx,
+            command=[
+                "plastid",
+                "batch",
+                *[part for spec in specs for part in ("--module", spec.id)],
+                *[part for value in args.input for part in ("--input", value)],
+                *(["--dataset", args.dataset] if args.dataset else []),
+            ],
+            inputs=[text],
+            layout=layout,
+        )
+        record = batch_run.read_sample(
+            sample_id=label,
+            species=species,
+            accession=accession,
+            input_path=text,
+            sha256=_sha256_file(Path(text)),
+            exit_code=code,
+            run_dir=layout.run_dir,
+        )
+        records.append(record)
+        results[label] = dict(batch_run.read_results(record))
+        codes.append(code)
+
+    if not records:
+        print("batch: no input was readable — nothing was aggregated", file=sys.stderr)
+        return EXIT_USAGE
+    batch_label = args.dataset or "batch"
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            {"samples": [record.sample_id for record in records], "params": params},
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+    layout = RunLayout.create(args.out, batch_label, fingerprint=fingerprint)
+    layout.make_dirs()
+    batch_run.write_batch(
+        run_dir=layout.run_dir,
+        dataset=batch_label,
+        records=records,
+        results=results,
+        params=params,
+        command=[
+            "plastid",
+            "batch",
+            *[part for spec in specs for part in ("--module", spec.id)],
+            *[part for text in args.input for part in ("--input", text)],
+        ],
+        inputs=list(args.input),
+    )
+    if args.figures:
+        # The multi-sample figures read the aggregate, not the per-sample results: the same pass
+        # `plastid figures <batch-dir>` runs, kept here so one command can finish the batch.
+        from types import SimpleNamespace
+
+        from plastid.run.batch import read_batch_results
+
+        r_outcome, fig_ctx = _render_r_figures(
+            layout.run_dir,
+            SimpleNamespace(figure=None, sets=args.set),
+            results=read_batch_results(layout.run_dir),
+        )
+        payload = json.loads((layout.run_dir / "batch.json").read_text(encoding="utf-8"))
+        payload.setdefault("figures", {})["files"] = [
+            {
+                "path": path.relative_to(layout.run_dir).as_posix(),
+                "sha256": _sha256_file(path),
+                "bytes": path.stat().st_size,
+            }
+            for path in r_outcome.files
+        ]
+        if fig_ctx.tools:
+            payload["figures"]["tools"] = [asdict(record) for record in fig_ctx.tools]
+        (layout.run_dir / "batch.json").write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        for path in r_outcome.files:
+            print(f"wrote {path.relative_to(layout.run_dir).as_posix()}")
+        for figure_id, reason in r_outcome.skipped:
+            print(f"skipped {figure_id}: {reason}", file=sys.stderr)
+
+    failed = [code for code in codes if code != EXIT_OK]
+    print(f"batch: {len(records) - len(failed)} of {len(records)} sample(s) ok — {layout.run_dir}")
+    return failed[0] if failed else EXIT_OK
+
+
 def _resolve_reference(
     specs: Sequence[registry.ModuleSpec],
     params: dict,
@@ -759,6 +1005,8 @@ def _ir_manifest_fields(ir: IRResult) -> dict:
     """
     return {
         "source": ir.source,
+        "scoring_policy": IR_SCORING_POLICY,
+        "scoring_policy_version": IR_SCORING_POLICY_VERSION,
         "length": ir.length,
         "identity": ir.identity,
         "gate_passed": ir.gate_passed,
@@ -785,6 +1033,13 @@ def _ir_manifest_fields(ir: IRResult) -> dict:
     }
 
 
+def _run_fingerprint(genomes: Sequence[Genome], params: dict) -> str:
+    """The run's identity from its ordered sequences and parameters (no clock, no path)."""
+    overlay = json.dumps(params, sort_keys=True)
+    sequences = "".join(item.sequence + "\x00" for item in genomes)  # ordered: order is meaning
+    return hashlib.sha256((sequences + overlay).encode("ascii", "replace")).hexdigest()
+
+
 def _execute_run(
     *,
     genomes: Sequence[Genome],
@@ -798,6 +1053,8 @@ def _execute_run(
     inputs: Sequence[str],
     figures: bool = False,
     references: dict | None = None,
+    reference_sets: Sequence[dict] | None = None,
+    layout: RunLayout | None = None,
 ) -> int:
     """One run's shared body: both ``plastid run`` and ``plastid mito annotate`` end up here.
 
@@ -806,11 +1063,9 @@ def _execute_run(
     so an annotation produced by the mito command is traceable exactly like any other run.
     """
 
-    overlay = json.dumps(params, sort_keys=True)
-    sequences = "".join(item.sequence + "\x00" for item in genomes)  # ordered: order is meaning
-    fingerprint = hashlib.sha256((sequences + overlay).encode("ascii", "replace")).hexdigest()
     label = dataset or genomes[0].accession or genomes[0].name
-    layout = RunLayout.create(out, label, fingerprint=fingerprint)
+    if layout is None:
+        layout = RunLayout.create(out, label, fingerprint=_run_fingerprint(genomes, params))
     layout.make_dirs()
 
     ctx = RunContext(layout=layout, params=params, module_id=specs[0].id, module_order=1)
@@ -837,6 +1092,17 @@ def _execute_run(
             ),
         },
         dataset=label,
+        reference_sets=list(reference_sets or []),
+    )
+    # The set a GenBank artifact was transferred from; recorded on the artifact itself so a
+    # consumer does not have to infer it from the module's parameters (M11.16).
+    annotation_reference = next(
+        (
+            item["sha256"]
+            for item in manifest["reference_sets"]
+            if item.get("role") == "annotation_db"
+        ),
+        None,
     )
 
     if any(spec.requires_ir for spec in specs):
@@ -915,11 +1181,27 @@ def _execute_run(
                 render_document=render_document,
             )
         except IRGateError as error:
-            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_USAGE)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_USAGE,
+                downstream=_downstream(specs, order),
+            )
         except UnsupportedTranslationError as error:
             # 2, next to the IR gate: the run was well-formed, and the record's own CDS declare a
             # frame or table this codon reading cannot translate honestly (M11.5).
-            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_USAGE)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_USAGE,
+                downstream=_downstream(specs, order),
+            )
         except reference_audit.ReferenceAuditError as error:
             # 2, the gate's own number, next to the IR gate: the run was well-formed and it is the
             # reference set that cannot be used. The message is the audit's own `file — reason`
@@ -933,18 +1215,51 @@ def _execute_run(
                 f"anything; `--exclude <accession>` drops a record from the search, and the run "
                 f"says which records it did not search",
                 EXIT_USAGE,
+                downstream=_downstream(specs, order),
             )
         except NamingConflictError as error:
             # 4, not 2: the run was well-formed and the data disagrees with the reference — a
             # number of its own keeps it apart from the IR gate and the audit (D5-09).
-            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_CONFLICT)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_CONFLICT,
+                downstream=_downstream(specs, order),
+            )
         except ExportDependencyError as error:
-            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_TOOL,
+                downstream=_downstream(specs, order),
+            )
         except ToolError as error:
-            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_TOOL,
+                downstream=_downstream(specs, order),
+            )
         except Exception as error:  # noqa: BLE001 — report any module failure, then exit 1
             message = f"{type(error).__name__}: {error}"
-            return _fail(manifest, layout, ctx, spec.version, message, EXIT_ERROR)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                message,
+                EXIT_ERROR,
+                downstream=_downstream(specs, order),
+            )
 
         module_files = []
         for path_text in outcome.files:
@@ -975,6 +1290,25 @@ def _execute_run(
             # digest, because a path alone cannot say whether the reference changed (D5-09).
             module_entry["reference"] = references
         manifest["modules"].append(module_entry)
+        for entry in module_files:
+            if Path(entry["path"]).suffix != ".gb":
+                continue
+            # A GenBank output is the file the next step reads: say what it is and what it was
+            # transferred from, so a consumer can refuse a missing, changed or failed artifact
+            # instead of trusting the run directory's shape (M11.16).
+            try:
+                manifest["artifacts"].append(
+                    describe_artifact(
+                        layout.run_dir / entry["path"],
+                        relative_to=layout.run_dir,
+                        sample_id=genomes[-1].accession or genomes[-1].name,
+                        topology=genomes[-1].topology,
+                        status=outcome.status,
+                        reference_sha256=annotation_reference,
+                    )
+                )
+            except ContractError as error:
+                return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_ERROR)
 
     manifest["files"] = files
     if len(documents) > 1:
@@ -1042,16 +1376,20 @@ def _combine_documents(
     return path
 
 
-def _run_dir_or_error(path: str) -> Path | None:
-    """A run directory, or None after saying what is missing."""
+def _run_dir_or_error(path: str, *, allow_batch: bool = False) -> Path | None:
+    """A run directory (or, where the caller can use one, a batch directory)."""
     run_dir = Path(path)
-    if not (run_dir / "manifest.json").is_file():
-        print(
-            f"{run_dir} is not a run directory — no manifest.json in it (run `plastid run` first)",
-            file=sys.stderr,
-        )
-        return None
-    return run_dir
+    if (run_dir / "manifest.json").is_file():
+        return run_dir
+    if allow_batch and (run_dir / "batch.json").is_file():
+        return run_dir
+    print(
+        f"{run_dir} is not a run directory — no manifest.json"
+        + (" or batch.json" if allow_batch else "")
+        + " in it (run `plastid run` first)",
+        file=sys.stderr,
+    )
+    return None
 
 
 def _cmd_package(args: argparse.Namespace) -> int:
@@ -1274,28 +1612,65 @@ def _cmd_figures(args: argparse.Namespace) -> int:
     the first does not stop the second: they are independent, and a run with no plotting extra
     installed can still have its R figures.
     """
-    run_dir = _run_dir_or_error(args.run)
+    run_dir = _run_dir_or_error(args.run, allow_batch=True)
     if run_dir is None:
         return EXIT_ERROR
-    manifest_path = run_dir / "manifest.json"
+    batch_path = run_dir / "batch.json"
+    is_batch = batch_path.is_file()
+    manifest_path = batch_path if is_batch else run_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     files: list[Path] = []
     skipped: list[tuple[str, str]] = []
     missing_extra: str | None = None
-    try:
-        outcome = render_run_figures(run_dir, figures=args.figure)
-        files.extend(outcome.files)
-        skipped.extend(outcome.skipped)
-    except ExportDependencyError as error:
-        missing_extra = str(error)
-        print(str(error), file=sys.stderr)
-    except (OSError, ValueError, KeyError) as error:
-        print(f"cannot render figures: {error}", file=sys.stderr)
-        return EXIT_ERROR
+    batch_results = None
+    if is_batch:
+        # A batch holds many samples: the one-genome matplotlib catalogue has no single genome to
+        # draw, and drawing the first sample would misrepresent the set. The R sample figures read
+        # the aggregate table instead (M11.7).
+        from plastid.run.batch import read_batch_results
 
-    r_outcome, ctx = _render_r_figures(run_dir, args)
+        batch_results = read_batch_results(run_dir)
+        skipped.append(
+            (
+                "matplotlib figures",
+                "one-genome figures are not drawn for a batch; the sample figures are the R ones",
+            )
+        )
+    else:
+        try:
+            outcome = render_run_figures(run_dir, figures=args.figure)
+            files.extend(outcome.files)
+            skipped.extend(outcome.skipped)
+        except ExportDependencyError as error:
+            missing_extra = str(error)
+            print(str(error), file=sys.stderr)
+        except (OSError, ValueError, KeyError) as error:
+            print(f"cannot render figures: {error}", file=sys.stderr)
+            return EXIT_ERROR
+
+    r_outcome, ctx = _render_r_figures(run_dir, args, results=batch_results)
     files.extend(r_outcome.files)
     skipped.extend(r_outcome.skipped)
+
+    if is_batch:
+        manifest.setdefault("figures", {})["files"] = [
+            {
+                "path": path.relative_to(run_dir).as_posix(),
+                "sha256": _sha256_file(path),
+                "bytes": path.stat().st_size,
+            }
+            for path in files
+        ]
+        if ctx.tools:
+            manifest["figures"]["tools"] = [asdict(record) for record in ctx.tools]
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        for path in files:
+            print(f"wrote {path.relative_to(run_dir).as_posix()}")
+        for figure_id, reason in skipped:
+            print(f"skipped {figure_id}: {reason}", file=sys.stderr)
+        return EXIT_OK if files else EXIT_TOOL
 
     known = {entry["path"] for entry in manifest.get("files", [])}
     for path in files:
@@ -1325,7 +1700,9 @@ def _cmd_figures(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureOutcome, RunContext]:
+def _render_r_figures(
+    run_dir: Path, args: argparse.Namespace, results: Mapping[str, Result] | None = None
+) -> tuple[RFigureOutcome, RunContext]:
     """The R figure pass, with the tool call wired here — ``run/`` may not import ``external/``."""
     from plastid.external.rscript import missing_packages, rscript_binary, run_figure
 
@@ -1358,8 +1735,12 @@ def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureO
         # `--set root/outgroup/drop-tips` reach R at all (K-06); the other scripts have no such
         # options, so they are not given them.
         extra: list[str] = []
-        if script == "tree":
-            for key in (
+        # Each script declares the options it reads; forwarding another script's flag would put a
+        # value in an argv nothing reads. F3/F4 order and exclude species themselves (`--set
+        # species-order`/`exclude-species`), F6 takes the drawing size, the tree takes its own
+        # (K-06). Measured 27/10/2026: these were reachable only by calling R by hand.
+        options = {
+            "tree": (
                 "tag",
                 "root",
                 "outgroup",
@@ -1371,9 +1752,14 @@ def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureO
                 "height",
                 "dpi",
                 "title",
-            ):
-                if key in params:
-                    extra += [f"--{key}", str(params[key])]
+            ),
+            "rscu": ("species-order", "exclude-species", "width", "height"),
+            "amino_acid": ("species-order", "exclude-species", "width", "height"),
+            "diversity": ("width", "height", "dpi"),
+        }
+        for key in options.get(script, ()):
+            if key in params:
+                extra += [f"--{key}", str(params[key])]
         return run_figure(
             ctx,
             script,
@@ -1393,6 +1779,7 @@ def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureO
             preflight=preflight,
             figures=args.figure,
             params=params,
+            results=results,
         )
     except (OSError, ValueError, KeyError) as error:
         print(f"cannot render the R figures: {error}", file=sys.stderr)
@@ -1493,6 +1880,29 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
             print("annotate: nothing was annotated", file=sys.stderr)
             return EXIT_USAGE
 
+    # An external GenBank already carries an annotation; re-annotating it would discard that
+    # annotation without saying so. The pipeline has two input paths — a bare assembly goes
+    # through this command, an annotated record goes straight to analysis or verify — and the
+    # choice is the user's, so it is explicit (M11.16).
+    if not _truthy(params.get("reannotate")):
+        already = [
+            (text, genome)
+            for text, genome in samples
+            if any(gene.kind in ("CDS", "tRNA", "rRNA") for gene in genome.genes)
+        ]
+        if already:
+            for text, genome in already:
+                count = sum(1 for gene in genome.genes if gene.kind in ("CDS", "tRNA", "rRNA"))
+                print(
+                    f"{text} already carries {count} CDS/tRNA/rRNA feature(s) — "
+                    f"re-annotating it would discard them. Analyse it with "
+                    f"`plastid run -m <module> -i {text}`, or pass `--set reannotate=yes` to "
+                    f"replace its annotation from the reference set.",
+                    file=sys.stderr,
+                )
+            print("annotate: nothing was annotated", file=sys.stderr)
+            return EXIT_USAGE
+
     for text, genome in samples:
         codes.append(
             _annotate_sample(text=text, genome=genome, spec=spec, params=params, args=args)
@@ -1519,6 +1929,22 @@ def _annotate_sample(
     args: argparse.Namespace,
 ) -> int:
     """One sample of the batch, through the same body every other run uses (seam 3)."""
+    directory = plastid_reference.resolve_directory(params.get("reference"))
+    reference_sets: list[dict] = []
+    if str(directory) not in ("", "."):
+        planted = params.get("exclude")
+        excluded = (planted,) if isinstance(planted, str) else tuple(planted or ())
+        try:
+            reference_sets.append(
+                describe_reference_set(
+                    directory,
+                    exclude=excluded,
+                    leave_out=genome.accession or genome.name,
+                )
+            )
+        except ContractError as error:
+            print(str(error), file=sys.stderr)
+            return EXIT_USAGE
     return _execute_run(
         genomes=(genome,),
         specs=(spec,),
@@ -1538,6 +1964,7 @@ def _annotate_sample(
             *(["--docx"] if args.docx else []),
         ],
         inputs=[text],
+        reference_sets=reference_sets,
     )
 
 
@@ -2107,6 +2534,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "qc":
         return _cmd_qc(args)
+
+    if args.command == "batch":
+        return _cmd_batch(args)
 
     if args.command == "annotate":
         return _cmd_annotate(args)

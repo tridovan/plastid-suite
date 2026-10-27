@@ -37,6 +37,7 @@ __all__ = [
     "misa_script",
     "misa_version",
     "run_misa",
+    "threshold_text",
 ]
 
 MISA_VERSION = "2.1"
@@ -253,3 +254,20 @@ def _int_after(text: str, marker: str) -> int:
         if marker in line:
             return int(line.split(marker, 1)[1].strip())
     raise ToolError(f"misa: expected {marker!r} in the statistics output, found none")
+
+
+def threshold_text(path: str | Path | None = None) -> str:
+    """The unit/repeat thresholds in the shipped ``misa.ini``, as MISA writes them.
+
+    The summary used to carry this string hardcoded beside a run that reads the same values from
+    the ini; the two could drift. Reading the file makes the reported thresholds the ones MISA
+    actually used (M11.17). ``path`` exists for tests and for a caller that supplies the ini.
+    """
+    ini = Path(path) if path is not None else data_file("misa.ini")
+    for line in ini.read_text(encoding="utf-8").splitlines():
+        if line.startswith("definition(unit_size,min_repeats)"):
+            values = line.split(":", 1)[1].split()
+            return " ".join(
+                f"({unit}/{repeats})" for unit, repeats in (value.split("-") for value in values)
+            )
+    raise ValueError(f"{ini}: no definition(unit_size,min_repeats) line")

@@ -82,6 +82,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("accession", "Accession"),
             Column("organism", "Organism"),
             Column("n_cds", "CDS in the set", dtype="int"),
+            Column("n_partial_cds", "Of which partial", dtype="int"),
             Column("n_codons", "Codons counted", dtype="int"),
             Column("enc", "ENC", dtype="float", precision=2),
             Column("cai", "CAI", dtype="float", precision=4),
@@ -96,6 +97,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "accession": genome.accession or "",
                 "organism": genome.name,
                 "n_cds": len(cdss),
+                "n_partial_cds": sum(1 for gene in cdss if gene.partial),
                 "n_codons": total_codons,
                 # raw values: the export layer formats by Column.precision, JSON keeps them exact
                 "enc": enc(counts),

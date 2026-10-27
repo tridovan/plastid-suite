@@ -16,7 +16,7 @@ from typing import Any
 from plastid.core.ir import IRResult
 from plastid.core.model import Genome, Interval
 from plastid.core.organelle import GROUP_SHARED
-from plastid.external.misa import UNIT_LABELS, MisaResult, run_misa
+from plastid.external.misa import UNIT_LABELS, MisaResult, run_misa, threshold_text
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
@@ -33,7 +33,6 @@ MODULE_ID = "ssr"
 # makes everything inside it an "Intron" (found by the CPStools cross-check).
 MODULE_VERSION = "0.4.0"
 
-_THRESHOLDS = "(1/10) (2/6) (3/5) (4/5) (5/5) (6/5)"  # MISA defaults
 _GENE_KINDS = ("CDS", "tRNA", "rRNA")
 
 
@@ -48,6 +47,7 @@ _GENE_KINDS = ("CDS", "tRNA", "rRNA")
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
     misa = run_misa(genome, ctx, params.get("misa"))
+    thresholds = threshold_text()
 
     rows = []
     for feature in misa.features:
@@ -88,7 +88,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "tri": misa.by_unit.get(3, 0),
                 "compound": misa.compound,
                 "tool": f"MISA {_misa_version(ctx)}",
-                "thresholds": _THRESHOLDS,
+                "thresholds": thresholds,
                 "reconciliation": _reconciliation(misa, rows),
             },
         ),
@@ -97,6 +97,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
 
     by_unit = Table(
         id="ssr_by_unit",
+        allow_empty=True,
         title="SSRs by repeat unit",
         columns=(
             Column("unit", "Unit"),
@@ -113,6 +114,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
 
     features_table = Table(
         id="ssrs",
+        allow_empty=True,
         title="SSRs (positions from the MISA GFF)",
         columns=(
             Column("motif", "Motif"),
@@ -152,24 +154,30 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         key="region",
     )
 
+    tables = {summary.id: summary, region_table.id: region_table}
+    notes = [
+        f"MISA {_misa_version(ctx)} with its default thresholds {thresholds}; "
+        f"{misa.compound} SSRs in compound formation — MISA's own count, **one per cluster**.",
+        "The per-SSR table flags **every component** of a cluster, so its `yes` rows number "
+        "more than MISA's count (a two-component cluster contributes 2 rows to 1): the two "
+        "numbers measure different things and neither is derived from the other.",
+        "A compound cluster's components share the cluster's coordinates — MISA does not "
+        "separate them, and a component on its own line carries the `compound_repeat` note.",
+    ]
+    if rows:
+        tables[by_unit.id] = by_unit
+        tables[features_table.id] = features_table
+    else:
+        notes.append(
+            "no SSR passed the thresholds — the per-SSR and by-unit tables are absent rather "
+            "than empty; the summary's total is the zero and the by-region table keeps its four "
+            "zero rows."
+        )
     return Result(
         module=MODULE_ID,
         module_version=MODULE_VERSION,
-        tables={
-            summary.id: summary,
-            by_unit.id: by_unit,
-            region_table.id: region_table,
-            features_table.id: features_table,
-        },
-        notes=[
-            f"MISA {_misa_version(ctx)} with its default thresholds {_THRESHOLDS}; "
-            f"{misa.compound} SSRs in compound formation — MISA's own count, **one per cluster**.",
-            "The per-SSR table flags **every component** of a cluster, so its `yes` rows number "
-            "more than MISA's count (a two-component cluster contributes 2 rows to 1): the two "
-            "numbers measure different things and neither is derived from the other.",
-            "A compound cluster's components share the cluster's coordinates — MISA does not "
-            "separate them, and a component on its own line carries the `compound_repeat` note.",
-        ],
+        tables=tables,
+        notes=notes,
         citations=("misa",),
     )
 

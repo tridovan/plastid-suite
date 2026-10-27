@@ -485,3 +485,182 @@ def test_a_gene_cut_short_is_not_read_as_a_late_start() -> None:
         .reference.accession
         == "NC_000002.1"
     )
+
+
+# ----------------------------------------------- the reference model decides (Crataegus 27/10/2026)
+
+
+def _model_hsp(entry: ReferenceEntry, *, pident: float, residues: int, bitscore: float):
+    """An HSP covering ``residues`` codons of ``entry``, query 1..3*residues."""
+    from plastid.core.caller import Hsp
+
+    return Hsp(
+        subject_key=entry.key,
+        pident=pident,
+        length=residues,
+        qstart=1,
+        qend=3 * residues,
+        sstart=1,
+        send=residues,
+        evalue=1e-30,
+        bitscore=bitscore,
+        frame=1,
+    )
+
+
+def test_a_minority_reference_model_does_not_win_on_identity() -> None:
+    """Measured 27/10/2026 on 39 Crataegus records.
+
+    Three of 39 references carry extended small-CDS models: psbM 270 bp where 36 records say
+    105, psbK 195 where 36 say 186, psaJ 318 where 38 say 135, psbZ 279 where 38 say 189,
+    psbJ 144 where 36 say 123, accD 1,527 where 36 say 1,476, rpoB 3,258 where 38 say 3,207.
+    The caller keeps the highest identity, so those three won at every locus and every genome
+    inherited the extension. Removing them from the reference set raised CDS exact agreement
+    from 76.7 % to 85.7 % and CDS within 1 bp from 80.8 % to 89.9 % — the model, not the gene
+    finding, was the limit.
+
+    Every one of those seven outlier proteins is the consensus protein **plus residues before
+    its start**, so the plastid path displaces such a rare model when the consensus model is a
+    suffix of it. The mito prototype keeps identity-only.
+
+    This also pins the order: the consensus protein is a *suffix* of the winner, which is what
+    ``_not_truncated`` drops, so the guard has to run before the structure rule or it never sees
+    the candidate it needs.
+    """
+    modal = "M" + "A" * 61  # 62 aa = 186 bp, the model 36 of 39 references carry
+    extended = "GGG" + modal  # 65 aa = 195 bp, the model 3 of 39 carry: 3 residues before the start
+    entries = tuple(_entry("psbK", modal, f"NC_0000{i:02d}.1") for i in range(36)) + tuple(
+        _entry("psbK", extended, f"NC_0001{i:02d}.1") for i in range(3)
+    )
+    index = ReferenceIndex.from_entries(entries, vocabulary=("psbK",))
+    modal_entry = next(entry for entry in index.entries if entry.sequence == modal)
+    extended_entry = next(entry for entry in index.entries if entry.sequence == extended)
+    hsps = (
+        _model_hsp(extended_entry, pident=100.0, residues=65, bitscore=300.0),
+        _model_hsp(modal_entry, pident=98.4, residues=62, bitscore=290.0),
+    )
+
+    plain = core.call_cds(_genome(), index, hsps, min_identity=50.0, min_coverage=0.5)
+    guarded = call_cds(_genome(), index, hsps, min_identity=50.0, min_coverage=0.5)
+
+    assert plain.one("psbK").reference.sequence == extended  # identity picks the 3-of-39 model
+    assert plain.one("psbK").span == (1, 195)
+    assert guarded.one("psbK").reference.sequence == modal  # the plastid path follows the majority
+    assert guarded.one("psbK").span == (1, 186)  # 36 of 39 records say 186 bp, not 195
+    # a choice, not a silence: the identity winner is still reported with its own numbers
+    assert {row.reference_accession: row.chosen for row in guarded.competing} == {
+        modal_entry.accession: True,
+        extended_entry.accession: False,
+    }
+
+
+def test_a_three_prime_extension_is_not_an_annotation_outlier() -> None:
+    """Measured on the same 39 Crataegus records: five ``rps18`` and two ``atpA`` models are
+    three or four residues longer than the consensus at the **3'** end, and they are the real
+    models. A plain extension rule shortened those calls by 9 and 12 bp and left them without a
+    stop codon (``no_stop``); exact agreement fell by seven calls. Only a 5'-over-long model is
+    displaced — the end the start annotation can be stretched past.
+    """
+    modal = "M" + "A" * 61  # 62 aa
+    extended = modal + "GGG"  # 65 aa: residues after the consensus end, not before its start
+    entries = tuple(_entry("rps18", modal, f"NC_0000{i:02d}.1") for i in range(36)) + tuple(
+        _entry("rps18", extended, f"NC_0001{i:02d}.1") for i in range(3)
+    )
+    index = ReferenceIndex.from_entries(entries, vocabulary=("rps18",))
+    extended_entry = next(entry for entry in index.entries if entry.sequence == extended)
+    modal_entry = next(entry for entry in index.entries if entry.sequence == modal)
+    hsps = (
+        _model_hsp(extended_entry, pident=100.0, residues=65, bitscore=300.0),
+        _model_hsp(modal_entry, pident=98.4, residues=62, bitscore=290.0),
+    )
+
+    assert (
+        call_cds(_genome(), index, hsps, min_identity=50.0, min_coverage=0.5)
+        .one("rps18")
+        .reference.sequence
+        == extended
+    )
+
+
+def test_the_model_guard_does_nothing_without_a_majority_model() -> None:
+    """4 + 4 + 1 references over three lengths: the identity winner is a 5' extension of the
+    65 aa model, but 4 of 9 references is not a majority, so nothing is transferred."""
+    short = "M" + "A" * 61  # 62 aa
+    middle = "GGG" + short  # 65 aa
+    long = "CCC" + middle  # 68 aa: a 5' extension of `middle`
+    entries = (
+        tuple(_entry("psbK", short, f"NC_0000{i:02d}.1") for i in range(4))
+        + tuple(_entry("psbK", middle, f"NC_0001{i:02d}.1") for i in range(4))
+        + (_entry("psbK", long, "NC_000200.1"),)
+    )
+    index = ReferenceIndex.from_entries(entries, vocabulary=("psbK",))
+    chosen = next(entry for entry in index.entries if entry.sequence == long)
+    middle_entry = next(entry for entry in index.entries if entry.sequence == middle)
+    hsps = (
+        _model_hsp(chosen, pident=100.0, residues=68, bitscore=320.0),
+        _model_hsp(middle_entry, pident=99.0, residues=65, bitscore=300.0),
+    )
+
+    assert (
+        call_cds(_genome(), index, hsps, min_identity=50.0, min_coverage=0.5)
+        .one("psbK")
+        .reference.sequence
+        == long
+    )
+
+
+def test_a_majority_model_that_did_not_align_cannot_displace_the_one_that_did() -> None:
+    """The guard asks for a majority model **among the passing candidates**. Eight references
+    say 186 bp but none of them aligned above the floors; only the 195 bp reference did, and
+    the genome is then best explained by what actually aligned."""
+    modal = "M" + "A" * 61
+    extended = "GGG" + modal
+    entries = tuple(_entry("psbK", modal, f"NC_0000{i:02d}.1") for i in range(8)) + (
+        _entry("psbK", extended, "NC_000100.1"),
+    )
+    index = ReferenceIndex.from_entries(entries, vocabulary=("psbK",))
+    extended_entry = next(entry for entry in index.entries if entry.sequence == extended)
+    hsps = (_model_hsp(extended_entry, pident=100.0, residues=65, bitscore=300.0),)
+
+    assert (
+        call_cds(_genome(), index, hsps, min_identity=50.0, min_coverage=0.5)
+        .one("psbK")
+        .reference.sequence
+        == extended
+    )
+
+
+def test_a_rare_model_that_is_not_an_extension_keeps_identitys_choice() -> None:
+    """The golden's own ``rpl2`` (measured 27/10/2026) is the negative case for the guard.
+
+    Across the 33-record pinned set, 19 references spell 271 aa from an inner start codon, 11
+    spell 273, 2 spell 274 and 4 spell 244; the target's published protein is 273. The 274 model
+    is rare (2 of 33), but the modal 271 protein is not the 274 protein with residues removed
+    from one end — it is a different start. A plain majority rule displaced the identity winner
+    there and pulled the call 6 bp off the published 5' end. A rare model is displaced only by a
+    majority model it **extends at the 5' end**.
+    """
+    modal = "M" + "A" * 61  # 62 aa
+    different_start = "M" + "D" + "C" * 60  # 62 aa, and not a suffix of `rare`
+    rare = "M" + "C" * 67  # 68 aa — rare, and no model is a 5' extension of it
+    entries = (
+        tuple(_entry("rpl2", modal, f"NC_0000{i:02d}.1") for i in range(30))
+        + (_entry("rpl2", different_start, "NC_000100.1"),)
+        + (_entry("rpl2", rare, "NC_000200.1"),)
+    )
+    index = ReferenceIndex.from_entries(entries, vocabulary=("rpl2",))
+    rare_entry = next(entry for entry in index.entries if entry.sequence == rare)
+    modal_entry = next(entry for entry in index.entries if entry.sequence == modal)
+    other_entry = next(entry for entry in index.entries if entry.sequence == different_start)
+    hsps = (
+        _model_hsp(rare_entry, pident=100.0, residues=68, bitscore=340.0),
+        _model_hsp(modal_entry, pident=98.5, residues=62, bitscore=310.0),
+        _model_hsp(other_entry, pident=97.0, residues=62, bitscore=300.0),
+    )
+
+    assert (
+        call_cds(_genome(), index, hsps, min_identity=50.0, min_coverage=0.5)
+        .one("rpl2")
+        .reference.sequence
+        == rare
+    )

@@ -26,7 +26,9 @@ from pathlib import Path
 from typing import Any
 
 from plastid.result.figures import all_r_figures
+from plastid.result.result import Result
 from plastid.result.rfigure import RFigureSkip
+from plastid.run import batch_frames
 from plastid.run.figures import read_run_results
 from plastid.run.layout import FIGURES_DIRNAME
 from plastid.run.tools import ToolError
@@ -58,6 +60,7 @@ def render_run_rfigures(
     preflight: Preflight | None = None,
     figures: Iterable[str] | None = None,
     params: Mapping[str, Any] | None = None,
+    results: Mapping[str, Result] | None = None,
 ) -> RFigureOutcome:
     """Draw every R figure whose source tables this run holds, into ``<run_dir>/figures/``.
 
@@ -66,7 +69,7 @@ def render_run_rfigures(
     size or an aligner choice has somewhere to find it.
     """
     root = Path(run_dir)
-    results = read_run_results(root)
+    results = dict(results) if results is not None else read_run_results(root)
     target = root / FIGURES_DIRNAME
     wanted = None if figures is None else set(figures)
     settings: Mapping[str, Any] = params or {}
@@ -96,7 +99,7 @@ def render_run_rfigures(
             )
             continue
         try:
-            frame = spec.frame(results)
+            frame = batch_frames.frame_for(spec.id, results) or spec.frame(results)
         except RFigureSkip as reason:
             skipped.append((spec.id, str(reason)))
             continue

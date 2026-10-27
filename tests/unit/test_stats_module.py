@@ -152,6 +152,9 @@ def test_the_fdr_table_carries_every_test_with_both_corrections() -> None:
     for row in tests.rows:
         assert row["p_bonferroni"] is None or row["p_bonferroni"] >= row["p"] - 1e-12
         assert row["p_bh"] is None or row["p_bh"] >= row["p"] - 1e-12
+        # the assumption and the observation unit travel with every p-value (M11.17)
+        assert row["assumption"]
+        assert row["unit"] == stats_module.OBSERVATION_UNIT
     assert result.tables["stats_correlations"].rows
 
 
@@ -192,3 +195,62 @@ def test_the_module_renders_a_report_from_its_own_template() -> None:
     text = render(template, result, citations=load_citations())
     assert "Alpha, Beta" in text
     assert "Draft — needs human review." in text
+
+
+@requires_stats
+def test_an_empty_cds_measure_is_missing_not_zero() -> None:
+    """A measure that was not measured is blank, never 0.0.
+
+    A zero-length CDS has no base to take a GC percentage from; ``_gc_pct`` returns ``None`` and
+    the descriptive row must carry n = 0 with no median. Turning that into 0.0 would enter a
+    fabricated observation into every comparison that uses the locus.
+    """
+    alpha = _genome("A1")
+    beta = _genome("B1")
+    empty = Gene(name="empty", kind="CDS", parts=(Interval(0, 0),))
+    from dataclasses import replace
+
+    beta = replace(beta, genes=(*beta.genes, empty))
+    result = stats_module.run(
+        (alpha, beta),
+        {"groups": {"A1": "Alpha", "B1": "Beta"}},
+        None,  # type: ignore[arg-type]
+    )
+    rows = [
+        row
+        for row in result.tables["stats_descriptives"].rows
+        if row["measure"] == "gc_pct" and row["group"] == "Beta"
+    ]
+    assert len(rows) == 1
+    assert rows[0]["n"] == 3  # the three real CDS; the empty one contributes no value
+    assert rows[0]["median"] is not None
+    empty_rows = [
+        row
+        for row in result.tables["stats_tests"].rows
+        if row["locus"] == "empty" and row["measure"] == "gc_pct"
+    ]
+    assert len(empty_rows) == 1
+    assert empty_rows[0]["n_per_group"] == "Beta: 0"
+    assert empty_rows[0]["status"] == "not computable"
+
+
+@requires_stats
+def test_a_partial_cds_is_counted_in_the_observations() -> None:
+    from dataclasses import replace
+
+    genomes = [_genome("A1"), _genome("B1")]
+    genomes[0] = replace(
+        genomes[0],
+        genes=tuple(
+            replace(gene, parts=(replace(gene.parts[0], partial_start=True),))
+            if gene.name == "rbcL"
+            else gene
+            for gene in genomes[0].genes
+        ),
+    )
+    result = stats_module.run(
+        tuple(genomes),
+        {"groups": {"A1": "Alpha", "B1": "Beta"}},
+        None,  # type: ignore[arg-type]
+    )
+    assert result.tables["stats_summary"].rows[0]["n_partial_observations"] == 1

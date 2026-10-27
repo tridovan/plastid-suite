@@ -35,6 +35,8 @@ __all__ = [
     "IR_MIN_EVIDENCE_FRACTION",
     "IR_MIN_IDENTITY",
     "IR_MIN_LENGTH",
+    "IR_SCORING_POLICY",
+    "IR_SCORING_POLICY_VERSION",
     "AlignmentStats",
     "CopyMapping",
     "IRDetectionError",
@@ -61,6 +63,14 @@ IR_COPY_LENGTH_TOLERANCE = 5
 IR_ALIGN_KMER = 20
 IR_ALIGN_MAX_DIAGONAL = 200
 IR_ALIGN_GAP_BP = 200
+
+# The scoring the gate's own alignment uses (see _align_segment). Recorded in the run manifest
+# with a version so an artifact can say which policy measured its identity (M11.16); a change
+# here is a change of measurement, not an implementation detail.
+IR_SCORING_POLICY_VERSION = 1
+IR_SCORING_POLICY = (
+    "Bio.Align.PairwiseAligner, global: match +1, mismatch -1, gap open -2, extend -1"
+)
 
 # Evidence policy: identity alone can be carried by a tiny known fragment if unknown columns are
 # dropped. Unknown columns stay in the denominator, and at least half of the shorter copy must be

@@ -101,6 +101,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
 
     gene_table = Table(
         id="genes",
+        allow_empty=True,
         title="Genes (GenBank coordinates, every copy)",
         columns=(
             Column("name", "Name"),
@@ -111,16 +112,26 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("length_bp", "Length", dtype="int", unit="bp"),
             Column("in_ir", "In IR"),
             Column("pseudo", "Pseudo"),
+            Column("partial", "Partial CDS"),
         ),
         rows=tuple(_gene_row(gene, ir, names) for gene in genome.genes),
         scope=Scope(label="GenBank coordinates; both IR copies included", coord_system="genbank"),
     )
 
+    tables = {stats.id: stats, region_table.id: region_table}
+    notes = [f"IR source: {ir.source}; two copies {ir.identity * 100:.2f} % identical."]
+    if gene_table.rows:
+        tables[gene_table.id] = gene_table
+    else:
+        notes.append(
+            "the record annotates no gene — the per-gene table is absent rather than empty; the "
+            "summary counts are the zero."
+        )
     return Result(
         module=MODULE_ID,
         module_version=MODULE_VERSION,
-        tables={stats.id: stats, region_table.id: region_table, gene_table.id: gene_table},
-        notes=[f"IR source: {ir.source}; two copies {ir.identity * 100:.2f} % identical."],
+        tables=tables,
+        notes=notes,
         citations=("biopython",),
     )
 
@@ -138,6 +149,7 @@ def _gene_row(gene: Gene, ir: IRResult, names: GenomeNames) -> dict[str, Any]:
         "length_bp": gene.length,
         "in_ir": "yes" if _in_ir(gene, ir) else "no",
         "pseudo": "yes" if gene.pseudo else "no",
+        "partial": "yes" if gene.partial else "no",
     }
 
 

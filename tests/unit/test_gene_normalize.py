@@ -489,7 +489,10 @@ def test_the_reference_normalizes_to_itself_with_nothing_to_change(tmp_path: Pat
     result = naming.run((golden, golden), {"mode": "verify"}, _context(tmp_path))
 
     assert result.artifacts == {}  # verify writes no record
-    assert result.tables["normalize_summary"].rows[0]["renamed"] == 0
+    summary = result.tables["normalize_summary"].rows[0]
+    assert summary["renamed"] == 0
+    # a decision, never "verified": no rename, and the genes without evidence stay visible
+    assert summary["decision"] == ("not measured" if summary["not_measured"] else "no change")
     assert any("nothing would change" in note for note in result.notes)
 
 
@@ -694,7 +697,9 @@ def test_the_run_resolves_audits_and_records_the_naming_reference(tmp_path: Path
     assert code == EXIT_OK
     run_dir = next(path.parent for path in out.glob("*/*/manifest.json"))
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["schema_version"] == 2
+    from plastid.run.manifest import MANIFEST_SCHEMA_VERSION
+
+    assert manifest["schema_version"] == MANIFEST_SCHEMA_VERSION
     assert manifest["inputs"][0]["path"].endswith("NC_050833.1.gb")  # the reference came first
     entry = manifest["modules"][0]
     assert entry["reference"]["accession"] == "NC_050833.1"

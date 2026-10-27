@@ -266,6 +266,9 @@ def test_a_span_that_crosses_the_origin_becomes_two_spans() -> None:
     assert frame.span_to_genbank(1, 8000) == ((251, 8250),)
     # The GenBank origin (position 1) sits inside this span, so it splits into two arcs.
     assert frame.span_to_genbank(19_700, 19_800) == ((19_950, 20_000), (1, 50))
+    # The mirror: a span crossing the *normalized* origin splits the same way.
+    assert frame.span_to_normalized(19_950, 50) == ((19_700, 19_800),)
+    assert frame.span_to_normalized(200, 300) == ((19_950, 20_000), (1, 50))
 
 
 def test_the_map_series_equals_the_cells_of_the_tables_it_read() -> None:

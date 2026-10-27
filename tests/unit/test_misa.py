@@ -173,3 +173,19 @@ def test_misa_version_refuses_a_script_that_never_says(tmp_path: Path) -> None:
     script.write_text("#!/usr/bin/perl -w\nprint 'hello';\n", encoding="utf-8")
     with pytest.raises(ToolError, match="cannot be read"):
         misa_version(script)
+
+
+def test_the_reported_thresholds_are_the_ones_in_the_shipped_ini() -> None:
+    """The summary's threshold string and the file MISA actually reads must not drift (M11.17)."""
+    from plastid.core.resources import data_file
+
+    line = next(
+        line
+        for line in data_file("misa.ini").read_text(encoding="utf-8").splitlines()
+        if line.startswith("definition(unit_size,min_repeats)")
+    )
+    expected = " ".join(f"({value.replace('-', '/')})" for value in line.split(":", 1)[1].split())
+    from plastid.external.misa import threshold_text
+
+    assert threshold_text() == expected
+    assert expected == "(1/10) (2/6) (3/5) (4/5) (5/5) (6/5)"

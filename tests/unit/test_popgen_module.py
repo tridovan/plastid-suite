@@ -92,6 +92,8 @@ def test_fst_is_computed_between_groups_per_gene(tmp_path: Path, stubbed) -> Non
     # matK differs between the groups with no within-group variation → Fst = 1
     assert fst["matK#A#B"]["fst"] == pytest.approx(1.0)
     assert (fst["matK#A#B"]["n_a"], fst["matK#A#B"]["n_b"]) == (3, 2)
+    # the estimator travels with the value: Gst is not every estimator called "Fst" (M11.17)
+    assert {row["estimator"] for row in result.tables["popgen_fst"].rows} == {"Nei's Gst"}
 
 
 def test_a_genome_without_a_group_is_refused(tmp_path: Path, stubbed) -> None:
@@ -126,3 +128,21 @@ def test_no_gene_carried_by_two_genomes_fails_with_a_clear_reason(tmp_path: Path
             {"groups": {"A1": "A", "EMPTY.1": "B"}},
             _ctx(tmp_path),
         )
+
+
+def test_a_partial_reference_gene_is_counted(tmp_path: Path, stubbed) -> None:
+    from dataclasses import replace
+
+    genomes = _sample()
+    reference = replace(
+        genomes[0],
+        genes=tuple(
+            replace(gene, parts=(replace(gene.parts[0], partial_start=True),))
+            if gene.name == "rbcL"
+            else gene
+            for gene in genomes[0].genes
+        ),
+    )
+    groups = {"A1": "A", "A2": "A", "A3": "A", "B1": "B", "B2": "B"}
+    result = popgen.run((reference, *genomes[1:]), {"groups": groups}, _ctx(tmp_path))
+    assert result.tables["popgen_summary"].rows[0]["n_partial_genes"] == 1

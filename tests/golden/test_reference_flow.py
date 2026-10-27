@@ -135,6 +135,8 @@ def flow(
                 str(data_dir / f"{GOLDEN}.gb"),
                 "--reference",
                 str(derived),
+                "--set",
+                "reannotate=yes",
                 "-o",
                 str(annotate_out),
             ]
@@ -163,12 +165,16 @@ def flow(
         )
         == 0
     )
+    # 7 — the annotated artifact is the *input* of the next step, not a directory convention
+    analysis_out = root / "analysis"
+    assert main(["run", "-m", "genome_stats", "-i", str(artifact), "-o", str(analysis_out)]) == 0
     return {
         "database": database,
         "normalize_dir": normalize_dir,
         "normalized": normalized,
         "artifact": artifact,
         "verify_dir": _module_dir(verify_out, "01_gene_normalize"),
+        "analysis_dir": _module_dir(analysis_out, "01_genome_stats"),
     }
 
 
@@ -229,3 +235,23 @@ def test_verifying_the_annotated_artifact_changes_no_name(flow) -> None:
     assert summary["Mode"] == "verify"
     assert summary["Renamed"] == "0"
     assert summary["Conflicts"] == "0"
+
+
+def test_the_annotated_artifact_is_the_input_of_the_next_step(flow) -> None:
+    """M11.16's routing proof: the same bytes, named in both manifests.
+
+    ``plastid run`` hands the modules the genomes it was given, so listing modules in one command
+    is not a pipeline. The recipe chains the files instead: the annotated GenBank is the next
+    run's input, and its digest is the same one the annotation run published as a file.
+    """
+    annotated_digest = _sha256(flow["artifact"])
+    annotation_manifest = json.loads((flow["artifact"].parents[1] / "manifest.json").read_text())
+    assert annotated_digest in {entry["sha256"] for entry in annotation_manifest["files"]}
+    assert any(
+        entry["path"].endswith("plastid_annotation.gb")
+        for entry in annotation_manifest["artifacts"]
+    )
+
+    analysis_manifest = json.loads((flow["analysis_dir"].parent / "manifest.json").read_text())
+    assert [entry["path"] for entry in analysis_manifest["inputs"]] == [str(flow["artifact"])]
+    assert analysis_manifest["inputs"][0]["sha256"] == annotated_digest

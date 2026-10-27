@@ -157,6 +157,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("n_genomes", "Genomes compared", dtype="int"),
             Column("n_genes", "Genes considered", dtype="int"),
             Column("n_shared", "Genes shared with every annotated genome", dtype="int"),
+            Column("n_partial_genes", "Reference genes partial", dtype="int"),
             Column("estimator", "Estimator"),
             Column("aligner", "Aligner"),
             Column("tool", "Tool"),
@@ -169,6 +170,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 "n_genomes": len(genomes) - 1,
                 "n_genes": len(names),
                 "n_shared": len(shared),
+                "n_partial_genes": sum(
+                    1 for name in names if name in reference_genes and reference_genes[name].partial
+                ),
                 "estimator": ESTIMATOR,
                 "aligner": "MAFFT",
                 "tool": "PAML yn00",
@@ -204,6 +208,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("gene", "Gene"),
             Column("genome", "Genome"),
             Column("group", "Group"),
+            Column("partial", "Partial CDS"),
             Column("codons", "Codons", dtype="int"),
             Column("sites_s", "Synonymous sites", dtype="float", precision=1),
             Column("sites_n", "Nonsynonymous sites", dtype="float", precision=1),
@@ -257,6 +262,7 @@ def _score_gene(
         "gene": name,
         "genome": genome_key,
         "group": group,
+        "partial": "",
         "codons": None,
         "ka": None,
         "ks": None,
@@ -270,6 +276,7 @@ def _score_gene(
         row["status"] = STATUS_ABSENT_REFERENCE
         row["detail"] = f"{name} is not a CDS of the reference record"
         return row
+    row["partial"] = "yes" if reference_genes[name].partial else "no"
     if name not in genes:
         row["status"] = STATUS_ABSENT_GENOME
         row["detail"] = f"{genome_key} does not carry {name}"

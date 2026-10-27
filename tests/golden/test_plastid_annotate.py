@@ -194,6 +194,8 @@ def test_the_audit_gate_stops_the_run_on_a_record_it_blocks(
             str(data_dir / f"{GOLDEN}.gb"),
             "--reference",
             str(reference_dir),
+            "--set",
+            "reannotate=yes",
             "-o",
             str(out),
         ]

@@ -458,11 +458,27 @@ def _summary(
     artifacts: dict[str, str],
 ) -> Table:
     counts = Counter(decision.status for _, decision in decisions)
+    renamed = sum(1 for _, decision in decisions if decision.renamed)
+    not_measured = counts.get(STATUS_NOT_MEASURED, 0)
+    if mode == MODE_VERIFY:
+        # A decision, never "verified": missing evidence is its own state, and a finding stays a
+        # finding until a human resolves it (M11.16).
+        if conflicts:
+            decision = "conflict"
+        elif renamed:
+            decision = "findings"
+        elif not_measured:
+            decision = "not measured"
+        else:
+            decision = "no change"
+    else:
+        decision = "normalized"
     return Table(
         id="normalize_summary",
         title="Reference-driven naming",
         columns=(
             Column("mode", "Mode"),
+            Column("decision", "Decision"),
             Column("reference", "Naming reference (A)"),
             Column("reference_genes", "Genes in the reference", dtype="int"),
             Column("records", "Records normalized", dtype="int"),
@@ -478,17 +494,18 @@ def _summary(
         rows=(
             {
                 "mode": mode,
+                "decision": decision,
                 "reference": _label(reference),
                 "reference_genes": len(reference.genes),
                 "records": len(records),
                 "genes": len(decisions),
-                "renamed": sum(1 for _, decision in decisions if decision.renamed),
+                "renamed": renamed,
                 "confirmed": sum(
                     1 for _, decision in decisions if decision.outcome == OUTCOME_CONFIRMED
                 ),
                 "conflicts": len(conflicts),
                 "measured": counts.get(STATUS_MEASURED, 0),
-                "not_measured": counts.get(STATUS_NOT_MEASURED, 0),
+                "not_measured": not_measured,
                 "outside": counts.get(STATUS_OUTSIDE, 0),
                 "artifacts": len(artifacts),
             },

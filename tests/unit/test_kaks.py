@@ -222,3 +222,24 @@ def test_shared_means_carried_by_both_not_by_the_reference(tmp_path: Path, stubb
     assert pooled["n_shared"] == 1
     assert pooled["n_computed"] == 1
     assert pooled["n_not_computed"] == 0
+
+
+def test_a_partial_reference_gene_is_counted_and_marked(tmp_path: Path, stubbed) -> None:
+    """M11.17: a truncated model is visible in the row and in the summary, not merged silently."""
+    from dataclasses import replace
+
+    reference = _genome("A1", _CDS)
+    reference = replace(
+        reference,
+        genes=tuple(
+            replace(gene, parts=(replace(gene.parts[0], partial_start=True),))
+            if gene.name == "rbcL"
+            else gene
+            for gene in reference.genes
+        ),
+    )
+    result = kaks.run((reference, _genome("A2", _CDS)), {}, _ctx(tmp_path))
+
+    assert result.tables["kaks_summary"].rows[0]["n_partial_genes"] == 1
+    row = next(row for row in result.tables["kaks_genes"].rows if row["gene"] == "rbcL")
+    assert row["partial"] == "yes"
