@@ -227,11 +227,26 @@ def test_a_failed_sample_is_marked_and_named_without_killing_the_batch(
     and the broken sample's own run directory records why.
     """
     _stub(monkeypatch)
+    references = tmp_path / "references"
+    references.mkdir()
+    _write(references, "REF.1.gb", PLASTID_RECORD)
     good = _write(tmp_path, "good.fa", ">GOOD.1\nACGTACGTACGTACGTACGT\n")
     broken = _write(tmp_path, "broken.fa", ">BROKEN.1\nACGTACGTACGTACGTACGT\n")
     out = tmp_path / "runs"
 
-    code = main(["annotate", "-i", str(good), "-i", str(broken), "-o", str(out)])
+    code = main(
+        [
+            "annotate",
+            "-i",
+            str(good),
+            "-i",
+            str(broken),
+            "--reference",
+            str(references),
+            "-o",
+            str(out),
+        ]
+    )
 
     assert code != 0, "a batch with a failed sample exited as if it had succeeded"
     assert len(_artifacts(out)) == 1, "the good sample's artifact is missing"
@@ -254,11 +269,29 @@ def test_every_sample_of_a_batch_gets_its_own_run_directory_and_artifact(
     """One artifact per sample: the batch is a batch of *runs* (output split by
     run/dataset, never overwritten in place), so two samples never share a directory."""
     _stub(monkeypatch)
+    references = tmp_path / "references"
+    references.mkdir()
+    _write(references, "REF.1.gb", PLASTID_RECORD)
     first = _write(tmp_path, "one.fa", ">ONE.1\nACGTACGTACGTACGTACGT\n")
     second = _write(tmp_path, "two.fa", ">TWO.1\nACGTACGTACGTACGTACGT\n")
     out = tmp_path / "runs"
 
-    assert main(["annotate", "-i", str(first), "-i", str(second), "-o", str(out)]) == 0
+    assert (
+        main(
+            [
+                "annotate",
+                "-i",
+                str(first),
+                "-i",
+                str(second),
+                "--reference",
+                str(references),
+                "-o",
+                str(out),
+            ]
+        )
+        == 0
+    )
 
     artifacts = _artifacts(out)
     assert len(artifacts) == 2
@@ -363,10 +396,25 @@ def test_reannotate_yes_makes_replacing_an_external_annotation_explicit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _stub(monkeypatch)
+    references = tmp_path / "references"
+    references.mkdir()
+    _write(references, "REF.1.gb", PLASTID_RECORD)
     sample = _write(tmp_path, "external.gb", PLASTID_RECORD)
     out = tmp_path / "runs"
 
-    code = main(["annotate", "-i", str(sample), "--set", "reannotate=yes", "-o", str(out)])
+    code = main(
+        [
+            "annotate",
+            "-i",
+            str(sample),
+            "--reference",
+            str(references),
+            "--set",
+            "reannotate=yes",
+            "-o",
+            str(out),
+        ]
+    )
 
     assert code == 0
     assert list(out.glob("**/plastid_annotation.gb"))
