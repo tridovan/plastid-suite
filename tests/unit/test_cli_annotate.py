@@ -138,17 +138,39 @@ def test_a_batch_that_mixes_two_organelles_stops_before_annotating_any_of_them(
     assert not _artifacts(out)
 
 
-def test_audit_only_needs_no_sample_and_a_batch_needs_one(tmp_path: Path) -> None:
+def test_audit_only_needs_no_sample_and_a_batch_needs_one(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """``--audit-only`` is the flag P3B-03 left for this command: fix and re-check the set
     **without annotating anything** (D5-08) — so it must not demand a sample. Without it, a run
-    with no sample is a usage error rather than an empty success."""
-    # the default set is healthy after H-21, so the audit-only run is allowed to succeed; the
-    # point here is that it does not demand a sample
-    assert main(["annotate", "--audit-only", "--no-confirm", "-o", str(tmp_path / "runs")]) in (
-        0,
-        2,
+    with no sample is a usage error rather than an empty success.
+
+    The set is named here rather than left to the checkout's default: a tree without the pinned
+    panel must still answer the question this test asks (measured on CI, 27/10/2026: the default
+    path held no record, so the run exited 1 and the assertion read it as a usage refusal).
+    """
+    reference = tmp_path / "reference"
+    reference.mkdir()
+    _write(reference, "SYN_PLASTID.1.gb", PLASTID_RECORD)
+
+    audit = main(
+        [
+            "annotate",
+            "--audit-only",
+            "--no-confirm",
+            "--reference",
+            str(reference),
+            "-o",
+            str(tmp_path / "runs"),
+        ]
     )
+    message = capsys.readouterr()
+    assert audit == 2  # this synthetic record blocks the audit; the run is not a usage refusal
+    assert "input is required" not in message.err
+    assert "reference audit" in message.out + message.err
+
     assert main(["annotate", "-o", str(tmp_path / "runs2")]) == 2
+    assert "input is required" in capsys.readouterr().err
 
 
 def _stub(monkeypatch: pytest.MonkeyPatch) -> None:
