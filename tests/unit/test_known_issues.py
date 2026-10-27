@@ -431,7 +431,7 @@ def test_k06_the_tree_figure_forwards_its_options(tmp_path: Path) -> None:
             "drop-tips=Tip one",
         ],
     )
-    outcome, ctx = _render_r_figures(run_dir, args)
+    outcome, ctx = _render_r_figures(run_dir, sets=args.sets, figures=args.figure)
 
     assert outcome.files, "the fake Rscript should have produced a figure"
     argv = next(record.argv for record in ctx.tools if record.name == "rscript:tree")

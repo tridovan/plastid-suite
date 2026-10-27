@@ -21,9 +21,11 @@ from typing import Any
 from plastid.core.model import Genome, count_genes
 from plastid.core.organelle import GROUP_SHARED
 from plastid.core.submission import (
+    SubmissionInputError,
     partial_start_genes,
     source_qualifiers_left_out,
     submission_problems,
+    submittable_features,
     to_fasta,
     to_tbl,
 )
@@ -91,6 +93,14 @@ _TOOL_REPORTS = ("val", "stats", "dr")
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     seq_id = genome.accession or slugify(genome.name)
+    if not submittable_features(genome):
+        raise SubmissionInputError(
+            f"{genome.accession or genome.name}: the record carries no gene, CDS, tRNA or rRNA "
+            f"feature — a submission is built from a checked GenBank annotation, not from a "
+            f"bare sequence. Annotate the sample (`plastid annotate`), check the result "
+            f"(`plastid run -m gene_normalize --set mode=verify`), and run submission on that "
+            f"GenBank"
+        )
     problems = submission_problems(genome)
     partial_starts = partial_start_genes(genome)
 
@@ -99,9 +109,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         "submission.tbl": to_tbl(genome, seq_id),
     }
     sqn_note = "not requested"
+    validator_status = "not requested"
     validator: ValidatorCounts | None = None
     if _flag(params.get("sqn")):
-        artifacts, sqn_note, validator = _build_sqn(genome, seq_id, params, ctx, artifacts)
+        artifacts, sqn_note, validator, validator_status = _build_sqn(
+            genome, seq_id, params, ctx, artifacts
+        )
 
     counts = count_genes(genome)
     summary = Table(
@@ -117,6 +130,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("n_rrna", "rRNA", dtype="int"),
             Column("n_partial_starts", "CDS written with a partial start", dtype="int"),
             Column("n_problems", "First-pass problems", dtype="int"),
+            Column("validator_status", "NCBI validator status"),
             Column("n_validator_errors", "NCBI errors", dtype="int"),
             Column("n_validator_warnings", "NCBI warnings", dtype="int"),
             Column("sqn", "ASN.1 (.sqn)"),
@@ -134,8 +148,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "n_rrna": counts.rrna,
                 "n_partial_starts": len(partial_starts),
                 "n_problems": len(problems),
-                "n_validator_errors": validator.errors if validator else 0,
-                "n_validator_warnings": validator.warnings if validator else 0,
+                # A validator that did not run has no counts. Zero would be a measurement this
+                # run never made; the scope rule is "not measured", carried as a blank cell
+                # with the reason in validator_status (M11.18).
+                "validator_status": validator_status,
+                "n_validator_errors": validator.errors if validator else None,
+                "n_validator_warnings": validator.warnings if validator else None,
                 "sqn": sqn_note,
             },
         ),
@@ -188,6 +206,13 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             f"{len(problems)} first-pass problem(s) — the files are written so they can be "
             f"inspected, but they are not ready to submit."
         )
+    if _flag(params.get("sqn")):
+        notes.append(
+            "A .sqn is a conversion, not a validation: it does not mean NCBI has accepted the "
+            "record. validator_status says whether table2asn's own validator actually ran; when "
+            "it did not, the counts are blank rather than zero, because zero would be a "
+            "measurement this run never made."
+        )
     if validator and validator.by_class:
         tables["validator_findings"] = Table(
             id="validator_findings",
@@ -234,7 +259,7 @@ def _build_sqn(
     params: dict[str, Any],
     ctx: RunContext,
     artifacts: dict[str, str],
-) -> tuple[dict[str, str], str, ValidatorCounts | None]:
+) -> tuple[dict[str, str], str, ValidatorCounts | None, str]:
     """Run table2asn and keep its outputs. A missing tool or template is a named error."""
     explicit = params.get("table2asn")
     binary = None
@@ -302,4 +327,9 @@ def _build_sqn(
     produced_note = f"produced by {Path(binary).name}"
     if kept:
         produced_note += f"; reports kept: {', '.join(kept)}"
-    return artifacts, produced_note, counts
+    validator_status = (
+        "ran — table2asn wrote .stats"
+        if counts is not None
+        else "not run — the tool wrote no .stats; a .sqn is not a validation"
+    )
+    return artifacts, produced_note, counts, validator_status

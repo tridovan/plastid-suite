@@ -87,6 +87,36 @@ def test_the_figures_land_in_the_runs_own_figures_directory(tmp_path: Path) -> N
     assert (run_dir / "figures" / "r_rscu__input" / "codon_usage_rscu.csv").is_file()
 
 
+def test_a_refresh_removes_an_r_figure_its_tables_no_longer_feed(tmp_path: Path) -> None:
+    """The same refresh contract as the matplotlib pass (M11.18).
+
+    R names its own output files, so the whole ``<id>__*`` space belongs to the figure. When the
+    table it read is gone, the images and the caption must be gone with it.
+    """
+    run_dir = _run_dir(tmp_path)
+    render_run_rfigures(run_dir, runner=_runner([]), figures=["r_rscu"])
+    figures = run_dir / "figures"
+    assert (figures / "r_rscu__fig1.png").is_file()
+    assert (figures / "r_rscu.caption.txt").is_file()
+
+    # Rewrite the stored result without the codon-usage tables the figure reads.
+    module_dir = run_dir / "04_codon_usage"
+    from plastid.result.export import export_json
+    from plastid.result.result import Result
+
+    (module_dir / "result.json").write_text(
+        export_json(Result(module="codon_usage", module_version="test", tables={})),
+        encoding="utf-8",
+    )
+
+    outcome = render_run_rfigures(run_dir, runner=_runner([]), figures=["r_rscu"])
+    assert outcome.files == ()
+    assert not (figures / "r_rscu__fig1.png").exists()
+    assert not (figures / "r_rscu.caption.txt").exists()
+    (record,) = outcome.records
+    assert record.status == "skipped" and "codon_usage.rscu" in record.reason
+
+
 def test_the_caption_carries_the_scope_label_of_every_table_the_figure_read(
     tmp_path: Path,
 ) -> None:
@@ -332,7 +362,7 @@ def test_the_cli_forwards_the_species_options_to_f3(tmp_path: Path) -> None:
             "height=12",
         ],
     )
-    outcome, ctx = _render_r_figures(run_dir, args)
+    outcome, ctx = _render_r_figures(run_dir, sets=args.sets, figures=args.figure)
 
     assert outcome.files, "the stub Rscript should have drawn a figure"
     argv = next(record.argv for record in ctx.tools if record.name == "rscript:rscu")

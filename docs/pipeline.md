@@ -160,8 +160,8 @@ pipeline.
 | 3 — verify/ORF | `gene_normalize mode=verify`, `orf` | Verify currently reports would-change, does not write a new GenBank itself; needs stop/accept rules in the workflow and annotation preservation |
 | 4 — analyses | The modules listed below | Need a data contract per module and validation before aggregation; do not accept only through IR/gene count |
 | 5 — RNA editing | No module yet; original PREP-Cp chosen, not a simulated minimap2/samtools engine | Prepare/import/mapping/provenance; actually run the original engine and compare with Aegilops KJ614412.1 per the [specification](tools/prep_cp.md) |
-| 6a — export | CSV/JSON, Word, Excel, `figures`, `package`, `qc`, `genome_page` | No unified batch output yet; `run --figures`/`package`/`qc` currently only render the matplotlib catalogue, and do not gather R like the `figures` command |
-| 6b — submission | `submission`: `.fsa/.tbl`, optional `.sqn` via table2asn + `.sbt` | Attach the checked artifact to the right run; distinguish a validator that has not run from 0 errors; re-check loss/partial/qualifier |
+| 6a — export | CSV/JSON, Word, Excel, `figures`, `package`, `qc`, `genome_page` | One figure pass over the matplotlib and R catalogues for `run --figures`, `figures` and `package`; `qc` inventories both catalogues without drawing. A missing plotting extra or R is a named status, never a silent absence. The package is replaced as a whole, its index links every file with a digest, and the workbook names each table's scope; a batch's multi-sample figures use `plastid figures <batch-dir>` |
+| 6b — submission | `submission`: `.fsa/.tbl`, optional `.sqn` via table2asn + `.sbt` | Reads the checked GenBank directly (a bare sequence is refused); `.fsa` and `.tbl` share the sequence id; the validator's `not run` state is distinct from zero errors, and a `.sqn` is not ready-to-submit evidence |
 
 Code sources to compare: [CLI](../src/plastid/cli.py),
 [panel](../src/plastid/core/panel.py), [audit](../src/plastid/core/reference_audit.py),

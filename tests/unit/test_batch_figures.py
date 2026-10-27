@@ -276,6 +276,8 @@ def test_batch_figures_draws_the_sample_figures_in_the_same_command(tmp_path: Pa
             "-i",
             str(data / "NC_024936.1.gb"),
             "--figures",
+            "--label",
+            "panel-test",
             "--set",
             f"rscript={rscript}",
             "-o",
@@ -286,6 +288,14 @@ def test_batch_figures_draws_the_sample_figures_in_the_same_command(tmp_path: Pa
     assert code == 0
     batch_dir = next((out / "batch").glob("*/batch.json")).parent
     assert (batch_dir / "figures" / "r_rscu__fig.png").is_file()
+    caption = (batch_dir / "figures" / "r_rscu.caption.txt").read_text(encoding="utf-8")
+    # M11.18: a multi-sample figure names the data label, the accession set and both IR statuses;
+    # the per-sample mapping stays in samples.csv, which the caption points at.
+    assert "data label: panel-test" in caption
+    assert "accessions: NC_050833.1, NC_024936.1" in caption
+    assert "IR source:" in caption and "IR gate:" in caption
+    assert "per-sample accession/IR detail: samples.csv" in caption
     payload = json.loads((batch_dir / "batch.json").read_text(encoding="utf-8"))
     assert payload["figures"]["files"]
     assert payload["figures"]["tools"]  # the R call left its provenance in batch.json
+    assert all(entry["renderer"] for entry in payload["figures"]["skipped"])

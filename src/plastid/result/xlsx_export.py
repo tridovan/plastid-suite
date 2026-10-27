@@ -96,8 +96,22 @@ def _write_sheet(sheet: Any, table: Table) -> None:
         )
 
 
+def _write_provenance_sheet(sheet: Any, results: Mapping[str, Result]) -> None:
+    """Every table's scope and coordinate frame — a workbook must not travel unlabelled.
+
+    The CSVs carry the scope as a comment, the Word document as a caption and the JSON as a
+    field; without this sheet the Excel copy would be the one export whose numbers have no
+    stated scope (M11.18).
+    """
+    sheet.append(["Module", "Table", "Scope", "Coordinates"])
+    for module_id, result in results.items():
+        for table in result.tables.values():
+            sheet.append([module_id, table.id, table.scope.label, table.scope.coord_system])
+    sheet.freeze_panes = "A2"
+
+
 def export_xlsx(results: Mapping[str, Result]) -> bytes:
-    """Every table of every result in one workbook — a sheet each, in catalogue order."""
+    """Every table of every result in one workbook — a sheet each, plus their provenance."""
     openpyxl = require_module("openpyxl", extra="excel", purpose="Excel export")
     workbook = openpyxl.Workbook()
     workbook.remove(workbook.active)
@@ -107,6 +121,9 @@ def export_xlsx(results: Mapping[str, Result]) -> bytes:
             _write_sheet(workbook.create_sheet(title=sheet_name(module_id, table.id, taken)), table)
     if not workbook.sheetnames:  # a workbook with no sheets cannot be saved
         workbook.create_sheet(title="(no tables)")
+    _write_provenance_sheet(
+        workbook.create_sheet(title=sheet_name("plastid", "scope", taken)), results
+    )
     workbook.properties.creator = _CREATOR
     workbook.properties.lastModifiedBy = _CREATOR
     workbook.properties.created = _EPOCH

@@ -403,11 +403,18 @@ def test_a_run_writes_its_figure_and_a_second_run_writes_the_same_bytes(
     manifest = json.loads((first_dir / "manifest.json").read_text(encoding="utf-8"))
     entry = next(item for item in manifest["files"] if item["path"] == "figures/pi_window.svg")
     assert entry["module"] == "figures" and entry["sha256"] == digest
-    assert manifest["figures"]["rendered"] == [
+    assert manifest["figures"]["rendered"][:3] == [
         "pi_window.svg",
         "pi_window.pdf",
         "pi_window.eps",
     ]
+    # The caption carries the scope; the R catalogue is collected in the same pass (M11.18).
+    extra = manifest["figures"]["rendered"][3:]
+    assert "pi_window.caption.txt" in extra
+    assert all(name.startswith("r_diversity") for name in extra if name != "pi_window.caption.txt")
+    r_skips = [entry for entry in manifest["figures"]["skipped"] if entry["renderer"] == "R"]
+    assert all(entry["reason"] for entry in r_skips)  # an absence is never blank
+    assert manifest["figures"]["status"] in {"complete", "partial"}
     assert "--figures" in manifest["command"]
 
     # The second run is served from the cache — and must still get its figure, from the result

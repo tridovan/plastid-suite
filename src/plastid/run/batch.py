@@ -49,6 +49,10 @@ SAMPLES_COLUMNS = (
 AGGREGATE_COLUMNS = (
     "sample_id",
     "species",
+    "sample_accession",
+    "sample_data_label",
+    "sample_ir_source",
+    "sample_ir_gate",
     "module",
     "table",
     "row_index",
@@ -58,6 +62,16 @@ AGGREGATE_COLUMNS = (
     "measurement_status",
     "scope",
     "coord_system",
+)
+
+# The aggregate's per-sample provenance columns. They repeat on every long-format row so that a
+# table lifted out of the file still says which accession, whose data label and which IR path
+# produced the cell (M11.18); a figure pivot must not mistake them for measured columns.
+AGGREGATE_METADATA_COLUMNS = (
+    "sample_accession",
+    "sample_data_label",
+    "sample_ir_source",
+    "sample_ir_gate",
 )
 
 
@@ -129,7 +143,10 @@ def read_sample(
 
 
 def aggregate_rows(
-    records: Sequence[SampleRecord], results: Mapping[str, Mapping[str, Result]]
+    records: Sequence[SampleRecord],
+    results: Mapping[str, Mapping[str, Result]],
+    *,
+    data_label: str = "",
 ) -> list[dict[str, Any]]:
     """Every stored cell, tagged with the sample, the module, the row key and the scope.
 
@@ -156,6 +173,10 @@ def aggregate_rows(
                             {
                                 "sample_id": record.sample_id,
                                 "species": record.species,
+                                "sample_accession": record.accession,
+                                "sample_data_label": data_label,
+                                "sample_ir_source": record.ir_source,
+                                "sample_ir_gate": record.ir_gate,
                                 "module": module_id,
                                 "table": table_id,
                                 "row_index": index,
@@ -190,7 +211,8 @@ def write_batch(
 ) -> Path:
     """Write ``batch.json``, ``samples.csv`` and ``aggregate.csv`` into one batch run directory."""
     run_dir.mkdir(parents=True, exist_ok=True)
-    rows = aggregate_rows(records, results)
+    data_label = str(params.get("data_label", ""))
+    rows = aggregate_rows(records, results, data_label=data_label)
     samples = [
         {
             **{
@@ -209,6 +231,7 @@ def write_batch(
     payload = {
         "schema_version": BATCH_SCHEMA_VERSION,
         "dataset": dataset,
+        "data_label": data_label,
         "status": "ok" if ok == len(records) else ("partial" if ok else "failed"),
         "params": dict(params),
         "command": list(command),
@@ -265,6 +288,9 @@ def read_batch_results(run_dir: str | Path) -> dict[str, Result]:
     grouped: dict[tuple[str, str], dict[str, Any]] = {}
     with path.open(encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle):
+            if row["column"] in AGGREGATE_METADATA_COLUMNS:
+                # provenance repeated on every long-format row, not a measured cell
+                continue
             key = (row["module"], row["table"])
             entry = grouped.setdefault(
                 key,

@@ -208,6 +208,7 @@ def test_the_workbook_holds_one_sheet_per_table_and_is_byte_identical() -> None:
         "structure.regions",
         "structure.structure_summary",
         "structure.gc_skew_windows",
+        "plastid.scope",
     ]
     sheet = book["genome_stats.genome_stats"]
     assert [cell.value for cell in sheet[1]][:3] == ["Organism", "Accession", "Length (bp)"]
@@ -355,7 +356,10 @@ def test_the_run_level_pass_writes_the_page_as_a_pdf(tmp_path: Path) -> None:
     outcome = render_run_figures(run)
     names = sorted(path.name for path in outcome.files)
     assert "genome_page.pdf" in names
-    assert not any(name.startswith("genome_page.") and not name.endswith(".pdf") for name in names)
+    assert "genome_page.caption.txt" in names
+    assert not any(
+        name.startswith("genome_page.") and name.endswith((".svg", ".eps")) for name in names
+    )
     assert (run / "figures" / "genome_page.pdf").stat().st_size > 5_000
     skipped = dict(outcome.skipped)
     assert "pi_window" in skipped  # a figure with no source tables is still named

@@ -28,11 +28,11 @@ initiates, so their start is written partial — the marker only; the coordinate
 own. That is what NCBI's validator accepts, and in a plastome the usual cause is a start codon
 created by RNA editing — the run's notes name the genes it happened to.
 
-The sequence submission file (`.sqn`): {{submission_summary.sqn}}. NCBI's validator reads the
-table it was built from as **{{submission_summary.n_validator_errors}} error(s) and
-{{submission_summary.n_validator_warnings}} warning(s)**; the classes are in
-`validator_findings`, and the full report is kept beside the `.sqn` as `submission.val` — read it
-before submitting, which is what NCBI asks of every submission.
+The sequence submission file (`.sqn`): {{submission_summary.sqn}}. NCBI's validator status is
+{{submission_summary.validator_status}}. When it ran, its error and warning counts are the
+summary table's two NCBI columns, and the classes are in `validator_findings`; the full report is
+kept beside the `.sqn` as `submission.val` — read it before submitting, which is what NCBI asks of
+every submission. A `.sqn` is a conversion, not a validation or an acceptance.
 
 {{submission_summary.n_problems}} first-pass problem(s) were found. The checks are the ones
 that fail at upload time rather than here: a feature past the end of the sequence, a CDS with no

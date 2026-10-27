@@ -362,6 +362,39 @@ def test_the_catalogue_holds_every_figure_and_no_untyped_source() -> None:
             assert "." not in module and "." not in table, f"{spec.id}: {module}.{table}"
 
 
+def test_a_refresh_removes_a_figure_whose_source_table_disappeared(tmp_path: Path) -> None:
+    """A re-render replaces the folder's figure set; an old image must not pass as current.
+
+    M11.18: after a run directory loses the table a figure read, the figure is skipped by name
+    *and* its previous files are gone — otherwise ``figures/circular_map.svg`` would keep
+    claiming a result the run no longer holds.
+    """
+    pytest.importorskip("matplotlib", reason="the 'figures' extra is not installed")
+    run = tmp_path / "run"
+    for order, result in enumerate(_results().values(), start=1):
+        module_dir = run / f"{order:02d}_{result.module}"
+        module_dir.mkdir(parents=True)
+        (module_dir / "result.json").write_text(export_json(result), encoding="utf-8")
+
+    first = render_run_figures(run, formats=("svg",))
+    drawn = sorted(path.name for path in first.files)
+    assert "circular_map.svg" in drawn
+    assert (run / "figures" / "circular_map.svg").is_file()
+
+    # The structure result is gone, so both figures that read it can no longer be drawn.
+    (run / "02_structure" / "result.json").unlink()
+    second = render_run_figures(run, formats=("svg",))
+    assert "circular_map.svg" not in {path.name for path in second.files}
+    assert not (run / "figures" / "circular_map.svg").exists()
+    assert not (run / "figures" / "circular_map.caption.txt").exists()
+    assert not (run / "figures" / "ir_junction.svg").exists()
+    skipped = dict(second.skipped)
+    assert "structure.regions" in skipped["circular_map"]
+    records = {record.figure_id: record for record in second.records}
+    assert records["circular_map"].status == "skipped"
+    assert records["circular_map"].reason == skipped["circular_map"]
+
+
 def test_the_run_level_pass_renders_every_figure_the_tables_feed(tmp_path: Path) -> None:
     """Seven figure types are catalogued; this run's tables feed three of them."""
     pytest.importorskip("matplotlib", reason="the 'figures' extra is not installed")
@@ -372,11 +405,17 @@ def test_the_run_level_pass_renders_every_figure_the_tables_feed(tmp_path: Path)
         (module_dir / "result.json").write_text(export_json(result), encoding="utf-8")
 
     outcome = render_run_figures(run, formats=("svg",))
-    assert sorted(path.name for path in outcome.files) == [
+    assert sorted(
+        path.name for path in outcome.files if not path.name.endswith(".caption.txt")
+    ) == [
         "circular_map.svg",
         "ir_junction.svg",
     ]
+    for figure_id in ("circular_map", "ir_junction"):
+        caption = (run / "figures" / f"{figure_id}.caption.txt").read_text(encoding="utf-8")
+        assert "scope: " in caption
     skipped = dict(outcome.skipped)
     assert "pi_window" in skipped and "diversity" in skipped["pi_window"]
     for path in outcome.files:
-        assert path.stat().st_size > 1000
+        if not path.name.endswith(".caption.txt"):
+            assert path.stat().st_size > 1000

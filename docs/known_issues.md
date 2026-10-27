@@ -176,6 +176,35 @@ assessed instead of aborting the record's other spans. Held by `tests/unit/test_
 `tests/unit/test_spans.py`, `tests/unit/test_introns_module.py`,
 `tests/golden/test_intron_limits.py` and `tests/golden/test_intron_assessment_panel.py`.
 
+## G-03 — Output commands did not collect one catalogue — **fixed (M11.18)**
+
+Before the fix, `run --figures`, `package` and `qc` called only the matplotlib renderer while
+`figures` also ran the manuscript's R scripts. A package could therefore omit an R figure that
+the same run directory could draw, and `qc` reported the files it happened to find rather than
+the figures that were missing and why.
+
+Now all four commands use one figure pass over both catalogues. `run --figures`, `figures` and
+`package` draw the matplotlib figures and the R figures and record one status per catalogue entry
+(rendered, or skipped with a reason, plus a whole-renderer status when the plotting extra or R is
+absent). `qc` inventories both catalogues without drawing. `package` replaces its folder in one
+step, so a table or figure the run no longer holds cannot survive a rebuild, and its index links
+every file with its sha256, provenance and the run's data label. The Excel workbook gained a
+`plastid.scope` sheet so its numbers carry the same scope as the CSV, JSON and Word exports.
+
+The tool policy per command is explicit: `run --figures` exits 3 when the plotting extra is
+missing, because the user asked for figures; `figures` and `package` still draw the R half and
+record the matplotlib absence; a missing R is always a recorded skip (the toolkit's own figures
+do not depend on it); `qc` needs neither and reports every catalogue entry's status.
+
+`submission` no longer reports a validator that did not run as `0` errors: the counts are blank
+and `validator_status` says `not run`; a `.sqn` is described as a conversion, not a validation.
+A record with no gene/CDS/tRNA/rRNA features is refused before any file is written — a submission
+comes from a checked GenBank annotation, not from a bare sequence or an analysis table.
+
+Held by `tests/unit/test_output_contract.py`, `tests/unit/test_exports.py`,
+`tests/unit/test_batch_figures.py`, `tests/unit/test_submission.py` and
+`tests/golden/test_e2e.py`.
+
 ## Pipeline coverage observations — code inspection, not new runtime reproductions
 
 The [canonical pipeline](pipeline.md) maps every stage to existing components and missing work.
@@ -185,17 +214,10 @@ The following require targeted regression/acceptance checks in the next coding s
   must explicitly decide how differences block or qualify downstream work. Normalized DB artifacts
   now carry their own digest and the run records the raw input's digest and the chosen naming
   reference (`tests/golden/test_reference_flow.py`).
-- `stats._sequence_of` joins forward slices without consulting strand, unlike `coding_sequence`.
-  Strand-sensitive GC3/ENC and other CDS-derived results need a controlled comparison. Alignment
-  coordinates and normalized-reference coordinates in diversity/barcodes also need rotation tests.
-- `run --figures`, `package` and `qc` currently call the matplotlib renderer, while `figures`
-  also has an R pass. Rendering an R figure separately does not establish that the package/QC
-  includes it or its provenance.
-- Submission summary fields use zero for validator counts when no validator result is present.
-  Acceptance must distinguish “not run” from “ran and found zero errors”; creating a `.sqn` alone
-  is not validation.
+- Alignment coordinates and normalized-reference coordinates in diversity/barcodes still need
+  rotation tests on the panel.
 - `environment.yml` still mixes runtime tools with survey/deferred tools. Installed packages
-  do not establish an assembly, RNA-editing or other unregistered module exists.
+  do not establish an assembly, RNA-editing or other unregistered module exists (M11.19).
 
 Sources: [naming](../src/plastid/modules/gene_normalize.py),
 [group measurements](../src/plastid/modules/stats.py),
