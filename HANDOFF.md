@@ -1,9 +1,10 @@
 # Development handoff
 
 The session of 2026-10-27 implemented the Đợt 3 milestone **M11.18** (outputs, QC and submission
-as one checkable product) in the working tree on top of `df4dd8c`; nothing is committed. Read
-`CLAUDE.md`, then `docs/pipeline.md`; in the maintainer workspace `.dev/TASKS.md` carries the
-progress notes and `.dev/records/M11.18_family_crosscheck_2026-10-27.md` the batch evidence.
+as one checkable product) and pushed it on `feat/m11-ir-rework` as **`4e8401d`**; a test-only CI
+fix followed in **`ff96417`**. Read `CLAUDE.md`, then `docs/pipeline.md`; in the maintainer
+workspace `.dev/TASKS.md` carries the progress notes and
+`.dev/records/M11.18_family_crosscheck_2026-10-27.md` the batch evidence.
 
 ## What changed
 
@@ -46,8 +47,9 @@ progress notes and `.dev/records/M11.18_family_crosscheck_2026-10-27.md` the bat
 - Private panel cross-check: Rosaceae, 8 records × 5 modules, batch vs single, **31,808 cells,
   0 mismatches** — one family; the other nine and the CGAS/paper definition comparison remain
   open (see `.dev/records/M11.18_family_crosscheck_2026-10-27.md`).
-- Not run: full golden (`make golden`/`make check`). By the batch plan it belongs to Đợt 4, after
-  M11.19/M11.9/M11.8.
+- Not run: the local full golden (`make golden`/`make check`). By the batch plan it belongs to
+  Đợt 4, after M11.19/M11.9/M11.8. CI on `ff96417` is green: lint, fast tests, tier-A and tier-B
+  golden (run 40529137833).
 
 ## Next
 
