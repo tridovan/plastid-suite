@@ -26,6 +26,10 @@ never per gene: a *trans*-spliced gene's exons may lie on both strands of an inv
 (``NC_072562.1`` writes ``rps12`` as ``-1, +1, +1``), and the pair across the trans-splice has no
 junction while the pair that carries the 26 bp exon still does.
 
+A junction whose intron diverged in length can come back as **two** alignments, one exon each
+(measured 27/10/2026: ``MW201730``'s ``rps16``, 766 bp + 421 bp). Each exon is still mapped end to
+end by an alignment of the junction's own DNA, so the pair is placed under the same rules as one.
+
 **What it refuses to do.** Place anything an alignment did not put there: a boundary is only moved
 when the junction aligned *and* both ends of the exon mapped, and a hit is only used when the
 exons it places actually land on the call — which is what stops an inverted-repeat gene from being
@@ -249,7 +253,7 @@ def place(
                 f"published record may differ from it by however far that alignment ran on"
             )
             continue
-        hit, left, right = chosen
+        left, right = chosen
         spans[junction.index] = left
         spans[junction.index + 1] = right
     if not spans:
@@ -322,22 +326,49 @@ def _interleave(
 
 def _best(
     junction: Junction, hits: Iterable[Alignment], transfer: Transfer
-) -> tuple[Alignment, tuple[int, int], tuple[int, int]] | None:
-    """The hit whose exons land on the call — the one that answers *this* call's question."""
-    best: tuple[int, float, Alignment, tuple[int, int], tuple[int, int]] | None = None
+) -> tuple[tuple[int, int], tuple[int, int]] | None:
+    """The target spans of the junction's two exons — what answers *this* call's question.
+
+    One alignment carrying both exons is the ordinary shape and is preferred. The search also
+    splits a junction into two alignments where the intron's own length diverges — measured
+    27/10/2026, ``MW201730``'s ``rps16`` junction came back as 766 bp + 421 bp, one exon each —
+    and each exon is still mapped end to end by an alignment of the junction's own DNA. That pair
+    is accepted under the same rules as one hit: the two exons must sit in gene order and at least
+    one of them must land on the call.
+    """
+    hits = list(hits)
+    whole: tuple[int, float, tuple[int, int], tuple[int, int]] | None = None
+    lefts: list[tuple[float, tuple[int, int]]] = []
+    rights: list[tuple[float, tuple[int, int]]] = []
     for hit in hits:
         left = _mapped(hit, junction.left)
         right = _mapped(hit, junction.right)
+        if left is not None:
+            lefts.append((hit.bitscore, left))
+        if right is not None:
+            rights.append((hit.bitscore, right))
         if left is None or right is None or not _ordered(transfer.strand, left, right):
             continue
         overlap = sum(_anchored(span, transfer.spans) for span in (left, right))
         if not overlap:
             continue
-        if best is None or (overlap, hit.bitscore) > (best[0], best[1]):
-            best = (overlap, hit.bitscore, hit, left, right)
-    if best is None:
+        if whole is None or (overlap, hit.bitscore) > (whole[0], whole[1]):
+            whole = (overlap, hit.bitscore, left, right)
+    if whole is not None:
+        return whole[2], whole[3]
+    pair: tuple[int, float, tuple[int, int], tuple[int, int]] | None = None
+    for left_score, left in lefts:
+        for right_score, right in rights:
+            if not _ordered(transfer.strand, left, right):
+                continue
+            overlap = sum(_anchored(span, transfer.spans) for span in (left, right))
+            if not overlap:
+                continue
+            if pair is None or (overlap, left_score + right_score) > (pair[0], pair[1]):
+                pair = (overlap, left_score + right_score, left, right)
+    if pair is None:
         return None
-    return best[2], best[3], best[4]
+    return pair[2], pair[3]
 
 
 def _mapped(hit: Alignment, offsets: tuple[int, int]) -> tuple[int, int] | None:
