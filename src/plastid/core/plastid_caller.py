@@ -202,17 +202,19 @@ def reference_entries(
 
     A CDS entry carries the record's own ``/translation`` — never a self-translation
     (D5-08): no protein means no protein to search with, and the audit in front of every run
-    blocks such a record before it gets here. An rRNA entry carries the feature's own nucleotide
-    sequence, read through ``coding_sequence`` so a spliced feature comes back in transcript
-    order.
+    blocks such a record before it gets here. An rRNA or tRNA entry carries the feature's own
+    nucleotide sequence, read through ``coding_sequence`` so a spliced feature comes back in
+    transcript order. The tRNA half exists so a locus can be **named** from the reference's own
+    annotation rather than from ARAGORN's anticodon reading, which is measurably wrong next to an
+    intron (H-24).
 
     ``vocabulary`` limits what a call may be *named*: a gene whose canonical name is not in it is
     kept with ``vocabulary=None``, which the caller reports as ``unnameable`` instead of printing
     a name the project's vocabulary does not use. ``None`` means "everything this record spells",
     which is the right answer for a reference set that has already been through the naming step.
     """
-    if kind not in ("CDS", "rRNA"):
-        raise ValueError(f"kind must be 'CDS' or 'rRNA', got {kind!r}")
+    if kind not in ("CDS", "rRNA", "tRNA"):
+        raise ValueError(f"kind must be 'CDS', 'rRNA' or 'tRNA', got {kind!r}")
     allowed = None if vocabulary is None else frozenset(vocabulary)
     entries: list[ReferenceEntry] = []
     for genome in records:
@@ -250,7 +252,13 @@ def reference_index(
     — a protein against proteins, a nucleotide against nucleotides — and pooling them would put a
     ``blastn`` percentage and a ``blastx`` one on the same scale, which is the comparison D5-08
     forbids.
+
+    tRNA entries are **not** a caller index: the annotator locates tRNAs with ARAGORN and searches
+    the reference's tRNAs only to name a locus (H-24), so a locus has to stay ARAGORN's. The
+    entries are built by :func:`reference_entries` directly.
     """
+    if kind not in ("CDS", "rRNA"):
+        raise ValueError(f"kind must be 'CDS' or 'rRNA', got {kind!r}")
     return ReferenceIndex.from_entries(
         reference_entries(records, kind=kind, vocabulary=vocabulary), vocabulary=vocabulary
     )
@@ -288,6 +296,10 @@ def call_cds(
         transl_table=transl_table,
         max_hsps_per_subject=max_hsps_per_subject,
         structure_first=True,  # measured on the golden's rps19 — see core/caller._choose
+        # A plastid CDS whose alignment stops at codon 2 can still have its initiator in codon 1:
+        # measured 27/10/2026 on 39 Crataegus records, psbL is 114 bp starting ACA unless the
+        # ACG one codon upstream is read (117 bp, complete ORF, the reference's own length).
+        read_upstream_start=True,
     )
 
 

@@ -5,6 +5,12 @@ included — the same rule as ``count_genes`` (golden genome: 86). Sequences com
 ``coding_sequence``, which reads each part on its own strand in annotation order (P2-03 measured
 that this is the only reading of the trans-spliced rps12 that yields a canonical ORF).
 
+**No inverted repeat is needed.** Every number here is a property of the CDS sequences; none is
+a position in the genome. The module was gated on the IR copy of an older rule, which refused a
+record whose repeat diverged even though its CDS were readable (M11.5). A CDS whose frame or
+declared translation table this compiled code cannot read is refused by name instead of being
+translated silently.
+
 Translation table: NCBI table 1, compiled here (decision D2-03) — and the output names the table
 the record's own CDS declare (plastid records declare 11; the two share every amino acid and
 differ only in initiation codons). RSCU and ENC are defined by the sequences alone; **CAI · CBI ·
@@ -24,6 +30,7 @@ from plastid.core.codon import (
     codon_counts,
     enc,
     fop,
+    require_translatable,
     rscu,
     translate,
     translation_table_label,
@@ -35,7 +42,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "codon_usage"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"  # 0.2.0: no IR requirement; unsupported frame/table refused (M11.5)
 
 REFERENCE_LABEL = "the analysed CDS set itself (self-reference)"
 RSCU_TOLERANCE = 1e-9
@@ -46,12 +53,13 @@ RSCU_TOLERANCE = 1e-9
     group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Codon usage",
-    requires_ir=True,
+    # CDS sequences only: no position in the inverted repeat enters any number here (M11.5).
+    requires_ir=False,
     citations=("biopython",),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
-    ctx.require_ir()
     cdss = cds_features(genome)
+    require_translatable(cdss, module=MODULE_ID)
     table_label = translation_table_label(cdss)
 
     counts = dict.fromkeys((codon for family in SENSE_FAMILIES.values() for codon in family), 0)

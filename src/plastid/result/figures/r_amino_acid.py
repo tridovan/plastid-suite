@@ -3,12 +3,10 @@
 The script reads a wide table: ``AA_Code`` (one-letter), ``Amino_Acid``, then one column per
 species of percentages. PTS's ``amino_acid.amino_acid_composition`` is already one row per residue
 (``residue, count, percent, hydropathy``) but holds **one genome**, so the pivot is a column rename
-plus the single species column — the paper's 34 columns need 34 runs.
-
-Same two traps as Figure 3: the species column keeps its case (the script intersects its own
-``SP_ORDER``), and a species the script does not know yields an empty panel in silence, which is
-refused here by name instead. ``Amino_Acid`` is written but the script overwrites it from
-``AA_Code``; it is filled in anyway so the file says what it holds.
+plus the single species column. The script draws **every** species column in its input (M11.7), so
+a wider table is a valid figure; this pivot supplies the one genome a run holds. The species column
+keeps its case, and ``Amino_Acid`` is written but the script overwrites it from ``AA_Code``; it is
+filled in anyway so the file says what it holds.
 """
 
 from __future__ import annotations
@@ -16,10 +14,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from plastid.result.figures.r_common import AMINO_ACID_NAMES, csv_text, script_species_order
+from plastid.result.figures.r_common import AMINO_ACID_NAMES, csv_text
 from plastid.result.figures.r_common import species_column as _species_column
 from plastid.result.result import Result
-from plastid.result.rfigure import RFigureSkip, RFigureSpec
+from plastid.result.rfigure import RFigureSpec
 
 _COMPOSITION = "amino_acid_composition"
 _SUMMARY = "amino_acid"
@@ -46,8 +44,8 @@ class AminoAcidFrame:
         return (
             f"{len(self.residues)} residues of one genome ({self.species}); "
             f"{self.n_residues} residues counted, GRAVY {self.gravy}. "
-            "The script orders species by its own 34-name list, so a run of several genomes "
-            "draws only this one column."
+            "The script draws every species column in its input, in that order or in "
+            "--species-order; this run supplies one."
         )
 
 
@@ -67,12 +65,6 @@ def frame(results: Mapping[str, Result]) -> AminoAcidFrame:
 
     organism = summary.value("organism")
     species = _species_column(organism)
-    known = script_species_order(_SCRIPT)
-    if known and species not in known:
-        raise RFigureSkip(
-            f"{organism!r} is not one of the {len(known)} species {_SCRIPT} orders by, so it "
-            f"would draw an empty panel rather than a wrong one — no composition figure here"
-        )
     return AminoAcidFrame(
         species=species,
         residues=tuple(

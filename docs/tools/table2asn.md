@@ -30,7 +30,7 @@ is a 170 kB GenBank file. It is fetched by whoever needs the `.sqn` step, and th
 **It does not work alone.** table2asn refuses to run without a submitter template (`.sbt`) — a
 text ASN.1 ``Submit-block`` naming the people and the institution a sequence is submitted by.
 NCBI's web form (<https://submit.ncbi.nlm.nih.gov/genbank/template/submission/>) generates the
-real one, and it needs an NCBI login, so a template that carries **cô Trang's** details is a
+real one, and it needs an NCBI login, so a template that carries **Trang's** details is a
 **team artifact, not a toolkit one**: `--set template=/path/to/your.sbt`.
 
 **Corrected 2026-10-03, by running it.** An earlier session recorded "a hand-written `.sbt` is

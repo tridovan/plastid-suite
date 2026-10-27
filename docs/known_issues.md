@@ -1,8 +1,8 @@
 # Known correctness and integration issues
 
-These issues were reproduced during the 26 October 2026 review. **K-01, K-02, K-03, K-04 and K-05
-are fixed**; K-06 is **open**. Documenting a defect did not fix it, and a fixed entry says which
-test now holds it. The code version is `1.0.0`; that version label does not establish readiness for
+These issues were reproduced during the 26 October 2026 review. **K-01, K-02, K-03, K-04, K-05
+and K-06 are fixed.** Documenting a defect did not fix it, and a fixed entry says which test now
+holds it. The code version is `1.0.0`; that version label does not establish readiness for
 scientific use. The "observed" columns below are the review's before-fix measurements; they are
 kept as the reproduction record, not as current behaviour.
 
@@ -105,31 +105,76 @@ Held by `tests/unit/test_normalize.py::test_rotation_keeps_partial_flags_on_the_
 
 Source: [rotation](../src/plastid/core/normalize.py).
 
-## K-06 — Tree options are not forwarded by the CLI
+## K-06 — Tree options are not forwarded by the CLI — **fixed (M11.7 forwarding)**
 
-The packaged tree script accepts `--root`, `--outgroup` and `--drop-tips`. The caption suggests
-using these options for another family. However, `plastid figures` forwards the tree file and R
-binary but does not pass these settings to the adapter's `extra` argument. Supplying
-`--set root=none`, for example, does not override the script's rooting behavior.
+The packaged tree script accepts `--root`, `--outgroup` and `--drop-tips`, and the caption tells a
+user to pass them for another family. `plastid figures` forwarded the tree file and R binary but
+did not pass these settings through the adapter's `extra` argument, so `--set root=none` did
+nothing.
 
-The script defaults drop two Asparagus tips and select Dendrobium/Phalaenopsis as outgroups, with
-a midpoint fallback. Those are choices from a specific analysis, not general toolkit defaults.
-Until the CLI integration is repaired, run the script directly with explicit options when those
-choices must be controlled; see [the R adapter documentation](tools/r.md).
+The CLI now forwards the tree script's drawing options from the run's `--set` values
+(`root`, `outgroup`, `drop-tips`, `outgroup-label`, `tag`, `plot-type`, `legend`, `width`,
+`height`, `dpi`, `title`), and only to the tree script. The script no longer drops the manuscript's
+two
+*Asparagus* tips or roots on its Orchidaceae outgroup by default: no tip is dropped and no
+outgroup is chosen unless the run names them, and the neutral default is a midpoint root
+(`--set root=none` keeps the tree's own root). Held by
+`tests/unit/test_known_issues.py::test_k06_the_tree_figure_forwards_its_options`.
 
 Sources: [CLI](../src/plastid/cli.py), [adapter](../src/plastid/external/rscript.py),
 [script](../src/plastid/data/r_scripts/R_F9_phylogeny_tree.R).
 
 ## Other current limitations
 
-The RSCU and amino-acid R figures accept only the packaged 34-species list. RSCU, amino-acid and
-SSR modules each take one genome per run and do not yet produce a combined species panel. The
-reference preparation and downstream analysis steps are not a single integrated workflow.
+The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's
+`figures` command still supplies one column per run because `codon_usage` and `amino_acid` take one
+genome each, so a combined species panel needs the batch path (M11.6). The reference preparation
+and downstream analysis steps are not a single integrated workflow, though the pieces now chain
+with each other's real artifacts (`tests/golden/test_reference_flow.py`).
 
-Unequal IR copies are legal and are measured end to end, but **mapping a gene between them** is
-not implemented (M11.11): `plastid_annotate` refuses such a record by name (exit 2), and
-`normalize` records `mirror_constant=0` because no equal-copy constant exists. See
+Unequal IR copies are legal and are measured end to end. Mapping a gene between them is now
+implemented (M11.11): `plastid_annotate` places the second copy through the gate's own alignment
+(`IRResult.mapping`), including the one-base indels the equal-copy constant cannot express. A
+result that carries no alignment refuses such a record by name (exit 2) before any artifact is
+written. `normalize` still records `mirror_constant=0` for an unequal pair because no equal-copy
+constant exists; consumers that need a position map use the alignment, not that provenance field.
+Held by `tests/unit/test_ir_copies.py` and `tests/golden/test_ir_panel_mapping.py` (32 unequal
+panel pairs, 267 of 272 mapped genes within 10 bp of the record's own second copy; the five
+exceptions are deposited-annotation disagreements named in the test). See
 [current scope and limits](things_we_do_not_do.md) for details.
+
+## H-21 — The default reference set blocked its own usable record — **fixed (M11.10)**
+
+Reproduced 26/10/2026: `plastid reference audit` on the 34-record set blocked `NC_024936.1` three
+times — its two `rps19` CDS copies carry `>83020`/`<153124` over a **complete 92 aa translation**,
+and its annotation-first IR measures 99.80 %. The partial rule asked "is any coordinate partial?"
+instead of "is the model truncated?", and the IR check stopped at the first path even though the
+sequence's own repeat measures 26,184 bp at 100 %. The record is the one that produced a
+base-perfect `rps19` call at 83,173–83,451.
+
+Now: a partial CDS whose own `/translation` fits its own span is **reported**; one whose
+translation does not fit still **blocks**. The IR check reports the annotation-first refusal and
+probes the sequence path as a **named alternative** (`--set ir_source=sequence`, recorded in the
+manifest and in `audit_records.ir_source`), blocking only when both fail. The default set audits
+with 0 blocked, the annotator runs on it without `--exclude`, and the golden's 35 pinned
+differences are unchanged. Held by `tests/unit/test_reference_audit.py`,
+`tests/golden/test_plastid_annotate.py` and `tests/golden/test_reference_flow.py`.
+
+## H-22 / H-23 — Intron coverage and the caller's range — **fixed (M11.15)**
+
+H-23: the `introns` table published CDS introns only. It now publishes CDS and tRNA introns with a
+`kind` column, counted separately, and checks a class it cannot see as **"not measured"** rather
+than printing zero. The golden's 8 tRNA introns are checked against the record's own multi-part
+tRNAs (the published count), not against ARAGORN's log line: 17 CDS + 8 tRNA = 25, total 20,347 bp.
+
+H-22: ARAGORN's intron search was passed as a bare `-i` with no stated range. Measured
+26/10/2026 on 1.2.41 with a lengthened golden `trnK-UUU`: a 3,000 bp intron is reported, 3,001 bp is
+not, and `-i4000`, `-i0,4000` and `-i0,6000` do not change that. The adapter declares the range on
+every result, refuses a wider request by name, and the annotator's notes say a tRNA outside the
+range was not assessed. A malformed tRNA join (two PGA variants overlap by 5 bp) is named as not
+assessed instead of aborting the record's other spans. Held by `tests/unit/test_aragorn.py`,
+`tests/unit/test_spans.py`, `tests/unit/test_introns_module.py`,
+`tests/golden/test_intron_limits.py` and `tests/golden/test_intron_assessment_panel.py`.
 
 ## Pipeline coverage observations — code inspection, not new runtime reproductions
 
@@ -138,7 +183,8 @@ The following require targeted regression/acceptance checks in the next coding s
 
 - `gene_normalize` verify mode returns findings without writing a replacement GenBank. A workflow
   must explicitly decide how differences block or qualify downstream work. Normalized DB artifacts
-  also need derived hashes and a link to the raw pin and chosen naming reference.
+  now carry their own digest and the run records the raw input's digest and the chosen naming
+  reference (`tests/golden/test_reference_flow.py`).
 - `stats._sequence_of` joins forward slices without consulting strand, unlike `coding_sequence`.
   Strand-sensitive GC3/ENC and other CDS-derived results need a controlled comparison. Alignment
   coordinates and normalized-reference coordinates in diversity/barcodes also need rotation tests.

@@ -13,12 +13,20 @@ come back once (and only once).
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from plastid.core.ir import IRResult, detect_ir, enforce_ir_gate, ir_from_annotation
 from plastid.core.model import Gene, Genome, Interval
 from plastid.core.normalize import rotate_genome
-from plastid.core.spans import IntronSet, SpacerSet, introns_of, spacers_of
+from plastid.core.spans import (
+    IntronSet,
+    SpacerSet,
+    introns_of,
+    spacers_of,
+    trna_introns_of,
+)
 
 # LSC [0,30) → IRa [30,50) → SSC [50,70) → IRb [70,90). The LSC longer than the SSC is what
 # makes this the canonical frame (`lsc_origin` picks the longer single-copy gap), so normalize()
@@ -224,3 +232,73 @@ def test_the_spacer_set_is_deterministic_and_type_stable() -> None:
     assert introns.introns[0].length == 3
     assert derived.igs[0].length == 2
     assert derived.igs[0].to_1based() == (13, 14)
+
+
+# ---------------------------------------------------------------- tRNA introns (M11.15)
+
+
+def _with_trna(gene: Gene) -> Genome:
+    return replace(_synthetic(), genes=(*_synthetic().genes, gene))
+
+
+def test_a_trna_intron_is_the_gap_inside_one_region() -> None:
+    """H-23: the tRNA exon structure is an intron and is published with its kind stated."""
+    genome = _with_trna(_gene("trnK", "tRNA", ((6, 9), (12, 15))))  # gap [9,12), LSC
+
+    derived = introns_of(genome, _ir())
+
+    assert [span.intron_id for span in derived.trna_introns] == ["trnK.1.1"]
+    span = derived.trna_introns[0]
+    assert (span.start, span.end, span.length, span.kind, span.region) == (9, 12, 3, "tRNA", "LSC")
+    assert derived.unassessed == ()
+
+
+def test_a_trna_that_wraps_the_origin_is_not_an_intron() -> None:
+    """A circular join across the origin has most of the genome between its parts."""
+    genome = replace(
+        _synthetic(),
+        genes=(*_synthetic().genes, _gene("trnW", "tRNA", ((85, 90), (0, 5)))),
+    )
+
+    derived = introns_of(genome, _ir())
+
+    assert derived.trna_introns == ()
+    assert derived.unassessed == ()
+
+
+def test_a_gap_past_the_callers_maximum_is_not_assessed_not_absent() -> None:
+    """H-22: ARAGORN documents 3,000 bp. A longer gap is named, never counted as an intron."""
+    genome = Genome(
+        name="long-gap",
+        sequence="ACGT" * 5_000,
+        # 3,151 - 150 = 3,001 bp — one base past ARAGORN's documented maximum
+        genes=(_gene("trnX", "tRNA", ((100, 150), (3_151, 3_201))),),
+    )
+
+    introns, unassessed = trna_introns_of(genome, None)
+
+    assert introns == ()
+    assert len(unassessed) == 1
+    assert "3,001 bp" in unassessed[0] and "3,000 bp maximum" in unassessed[0]
+
+
+def test_a_trna_gap_across_a_region_boundary_is_named_not_counted() -> None:
+    genome = replace(
+        _synthetic(),
+        genes=(*_synthetic().genes, _gene("trnZ", "tRNA", ((22, 24), (33, 36)))),
+    )
+
+    derived = introns_of(genome, _ir())
+
+    assert [span.intron_id for span in derived.trna_introns] == []
+    assert any("cross-region gap" in reason for reason in derived.unassessed)
+
+
+def test_the_cds_set_diversity_reads_is_unchanged_by_the_trna_set() -> None:
+    """``diversity`` reads ``introns``; adding tRNA exons there would move its π baseline."""
+    genome = _with_trna(_gene("trnK", "tRNA", ((6, 9), (12, 15))))
+
+    derived = introns_of(genome, _ir())
+
+    assert all(span.kind == "CDS" for span in derived.introns)
+    assert [span.intron_id for span in derived.introns] == ["psaA.1.1", "rpl2.1.1", "rpl2.2.1"]

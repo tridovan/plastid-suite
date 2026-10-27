@@ -166,6 +166,7 @@ def _records(report: AuditReport) -> Table:
             Column("trna", "tRNA", dtype="int"),
             Column("rrna", "rRNA", dtype="int"),
             Column("ssc_orientation", "SSC orientation"),
+            Column("ir_source", "IR source"),
             Column("blocked", "Blocked", dtype="str"),
             Column("sha256", "sha256"),
         ),
@@ -178,6 +179,7 @@ def _records(report: AuditReport) -> Table:
                 "trna": record.trna,
                 "rrna": record.rrna,
                 "ssc_orientation": record.ssc_orientation,
+                "ir_source": record.ir_source or "none (both paths refused)",
                 "blocked": "yes" if record.blocked else "no",
                 "sha256": record.sha256,
             }

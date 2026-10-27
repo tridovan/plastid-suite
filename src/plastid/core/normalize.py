@@ -11,6 +11,7 @@ the new position 0.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 from plastid.core.ir import IRResult, mirror_constant_for
@@ -22,6 +23,8 @@ __all__ = [
     "lsc_origin",
     "normalize",
     "regions_from_ir",
+    "rotate_gene",
+    "rotate_genes",
     "rotate_genome",
 ]
 
@@ -114,6 +117,10 @@ def normalize(genome: Genome, ir: IRResult) -> NormalizedFrame:
         irb=second,
         mirror_constant=constant,
         frame_offset=0,
+        # The alignment's cursor tables describe the frame it was measured in; this frame moved
+        # both copies. A consumer that needs the mapping must rebuild it from the frame it uses,
+        # not read a stale one (M11.11).
+        mapping=None,
     )
     shifted_repeat_regions = tuple(
         _shift_region(region, -origin, length) for region in genome.repeat_regions
@@ -134,11 +141,36 @@ def rotate_genome(genome: Genome, shift: int) -> Genome:
     if shift == 0:
         return genome
     sequence = genome.sequence[shift:] + genome.sequence[:shift]
-    genes = tuple(_shift_gene(gene, -shift, length) for gene in genome.genes)
+    genes = rotate_genes(genome.genes, shift, length)
     repeat_regions = tuple(
         _shift_region(region, -shift, length) for region in genome.repeat_regions
     )
     return replace(genome, sequence=sequence, genes=genes, repeat_regions=repeat_regions)
+
+
+def rotate_genes(genes: Sequence[Gene], shift: int, length: int) -> tuple[Gene, ...]:
+    """Features expressed in the frame ``rotate_genome`` produces — a part may split at the origin.
+
+    Public because a module can hold genes without holding the genome that carries them: the
+    annotator receives its calls as :class:`Gene` objects and must move them into the IR's frame
+    before mapping a copy (M11.11), then move the result back. One implementation, so the two
+    directions cannot disagree about transcript order or partial flags.
+    """
+    shift %= length
+    if shift == 0:
+        return tuple(genes)
+    return tuple(rotate_gene(gene, shift, length) for gene in genes)
+
+
+def rotate_gene(gene: Gene, shift: int, length: int) -> Gene:
+    """One feature shifted into the frame ``rotate_genome`` produces."""
+    shift %= length
+    if shift == 0:
+        return gene
+    parts = tuple(
+        shifted for part in gene.parts for shifted in _shift_interval(part, -shift, length)
+    )
+    return replace(gene, parts=parts)
 
 
 def _shift_region(region: RepeatRegion, delta: int, length: int) -> RepeatRegion:
@@ -152,13 +184,6 @@ def _shift_region(region: RepeatRegion, delta: int, length: int) -> RepeatRegion
     return RepeatRegion(
         tuple(shifted for part in region.parts for shifted in _shift_interval(part, delta, length))
     )
-
-
-def _shift_gene(gene: Gene, delta: int, length: int) -> Gene:
-    parts = tuple(
-        shifted for part in gene.parts for shifted in _shift_interval(part, delta, length)
-    )
-    return replace(gene, parts=parts)
 
 
 def _shift_interval(interval: Interval, delta: int, length: int) -> tuple[Interval, ...]:

@@ -12,8 +12,10 @@ Two verdicts, and the difference is measured rather than stylistic (D5-08, 05/10
 
 * **BLOCK** — this record cannot be used. The run stops with ``file — reason``, and nothing is
   annotated. The classes are: unreadable · no gene features · a CDS without ``/translation`` ·
-  a gene feature with partial coordinates · the IR gate · a CDS whose own sequence fails the ORF
-  check.
+  a CDS whose partial coordinate does not fit its own ``/translation`` · the IR gate · a CDS
+  whose own sequence fails the ORF check. A partial coordinate that **does** fit its translation
+  is reported, not blocked: H-21 reproduced the rule refusing ``NC_024936.1``'s complete 92 aa
+  ``rps19`` because of an inverted-repeat boundary flag.
 * **REPORT** — the set is not uniform and a person has to know. Measured on the 34-record
   corpus: 32/34 published records share one SSC orientation and **2/34 are inverted with all
   their SSC CDS translating cleanly** — the plastome's known flip-flop, not an error, and
@@ -165,6 +167,11 @@ class RecordFacts:
     gene_names: tuple[str, ...]
     ssc_orientation: str  # "same" | "opposite" | "unknown"
     blocked: bool
+    # Which repeat annotation the record's frame was read from: "annotation" (the default),
+    # "sequence" (annotation-first refused, the sequence's own repeat passed — the explicit
+    # `--set ir_source=sequence` route), or None when neither passed. A record read from the
+    # sequence path is usable, and the report says so rather than leaving it implicit (H-21).
+    ir_source: str | None = "annotation"
 
 
 @dataclass(frozen=True, slots=True)
@@ -337,7 +344,7 @@ def _audit_one(path: Path) -> tuple[list[Finding], RecordFacts | None]:
     findings.extend(_translation_findings(path, genome))
     findings.extend(_partial_findings(path, genome))
 
-    ir, ir_finding = _ir_for(path, genome)
+    ir, ir_finding, ir_source = _ir_for(path, genome)
     if ir_finding is not None:
         findings.append(ir_finding)
     findings.extend(_orf_findings(path, genome))
@@ -355,6 +362,7 @@ def _audit_one(path: Path) -> tuple[list[Finding], RecordFacts | None]:
         gene_names=tuple(gene.name for gene in genome.genes),
         ssc_orientation=orientation,
         blocked=any(finding.blocks for finding in findings),
+        ir_source=ir_source,
     )
     return findings, facts
 
@@ -369,7 +377,20 @@ def _translation_findings(path: Path, genome: Genome) -> list[Finding]:
 
 
 def _partial_findings(path: Path, genome: Genome) -> list[Finding]:
-    """A partial coordinate in a reference stamps partial flags on whatever it annotates."""
+    """A partial coordinate is a finding; it blocks only when the protein it describes is cut.
+
+    H-21, reproduced 26/10/2026 on ``NC_024936.1``: its two ``rps19`` CDS copies carry
+    ``>83020``/``<153124`` and a **complete 92 aa translation** on a 279 bp span — the flag
+    describes the coordinate at the inverted-repeat boundary, not a truncated protein. Blocking
+    the record withheld the one reference that gave a base-perfect ``rps19`` call, and PGA's
+    zero-gene failure was about a genuinely partial model, not this shape. The rule now asks the
+    question the block was for: does the record's own ``/translation`` fit its own span?
+
+    * a CDS whose translation fits (``3n`` or ``3(n+1)`` bases) is reported, not blocked;
+    * a CDS whose translation does **not** fit is a truncated model and still blocks;
+    * a tRNA/rRNA has no protein claim, and this toolkit derives a call's coordinates from the
+      target rather than copying the reference's flags, so its partial flag is reported.
+    """
     findings: list[Finding] = []
     for gene in genome.genes:
         if gene.kind not in GENE_KINDS:
@@ -382,21 +403,86 @@ def _partial_findings(path: Path, genome: Genome) -> list[Finding]:
             if part.partial_end:
                 marks.append(f">{end_1b}")
         if marks:
-            findings.append(
-                _block(
-                    path,
-                    "partial",
-                    f"{gene.kind} {gene.name}: partial coordinates ({', '.join(marks)})",
+            where = f"{gene.kind} {gene.name}: partial coordinates ({', '.join(marks)})"
+            if gene.kind == "CDS" and not _translation_fits(gene):
+                findings.append(
+                    _block(
+                        path,
+                        "partial",
+                        f"{where}, and the /translation does not fit the "
+                        f"{gene.length} bp span — a truncated model, not a coordinate flag",
+                    )
                 )
-            )
+            elif gene.kind == "CDS":
+                findings.append(
+                    _report(
+                        path,
+                        "partial",
+                        f"{where}; its {len(gene.translation or '')} aa /translation fits the "
+                        f"{gene.length} bp span — the flag is about the coordinate, not a "
+                        f"truncated protein",
+                    )
+                )
+            else:
+                findings.append(
+                    _report(
+                        path,
+                        "partial",
+                        f"{where}; no protein claim, and a call's own coordinates come from "
+                        f"the target",
+                    )
+                )
     return findings
 
 
-def _ir_for(path: Path, genome: Genome) -> tuple[IRResult | None, Finding | None]:
+def _translation_fits(gene: Gene) -> bool:
+    """Does the record's own protein account for its own span? Stop codon included or not."""
+    if not gene.translation:
+        return False
+    residues = len(gene.translation)
+    return gene.length in (3 * residues, 3 * (residues + 1))
+
+
+def _ir_for(path: Path, genome: Genome) -> tuple[IRResult | None, Finding | None, str | None]:
+    """The record's IR, which path it came from, and a finding when the answer is not plain.
+
+    Annotation-first is the default and a failure is reported. The sequence path is probed as a
+    **named alternative**, never substituted: when it passes, the finding says so and names the
+    explicit ``--set ir_source=sequence`` route, and the record facts carry ``ir_source``. When
+    both paths fail, the record blocks. H-21: ``NC_024936.1`` is the measured case — 99.80 % from
+    its annotated copies, 100 % from the sequence's own repeat.
+    """
     try:
-        return enforce_ir_gate(detect_ir(genome)), None
-    except (IRGateError, IRDetectionError) as error:
-        return None, _block(path, "ir", f"IR gate failed: {error}")
+        return enforce_ir_gate(detect_ir(genome)), None, "annotation"
+    except (IRGateError, IRDetectionError) as annotated:
+        try:
+            sequence = enforce_ir_gate(detect_ir(genome, source="sequence"))
+        except (IRGateError, IRDetectionError) as sequenced:
+            return (
+                None,
+                _block(
+                    path,
+                    "ir",
+                    f"IR gate failed on both paths — annotation-first: {annotated}; "
+                    f"the sequence's own repeat: {sequenced}",
+                ),
+                None,
+            )
+        return (
+            sequence,
+            _report(
+                path,
+                "ir",
+                f"annotation-first refused ({annotated}); the sequence's own repeat passes "
+                f"({sequence.length:,} bp at {sequence.identity:.4%}) — use "
+                f"--set ir_source=sequence, which the run's manifest records",
+            ),
+            "sequence",
+        )
+
+
+def _report(path: Path, check: str, reason: str) -> Finding:
+    return Finding(file=str(path), check=check, verdict=REPORT, reason=reason)
 
 
 def _orf_findings(path: Path, genome: Genome) -> list[Finding]:
@@ -628,6 +714,14 @@ def _ssc_rows(
     MAFFT orients every sequence against the **first** row it is given, so a record the rule calls
     forward is put there — that makes the aligner's marker and the rule's verdict the same
     statement, and the comparison between them meaningful.
+
+    Each record's region is read on the path its own audit recorded (``RecordFacts.ir_source``).
+    Reading the annotation path here again would refuse a record the audit has already reported
+    as usable: H-21's ``NC_024936.1`` fails the gate on its annotated pair (99.80 %) and passes on
+    the sequence's own repeat, and that is the frame its orientation was measured in. A record
+    with no usable path has an ``unknown`` orientation, which the majority report excludes, so it
+    cannot be the exemplar or a deviating name; reaching this check with one is a bug in the call,
+    not a record to drop silently.
     """
     by_name = {Path(record.file).name: record for record in records}
     wanted = [name for name in deviating if name in by_name]
@@ -644,8 +738,13 @@ def _ssc_rows(
     rows: list[tuple[str, str]] = []
     for name in [exemplar, *wanted]:
         record = by_name[name]
+        if record.ir_source is None:
+            raise ValueError(
+                f"{name}: the audit recorded no usable IR for this record, so it has no "
+                f"normalized SSC region to align"
+            )
         genome = read_genbank(record.file)
-        ir = enforce_ir_gate(detect_ir(genome))
+        ir = enforce_ir_gate(detect_ir(genome, source=record.ir_source))
         rows.append((name, _region_sequence(genome, ir, "SSC")))
     return tuple(rows), exemplar
 

@@ -36,6 +36,7 @@ __all__ = [
     "IR_MIN_IDENTITY",
     "IR_MIN_LENGTH",
     "AlignmentStats",
+    "CopyMapping",
     "IRDetectionError",
     "IRGateError",
     "IRResult",
@@ -115,6 +116,10 @@ class IRResult:
     annotated_lengths: tuple[int, ...] = ()
     annotation_note: str | None = None
     method: str = "mirror"  # "anchored" | "ungapped_fallback" | "mirror"
+    # Alignment-derived mapping between the copies, in this result's frame (M11.11). None when the
+    # pair was never aligned (a hand-built result) or when the copies were not contiguous in the
+    # frame that was measured; a consumer that needs the mapping then refuses by name.
+    mapping: CopyMapping | None = None
 
     def __post_init__(self) -> None:
         if self.known_columns < 0:
@@ -185,6 +190,67 @@ class AlignmentStats:
     exact_core: int
     excess_at: str
     method: str
+
+
+@dataclass(frozen=True, slots=True)
+class CopyMapping:
+    """Position mapping between the two IR copies through the D11-3 alignment (M11.11).
+
+    The copies are legal when they differ in length (D11-5), but every consumer that mirrored a
+    position between them assumed equal lengths. This object carries the alignment's own answer:
+    for every base of copy A it records where the cursor in copy B's reverse complement stood
+    before and after that column, and the same in the other direction. A gap column maps its base
+    to the insertion point between two target bases, which is what a boundary on a one-base indel
+    is — not a guess and not an off-by-the-difference mirror.
+
+    Coordinates are copy-relative: ``first`` and ``second`` are the two copies in the frame the
+    alignment measured (``IRResult.frame_offset`` says how to get back to the record), and
+    ``second``-relative positions are on its **reverse complement**, because that is the strand
+    the alignment compares. Converting one to GenBank coordinates is the caller's job and happens
+    in ``plastid_annotate`` through the two copies' spans.
+    """
+
+    first: Interval
+    second: Interval
+    # b_before[i] / b_after[i]: cursor in B's reverse complement before/after consuming A[i].
+    b_before: tuple[int, ...]
+    b_after: tuple[int, ...]
+    a_before: tuple[int, ...]
+    a_after: tuple[int, ...]
+    method: str
+
+    def _map(
+        self,
+        start: int,
+        end: int,
+        before: tuple[int, ...],
+        after: tuple[int, ...],
+        length: int,
+        source: str,
+    ) -> tuple[int, int] | None:
+        if not 0 <= start <= end <= length:
+            raise ValueError(
+                f"{source} interval [{start}, {end}) is outside a copy of {length} bp — a "
+                f"mapping is only defined for bases the alignment compared"
+            )
+        if start == end:
+            cursor = before[start]
+            return cursor, cursor
+        first, last = before[start], after[end - 1]
+        if last <= first:
+            # The whole interval aligned to gaps in the other copy: there is no counterpart to
+            # write, and writing a zero-length feature would be a claim the sequence does not
+            # support.
+            return None
+        return first, last
+
+    def first_to_second(self, start: int, end: int) -> tuple[int, int] | None:
+        """Map ``[start, end)`` of copy A to reverse-complement coordinates of copy B."""
+        return self._map(start, end, self.b_before, self.b_after, self.first.length, "first")
+
+    def second_to_first(self, start: int, end: int) -> tuple[int, int] | None:
+        """Map ``[start, end)`` of copy B's reverse complement to copy A coordinates."""
+        return self._map(start, end, self.a_before, self.a_after, self.second.length, "second")
 
 
 _KNOWN = frozenset("ACGT")
@@ -285,23 +351,41 @@ def _anchor_chain(a: str, b: str) -> list[tuple[int, int, int]]:
     return kept
 
 
-def _classify_columns(sa: str, sb: str) -> list[str]:
-    """One class per alignment column: M (known match), X (known mismatch), G (gap), A (ambiguous).
+def _kind(one: str | None, other: str | None) -> str:
+    """One column's class: M (known match), X (known mismatch), G (gap), A (ambiguous)."""
+    if one is None or other is None:
+        return "G"
+    if one in _KNOWN and other in _KNOWN:
+        return "M" if one == other else "X"
+    return "A"
 
-    A segment larger than :data:`_MAX_ALIGN_CELLS` is classified without gaps rather than aligned:
-    at this point the copies have already diverged far beyond the gate, and an ungapped reading is
-    an upper bound — it cannot turn a divergent pair into a PASS.
+
+def _alignment_pairs(sa: str, sb: str) -> tuple[list[tuple[str | None, str | None]], bool]:
+    """The alignment's columns as base pairs, and whether every column came from an alignment.
+
+    The pairs carry position, which the counts alone do not: M11.11 maps a gene between unequal
+    copies through this path, and a gap column has to know *which* side the gap is on. A segment
+    larger than :data:`_MAX_ALIGN_CELLS` is classified without gaps rather than aligned — at this
+    point the copies have already diverged far beyond the gate, and an ungapped reading is an
+    upper bound that cannot turn a divergent pair into a PASS. That reading is **not** precise,
+    so its caller must not build a position mapping from it.
     """
-    if not sa or not sb:
-        return ["G"] * max(len(sa), len(sb))
+    if not sa:
+        return [(None, base) for base in sb], True
+    if not sb:
+        return [(base, None) for base in sa], True
     if len(sa) * len(sb) > _MAX_ALIGN_CELLS:
-        kinds: list[str] = ["G"] * abs(len(sa) - len(sb))
-        for x, y in zip(sa, sb, strict=False):
-            if x in _KNOWN and y in _KNOWN:
-                kinds.append("M" if x == y else "X")
-            else:
-                kinds.append("A")
-        return kinds
+        longer, shorter = (sa, sb) if len(sa) >= len(sb) else (sb, sa)
+        difference = len(longer) - len(shorter)
+        if len(sa) >= len(sb):
+            pairs = [(base, None) for base in longer[:difference]] + list(
+                zip(sa[difference:], sb, strict=True)
+            )
+        else:
+            pairs = [(None, base) for base in longer[:difference]] + list(
+                zip(sa, sb[difference:], strict=True)
+            )
+        return pairs, False
     aligner = PairwiseAligner()
     aligner.mode = "global"
     aligner.match_score = 1
@@ -309,80 +393,35 @@ def _classify_columns(sa: str, sb: str) -> list[str]:
     aligner.open_gap_score = -2
     aligner.extend_gap_score = -1
     alignment = aligner.align(sa, sb)[0]
-    kinds = []
-    for x, y in zip(alignment[0], alignment[1], strict=True):
-        if x == "-" or y == "-":
-            kinds.append("G")
-        elif x in _KNOWN and y in _KNOWN:
-            kinds.append("M" if x == y else "X")
-        else:
-            kinds.append("A")
-    return kinds
+    return [
+        (None if x == "-" else x, None if y == "-" else y)
+        for x, y in zip(alignment[0], alignment[1], strict=True)
+    ], True
 
 
-def _ungapped_stats(a: str, b: str) -> AlignmentStats:
-    """No anchor chain: compare on the diagonal and report the length difference as terminal gaps.
-
-    This is not used to accept a repeat — the gate's minimum evidence and identity both reject
-    these pairs — it is the honest fallback when no 20-mer chain exists.
-    """
-    matched = mismatches = ambiguous = 0
-    for x, y in zip(a, b, strict=False):
-        if x in _KNOWN and y in _KNOWN:
-            if x == y:
-                matched += 1
-            else:
-                mismatches += 1
-        else:
-            ambiguous += 1
-    terminal = abs(len(a) - len(b))
-    columns = matched + mismatches + ambiguous + terminal
-    identity = matched / columns if columns else 0.0
-    return AlignmentStats(
-        identity=identity,
-        matched=matched,
-        mismatches=mismatches,
-        ambiguous=ambiguous,
-        internal_gaps=0,
-        terminal_gaps=terminal,
-        columns=columns,
-        known=matched + mismatches,
-        exact_core=0,
-        excess_at="none" if terminal == 0 else "unknown",
-        method="ungapped_fallback",
+def _ungapped_pairs(a: str, b: str) -> list[tuple[str | None, str | None]]:
+    """The diagonal reading: equal prefix paired, the shorter copy's tail a terminal gap run."""
+    return (
+        list(zip(a, b, strict=False))
+        + [(base, None) for base in a[len(b) :]]
+        + [(None, base) for base in b[len(a) :]]
     )
 
 
-def align_copies(a: str, b: str) -> AlignmentStats:
-    """Compare copy A with the reverse complement of copy B, end to end (D11-3).
+def _stats_from_pairs(
+    pairs: list[tuple[str | None, str | None]],
+    *,
+    method: str,
+    exact_core: int = 0,
+    known_ends: bool = True,
+) -> AlignmentStats:
+    """Classify every column once and derive the gate's evidence from the same list.
 
-    Exact 20-mers seed anchors; the segments between consecutive anchors and the prefix/suffix
-    are aligned globally. One SNP leaves two anchors on the same diagonal and one 1-base segment
-    between them; one indel shifts the following diagonal, which the chain follows. Columns are
-    classified once, and unknown bases are **ambiguous**, never matches.
+    ``known_ends=False`` is the diagonal fallback: it placed the length difference at the tail
+    because it had to put it somewhere, not because the alignment supports it, so the reported
+    ``excess_at`` stays ``"unknown"``.
     """
-    chain = _anchor_chain(a, b)
-    if not chain:
-        return _ungapped_stats(a, b)
-
-    kinds: list[str] = []
-    a_cursor = b_cursor = 0
-    for index, (a_start, b_start, length) in enumerate(chain):
-        # Everything between the previous anchor's end and this anchor's start.
-        kinds.extend(_classify_columns(a[a_cursor:a_start], b[b_cursor:b_start]))
-        next_a = chain[index + 1][0] if index + 1 < len(chain) else len(a)
-        next_b = chain[index + 1][1] if index + 1 < len(chain) else len(b)
-        usable_a = min(a_start + length, next_a) - a_start
-        usable_b = min(b_start + length, next_b) - b_start
-        # The overlapping runs are exact in both copies; the shorter side's length is real match
-        # columns, and a length difference at the overlap is a gap (an indel at the boundary).
-        exact = min(usable_a, usable_b)
-        kinds.extend(["M"] * exact)
-        if usable_a != usable_b:
-            kinds.extend(["G"] * abs(usable_a - usable_b))
-        a_cursor, b_cursor = a_start + usable_a, b_start + usable_b
-    kinds.extend(_classify_columns(a[a_cursor:], b[b_cursor:]))
-
+    kinds = [_kind(one, other) for one, other in pairs]
     matched = kinds.count("M")
     mismatches = kinds.count("X")
     ambiguous = kinds.count("A")
@@ -408,6 +447,8 @@ def align_copies(a: str, b: str) -> AlignmentStats:
             excess_at = "inner"
         else:
             excess_at = "none"
+        if not known_ends and gaps:
+            excess_at = "unknown"
 
     columns = len(kinds)
     return AlignmentStats(
@@ -419,10 +460,77 @@ def align_copies(a: str, b: str) -> AlignmentStats:
         terminal_gaps=terminal,
         columns=columns,
         known=matched + mismatches,
-        exact_core=max(length for _, _, length in chain),
+        exact_core=exact_core,
         excess_at=excess_at,
-        method="anchored",
+        method=method,
     )
+
+
+def _ungapped_stats(a: str, b: str) -> AlignmentStats:
+    """No anchor chain: compare on the diagonal and report the length difference as terminal gaps.
+
+    This is not used to accept a repeat — the gate's minimum evidence and identity both reject
+    these pairs — it is the honest fallback when no 20-mer chain exists.
+    """
+    return _stats_from_pairs(_ungapped_pairs(a, b), method="ungapped_fallback", known_ends=False)
+
+
+def _aligned_pairs(a: str, b: str) -> tuple[list[tuple[str | None, str | None]], str, int]:
+    """The anchored path, its method, and the longest exact anchor (0 when there is no chain).
+
+    ``anchored_unverified`` means at least one segment was too large to align and was read
+    without gaps. Its identity is an upper bound, and its columns are not evidence for placing a
+    gene, so ``measure_ir`` builds no mapping from it.
+    """
+    chain = _anchor_chain(a, b)
+    if not chain:
+        return _ungapped_pairs(a, b), "ungapped_fallback", 0
+
+    pairs: list[tuple[str | None, str | None]] = []
+    precise = True
+    a_cursor = b_cursor = 0
+    for index, (a_start, b_start, length) in enumerate(chain):
+        # Everything between the previous anchor's end and this anchor's start.
+        segment, segment_precise = _alignment_pairs(a[a_cursor:a_start], b[b_cursor:b_start])
+        pairs.extend(segment)
+        precise = precise and segment_precise
+        next_a = chain[index + 1][0] if index + 1 < len(chain) else len(a)
+        next_b = chain[index + 1][1] if index + 1 < len(chain) else len(b)
+        usable_a = min(a_start + length, next_a) - a_start
+        usable_b = min(b_start + length, next_b) - b_start
+        # The overlapping runs are exact in both copies; the shorter side's length is real match
+        # columns, and a length difference at the overlap is a gap (an indel at the boundary).
+        exact = min(usable_a, usable_b)
+        pairs.extend((a[a_start + offset], b[b_start + offset]) for offset in range(exact))
+        if usable_a > usable_b:
+            pairs.extend(
+                (a[a_start + exact + offset], None) for offset in range(usable_a - usable_b)
+            )
+        elif usable_b > usable_a:
+            pairs.extend(
+                (None, b[b_start + exact + offset]) for offset in range(usable_b - usable_a)
+            )
+        a_cursor, b_cursor = a_start + usable_a, b_start + usable_b
+    segment, segment_precise = _alignment_pairs(a[a_cursor:], b[b_cursor:])
+    pairs.extend(segment)
+    precise = precise and segment_precise
+    return (
+        pairs,
+        "anchored" if precise else "anchored_unverified",
+        max(length for _, _, length in chain),
+    )
+
+
+def align_copies(a: str, b: str) -> AlignmentStats:
+    """Compare copy A with the reverse complement of copy B, end to end (D11-3).
+
+    Exact 20-mers seed anchors; the segments between consecutive anchors and the prefix/suffix
+    are aligned globally. One SNP leaves two anchors on the same diagonal and one 1-base segment
+    between them; one indel shifts the following diagonal, which the chain follows. Columns are
+    classified once, and unknown bases are **ambiguous**, never matches.
+    """
+    pairs, method, exact_core = _aligned_pairs(a, b)
+    return _stats_from_pairs(pairs, method=method, exact_core=exact_core)
 
 
 def _trimmed_pair(
@@ -492,6 +600,53 @@ def _aligned(
     return identity, mismatches, compared, exact_core, constant, where
 
 
+def _copy_mapping(
+    first: Interval,
+    second: Interval,
+    pairs: list[tuple[str | None, str | None]],
+    method: str,
+) -> CopyMapping:
+    """Turn the alignment's columns into the two-way cursor tables (M11.11).
+
+    ``pairs`` covers copy A (``first``) and copy B's reverse complement (``second``). Each array
+    holds, for every base of one copy, where the other copy's cursor stood before and after that
+    base's column. A base aligned to a gap is missing from the other copy; its two cursors are
+    equal, and an interval made only of such bases has no counterpart.
+    """
+    b_before = [0] * (first.length + 1)
+    b_after = [0] * (first.length + 1)
+    a_before = [0] * (second.length + 1)
+    a_after = [0] * (second.length + 1)
+    one_cursor = other_cursor = 0
+    for one, other in pairs:
+        before_one = one_cursor
+        if one is not None:
+            b_before[one_cursor] = other_cursor
+            b_after[one_cursor] = other_cursor + (1 if other is not None else 0)
+            one_cursor += 1
+        if other is not None:
+            a_before[other_cursor] = before_one
+            a_after[other_cursor] = one_cursor
+            other_cursor += 1
+    b_before[first.length] = other_cursor
+    a_before[second.length] = one_cursor
+    if one_cursor != first.length or other_cursor != second.length:
+        raise ValueError(
+            f"the alignment covers {one_cursor}/{first.length} and {other_cursor}/"
+            f"{second.length} bases — a mapping built from a partial alignment would place a "
+            f"gene from a coordinate the comparison never reached"
+        )
+    return CopyMapping(
+        first=first,
+        second=second,
+        b_before=tuple(b_before),
+        b_after=tuple(b_after),
+        a_before=tuple(a_before),
+        a_after=tuple(a_after),
+        method=method,
+    )
+
+
 def measure_ir(
     sequence: str,
     ira: Interval,
@@ -512,23 +667,26 @@ def measure_ir(
 
     ``mirror_constant`` is retained for the position mapping other modules still use. A pair with
     terminal gaps at both ends has no single mirror constant; the value is 0 and ``excess_at`` says
-    ``"both"``, which ``normalize`` refuses by name rather than guessing (M11.11 owns the mapping).
+    ``"both"``. The **mapping** carried in the result is the alignment's own path, so it survives
+    any of those shapes (M11.11); it is None when no anchor chain existed, because a diagonal
+    reading is not evidence for placing a gene between copies of different length.
     """
     first, second = sorted((ira, irb), key=lambda interval: interval.start)
     if first.end > second.start:
         raise ValueError(f"IR copies must be disjoint and ordered: {first} overlaps {second}")
     if first.length == 0 or second.length == 0:
         raise ValueError("IR copies must not be empty")
-    stats = align_copies(
-        sequence[first.start : first.end],
-        reverse_complement(sequence[second.start : second.end]),
-    )
+    a = sequence[first.start : first.end]
+    b = reverse_complement(sequence[second.start : second.end])
+    pairs, method, exact_core = _aligned_pairs(a, b)
+    stats = _stats_from_pairs(pairs, method=method, exact_core=exact_core)
     if stats.excess_at == "none":
         constant = first.start + second.end - 1
     elif stats.excess_at in ("outer", "inner"):
         constant = mirror_constant_for(first, second, stats.excess_at)
     else:
         constant = 0
+    mapping = _copy_mapping(first, second, pairs, method) if method == "anchored" else None
     return IRResult(
         ira=ira,
         irb=irb,
@@ -548,6 +706,7 @@ def measure_ir(
         annotated_lengths=annotated_lengths,
         annotation_note=annotation_note,
         method=stats.method,
+        mapping=mapping,
     )
 
 

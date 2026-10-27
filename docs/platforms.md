@@ -27,9 +27,9 @@ is named, because a 34-genome number and a 1-genome number are different numbers
 | `genome_stats` | Length, GC, gene counts, regions | plastid | 1 | yes | — | 34 genomes: **20.5 s · 87 MB** |
 | `structure` | LSC/IRa/SSC/IRb boundaries, per-region GC, GC-skew | plastid | 1 | yes | — | 34 genomes: **21.6 s · 87 MB** |
 | `gene_table` | Publication gene table (+ `.docx`) | plastid | 1 | no | — | 34 genomes: **15.3 s · 51 MB** |
-| `codon_usage` | RSCU · ENC · CAI · CBI · Fop | shared | 1 | yes | — | 34 genomes: **22.8 s · 87 MB** |
-| `amino_acid` | Composition, GRAVY, aromaticity | shared | 1 | yes | — | 34 genomes: **23.9 s · 87 MB** |
-| `introns` | Count, length, position (CDS introns — H-23) | shared | 1 | yes | — | 34 genomes: **21.9 s · 87 MB** |
+| `codon_usage` | RSCU · ENC · CAI · CBI · Fop | shared | 1 | no | — | 34 genomes: **22.8 s · 87 MB** |
+| `amino_acid` | Composition, GRAVY, aromaticity | shared | 1 | no | — | 34 genomes: **23.9 s · 87 MB** |
+| `introns` | Count, length, position and kind — CDS and tRNA introns, trans-splicing junctions (H-23) | shared | 1 | yes | — | 34 genomes: **21.9 s · 87 MB** |
 | `orf` | ORF checks | shared | 1 | no | — | 34 genomes: **12.9 s · 51 MB** |
 | `ssr` | Microsatellites by region and motif | shared | 1 | yes | **MISA 2.1** + perl (obtained, not bundled: `docs/tools/misa.md`) | 34 genomes: **25.5 s · 87 MB** |
 | `submission` | NCBI `.fsa` / `.tbl` (+ `.sqn` via table2asn) | shared | 1 | no | table2asn (optional step) | 34 genomes: **12.7 s · 52 MB** |
@@ -46,6 +46,15 @@ is named, because a 34-genome number and a 1-genome number are different numbers
 | `stats` | Group-comparison statistics (`--groups`) | shared | 2 | no | — | **not measured** |
 | `mito_annotate` | Mitochondrial annotation by reference transfer (prototype) | mito | 1 | no | BLAST+ and ARAGORN | **not measured** |
 | `mito_genes` | Mitochondrial gene set | mito | 1 | no | — | **not measured** |
+
+**The IR column is a dependency, not a quality grade.** Since M11.5, `codon_usage` and
+`amino_acid` declare `requires_ir=False`: every number they print comes from CDS sequences, so a
+record with readable CDS runs even when its repeat fails the gate, is linear or is N-rich. They
+refuse a CDS whose `/codon_start` is not 1 or whose `/transl_table` is neither 1 nor 11, by name —
+reading the wrong frame or another code silently would produce a different measurement. Position-
+based modules keep the gate. The panel check is
+`tests/golden/test_module_ir_requirements_panel.py` (5 gate-fail, 31 ambiguous, 3 linear, 2
+reduced records).
 
 **What the table says as a whole** — the boring number worth remembering, from M8.3: single-genome
 work over a 34-genome panel is **under four minutes and under 100 MB**; the whole panel costs about

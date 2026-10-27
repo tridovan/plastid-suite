@@ -1,22 +1,22 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# R_F3_RSCU_codon_usage.R — RSCU 64 codon của 34 loài Iridaceae, nhóm theo acid amin
-# Hình trong bài: Figure 3
-# Gọi:
-#   Rscript R_F3_RSCU_codon_usage.R --input <file dữ liệu> --outdir <thư mục kết quả>
-# Mặc định: đọc data_mau/Complete_Codon_Usage_Analysis.csv, ghi <thư mục>/Figures/*.png + *.pdf
+# R_F3_RSCU_codon_usage.R — RSCU of the 64 codons, one column per species in the input
+# Figure in the paper: Figure 3 (34 Iridaceae species; any input draws its own species)
+# Usage:
+#   Rscript R_F3_RSCU_codon_usage.R --input <data file> --outdir <output directory>
+# Default: reads sample_data/Complete_Codon_Usage_Analysis.csv, writes <directory>/Figures/*.png + *.pdf
 # =============================================================================
 .local_dir <- local({
   a <- commandArgs(FALSE)
   f <- sub("^--file=", "", a[grep("^--file=", a)])
   if (length(f) > 0) dirname(normalizePath(f[1])) else "."
 })
-source(file.path(.local_dir, "00_ham_chung.R"))
-khoi_tao()
+source(file.path(.local_dir, "00_common.R"))
+init_script()
 cat("\n=== R_F3_RSCU_codon_usage.R ===\n")
 # CGAS Module 8: Codon Usage Comparison — ALL species, EXACT CGAS style
 # Dodged bars, facet by amino acid, codon labels inside bars
-# Species ordered by genetic distance from focal species (Eleutherine for Iridaceae)
+# Draws every species column in the input, in the input order unless --species-order is given.
 # Species names appear under EACH facet (not just bottom strip)
 #
 # USAGE:
@@ -33,27 +33,28 @@ cat("\n========================================\n")
 cat("CGAS MODULE 8: CODON USAGE COMPARISON — ALL SPECIES\n")
 cat("========================================\n\n")
 
-# === CONFIGURATION (edit for your dataset) ===
-OUTGROUP_COLS <- c("Curculigo_orchioides", "Molineria_capitulata")
-SP_ORDER <- c(  # order by genetic distance from focal (closest first)
-  "Eleutherine_bulbosa", "Phalocallis_coelestis", "Tigridia_pavonia",
-  "Trimezia_steyermarkii", "Neomarica_candida", "Diplarrena_moraea",
-  "Iris_domestica", "Iris_afghanica", "Iris_lortetii",
-  "Iris_bismarckiana", "Iris_gatesii", "Iris_hermona",
-  "Libertia_pulchella", "Iris_orchioides", "Isophysis_tasmanica",
-  "Moraea_spathulata", "Olsynium_douglasii", "Moraea_polystachya",
-  "Sisyrinchium_idahoense", "Gladiolus_communis", "Watsonia_pillansii",
-  "Nivenia_stokoei", "Chasmanthe_floribunda", "Aristea_ecklonii",
-  "Freesia_laxa", "Crocus_cartwrightianus", "Crocus_sativus",
-  "Tritonia_disticha", "Patersonia_fragilis", "Witsenia_maura",
-  "Dierama_igneum", "Hesperantha_coccinea", "Gladiolus_x_gandavensis",
-  "Iris_missouriensis"
-)
+# === SPECIES COME FROM THE INPUT ===
+# One row per codon, then one column per sample. Every column after the two metadata columns is a
+# species, drawn in the input's own order. `--species-order "a,b,c"` fixes another order and
+# `--exclude-species "x,y"` drops named columns; no species list is built in, so a panel outside
+# the manuscript's 34 Iridaceae names draws its own species instead of an empty panel.
+META_COLS <- c("Amino_Acid", "Codon")
+SPECIES_ORDER  <- split_list(get_param("--species-order", ""))
+EXCLUDE_SPECIES <- split_list(get_param("--exclude-species", ""))
 
 # Read data
-data <- read.csv(duong_dan_vao("Complete_Codon_Usage_Analysis.csv"), check.names=FALSE, stringsAsFactors=FALSE)
-for (col in OUTGROUP_COLS) { if (col %in% colnames(data)) data <- data %>% select(-all_of(col)) }
-available_sp <- intersect(SP_ORDER, colnames(data))
+data <- read.csv(input_path("Complete_Codon_Usage_Analysis.csv"), check.names=FALSE, stringsAsFactors=FALSE)
+available_sp <- setdiff(colnames(data), META_COLS)
+if (length(EXCLUDE_SPECIES)) available_sp <- setdiff(available_sp, EXCLUDE_SPECIES)
+if (length(SPECIES_ORDER)) {
+  missing_sp <- setdiff(SPECIES_ORDER, available_sp)
+  if (length(missing_sp)) {
+    stop(sprintf("--species-order names %d species not in the input: %s",
+                 length(missing_sp), paste(missing_sp, collapse = ", ")))
+  }
+  available_sp <- SPECIES_ORDER
+}
+if (!length(available_sp)) stop("the input has no species column after --exclude-species")
 cat(paste("Species:", length(available_sp), "\n"))
 
 # AA 3-letter codes (exactly like CGAS)
@@ -81,8 +82,9 @@ data_long <- data_long %>% group_by(AA,Species) %>% arrange(Codon) %>%
   mutate(cum_RSCU=cumsum(RSCU),ypos=cum_RSCU-RSCU/2) %>% ungroup()
 
 n_sp <- length(available_sp)
-species_colors <- c(brewer.pal(12,"Set3"),brewer.pal(12,"Paired"),
-                     brewer.pal(8,"Set2"),brewer.pal(9,"Set1"))[1:n_sp]
+# Scale to the input, not to 34: the fixed brewer stacks ran out past ~41 colours and returned
+# NA for the rest, which draws an empty fill without a word.
+species_colors <- grDevices::hcl.colors(n_sp, "Dark 3")
 
 # CGAS-EXACT: dodged bars, facet by AA, codon labels, species names under EVERY facet
 p <- ggplot(data_long,aes(x=Species,y=RSCU,fill=Species))+
@@ -105,7 +107,16 @@ p <- ggplot(data_long,aes(x=Species,y=RSCU,fill=Species))+
   geom_hline(yintercept=0,color="black",linewidth=0.8)
 
 dir.create("Figures",showWarnings=FALSE)
-ggsave("Figures/Codon_Usage_Comparison_34sp.png",p,width=34,height=20,dpi=600)
-pdf("Figures/Codon_Usage_Comparison_34sp.pdf",width=34,height=20); print(p); dev.off()
-cat("\nSaved: Figures/Codon_Usage_Comparison_34sp.pdf and .png\n")
+# The drawing width follows the number of species columns, because a dodged bar per species at a
+# fixed width stops being readable as the panel grows; --width/--height override it.
+FIG_WIDTH  <- as.numeric(get_param("--width", max(34, 17 + 0.5 * n_sp)))
+FIG_HEIGHT <- as.numeric(get_param("--height", 20))
+# A large panel is a legitimate wide figure, but a raster device has a pixel ceiling: cap the
+# resolution so the long side stays at 20,000 px (the paper's 34x20 in at 600 dpi was 20,400).
+FIG_DPI <- min(600, floor(20000 / max(FIG_WIDTH, FIG_HEIGHT)))
+ggsave("Figures/Codon_Usage_Comparison.png",p,width=FIG_WIDTH,height=FIG_HEIGHT,dpi=FIG_DPI,
+       limitsize=FALSE)
+pdf("Figures/Codon_Usage_Comparison.pdf",width=FIG_WIDTH,height=FIG_HEIGHT); print(p); dev.off()
+cat(sprintf("\nSaved: Figures/Codon_Usage_Comparison.pdf and .png (%d species, %.0f x %.0f in)\n",
+            n_sp, FIG_WIDTH, FIG_HEIGHT))
 cat("========================================\nDONE\n========================================\n")

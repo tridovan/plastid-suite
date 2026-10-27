@@ -1,18 +1,18 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# R_F7_pairwise_substitution.R — Thay thế nucleotide theo cặp (E. bulbosa vs 33 loài) + tỉ lệ Ts/Tv
-# Hình trong bài: Figure 7
-# Gọi:
-#   Rscript R_F7_pairwise_substitution.R --input <file dữ liệu> --outdir <thư mục kết quả>
-# Mặc định: đọc data_mau/Complete_Substitution_Analysis_filtered.csv, ghi <thư mục>/Figures/*.png + *.pdf
+# R_F7_pairwise_substitution.R — Pairwise nucleotide substitutions (E. bulbosa vs 33 species) + Ts/Tv ratio
+# Figure in the paper: Figure 7
+# Usage:
+#   Rscript R_F7_pairwise_substitution.R --input <data file> --outdir <output directory>
+# Default: reads sample_data/Complete_Substitution_Analysis_filtered.csv, writes <directory>/Figures/*.png + *.pdf
 # =============================================================================
 .local_dir <- local({
   a <- commandArgs(FALSE)
   f <- sub("^--file=", "", a[grep("^--file=", a)])
   if (length(f) > 0) dirname(normalizePath(f[1])) else "."
 })
-source(file.path(.local_dir, "00_ham_chung.R"))
-khoi_tao()
+source(file.path(.local_dir, "00_common.R"))
+init_script()
 cat("\n=== R_F7_pairwise_substitution.R ===\n")
 
 # CGAS Module 10: Enhanced SNP/Substitution Visualization Script
@@ -31,7 +31,7 @@ cat("========================================\n\n")
 
 # Read data
 cat("Reading SNP data from CSV...\n")
-data <- read.csv(duong_dan_vao("Complete_Substitution_Analysis_filtered.csv"), check.names=FALSE)
+data <- read.csv(input_path("Complete_Substitution_Analysis_filtered.csv"), check.names=FALSE)
 
 # Safety check: Empty CSV
 if (nrow(data) == 0) {

@@ -31,6 +31,7 @@ from plastid.core.plastid_caller import (
     truncated_annotations,
     vocabulary_of,
 )
+from plastid.core.sequence import reverse_complement
 
 DATA = Path(__file__).parents[1] / "data"
 
@@ -127,6 +128,114 @@ def test_a_name_with_a_space_gets_a_header_a_blast_hit_can_come_back_as() -> Non
     )
     assert entry.key == "NC_042827.1|23S_ribosomal_RNA|rrn23"
     assert " " not in entry.key
+
+
+# ---------------------------------------------------------------- one codon before the alignment
+
+
+def _one_codon_genome(upstream: str, *, reverse: bool = False) -> Genome:
+    """38 codons and a stop: ``upstream`` + 37 × GCT + TAA, plus filler."""
+    coding = upstream + "GCT" * 37 + "TAA"
+    sequence = reverse_complement(coding) if reverse else coding
+    return Genome(
+        name="one-codon fixture",
+        accession="SYN_ONE_CODON.1",
+        sequence=sequence + "ATGC" * 20,
+        genes=(),
+        source={"organelle": "plastid"},
+    )
+
+
+def _psbl_reference() -> ReferenceEntry:
+    """A 38-residue reference; only its length and key matter to the caller."""
+    return ReferenceEntry(
+        accession="NC_000000.1",
+        organism="Testus testus",
+        source_gene="psbL",
+        vocabulary="psbL",
+        sequence="M" * 38,
+    )
+
+
+def _missing_first_codon(entry: ReferenceEntry, *, frame: int = 1) -> Hsp:
+    """The alignment starts at codon 2 and ends at codon 38, so the 5' end is not reached."""
+    return Hsp(
+        subject_key=entry.key,
+        pident=100.0,
+        length=37,
+        qstart=4,
+        qend=114,
+        sstart=2,
+        send=38,
+        evalue=0.0,
+        bitscore=200.0,
+        frame=frame,
+    )
+
+
+def test_an_initiator_one_codon_before_the_alignment_is_read() -> None:
+    """Measured 27/10/2026 on 39 Crataegus records: psbL's alignment starts at codon 2.
+
+    The codon before it is ACG, an accepted plastid initiator. Reading that one codon makes the
+    call 117 bp — the reference's own length — with a complete ORF; leaving it partial made 27
+    calls that no ORF check accepts. One codon is read, never a walk to a distant ATG.
+    """
+    entry = _psbl_reference()
+    genome = _one_codon_genome("ACG")
+
+    index = ReferenceIndex.from_entries([entry], vocabulary=("psbL",))
+    call = call_cds(genome, index, (_missing_first_codon(entry),)).one("psbL")
+
+    assert call.parts[0].to_1based() == (1, 117)
+    assert not call.partial_start
+    assert call.parts[0].start == 0  # the upstream ACG is now the first codon
+    assert any("one codon is read" in note for note in call.notes)
+
+
+def test_a_non_initiator_one_codon_before_the_alignment_stays_partial() -> None:
+    """ACA is not an initiator in table 11, so the partial start stands; nothing is invented."""
+    entry = _psbl_reference()
+    genome = _one_codon_genome("ACA")
+
+    index = ReferenceIndex.from_entries([entry], vocabulary=("psbL",))
+    call = call_cds(genome, index, (_missing_first_codon(entry),)).one("psbL")
+
+    assert call.parts[0].to_1based() == (4, 117)
+    assert call.partial_start
+    assert any("not moved to the next ATG" in note for note in call.notes)
+
+
+def test_the_same_read_works_on_the_minus_strand() -> None:
+    """psbL is on the minus strand in the measured records; the 5' end is the high coordinate."""
+    entry = _psbl_reference()
+    genome = _one_codon_genome("ACG", reverse=True)
+
+    index = ReferenceIndex.from_entries([entry], vocabulary=("psbL",))
+    call = call_cds(genome, index, (_missing_first_codon(entry, frame=-1),)).one("psbL")
+
+    assert call.parts[0].to_1based() == (1, 117)
+    assert call.parts[0].strand == -1
+    assert not call.partial_start
+
+
+def test_the_mito_default_does_not_read_the_upstream_codon() -> None:
+    """The one-codon read is opt-in: the frozen mito path keeps its previous partial start."""
+    from plastid.core import caller as core
+
+    entry = _psbl_reference()
+    genome = _one_codon_genome("ACG")
+
+    call = core.call_cds(
+        genome,
+        ReferenceIndex.from_entries([entry], vocabulary=("psbL",)),
+        (_missing_first_codon(entry),),
+        min_identity=50.0,
+        min_coverage=0.7,
+        transl_table=11,
+    ).one("psbL")
+
+    assert call.parts[0].to_1based() == (4, 117)
+    assert call.partial_start
 
 
 # ---------------------------------------------------------------- a locus a record annotated twice

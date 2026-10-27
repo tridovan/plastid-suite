@@ -6,11 +6,14 @@ pivot here is the long→wide step and it produces exactly one species column.
 
 Two things about that shape are load-bearing and neither is obvious from the script:
 
-* the species column is ``Genus_species`` **with the case kept** — the script intersects its own
-  hard-coded ``SP_ORDER`` with the column names, and a name it does not know is dropped without a
-  word, giving a figure with no bars at all;
+* the species column is ``Genus_species`` **with the case kept** — the script prints the header it
+  was given;
 * ``Amino_Acid`` is the **full** name (``Alanine``), which the script maps to a three-letter code
   for the facet labels.
+
+The script draws **every** species column in its input (M11.7), so a wider table — one column per
+sample — is a valid figure with no list to intersect; `plastid figures` supplies the one genome a
+run holds until the batch path does the joining.
 
 Every RSCU value is the ``rscu`` column's own rendering, so the figure cannot round a cell twice —
 and a blank RSCU (undefined for a family with no observations) stays blank rather than becoming a
@@ -22,10 +25,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from plastid.result.figures.r_common import AMINO_ACID_NAMES, csv_text, script_species_order
+from plastid.result.figures.r_common import AMINO_ACID_NAMES, csv_text
 from plastid.result.figures.r_common import species_column as _species_column
 from plastid.result.result import Result
-from plastid.result.rfigure import RFigureSkip, RFigureSpec
+from plastid.result.rfigure import RFigureSpec
 
 _RSCU = "rscu"
 _SUMMARY = "codon_usage"
@@ -52,8 +55,8 @@ class RscuFrame:
         return (
             f"{len(self.codons)} sense codons of one genome ({self.species}); "
             f"{self.n_cds} CDS, ENC {self.enc}. "
-            "The script orders species by its own 34-name list, so a run of several genomes "
-            "draws only this one column."
+            "The script draws every species column in its input, in that order or in "
+            "--species-order; this run supplies one."
         )
 
 
@@ -71,12 +74,6 @@ def frame(results: Mapping[str, Result]) -> RscuFrame:
 
     organism = summary.value("organism")
     species = _species_column(organism)
-    known = script_species_order(_SCRIPT)
-    if known and species not in known:
-        raise RFigureSkip(
-            f"{organism!r} is not one of the {len(known)} species {_SCRIPT} orders by, so it "
-            f"would draw an empty panel rather than a wrong one — no RSCU figure for this run"
-        )
     return RscuFrame(
         species=species,
         codons=tuple(

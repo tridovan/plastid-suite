@@ -145,3 +145,23 @@ def test_the_whole_scope_also_carries_the_type_table(
     assert counts[(mutated.accession, "A_to_G")] == 5
     assert len(rows) == len(SUBSTITUTION_TYPES)
     assert "twelve directed changes" in result.tables["substitutions_by_type"].scope.label
+
+
+def test_the_default_scope_is_whole_and_each_scope_names_itself(
+    tmp_path: Path, stubbed, golden_genome: Genome
+) -> None:
+    """M11.5: the two scopes are different numbers and the output says which one it is.
+
+    The default stays the whole alignment; the CDS scope is the golden's narrower method. A
+    report that quotes one as the other is the failure this distinction exists to prevent, so
+    neither the default nor the label may drift silently.
+    """
+    assert substitutions.DEFAULT_SCOPE == "whole"
+    mutated = replace(golden_genome, sequence=golden_genome.sequence.replace("A", "G", 5))
+
+    whole = substitutions.run((golden_genome, mutated), {}, _ctx(tmp_path))
+    assert whole.tables["substitutions_summary"].rows[0]["scope"].startswith("the whole aligned")
+    assert "not the CDS-only scope" in whole.tables["substitutions_summary"].scope.label
+
+    cds = substitutions.run((golden_genome, golden_genome), {"scope": "cds"}, _ctx(tmp_path))
+    assert "CDS only" in cds.tables["substitutions_summary"].scope.label

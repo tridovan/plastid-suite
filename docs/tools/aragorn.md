@@ -44,8 +44,19 @@ Windows/Docker user needs, and conda resolves the right build per platform.
   wraps its search around the ends. Measured on the answer-key record: its first tRNA
   (`tRNA-Phe`, `[258274,73]`) **crosses the origin**, and a wrapped interval is not a GenBank
   coordinate — the adapter splits it into the two parts a `join()` needs.
-* no `-i`: introns are off by default, and the measured run reproduces the published count
-  without it. A tRNA with an intron would be reported missing rather than silently modelled.
+* `-i` on the plastid path, and its measured range: without it ARAGORN **skips every
+  intron-containing tRNA** and says nothing (its help: "Unless -i is specified, tRNA genes
+  containing introns are not detected"). Measured 09/10/2026 on the golden: 30 tRNAs without the
+  flag, **38 with it — the published record's own count**. The mito path still does not pass it;
+  on the answer-key mitogenome it turns 17 into 21, four of which the record does not carry.
+* the intron **length range** is declared rather than assumed. ARAGORN's help documents
+  "maximum length 3000 bases, minimum intron length is 0 bases"; measured 26/10/2026 on 1.2.41,
+  a 3,000 bp intron is reported, a 3,001 bp one is not, and `-i4000`, `-i0,4000`, `-i0,6000`
+  change nothing — the maximum is internal, not the switch's default. The adapter therefore
+  refuses `intron_limits` above 3,000 by name instead of passing a flag with no effect, records
+  the range it searched on every result, and `plastid_annotate` states in its notes that a tRNA
+  outside that range was **not assessed**, never that it has no intron (H-22). The minimum does
+  work (`-i2700,3000` drops a 2,618 bp intron), so a caller may narrow the range.
 
 **What the names mean.** ARAGORN prints an amino acid in words and the anticodon as DNA —
 `tRNA-Met … (cat)`. The published convention is one letter and RNA (`trnM-CAU`), so the adapter

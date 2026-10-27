@@ -61,7 +61,7 @@ mitochondrion (NC_037304) and plastome (NC_000932).
 * It is a **container**, so it needs Singularity/Apptainer (Linux; on Windows that means WSL2 or
   Docker, i.e. a container inside a container), plus **>6 GB of disk** and a working directory.
 * It **bundles ten tools including MAKER**, which is the heaviest step in organelle annotation.
-  The project's target machines are 4–8 GB of RAM (anh Điềm's is 3.7 GB).
+  The project's target machines are 4–8 GB of RAM (Điềm's is 3.7 GB).
 * It therefore belongs to the **declared-external-tool tier**, exactly like Chloe and table2asn —
   never to the pip-only tier, which must keep working with no external tool at all.
 
@@ -84,7 +84,7 @@ service or a bigger server when it cannot. The same rule D3-01 applied to GeSeq 
    computer never holds the container. This is the route for the team's own machines, and the
    `--file` half was built on 2026-10-03 precisely because the rule requires it.
 
-**Decided 03/10 (dev, confirmed by anh Trí): route 2 is what this project uses, and
+**Decided 03/10 (dev, confirmed by Trí): route 2 is what this project uses, and
 `external/pmga.py` is not written.** The reason is measured, not a preference: the container is
 11 GB unpacked, it drives MAKER, the WSL VM here is capped at 8 GB and the C: drive had 42 GB
 free — **this machine is not strong enough to run the annotator.** The adapter stays open with a

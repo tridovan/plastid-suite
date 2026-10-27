@@ -219,3 +219,57 @@ def test_hits_that_all_fail_the_floors_are_a_failed_run_and_the_floors_are_named
 
     with pytest.raises(ToolError, match="no locus passed the floors"):
         plastid_annotate.run(GENOME, params, _ctx(tmp_path))
+
+
+def test_a_custom_reference_directory_is_searched_leave_one_out(tmp_path: Path) -> None:
+    """The recorded allow-list belongs to the recorded directory, not to every directory.
+
+    Measured 26/10/2026 on a panel family: pointing the run at five same-family records excluded
+    all five with "leave-one-out" because their accessions were not in the *recorded* set. A
+    custom set must still refuse to annotate from the target's own record, and that rule is the
+    accession, not the manifest.
+    """
+    from plastid.core.plastid_reference import load_recorded_manifest
+
+    directory = _reference(tmp_path)
+    record = SeqIO.read(directory / "NC_999999.1.gb", "genbank")
+    record.id = record.name = SEQ_ID
+    SeqIO.write(record, directory / f"{SEQ_ID}.gb", "genbank")
+
+    with plastid_annotate._reference_set({"reference": str(directory)}, SEQ_ID) as reference:
+        searched = {genome.accession for genome in reference.records}
+
+    assert searched == {"NC_999999.1"}, "the target's own record annotated itself"
+    assert reference.excluded == (SEQ_ID,)
+    # The recorded manifest, if this machine has one, names a different directory; the custom
+    # run above must not have consulted its allow-list. That is asserted directly:
+    recorded = load_recorded_manifest()
+    if recorded is not None:
+        assert str(directory.resolve()) != str(Path(recorded.directory).resolve())
+
+
+def test_the_recorded_allow_list_does_not_filter_a_user_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The recorded manifest names *its* directory's records; another directory is its own set.
+
+    The measured failure (26/10/2026): a five-record family directory was excluded in full
+    because none of its accessions appeared in the recorded set's allow-list. Only the target's
+    own accession is a leave-one-out rule for a custom directory.
+    """
+    from types import SimpleNamespace
+
+    directory = _reference(tmp_path)
+    record = SeqIO.read(directory / "NC_999999.1.gb", "genbank")
+    record.id = record.name = "NC_888888.1"
+    SeqIO.write(record, directory / "NC_888888.1.gb", "genbank")
+    manifest = SimpleNamespace(
+        directory=str(tmp_path / "recorded-set"),
+        references_for=lambda target: ("NC_999999.1",),
+    )
+    monkeypatch.setattr(plastid_annotate, "load_recorded_manifest", lambda: manifest)
+
+    with plastid_annotate._reference_set({"reference": str(directory)}, SEQ_ID) as reference:
+        searched = {genome.accession for genome in reference.records}
+
+    assert searched == {"NC_999999.1", "NC_888888.1"}

@@ -211,8 +211,8 @@ def test_a_real_run_draws_its_r_figures_with_the_real_engine(
     assert main(["figures", str(run_dir), "--figure", "r_rscu", "--set", f"rscript={binary}"]) == 0
 
     figures = run_dir / "figures"
-    assert (figures / "r_rscu__Codon_Usage_Comparison_34sp.png").is_file()
-    assert (figures / "r_rscu__Codon_Usage_Comparison_34sp.pdf").is_file()
+    assert (figures / "r_rscu__Codon_Usage_Comparison.png").is_file()
+    assert (figures / "r_rscu__Codon_Usage_Comparison.pdf").is_file()
     caption = (figures / "r_rscu.caption.txt").read_text(encoding="utf-8")
     assert "codon_usage.rscu — scope: " in caption
     assert (

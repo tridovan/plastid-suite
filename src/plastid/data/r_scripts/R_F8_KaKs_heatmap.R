@@ -1,18 +1,18 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# R_F8_KaKs_heatmap.R — Heatmap Ka/Ks theo cặp (gen × loài), thang log2
-# Hình trong bài: Figure 8
-# Gọi:
-#   Rscript R_F8_KaKs_heatmap.R --input <file dữ liệu> --outdir <thư mục kết quả>
-# Mặc định: đọc data_mau/KaKs_matrix_79genes_BO_D.tsv, ghi <thư mục>/Figures/*.png + *.pdf
+# R_F8_KaKs_heatmap.R — Pairwise Ka/Ks heatmap (gene × species), log2 scale
+# Figure in the paper: Figure 8
+# Usage:
+#   Rscript R_F8_KaKs_heatmap.R --input <data file> --outdir <output directory>
+# Default: reads sample_data/KaKs_matrix_79genes_BO_D.tsv, writes <directory>/Figures/*.png + *.pdf
 # =============================================================================
 .local_dir <- local({
   a <- commandArgs(FALSE)
   f <- sub("^--file=", "", a[grep("^--file=", a)])
   if (length(f) > 0) dirname(normalizePath(f[1])) else "."
 })
-source(file.path(.local_dir, "00_ham_chung.R"))
-khoi_tao()
+source(file.path(.local_dir, "00_common.R"))
+init_script()
 cat("\n=== R_F8_KaKs_heatmap.R ===\n")
 # Heatmap Ka/Ks: 33 Iridaceae species vs Eleutherine reference
 # Bright vibrant version
@@ -20,7 +20,7 @@ cat("\n=== R_F8_KaKs_heatmap.R ===\n")
 library(ggplot2)
 library(reshape2)
 
-tsv_path <- duong_dan_vao("KaKs_matrix_79genes_BO_D.tsv")
+tsv_path <- input_path("KaKs_matrix_79genes_BO_D.tsv")
 raw <- read.delim(tsv_path, header = TRUE, row.names = 1, check.names = FALSE)
 
 mat <- as.matrix(raw)
@@ -29,9 +29,9 @@ mode(mat) <- "numeric"
 # Filter ≤20% NA
 na_per_gene <- rowSums(is.na(mat))
 na_per_spp  <- colSums(is.na(mat))
-nguong_na <- as.numeric(tham_so("--max-na", "1"))   # 1 = không lọc (đúng hình đã công bố)
-keep_genes <- na_per_gene / ncol(mat) <= nguong_na
-keep_spp   <- na_per_spp / nrow(mat) <= nguong_na
+max_na_threshold <- as.numeric(get_param("--max-na", "1"))   # 1 = no filtering (matches the published figure)
+keep_genes <- na_per_gene / ncol(mat) <= max_na_threshold
+keep_spp   <- na_per_spp / nrow(mat) <= max_na_threshold
 mat <- mat[keep_genes, keep_spp]
 
 clean_name <- function(x) gsub("_", " ", x)
@@ -75,12 +75,12 @@ p <- ggplot(df, aes(x = Species, y = Gene, fill = KaKs)) +
         plot.margin = margin(10, 10, 10, 10),
         plot.title = element_text(size = 13, face = "bold", hjust = 0.5, margin = margin(b = 12))
     ) +
-    labs(title = tham_so("--tieude", NULL), fill = "Ka/Ks")
+    labs(title = get_param("--title", NULL), fill = "Ka/Ks")
 
-luu_hinh(p, file.path("Figures", tham_so("--tag", "Figure8_KaKs_heatmap")),
-         rong = as.numeric(tham_so("--rong", "18")),
-         cao  = as.numeric(tham_so("--cao",  "16")),
-         dpi  = as.numeric(tham_so("--dpi",  "300")))
+save_figure(p, file.path("Figures", get_param("--tag", "Figure8_KaKs_heatmap")),
+         width = as.numeric(get_param("--width", "18")),
+         height = as.numeric(get_param("--height",  "16")),
+         dpi  = as.numeric(get_param("--dpi",  "300")))
 
 cat(sprintf("Saved: Figure8 KaKs heatmap (%d genes x %d species)\n",
     nrow(mat), ncol(mat)))

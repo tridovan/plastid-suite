@@ -26,6 +26,7 @@ from typing import Any
 
 from plastid import __version__
 from plastid.core import organelle, plastid_reference, reference_audit
+from plastid.core.codon import UnsupportedTranslationError
 from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
 from plastid.core.gene_names import (
@@ -773,6 +774,10 @@ def _ir_manifest_fields(ir: IRResult) -> dict:
         # which end of a length difference the identity was measured at (H-25); "both" means
         # the copies have terminal overhangs at each end and mapping is not supported
         "excess_at": ir.excess_at,
+        # The alignment-derived mapping the annotator uses to write a gene between copies of
+        # different length (M11.11). None means a consumer that needs one must refuse by name.
+        "mapping_supported": ir.mapping is not None,
+        "mapping_method": ir.mapping.method if ir.mapping is not None else None,
         "annotated_lengths": list(ir.annotated_lengths),
         "annotation_note": ir.annotation_note,
         "denovo_length": ir.denovo_length,
@@ -910,6 +915,10 @@ def _execute_run(
                 render_document=render_document,
             )
         except IRGateError as error:
+            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_USAGE)
+        except UnsupportedTranslationError as error:
+            # 2, next to the IR gate: the run was well-formed, and the record's own CDS declare a
+            # frame or table this codon reading cannot translate honestly (M11.5).
             return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_USAGE)
         except reference_audit.ReferenceAuditError as error:
             # 2, the gate's own number, next to the IR gate: the run was well-formed and it is the
@@ -1344,6 +1353,27 @@ def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureO
         return None
 
     def runner(script: str, input_file, input_dir, out_dir: Path) -> Path:
+        # The tree script takes its drawing choices as flags, and the run's `--set` values are
+        # the only place a user gave them. Forwarding them here is what makes
+        # `--set root/outgroup/drop-tips` reach R at all (K-06); the other scripts have no such
+        # options, so they are not given them.
+        extra: list[str] = []
+        if script == "tree":
+            for key in (
+                "tag",
+                "root",
+                "outgroup",
+                "drop-tips",
+                "outgroup-label",
+                "plot-type",
+                "legend",
+                "width",
+                "height",
+                "dpi",
+                "title",
+            ):
+                if key in params:
+                    extra += [f"--{key}", str(params[key])]
         return run_figure(
             ctx,
             script,
@@ -1353,6 +1383,7 @@ def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureO
             binary=params.get("rscript"),
             # the preflight above already asked, once for the whole pass
             check_packages=False,
+            extra=extra,
         )
 
     try:

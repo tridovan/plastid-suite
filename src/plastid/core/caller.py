@@ -394,6 +394,7 @@ def call_cds(
     transl_table: int = 1,
     max_hsps_per_subject: int | None = None,
     structure_first: bool = False,
+    read_upstream_start: bool = False,
 ) -> CallResult:
     """Call the protein-coding genes of ``genome`` from a blastx run's hits.
 
@@ -404,6 +405,11 @@ def call_cds(
     candidate whose protein is the C-terminal stretch of another candidate's, which is what a
     record annotating one gene from an inner start codon looks like. The plastid path measured a
     case for it (``rps19``) and asks for it; the mito path does not, so it does not.
+
+    ``read_upstream_start`` asks for the one-codon 5' read described in :func:`_refine_start`.
+    The plastid path measured the case (``psbL`` on 39 Crataegus records: the alignment starts at
+    codon 2 and the codon before it is ``ACG``, an accepted initiator); the mito prototype keeps
+    its previous behaviour.
     """
     if transl_table not in START_CODONS:
         raise ValueError(
@@ -421,6 +427,7 @@ def call_cds(
         transl_table=transl_table,
         max_hsps_per_subject=max_hsps_per_subject,
         structure_first=structure_first,
+        read_upstream_start=read_upstream_start,
     )
 
 
@@ -545,6 +552,7 @@ def _call(
     transl_table: int | None,
     max_hsps_per_subject: int | None,
     structure_first: bool = False,
+    read_upstream_start: bool = False,
 ) -> CallResult:
     by_key: dict[str, list[Hsp]] = defaultdict(list)
     for hsp in _deduplicate(hsps):
@@ -611,11 +619,14 @@ def _call(
                 for hsp in item.kept
             )
             continue
-        calls.append(_to_call(genome, symbol, kind, chosen, transl_table))
+        calls.append(_to_call(genome, symbol, kind, chosen, transl_table, read_upstream_start))
         dropped.extend(chosen.dropped)
 
     unnameable = sorted(
-        (_to_call(genome, item.entry.source_gene, kind, item, transl_table) for item in unnamed),
+        (
+            _to_call(genome, item.entry.source_gene, kind, item, transl_table, read_upstream_start)
+            for item in unnamed
+        ),
         key=lambda call: call.span,
     )
     calls.sort(key=lambda call: call.span)
@@ -944,10 +955,13 @@ def _to_call(
     kind: str,
     candidate: _Candidate,
     transl_table: int | None,
+    read_upstream_start: bool = False,
 ) -> GeneCall:
     notes: list[str] = []
     exons = [list(exon) for exon in candidate.exons]
-    partial_start = _refine_start(genome, candidate, exons, kind, transl_table, notes)
+    partial_start = _refine_start(
+        genome, candidate, exons, kind, transl_table, notes, read_upstream_start
+    )
     partial_end = _refine_end(genome, candidate, exons, kind, notes)
     parts = tuple(
         Interval(
@@ -999,14 +1013,32 @@ def _refine_start(
     kind: str,
     transl_table: int | None,
     notes: list[str],
+    read_upstream_start: bool = False,
 ) -> bool:
-    """Is the 5' coordinate established? One codon is read, and nothing is ever moved."""
+    """Is the 5' coordinate established? At most one codon is read on either side; no walking.
+
+    When the alignment reaches the reference's 5' end the first codon is the model's own, and it
+    is checked against the table. When it does not reach, the coordinate is partial — except that
+    the codon **immediately before** the alignment is read, and an accepted initiator there
+    establishes the start. This is the 5' mirror of :func:`_refine_end`'s one-codon look for a
+    stop, and it is opt-in per path: measured 27/10/2026 on 39 Crataegus records, the plastid
+    caller wrote ``psbL`` as a 114 bp no-start CDS while the codon before the alignment was
+    ``ACG`` (an accepted plastid initiator), making the model 117 bp with a complete ORF and the
+    reference's own length. No codon beyond that one is read, and a non-initiator leaves the
+    coordinate partial rather than stretching to a distant ATG.
+    """
     reached = _reaches_five_prime(candidate, exons[0])
     if kind != "CDS":
         if not reached:
             notes.append(NOT_REACHED_FIVE_PRIME)
         return not reached
     if not reached:
+        if read_upstream_start and _extend_to_upstream_start(genome, exons[0], transl_table or 1):
+            notes.append(
+                NOT_REACHED_FIVE_PRIME
+                + " — the codon before it is an initiator, so that one codon is read (not walked)"
+            )
+            return False
         notes.append(
             NOT_REACHED_FIVE_PRIME + " — the start is partial, and it is not moved to the next ATG"
         )
@@ -1016,6 +1048,27 @@ def _refine_start(
         notes.append(f"the first codon {codon} is not an initiator — a partial start, unmoved")
         return True
     return False
+
+
+def _extend_to_upstream_start(genome: Genome, exon: list[int], table: int) -> bool:
+    """Read the one codon 5' of an exon; extend the exon onto it when it is an initiator.
+
+    ``exon`` is ``[start, end, strand, subject_start]``, 1-based inclusive, and is mutated in
+    place only when the extension happens. A codon that leaves the record (a circular origin is
+    not a coordinate this alignment shows) or is not an initiator leaves the exon untouched.
+    """
+    start, end, strand, _ = exon
+    if strand < 0:
+        new_start, new_end = start, end + 3
+    else:
+        new_start, new_end = start - 3, end
+    if new_start < 1 or new_end > len(genome):
+        return False
+    codon = _codons(genome, [new_start, new_end, strand, 0], table)[0]
+    if codon not in START_CODONS[table]:
+        return False
+    exon[0], exon[1] = new_start, new_end
+    return True
 
 
 def _refine_end(

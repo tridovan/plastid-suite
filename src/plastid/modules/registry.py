@@ -46,9 +46,9 @@ class ModuleSpec:
     # Which organelle this module serves: shared · plastid-only · mito-only (H-09).
     # It is deliberately *not* `requires_ir`:
     # that flag answers "does this need the inverted repeat", which `gene_table` (a plastome table
-    # that needs no IR) and `codon_usage` (no positions at all, still gated) both show is a
-    # different question. Default `shared` — a module that says nothing is claiming to run on
-    # either organelle, which is the claim the run then checks.
+    # that needs no IR) and `codon_usage` (CDS sequences only, no positions — and since M11.5 no
+    # IR requirement either) both show is a different question. Default `shared` — a module that
+    # says nothing is claiming to run on either organelle, which is the claim the run then checks.
     group: str = GROUP_SHARED
     # The parameter naming a *file* this module works against — a privileged record rather than
     # one of the run's equal inputs (D5-09: the naming reference). Declared here so the CLI can

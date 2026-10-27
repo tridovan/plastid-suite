@@ -9,15 +9,11 @@ from __future__ import annotations
 
 import csv
 import io
-import re
 from collections.abc import Iterable, Sequence
-
-from plastid.core.resources import data_file
 
 __all__ = [
     "AMINO_ACID_NAMES",
     "csv_text",
-    "script_species_order",
     "species_column",
     "tsv_text",
 ]
@@ -48,34 +44,15 @@ AMINO_ACID_NAMES: dict[str, str] = {
     "V": "Valine",
 }
 
-_SP_ORDER = re.compile(r"SP_ORDER\s*<-\s*c\((.*?)\n\)", re.DOTALL)
-_QUOTED = re.compile(r'"([^"]+)"')
-
 
 def species_column(label: str) -> str:
-    """An organism name as the scripts' own species columns spell it — ``Iris_domestica``.
+    """An organism name as the scripts' species columns spell it — ``Iris_domestica``.
 
-    **Case is kept.** F3 and F4 take ``intersect(SP_ORDER, colnames(data))`` against a hard-coded
-    list of ``Genus_species`` strings, so lower-casing the name would drop the species and the
-    script would draw an empty panel without saying so. :func:`plastid.run.layout.slugify` is the
-    wrong tool here for exactly that reason.
+    **Case is kept.** The scripts read the species name from the column header and print it as it
+    arrived; lower-casing it would change what the figure says. :func:`plastid.run.layout.slugify`
+    is the wrong tool here for exactly that reason.
     """
     return "_".join(label.split())
-
-
-def script_species_order(script_name: str) -> tuple[str, ...]:
-    """The ``SP_ORDER`` list a packaged script orders its species by — read from the script itself.
-
-    F3 and F4 draw only the species on their own list and **silently draw nothing** for any other,
-    so a figure has to know the list to refuse a run it cannot draw. Parsing the packaged script is
-    the only way to know it without editing the script, and a test pins the parse.
-    """
-    path = data_file(f"r_scripts/{script_name}")
-    if not path.is_file():
-        return ()
-    text = path.read_text(encoding="utf-8")
-    match = _SP_ORDER.search(text)
-    return tuple(_QUOTED.findall(match.group(1))) if match else ()
 
 
 def csv_text(header: Sequence[str], rows: Iterable[Sequence[str]]) -> str:

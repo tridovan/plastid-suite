@@ -19,6 +19,7 @@ from plastid.external.aragorn import (
     AragornResult,
     aragorn_version,
     parse_batch,
+    parse_calls,
     run_aragorn,
     trna_name,
 )
@@ -259,3 +260,72 @@ def test_a_linear_record_is_searched_as_a_linear_one(tmp_path: Path) -> None:
     run_aragorn(linear, ctx, seq_id="FRAG.1", aragorn=str(_stub(tmp_path)))
 
     assert "-l" in ctx.tools[-1].argv
+
+
+def test_an_unnameable_line_keeps_its_coordinates_for_locus_evidence() -> None:
+    """H-24: the line this adapter cannot name is still a gene at a place.
+
+    ``parse_calls`` keeps every tRNA line, named or not, so ``plastid_annotate`` can name an
+    intron tRNA from the reference set's own annotation at that locus. ``parse_batch``'s public
+    contract is unchanged: the line is still reported in ``others``, never silently called, and
+    asking for its gene without a name raises rather than inventing one.
+    """
+    text = BATCH + "18  tRNA-Stop             c[1399,4136]\t35  \t(tta)i(40,2662)\n"
+
+    hits, others = parse_batch(text)
+    calls = parse_calls(text)
+
+    assert len(hits) == 6 and len(others) == 1
+    assert len(calls) == 7, "the unnameable line vanished from the locus evidence"
+    unnamed = calls[-1]
+    assert unnamed.name is None
+    assert (unnamed.start, unnamed.end, unnamed.strand) == (1399, 4136, -1)
+    assert unnamed.intron == (40, 2662)
+    assert "tRNA-Stop" in unnamed.raw_line
+    with pytest.raises(ValueError, match="has no name"):
+        unnamed.gene(len(GENOME))
+    assert unnamed.with_name("trnV-UAC").gene(len(GENOME)).name == "trnV-UAC"
+
+
+def test_the_intron_range_is_forwarded_and_carried_on_the_result(tmp_path: Path) -> None:
+    """H-22: a consumer has to know what was searched, not only that a gene was absent.
+
+    ``introns=False`` with an explicit range is not a contradiction: the range *is* the request to
+    search. The switch is ``-i<min>,<max>`` and the result records the same pair.
+    """
+    ctx = _ctx(tmp_path)
+
+    result = run_aragorn(
+        GENOME,
+        ctx,
+        seq_id="OX459128.1",
+        aragorn=str(_stub(tmp_path)),
+        intron_limits=(500, 2_500),
+    )
+
+    assert "-i500,2500" in ctx.tools[-1].argv
+    assert result.intron_search == (500, 2_500)
+
+
+def test_a_search_without_introns_records_that_it_did_not_look(tmp_path: Path) -> None:
+    ctx = _ctx(tmp_path)
+
+    result = run_aragorn(GENOME, ctx, seq_id="OX459128.1", aragorn=str(_stub(tmp_path)))
+
+    assert "-i" not in ctx.tools[-1].argv
+    assert result.intron_search is None
+
+
+def test_a_range_beyond_the_caller_maximum_is_refused_by_name(tmp_path: Path) -> None:
+    """Measured 26/10/2026: `-i0,4000` is accepted by ARAGORN and still stops at 3,000."""
+    ctx = _ctx(tmp_path)
+
+    with pytest.raises(ValueError, match=r"does not search a tRNA intron longer than 3,000 bp"):
+        run_aragorn(
+            GENOME,
+            ctx,
+            seq_id="OX459128.1",
+            aragorn=str(_stub(tmp_path)),
+            introns=True,
+            intron_limits=(0, 4_000),
+        )

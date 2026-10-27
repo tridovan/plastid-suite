@@ -11,10 +11,10 @@ the team's own code, carried so a figure can be reproduced, and read through
 the language their authors wrote them in — they are the manuscript's scripts, not this package's
 code.
 
-**The one change made to them.** ``khoi_tao()`` ends with ``setwd(OUT_DIR)``, so a *relative*
+**The one change made to them.** ``init_script()`` ends with ``setwd(OUT_DIR)``, so a *relative*
 ``--inputdir``/``--input`` points into the output directory rather than at the caller's data, and
-every script fails to find its own input. Measured 17/10/2026: ``--inputdir data_mau`` fails, an
-absolute path works. The fix is in ``00_ham_chung.R`` — the paths are made absolute before the
+every script fails to find its own input. Measured 17/10/2026: ``--inputdir sample_data`` fails, an
+absolute path works. The fix is in ``00_common.R`` — the paths are made absolute before the
 working directory moves — and it changes no drawing.
 
 **A missing package is named, never guessed at.** R 4.1.2 does not have ``readr``, ``cowplot`` or
