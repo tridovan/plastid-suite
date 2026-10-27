@@ -27,7 +27,7 @@ from dataclasses import dataclass, replace
 from plastid.core import stats as statistics
 from plastid.core.codon import codon_counts, enc
 from plastid.core.gene_names import load_gene_aliases, normalize_name
-from plastid.core.model import Genome
+from plastid.core.model import Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
 from plastid.modules.registry import module
 from plastid.result.result import Column, Result, Scope, Table
@@ -80,12 +80,15 @@ class TestRow:
     significant: str = "no"
 
 
-def _sequence_of(genome: Genome, gene: object) -> str:
-    """The CDS as the record spells it, parts joined — exon order, not genomic order."""
-    parts = getattr(gene, "parts", ())
-    if not parts:
-        return ""
-    return "".join(genome.sequence[part.start : part.end] for part in parts).upper()
+def _sequence_of(genome: Genome, gene: Gene) -> str:
+    """The CDS as its transcript reads it — per exon, 5'→3' on the exon's own strand.
+
+    The forward slice is not the gene: on a minus-strand CDS it moves every codon position, so
+    GC3 and ENC would be read off the wrong bases (measured 27/10/2026: 20 % against 60 % GC3 on
+    one fixture). ``coding_sequence`` is the reading every other module uses — one reading, so two
+    modules cannot disagree about one gene.
+    """
+    return coding_sequence(genome, gene).upper()
 
 
 def _gc_pct(sequence: str) -> float | None:

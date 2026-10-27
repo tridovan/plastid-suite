@@ -11,7 +11,8 @@ import re
 
 import pytest
 
-from plastid.core.model import Gene, Genome, Interval
+from plastid.core.model import Gene, Genome, Interval, coding_sequence
+from plastid.core.sequence import reverse_complement
 from plastid.modules import stats as stats_module
 from plastid.result.result import Result
 
@@ -53,6 +54,37 @@ def _genomes() -> list[Genome]:
 
 def _groups() -> dict[str, str]:
     return {"A1": "Alpha", "A2": "Alpha", "B1": "Beta", "B2": "Beta"}
+
+
+def test_a_minus_strand_cds_is_measured_on_its_transcript_not_its_forward_slice() -> None:
+    """A gene's sequence is its transcript: read 5'→3' on its own strand.
+
+    Taking the forward slice instead puts GC3 and ENC on the wrong codon positions — on this
+    fixture the same coding sequence reads 20 % GC3 one way and 60 % the other, so the number the
+    comparison ranks is not the gene's. ``coding_sequence`` is the one reading every other module
+    uses; this module has to agree with it.
+    """
+    coding = "ATGGCTGCTGCTTAA"
+    plus = Genome(
+        name="plus",
+        accession="PLUS",
+        sequence="A" * 6 + coding + "A" * 6,
+        genes=(Gene(name="rbcL", kind="CDS", parts=(Interval(6, 6 + len(coding), 1),)),),
+    )
+    reverse = reverse_complement(coding)
+    minus = Genome(
+        name="minus",
+        accession="MINUS",
+        sequence="A" * 6 + reverse + "A" * 6,
+        genes=(Gene(name="rbcL", kind="CDS", parts=(Interval(6, 6 + len(reverse), -1),)),),
+    )
+
+    forward = stats_module.measure([plus], {"PLUS": "x"})[0][0]
+    backward = stats_module.measure([minus], {"MINUS": "x"})[0][0]
+
+    assert coding_sequence(minus, minus.genes[0]) == coding
+    assert forward.gc3_pct == pytest.approx(20.0)
+    assert (backward.gc3_pct, backward.enc) == (forward.gc3_pct, forward.enc)
 
 
 @requires_stats
