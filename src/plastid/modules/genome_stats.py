@@ -19,7 +19,10 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "genome_stats"
-MODULE_VERSION = "0.1.0"
+# 0.2.0 (28/10/2026): the genes table carries `segments` — every part of a feature, so a gene
+# annotated across the record origin is drawable where it is rather than as a whole-genome arc
+# (M11.7). The counts and every other cell are unchanged.
+MODULE_VERSION = "0.2.0"
 
 
 @module(
@@ -108,6 +111,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("kind", "Kind"),
             Column("start_1b", "Start", dtype="int"),
             Column("end_1b", "End", dtype="int"),
+            Column("segments", "Segments"),
             Column("strand", "Strand"),
             Column("length_bp", "Length", dtype="int", unit="bp"),
             Column("in_ir", "In IR"),
@@ -145,6 +149,14 @@ def _gene_row(gene: Gene, ir: IRResult, names: GenomeNames) -> dict[str, Any]:
         "kind": gene.kind,
         "start_1b": start,
         "end_1b": end,
+        # A feature annotated across the record's origin has no single linear interval: its outer
+        # bounds are 1..L, which on a circle is the *long* way round. `segments` states the parts
+        # the annotation actually gives, so a figure can draw the feature where it is instead of
+        # filling the genome. Sorted, so the cell is stable between runs (M11.7).
+        "segments": ";".join(
+            f"{part.start + 1}-{part.end}"
+            for part in sorted(gene.parts, key=lambda part: (part.start, part.end))
+        ),
         "strand": "+" if gene.strand >= 0 else "-",
         "length_bp": gene.length,
         "in_ir": "yes" if _in_ir(gene, ir) else "no",

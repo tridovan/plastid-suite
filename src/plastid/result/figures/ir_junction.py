@@ -1,14 +1,20 @@
 """The two IR junctions: which genes sit on each boundary.
 
-One panel per junction — LSC/IRa and SSC/IRb — showing a window of ±3 kb around the boundary with
-every gene whose span falls in it, drawn on its own strand. This is what the IR boundary question
-is read off: a gene that straddles the junction, the two copies of a duplicated locus, and the
-exact base where LSC becomes IRa.
+One panel per junction — LSC/IRa and SSC/IRb — showing **3 kb of the single-copy region before the
+boundary and the whole IR copy after it**, with every gene whose span falls in it, drawn on its own
+strand. The whole IR is shown because the question the figure answers is not only where the
+junction is: it is which genes straddle it and which loci are duplicated across the copy, and a
+3 kb slice would cut the duplicated loci that sit further inside the IR. The panel width therefore
+varies with the IR's length (15–47 kb over the 80-record panel), so the figure's physical width
+grows with the window rather than squeezing a 46 kb panel into the same 7.4 inches.
 
 Everything is drawn in the **normalized** frame (LSC → IRa → SSC → IRb, the frame ``structure``
 exports), so the genes — which ``genome_stats`` exports in the GenBank frame — are converted with
-the rotation offset the summary reports. The figure reads no sequence: no module stores one in the
-run directory, so a junction diagram drawn from a run directory alone can only be made of spans.
+the rotation offset the summary reports. A feature's parts come from the genes table's
+``segments`` cell: a gene annotated across the record origin is drawn as its parts, not as the
+whole-genome arc its outer bounds would give, and a part that crosses the normalized origin is
+split again. The figure reads no sequence: no module stores one in the run directory, so a junction
+diagram drawn from a run directory alone can only be made of spans.
 """
 
 from __future__ import annotations
@@ -18,11 +24,19 @@ from dataclasses import dataclass
 from typing import Any
 
 from plastid.result.figure import THEME, Figure, FigureSpec, export_figure
+from plastid.result.figures.cells import gene_segments
 from plastid.result.figures.frames import Frame
 from plastid.result.result import Result
 
 _TYPED_KINDS = ("CDS", "tRNA", "rRNA")
-_WINDOW_BP = 3000  # how much of each side of a boundary the panel shows
+# How much of the single-copy region the panel shows before the boundary. The other side is the
+# whole IR copy, so the window is `_SINGLE_COPY_CONTEXT_BP + IR length`, not `2 * _SINGLE_COPY_...`.
+_SINGLE_COPY_CONTEXT_BP = 3000
+_BASE_WIDTH_IN = 7.4  # the figure width while the window fits in _BASE_WINDOW_BP
+_BASE_WINDOW_BP = 30_000
+_WIDTH_PER_10KB_IN = 1.0  # one extra inch per 10 kb of window above the base
+_MAX_WIDTH_IN = 10.0
+_PANEL_HEIGHT_IN = 4.6
 _LANES = {"+": 1.0, "-": 0.0}
 _GENE_COLOURS = {"CDS": "#2f5d8a", "tRNA": "#b4472e", "rRNA": "#3f7d52"}
 
@@ -88,7 +102,12 @@ def series(results: Mapping[str, Result]) -> JunctionSeries:
         )
         for row in stats.tables["genes"].rows
         if row["kind"] in _TYPED_KINDS
-        for start, end in frame.span_to_normalized(row["start_1b"], row["end_1b"])
+        # A feature annotated across the record origin has no single linear interval; its outer
+        # bounds are the whole genome, and drawing those would fill the panel. Each part is
+        # placed where the annotation says it is, then split again if it crosses the
+        # *normalized* origin (M11.7).
+        for segment_start, segment_end in gene_segments(row)
+        for start, end in frame.span_to_normalized(segment_start, segment_end)
     ]
     regions = {row["region"]: row for row in structure.tables["regions"].rows}
     junctions: list[Junction] = []
@@ -96,7 +115,9 @@ def series(results: Mapping[str, Result]) -> JunctionSeries:
         if left not in regions or right not in regions:
             raise ValueError(f"ir_junction: the region table has no {left!r}/{right!r} pair")
         boundary = regions[right]["start_1b"]
-        start = max(1, boundary - _WINDOW_BP)
+        # 3 kb of the single-copy region, never reaching back past that region's own start; the
+        # right side is the whole IR copy, which is what makes the duplicated loci visible.
+        start = max(regions[left]["start_1b"], boundary - _SINGLE_COPY_CONTEXT_BP)
         end = min(frame.length_bp, regions[right]["end_1b"])
         shown = []
         for gene in genes:
@@ -130,10 +151,30 @@ def series(results: Mapping[str, Result]) -> JunctionSeries:
 
 
 def caption(data: JunctionSeries) -> str:
+    """State the rule the panels actually use, and every panel's own width.
+
+    Measured 28/10/2026: the old caption said "±3000 bp" while the code showed the whole IR copy —
+    29,214 bp on the golden genome. A caption is a claim; it names the window each panel got.
+    """
+    widths = " / ".join(
+        f"{junction.window_end_1b - junction.window_start_1b + 1:,}" for junction in data.junctions
+    )
     return (
         f"IR junctions — {data.organism} ({data.accession}) · "
-        f"±{_WINDOW_BP} bp shown · {data.n_genes} gene spans in the two windows"
+        f"{_SINGLE_COPY_CONTEXT_BP:,} bp of the single-copy region + the whole IR copy · "
+        f"windows {widths} bp · {data.n_genes} gene spans in the two windows"
     )
+
+
+def _figure_width(window_bp: int) -> float:
+    """The physical width for the widest panel: one inch per extra 10 kb above the base (M11.7).
+
+    A 3 kb + whole-IR window is 15–47 kb over the 80-record panel. At one fixed 7.4 in the largest
+    record draws 6.3 kb per inch and its gene labels collide; widening the figure keeps the gene
+    density roughly constant. The cap keeps a pathological IR from producing an unprintable page.
+    """
+    extra = max(0, window_bp - _BASE_WINDOW_BP) / 10_000
+    return min(_MAX_WIDTH_IN, _BASE_WIDTH_IN + extra * _WIDTH_PER_10KB_IN)
 
 
 def _build(data: JunctionSeries, title: str) -> Any:
@@ -180,7 +221,7 @@ def _build(data: JunctionSeries, title: str) -> Any:
                     length,
                     0,
                     head_width=0.18,
-                    head_length=min(length * 0.4, _WINDOW_BP * 0.12),
+                    head_length=min(length * 0.4, _SINGLE_COPY_CONTEXT_BP * 0.12),
                     length_includes_head=True,
                     linewidth=0,
                     color=_GENE_COLOURS[gene.kind],
@@ -210,6 +251,9 @@ def _build(data: JunctionSeries, title: str) -> Any:
 def build(results: Mapping[str, Result]) -> Figure:
     data = series(results)
     text = caption(data)
+    widest = max(
+        junction.window_end_1b - junction.window_start_1b + 1 for junction in data.junctions
+    )
     return export_figure(
         figure_id="ir_junction",
         title=text,
@@ -220,7 +264,7 @@ def build(results: Mapping[str, Result]) -> Figure:
             "structure.structure_summary",
         ),
         build=_build(data, text),
-        figsize=(7.4, 4.6),
+        figsize=(_figure_width(widest), _PANEL_HEIGHT_IN),
     )
 
 

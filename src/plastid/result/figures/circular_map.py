@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from plastid.result.figure import THEME, Figure, FigureSpec, export_figure
+from plastid.result.figures.cells import gene_segments
 from plastid.result.figures.frames import Frame
 from plastid.result.result import Result
 
@@ -105,16 +106,19 @@ def series(results: Mapping[str, Result]) -> CircularMapSeries:
         length_bp=summary.value("length_bp"),
         rotation_offset=structure.tables["structure_summary"].value("rotation_offset"),
     )
+    typed_rows = [row for row in stats.tables["genes"].rows if row["kind"] in _TYPED_KINDS]
     typed = [
         Gene(
             name=row["name"],
             kind=row["kind"],
-            start_1b=row["start_1b"],
-            end_1b=row["end_1b"],
+            start_1b=start,
+            end_1b=end,
             strand=row["strand"],
         )
-        for row in stats.tables["genes"].rows
-        if row["kind"] in _TYPED_KINDS
+        for row in typed_rows
+        # One arc per part: a feature annotated across the record origin has no single linear
+        # interval, and its outer bounds would draw one arc the long way round (M11.7).
+        for start, end in gene_segments(row)
     ]
     regions: list[RegionArc] = []
     for row in structure.tables["regions"].rows:
@@ -142,7 +146,7 @@ def series(results: Mapping[str, Result]) -> CircularMapSeries:
             )
             for row in structure.tables["gc_skew_windows"].rows
         ),
-        n_gene_features_skipped=len(stats.tables["genes"].rows) - len(typed),
+        n_gene_features_skipped=len(stats.tables["genes"].rows) - len(typed_rows),
     )
 
 
