@@ -72,15 +72,20 @@ from plastid.run.context import RunContext
 from plastid.run.params import ParamValueError
 
 MODULE_ID = "phylogeny"
-# 0.4.0 (28/10/2026): `matrix=cds|introns|igs` — one tree per matrix type, as CGAS module 14
-# offers; the default is still the CDS supermatrix and every earlier number is unchanged.
-MODULE_VERSION = "0.4.0"
+# 0.5.0 (28/10/2026): `macse_timeout` — the 34-genome measurement found one gene over the old
+# fixed 600 s. 0.4.0 added `matrix=cds|introns|igs`; the default is the CDS supermatrix and every
+# earlier number is unchanged.
+MODULE_VERSION = "0.5.0"
 
 DEFAULT_THREADS = "1"
 DEFAULT_SEED = 1
 PARTITION_MODES = ("none", "gene", "codon")
 MATRIX_MODES = ("cds", "introns", "igs")
 DEFAULT_MATRIX = "cds"
+# Seconds allowed for one MACSE call. Measured 28/10/2026 on 34 genomes: 62 genes finished at
+# ~63 s each, then one gene exceeded 600 s and the run failed — the default is enough for a panel
+# of four, not for a full family, so it is a parameter and the failure names the value.
+MACSE_TIMEOUT = 600
 ALIGNERS = ("mafft", "macse")
 
 
@@ -129,6 +134,11 @@ ALIGNERS = ("mafft", "macse")
         ),
         ParamSpec("macse", "str", "path to macse_v2.07.jar or the `macse` wrapper"),
         ParamSpec(
+            "macse_timeout",
+            "int",
+            "seconds allowed per gene for MACSE (default 600; a 34-genome matrix needs more)",
+        ),
+        ParamSpec(
             "ir_source",
             "str",
             "annotation or sequence: which IR path matrix=introns/igs reads (M11.17)",
@@ -163,10 +173,20 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             )
         # Resolved once, before the gene loop: a missing jar or an unpinned release fails here
         # rather than after the first gene has been aligned.
+        macse_timeout = int(params.get("macse_timeout", MACSE_TIMEOUT))
+        if macse_timeout < 1:
+            raise ParamValueError(
+                f"phylogeny: macse_timeout must be at least 1 second, got {macse_timeout}"
+            )
         macse_binary = resolve_macse(params.get("macse"))
     elif "macse" in params:
         raise ParamValueError(
             "phylogeny: macse=… has no effect with aligner=mafft — pass aligner=macse to use it"
+        )
+    elif "macse_timeout" in params:
+        raise ParamValueError(
+            "phylogeny: macse_timeout=… has no effect with aligner=mafft — pass aligner=macse "
+            "to use it"
         )
 
     units: dict[str, dict[str, str]] = {}
@@ -212,7 +232,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             )
             continue
         if macse_binary is not None:
-            alignment = align_cds(carriers, ctx, binary=macse_binary)
+            alignment = align_cds(carriers, ctx, binary=macse_binary, timeout=macse_timeout)
         else:
             alignment = align(carriers, ctx, strategy=str(params.get("mafft_strategy", "auto")))
         gene_alignments[name] = alignment
@@ -396,7 +416,7 @@ def _unit_word(mode: str) -> str:
     return {"cds": "gene", "introns": "intron", "igs": "spacer"}[mode]
 
 
-def _span_loci(genome: Genome, key: str, mode: str, params: dict[str, Any]) -> dict[str, str]:
+def _span_loci(genome: Genome, mode: str, params: dict[str, Any]) -> dict[str, str]:
     """The intron or intergenic-spacer sequences of one genome, keyed by a comparable locus id.
 
     The ids come from `core.spans`, the one derivation the `introns`/`diversity` tables use, so a

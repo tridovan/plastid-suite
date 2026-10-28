@@ -238,8 +238,9 @@ def test_macse_is_opt_in_and_replaces_the_mafft_call(tmp_path: Path, monkeypatch
         used["explicit"] = explicit
         return MacseBinary(argv_prefix=("macse",), version="2.07")
 
-    def fake_align_cds(rows, ctx, *, binary):
+    def fake_align_cds(rows, ctx, *, binary, timeout=600):
         used["macse_rows"] = len(rows)
+        used["timeout"] = timeout
         return Alignment(
             names=tuple(name for name, _ in rows),
             sequences=tuple(sequence for _, sequence in rows),
@@ -259,6 +260,15 @@ def test_macse_is_opt_in_and_replaces_the_mafft_call(tmp_path: Path, monkeypatch
     result = phylo.run(_synthetic_genomes(), {"aligner": "macse"}, _phylogeny_ctx(tmp_path))
 
     assert used["macse_rows"] == 3
+    assert used["timeout"] == 600  # the adapter's default when the user asks for nothing
+
+    # The 34-genome measurement (28/10/2026) failed on a gene over 600 s; the door exists.
+    phylo.run(
+        _synthetic_genomes(),
+        {"aligner": "macse", "macse_timeout": 1800},
+        _phylogeny_ctx(tmp_path / "long"),
+    )
+    assert used["timeout"] == 1800
     assert result.tables["phylogeny_summary"].value("aligner") == "macse 2.07"
     assert "MACSE 2.07" in result.tables["phylogeny_summary"].scope.label
 
@@ -268,6 +278,7 @@ def test_macse_is_opt_in_and_replaces_the_mafft_call(tmp_path: Path, monkeypatch
     [
         ({"aligner": "clustal"}, "not one of mafft, macse"),
         ({"aligner": "macse", "mafft_strategy": "einsi"}, "mafft_strategy has no effect"),
+        ({"aligner": "macse", "macse_timeout": 0}, "at least 1 second"),
         ({"macse": "/tmp/macse.jar"}, "has no effect with aligner=mafft"),
     ],
 )
