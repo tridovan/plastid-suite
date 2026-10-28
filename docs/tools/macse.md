@@ -60,7 +60,15 @@ stated in the run's scope label ("`!` and `*` read as gaps") and in
 **Measured on this machine, 28/10/2026** (`NC_008641.1`, `NC_016708.2`, `NC_028027.1`,
 `NC_016736.1`; one gene, `rbcL`, 1,428–1,443 bp): **7.5 s**, exit 0, output alphabet `-ACGT`,
 trailing gaps pad the shorter records. That is one gene; a full 4-genome run is **78 genes**, so
-expect minutes, not seconds. The 34-genome scale has **not** been timed with MACSE.
+expect minutes, not seconds.
+
+**Measured at 34 genomes, 28–29/10/2026** (34-record Iridaceae panel): with the default 600 s
+per-gene limit the run stopped at gene 63 — 62 genes had taken ~63 s each and one exceeded the
+limit (`TimeoutExpired`, manifest `failed`). With `--set macse_timeout=3600` the same run
+**completed**: 78 CDS blocks, **70,131 sites**, MACSE **2 h 06**, IQ-TREE **4 min 52 s**, total
+**2 h 11** on this machine, tree with mostly 100/100 support. The four-genome panel takes 22:55
+for 70,110 sites, so the cost is the number of taxa (≈5.5×), not the number of sites. A
+family-scale matrix needs `macse_timeout` above the 600 s default.
 
 **Not vendored, deliberately:** a Java jar under CeCILL 2.1, obtained by the user — the same
 reasoning as MUMmer, BLAST+ and IQ-TREE.

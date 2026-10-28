@@ -29,6 +29,24 @@ gate), then the follow-up items. Each has its evidence record under `.dev/record
   partitions** against PTS's 70,110 / 234 codon partitions, support **99.2/97** against **100/100**.
   The 9-site and support differences are unexplained and no PTS number moved; non-comparable cells
   are named in the record.
+- **M11.20 (closed)** — the last hard-coded tool parameters are doors: `plastid_annotate.max_hsps`,
+  `gene_normalize.evalue/max_hsps`, `kaks.yn00_icode/yn00_weighting` (the ctl is written from the
+  values, not a constant). Out-of-range values are refused before the tool; the values used are
+  named in the scope or the notes. No default changed.
+- **M11.21 (closed for the product)** — `phylogeny --set matrix=cds|introns|igs` builds the CDS
+  matrix (default, unchanged) or a matrix from the intron / intergenic-spacer loci
+  `core.spans` derives, keyed by canonical gene name; the IR gate runs per genome because a span
+  boundary is a coordinate, and `aligner=macse` is refused for a matrix with no reading frame.
+  Measured on the 4-report panel: intron matrix + tree in **12.4 s**. CGAS can still concatenate
+  the three matrices in one run (`matrix=all` remains open).
+- **34-genome MACSE (M11.21, measurement only)** — the first run **failed**: 62 of 78 genes
+  finished at ~63 s each (65 min), then gene 63 exceeded the adapter's fixed 600 s and the run
+  stopped with `TimeoutExpired`. That is a product limit, not bad data, so `phylogeny` now takes
+  `macse_timeout` (seconds per gene, default 600, validated before the jar is resolved; refused
+  with `aligner=mafft`). The second run (`macse_timeout=3600`) **completed**: 34 genomes,
+  **78 CDS blocks, 70,131 sites**; MACSE 2 h 06, IQ-TREE 4 min 52 s, total **2 h 11**; tree with
+  mostly 100/100 support. MACSE at 34 taxa costs ~5.5× the four-genome run for the same number of
+  sites, so the cost is taxa, not sites.
 - **M11.17** — completed for the requested modules. `tests/golden/test_m11_17_rotated_cases.py`
   runs `structure` on all 30 unannotated rotated FASTA (identical region table across five
   rotations, exact tiling, and de-novo IR/origin reproducing `EXPECTED.tsv` within 2 bp).
