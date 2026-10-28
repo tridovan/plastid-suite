@@ -1,12 +1,12 @@
 # Known correctness and integration issues
 
-These issues were reproduced during the 26 October 2026 review. **K-01, K-02, K-03, K-04, K-05
-and K-06 are fixed.** Documenting a defect did not fix it, and a fixed entry says which test now
-holds it. **K-07 is open** (found by the M11.8 acceptance run on 28/10/2026) and its regression is
-a strict `xfail`, so the defect is recorded and cannot quietly disappear; **K-08 is fixed** in the
-same run. The code version is `1.0.0`; that version label does not establish readiness for
-scientific use. The "observed" columns below are the review's before-fix measurements; they are
-kept as the reproduction record, not as current behaviour.
+These issues were reproduced during the 26 October 2026 review. **K-01, K-02, K-03, K-04, K-05,
+K-06, K-07 and K-08 are fixed.** Documenting a defect did not fix it, and a fixed entry says which
+test now holds it. **K-07 was found by the M11.8 acceptance run on 28/10/2026 and fixed on the
+same day**; its regression is now a positive test, not an `xfail`. The code version is `1.0.0`;
+that version label does not establish readiness for scientific use. The "observed" columns below
+are the review's before-fix measurements; they are kept as the reproduction record, not as current
+behaviour.
 
 Coordinates below are 0-based half-open unless a GenBank position is explicitly stated. The pinned
 fixture is [NC_050833.1.gb](../tests/data/NC_050833.1.gb); its provenance and checksum are in
@@ -126,68 +126,87 @@ outgroup is chosen unless the run names them, and the neutral default is a midpo
 Sources: [CLI](../src/plastid/cli.py), [adapter](../src/plastid/external/rscript.py),
 [script](../src/plastid/data/r_scripts/R_F9_phylogeny_tree.R).
 
-## K-07 — One indel base inside an IR copy can halve the de-novo repeat and still pass the gate — **open (found in M11.8, 28/10/2026)**
+## K-07 — One indel base inside an IR copy can halve the de-novo repeat and still pass the gate — **fixed (M11.8, 28/10/2026)**
 
 Reproduced while running the acceptance of the synthetic IR panel, not by reading code. The inputs
 are a record's own annotated copies plus a single-base edit, so the expected answer is arithmetic:
 
-| Input | Detector chose | Expected |
+| Input | Detector chose before the fix | Expected |
 |---|---|---|
 | `NC_028027.1` unedited, annotation removed | 25,195 bp @ 100 % | 25,195 bp (correct) |
 | the same sequence, one base deleted from copy B's middle | **12,598 bp @ 100 %, gate passed** | 25,194 bp |
 | `NC_008641.1`, one base inserted in copy B | **12,796 bp @ 100 %, gate passed** | 25,591 bp |
 | `NC_016708.2`, one base deleted from copy B | **12,765 bp @ 100 %, gate passed** | 25,527 bp |
+
 **Mechanism, measured.** The repeat's 20-mer anchors fall on two mirror diagonals (84,124 and
-84,125 for `NC_028027.1`). `_mirror_chains` builds a run on each and then chains runs only where
-the gap in *both* copies is between 0 and `IR_ALIGN_GAP_BP`; across the indel one copy's gap is
-`-1`, so the two halves never join. Each half is a ~12.6 kb run at 100 % identity, which is above
+84,125 for `NC_028027.1`). `_mirror_chains` built a run on each and then chained runs only where
+the gap in *both* copies was between 0 and `IR_ALIGN_GAP_BP`; across the indel one copy's gap is
+`-1`, so the two halves never joined. Each half was a ~12.6 kb run at 100 % identity, above
 `_DENOVO_LENGTH_WINDOW[0]` = 10,000 and far above `_DENOVO_MIN_IDENTITY` = 0.95, so the detector
-returns it as a valid IR and `enforce_ir_gate` accepts it.
+returned it as a valid IR and `enforce_ir_gate` accepted it.
 
-**What a user sees.** A run on such a sequence succeeds (exit 0): `genome_stats` reports `IR (bp)
-12598 · IR identity 100.00 · IR source denovo_diag`, `structure` splits LSC/IRa/SSC/IRb at the
-wrong coordinates, and every position-based module downstream builds on that. Nothing in the
-output is marked uncertain. This is the K-01 family ("a record-shape change moves the IR"),
-reached from the de-novo path.
+**What a user saw.** A run on such a sequence succeeded (exit 0): `genome_stats` reported `IR (bp)
+12598 · IR identity 100.00 · IR source denovo_diag`, `structure` split LSC/IRa/SSC/IRb at the
+wrong coordinates, and every position-based module downstream built on that. Nothing in the
+output was marked uncertain.
 
-**How often.** Not rare enough to dismiss and not universal: deleting one base at 22 positions
-spread through `NC_028027.1`'s copy B gave the full length at 17 positions and a halved length at
-5. It needs the indel to land where the two diagonals both carry long runs; the exact rate on
-other records is not measured.
+**The fix, and why it is a rule rather than a threshold.** Adjacent runs at an indel **overlap**,
+and must: both are seeded by the same 20-mer anchors, so the run before a one-base indel and the
+run after it each cover the 19 seed bases around it. This is not new knowledge in this repository
+— `_anchor_chain`, on the alignment path, already states it and was measured on `NC_065154.1` and
+`NC_036733.1`. The de-novo chain builder had never been given the same rule; K-07 is what that cost.
+The chain now:
 
-**Why it is not fixed in M11.8.** M11.8 is acceptance, and the obvious repair was measured before
-being rejected: allowing a small negative gap in the chain fixes `NC_028027.1` but makes
-`NC_057683.1` (previously no de-novo result at all) return a 12,838 bp half-repeat that passes, and
-moves `NC_068894.1` from 22,652 to 25,121 bp. A correct fix has to choose between overlapping
-candidate pairs — i.e. it needs a validity rule for "which pair is the repeat", not a gap-sign
-change. That is detector design and belongs to the IR milestone (M11.3/M11.4's successor), not to
-this one.
+* allows a positive gap up to `IR_ALIGN_GAP_BP` (real divergence between runs);
+* allows a negative gap unless **neither run lies wholly inside the other** (a contained run adds
+  no coverage and makes the segment between the real runs look like a gap);
+* is scored by the **bases it covers in each copy**, not by the sum of run lengths, so an overlap
+  is not counted twice.
 
-**Two more candidate rules were measured on 28/10/2026 and both failed, so the next attempt does not
-have to repeat them.** Each was tested on the collapsing edits and on intact records:
+No new constant. The overlap bound is the seed length, which the detector already had.
 
-| Candidate rule | What was measured | Why it fails |
+**Measured after the fix** (same four datasets the acceptance used):
+
+| Configuration | 80 source | 30 rotated | 24 synthetic | 132 indel cases | golden de-novo |
+|---|---|---|---|---|---|
+| before (non-overlap, sum of runs) | 47 | 30 | 22 | **66** | 26,214 |
+| after (overlap-aware, covered bases) | **50** | 30 | **24** | **132** | 26,214 |
+
+Two de-novo cross-check values move, both toward the record's own annotation rather than away from
+it: `NC_063920.1` 23,446 → 26,161 bp (the chain used to stop at its first internal gap; the pair
+re-measures 26,149/26,164 = 0.999427 over the annotation's own interval), and `NC_068894.1`
+22,652 → 25,121 bp. The second is a disagreement with the deposited annotation: the extra 3,068 bp
+match at 99.61 % (9 mismatches), the same shape as `NC_016736.1` in §4 of the M11.8 record, so the
+annotation is one region short and the sequence is right. Both changes are pinned in
+`tests/unit/test_ir.py` with that evidence.
+
+**Still unexplained after the fix — not assigned to either side.** 50 of 80 source records agree
+with their annotation to within 2 bp. Of the rest, 27 differ from their annotation and 3 are
+refused; each was measured again on 28/10/2026 after correcting for `IRResult.frame_offset` (the
+de-novo result is in a frame rotated by up to 95 kb, so comparing it directly invented 20
+disagreements). The table states the evidence for each group.
+
+| Record(s) | Difference | Why it is not K-07 |
 |---|---|---|
-| The detected pair is **locally maximal**; a non-maximal half is truncated | Extending the half inward (A right, B left) by 1–12,000 bp never matched exactly, and extending it to ≥0.999 identity grew it by 0 bp on every case | The half really is a maximal exact pair in its own neighbourhood; this rule cannot see the missing part |
-| A truncated pair **grows inward while identity stays ≥ 0.99**; a true pair meets single-copy sequence and stops | Both directions, steps of 100–6,400 bp, threshold 0.999: **inner = 0, outer = 0 on every case**, intact and collapsing alike | Direction and continuity differ per record: `NC_016708.2`'s half is the *inner* half (its complement is outward), so no single growth direction separates them |
+| 20 boundary-only records | ±3…±25 bp at a boundary | both pairs pass the gate and the gene content is identical; the annotation and the maximal exact pair define the start differently, and neither side has independent evidence — unexplained |
+| `NC_051501.1`, `NC_057284.1` | ±4 / +16 bp | **both** pairs fail the gate: the record's own copies are below 99.9 % identical, so the boundary difference is not the finding |
+| `NC_068894.1` | +3,065 bp | **annotation short**: the extra 3,068 bp match at 99.61 % (9 mismatches) and carry `rpl2`, `rpl23`, `trnM-CAU`, `ycf2`, each already duplicated. User review of this data-side conclusion is still pending |
+| `NC_053322.1` | +5,665 bp | **annotation short**: the extra region carries `rrn23`, `rrn4.5`, `rrn5`, `trnN-GUU`, `trnR-ACG`, and each is annotated **twice**, once just outside each annotated copy; the 25,032 bp pair passes the gate. This corrects the earlier "annotation is right" reading |
+| `NC_047284.1`, `NC_057488.1`, `NC_068463.1` | +368 / +137 / +44 bp | the longer de-novo pair **fails the gate** — the detector is rejected by its own identity/evidence floor; the annotation stands |
+| `NC_058334.1` | +553 bp | the de-novo pair fails the gate **and** swallows `trnN-GUU`, a single-copy gene; annotation stands |
+| `NC_045310.1` | +90 bp | both pairs pass the gate, no gene-content change, no independent evidence — unexplained |
+| `NC_026134.2`, `NC_062826.1` | de-novo refuses (None) | their IRs are 38.2 kb and 43.6 kb, outside the 10–35 kb validity window — a named refusal, not a wrong answer; whether the window should widen for large-IR families is a separate design decision |
+| `NC_084414.1` | 94.36 % identity | the deposited pair is genuinely divergent; the gate refuses it correctly |
 
-The second measurement is the important one: the failure is not "the code looks the wrong way". On
-`NC_057683.1` the 12,838 bp half reaches **0.999689** while the true pair is only **0.997342** —
-the truncated candidate is *more* repeat-like than the real one, so any rule that ranks candidates
-by identity or length picks the wrong pair. A correct rule has to use the record's structure (two
-copies of a repeat leave exactly two single-copy arcs of a consistent circlome), which is the
-detector redesign this entry already says it needs.
+**Held by** `tests/unit/test_ir_indel_collapse.py`: two positive cases (delete and insert, one base
+in copy B's middle) with the arithmetic expectation, a control that the unedited record still
+detects its full IR, and a case through `detect_ir` — the entry point a run uses — asserting the
+result is the full repeat and passes the gate. The test needs the pinned panel and skips with a
+named reason without it.
 
-**Held by** `tests/unit/test_ir_indel_collapse.py`: one strict `xfail` that fails if the defect
-disappears without the entry being updated, plus two passing tests that (a) confirm the unedited
-record still detects its full IR, so the xfail cannot be passing for an unrelated reason, and
-(b) confirm the halved pair is accepted by `detect_ir`, which is the entry point the CLI uses.
-The test needs the pinned panel and skips with a named reason without it.
-
-**Not claimed.** The annotation path is unaffected — it never runs this search, and every panel
-record with an annotation is measured from its annotated copies. The defect reaches users through
-a bare FASTA (the route `plastid annotate` and `plastid run` accept) and through any record whose
-annotation is absent or unusable.
+**Not claimed.** The annotation path never ran this search and is unaffected. The fixed path is the
+one that reaches users through a bare FASTA (the route `plastid annotate` and `plastid run` accept)
+and through any record whose annotation is absent or unusable.
 
 Sources: [de-novo detector](../src/plastid/core/ir.py) (`_mirror_chains`, `_chain_geometry`,
 `_scan_linear`), [regression](../tests/unit/test_ir_indel_collapse.py).

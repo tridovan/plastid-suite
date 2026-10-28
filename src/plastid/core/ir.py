@@ -810,6 +810,24 @@ def _mirror_chains(sequence: str, mirror: str) -> list[tuple[int, int, int]]:
     Coordinates are ``(position in the sequence, position in the reverse complement, length)``.
     A chain follows a SNP on the same diagonal and a small indel onto a neighbouring diagonal; it
     stops when the next anchor is further than :data:`IR_ALIGN_GAP_BP` away in either copy.
+
+    Adjacent runs **overlap** at an indel, and the chain has to allow it. Both runs are seeded by
+    the same 20-mer anchors, so the run before the indel and the run after it each cover the seed
+    bases around it; a one-base indel therefore leaves a net overlap of ``_KMER - 1`` between the
+    two runs, on both mirror diagonals. Three properties follow, and they are the rule:
+
+    * a positive gap is allowed up to :data:`IR_ALIGN_GAP_BP` (real divergence between runs);
+    * a negative gap — an overlap — is allowed as long as **neither run lies wholly inside the
+      other**; a contained run adds no coverage and would make the segment between the two real
+      runs look like a gap;
+    * the chain's score is the **bases it covers in each copy**, not the sum of run lengths, so an
+      overlap is not counted twice.
+
+    This is the same rule :func:`_anchor_chain` already applies on the alignment path, measured
+    there on NC_065154.1 and NC_036733.1. Requiring ``0 <= gap`` here made the chain keep one half
+    of a repeat split by a single-base indel: measured on the panel, a 1 bp insertion or deletion
+    inside one copy left the detector returning half the repeat at 100 %, which the 10 kb floor
+    accepted as a valid IR (K-07).
     """
     length = len(sequence)
     index = _index_kmers(sequence, _KMER)
@@ -851,23 +869,34 @@ def _mirror_chains(sequence: str, mirror: str) -> list[tuple[int, int, int]]:
     runs.sort()
     if not runs:
         return []
-    # Chain runs whose positions increase and whose gaps are small enough to be one repeat. The
-    # gap limit is what stops the chain at real divergence instead of extending on a global ratio.
-    best = [run[2] for run in runs]
-    previous_run: list[int] = [-1] * len(runs)
+    # Longest chain scored by covered bases, not by the sum of run lengths: runs that overlap at an
+    # indel would otherwise be counted twice, and a chain would prefer two overlapping runs to one
+    # long exact run. `covered` holds the bases covered in each copy, and the score is the smaller
+    # of the two, because a chain is only as long as the copy that covers less of it.
+    count = len(runs)
+    score = [run[2] for run in runs]
+    covered_a = [run[2] for run in runs]
+    covered_b = [run[2] for run in runs]
+    previous_run: list[int] = [-1] * count
     for i, (ai, bi, li) in enumerate(runs):
         for j in range(i):
             aj, bj, lj = runs[j]
             a_gap = ai - (aj + lj)
             b_gap = bi - (bj + lj)
-            if (
-                0 <= a_gap <= IR_ALIGN_GAP_BP
-                and 0 <= b_gap <= IR_ALIGN_GAP_BP
-                and best[j] + li > best[i]
-            ):
-                best[i] = best[j] + li
+            # A run swallowed whole by its predecessor contributes no coverage; a gap wider than
+            # the anchor limit is real divergence, not one repeat.
+            if a_gap <= -li or a_gap <= -lj or b_gap <= -li or b_gap <= -lj:
+                continue
+            if a_gap > IR_ALIGN_GAP_BP or b_gap > IR_ALIGN_GAP_BP:
+                continue
+            new_a = covered_a[j] + li - max(0, -a_gap)
+            new_b = covered_b[j] + li - max(0, -b_gap)
+            new_score = min(new_a, new_b)
+            if new_score > score[i]:
+                score[i] = new_score
+                covered_a[i], covered_b[i] = new_a, new_b
                 previous_run[i] = j
-    end = max(range(len(runs)), key=lambda index: best[index])
+    end = max(range(count), key=lambda index: score[index])
     chain: list[tuple[int, int, int]] = []
     while end != -1:
         chain.append(runs[end])
