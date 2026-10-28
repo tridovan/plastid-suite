@@ -29,7 +29,7 @@ from plastid.core.submission import (
     to_fasta,
     to_tbl,
 )
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.layout import slugify
@@ -89,7 +89,12 @@ _TOOL_REPORTS = ("val", "stats", "dr")
     group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="NCBI submission files",
-    requires_ir=False,  # writing features is not a position-based analysis
+    requires_ir=False,  # writing features is not a position-based analysis,
+    params=(
+        ParamSpec("sqn", "bool", "also run table2asn to produce a .sqn (needs template=)"),
+        ParamSpec("table2asn", "str", "path to the table2asn binary"),
+        ParamSpec("template", "str", "path to the submitter template (.sbt) the .sqn step needs"),
+    ),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     seq_id = genome.accession or slugify(genome.name)

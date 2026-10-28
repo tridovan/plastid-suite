@@ -32,7 +32,7 @@ from plastid.core.model import Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
 from plastid.core.popgen import fst_gst, summarise
 from plastid.external.mafft import align
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -48,6 +48,14 @@ MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs
     requires_ir=False,  # gene-based; the mito half of the phase has no IR to gate on
     arity=2,
     citations=("mafft",),
+    params=(
+        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+        ParamSpec(
+            "mafft_strategy",
+            "str",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+        ),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     labels: dict[str, str] = dict(params.get("groups") or {})
@@ -87,7 +95,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             skipped.append(name)
             continue
         alignment = align(
-            [(key, coding_sequence(genome, gene)) for key, genome, gene in carriers], ctx
+            [(key, coding_sequence(genome, gene)) for key, genome, gene in carriers],
+            ctx,
+            strategy=str(params.get("mafft_strategy", "auto")),
         )
         aligned_genes += 1
         analysed.add(name)

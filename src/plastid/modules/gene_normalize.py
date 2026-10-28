@@ -61,7 +61,7 @@ from plastid.core.gene_names import (
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
 from plastid.core.model import GENE_KINDS, Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_PLASTID
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -91,7 +91,15 @@ _NUCLEOTIDE_CANDIDATES = 8
     title="Reference-driven gene naming (A/B pairing)",
     requires_ir=False,  # names are not a position-based analysis; the IR frame only feeds test 4
     arity=2,  # the naming reference plus at least one record to normalize
-    reference_param="naming_reference",  # D5-09: recorded, not spelled `reference`
+    reference_param="naming_reference",  # D5-09: recorded, not spelled `reference`,
+    params=(
+        ParamSpec("mode", "str", "normalize (rename to the reference) or verify (report only)"),
+        ParamSpec(
+            "on_conflict", "str", "stop or report when the data disagrees with the naming reference"
+        ),
+        ParamSpec("ir_source", "str", "annotation or sequence: which IR path the step reads"),
+        ParamSpec("tools", "str", "directory holding blastp when it is not on PATH"),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     reference, records = genomes[0], tuple(genomes[1:])

@@ -16,14 +16,54 @@ from plastid.core.align import Alignment
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, tool_version, which
 
-__all__ = ["MAFFT_VERSION", "adjust_direction", "align", "parse_directions"]
+__all__ = [
+    "DEFAULT_STRATEGY",
+    "MAFFT_STRATEGIES",
+    "MAFFT_VERSION",
+    "adjust_direction",
+    "align",
+    "parse_directions",
+    "strategy_flag",
+]
 
 MAFFT_VERSION = "7.526"
 
+# The aligner's own entry points, by the name this toolkit gives each. `auto` is MAFFT's default
+# and the one every published number here was measured with; the rest are offered because a
+# divergence-rich panel can need a different algorithm, and a user who runs MAFFT by hand picks
+# one. Adding a strategy changes the alignment, so it travels in argv and in the column.
+MAFFT_STRATEGIES: dict[str, str] = {
+    "auto": "--auto",
+    "einsi": "--einsi",
+    "linsi": "--linsi",
+    "ginsi": "--ginsi",
+    "fftns": "--fftns",
+    "nwns": "--nwns",
+}
+DEFAULT_STRATEGY = "auto"
 
-def align(rows: Sequence[tuple[str, str]], ctx: RunContext) -> Alignment:
-    """Align ``(name, sequence)`` rows and return them in the order given."""
-    text = _run(rows, ctx, extra=())
+
+def strategy_flag(strategy: str) -> str:
+    """The MAFFT flag for a strategy name, refused by name when it is not one of ours."""
+    try:
+        return MAFFT_STRATEGIES[strategy]
+    except KeyError:
+        raise ValueError(
+            f"mafft: unknown strategy {strategy!r} — choose one of "
+            f"{', '.join(sorted(MAFFT_STRATEGIES))}"
+        ) from None
+
+
+def align(
+    rows: Sequence[tuple[str, str]], ctx: RunContext, *, strategy: str = DEFAULT_STRATEGY
+) -> Alignment:
+    """Align ``(name, sequence)`` rows and return them in the order given.
+
+    ``strategy`` selects MAFFT's algorithm (M11.20). The default is ``auto``, which is what every
+    number in this repository was measured with; anything else is a different alignment and must
+    say so — the module records it in the table's scope and the argv in the manifest.
+    """
+    text = _run(rows, ctx, extra=(), strategy=strategy)
     aligned = _parse_fasta(text)
     missing = [name for name, _ in rows if name not in aligned]
     if missing:
@@ -70,7 +110,13 @@ def parse_directions(text: str) -> dict[str, bool]:
     return directions
 
 
-def _run(rows: Sequence[tuple[str, str]], ctx: RunContext, *, extra: Sequence[str]) -> str:
+def _run(
+    rows: Sequence[tuple[str, str]],
+    ctx: RunContext,
+    *,
+    extra: Sequence[str],
+    strategy: str = DEFAULT_STRATEGY,
+) -> str:
     """One MAFFT call, through the tool door: a temp file in, its stdout out.
 
     Both callers need the same three things — the binary located and version-checked, the aligned
@@ -91,7 +137,7 @@ def _run(rows: Sequence[tuple[str, str]], ctx: RunContext, *, extra: Sequence[st
         fasta.write_text(_to_fasta(rows), encoding="utf-8")
         record = ctx.tool(
             "mafft",
-            [binary, "--auto", "--quiet", *extra, fasta.name],
+            [binary, strategy_flag(strategy), "--quiet", *extra, fasta.name],
             tool_path=binary,
             pinned_version=MAFFT_VERSION,
             cwd=workdir,

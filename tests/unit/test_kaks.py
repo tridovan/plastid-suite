@@ -63,7 +63,7 @@ def stubbed(monkeypatch):
     """Replace MAFFT, the two PAML entry points, and the version probe."""
     calls: list[tuple[str, str]] = []
 
-    def fake_align(rows, ctx):
+    def fake_align(rows, ctx, *, strategy="auto"):
         return Alignment(
             names=tuple(name for name, _ in rows), sequences=tuple(seq for _, seq in rows)
         )
@@ -148,7 +148,7 @@ def test_a_cds_that_is_not_whole_codons_is_reported_not_scored(tmp_path: Path, s
 def test_a_frameshifted_alignment_is_reported_not_scored(
     tmp_path: Path, stubbed, monkeypatch
 ) -> None:
-    def shifting_align(rows, ctx):
+    def shifting_align(rows, ctx, *, strategy="auto"):
         sequences = tuple(seq for _, seq in rows)
         return Alignment(
             names=tuple(name for name, _ in rows),

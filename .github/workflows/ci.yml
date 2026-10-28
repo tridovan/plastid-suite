@@ -4,9 +4,11 @@
 #     — pure Python over the vendored fixture. It needs no external tool and no network, so a
 #     broken golden number turns this build red on its own.
 #   * `golden-tier-b` installs the **pinned** tools the tool-dependent golden needs. Every pin
-#     below is the version `environment.yml` pins; an unpinned
-#     `conda install mafft` is not a shortcut — two MAFFT builds were measured giving two Ts/Tv
-#     numbers from one genome.
+#     below is a version the repository records: the runtime ones in `environment.yml`, Vmatch in
+#     `environment-check.yml` (M11.19 — it is a cross-check engine, not a module's dependency, and
+#     the tier-B job installs it on purpose because a check that skips proves nothing). An
+#     unpinned `conda install mafft` is not a shortcut — two MAFFT builds were measured giving two
+#     Ts/Tv numbers from one genome.
 #
 # `PTS_REQUIRE_TOOLS=1` in the tier-B job turns "tool missing" from a printed skip into a failure:
 # a green build that quietly skipped the tools would prove nothing. table2asn is the one tool that
@@ -58,6 +60,7 @@ jobs:
             python=3.12
             perl=5.32.1
             mafft=7.526
+            iqtree=2.3.6
             mummer4=4.0.1
             paml=4.10.10
             blast=2.17.0
@@ -72,6 +75,7 @@ jobs:
       - name: the pins, printed — a version nobody can read is not a pin
         run: |
           mafft --version
+          iqtree2 --version | head -1
           nucmer --version | head -1
           blastn -version | head -1
           aragorn -h 2>&1 | head -1

@@ -29,7 +29,7 @@ from plastid.core.codon import codon_counts, enc
 from plastid.core.gene_names import load_gene_aliases, normalize_name
 from plastid.core.model import Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -247,6 +247,11 @@ def _below(value: float | None, alpha: float) -> bool:
     title="Group comparison statistics",
     arity=2,
     citations=("biopython",),
+    params=(
+        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+        ParamSpec("alpha", "float", "significance level after FDR correction"),
+        ParamSpec("measures", "str", "which measurements the group comparison reads"),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict, ctx: RunContext) -> Result:
     groups = params.get("groups")

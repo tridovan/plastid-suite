@@ -34,7 +34,7 @@ from plastid.core.normalize import NormalizedFrame, normalize
 from plastid.core.organelle import GROUP_SHARED
 from plastid.core.spans import IntronSpan, SpacerSet, introns_of, spacers_of
 from plastid.external.mafft import align
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -53,13 +53,24 @@ DEFAULT_STEP_BP = 200
     requires_ir=True,
     arity=2,
     citations=("mafft",),
+    params=(
+        ParamSpec("window", "int", "sliding window length in bp"),
+        ParamSpec("step", "int", "window step in bp"),
+        ParamSpec(
+            "mafft_strategy",
+            "str",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+        ),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     window = int(params.get("window", DEFAULT_WINDOW_BP))
     step = int(params.get("step", DEFAULT_STEP_BP))
     reference = genomes[0]
     alignment = align(
-        [(genome.accession or genome.name, genome.sequence) for genome in genomes], ctx
+        [(genome.accession or genome.name, genome.sequence) for genome in genomes],
+        ctx,
+        strategy=str(params.get("mafft_strategy", "auto")),
     )
 
     whole_pi, usable = nucleotide_diversity(alignment, range(alignment.length))

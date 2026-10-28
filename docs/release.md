@@ -25,8 +25,11 @@ coverage merely because each component has some tests. Deferred branches are not
 ## The steps, in order
 
 1. **Decide the version**. It goes in `pyproject.toml`, `README.md`'s status line and
-   `CITATION.cff`. Check all three agree. Restoring the automated README/package version guard
-   removed during the documentation cleanup is pending; do not assume that guard currently runs.
+   `CITATION.cff`. Check all three agree — `tests/unit/test_product_docs.py` fails if the README
+   status line does not name the `pyproject.toml` version, and its `test_the_version_check_reports_a_mismatch`
+   runs the same predicate against a stale and an absent line, so the check is known to fail when
+   it should. The development-status classifier is a separate decision from the number: it is
+   `4 - Beta` while the correctness issues are open, and the README says so.
 2. **Decide the authors** — `CITATION.cff` currently names "PlastidToolSuite contributors"
    deliberately. A Zenodo deposit records its authors permanently, so the real list is fixed
    **before** step 5, by the team.

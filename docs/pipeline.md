@@ -206,7 +206,10 @@ current plastid development scope; their existing checks are kept.
    stale output that would mislead.
 5. A fresh wheel/checkout has a usable current-scope environment; a tool installed in the
    environment is not automatically an integrated feature. Tools/DBs of deferred branches must be
-   clearly classified.
+   clearly classified. **M11.19 has classified them**: [the tool inventory](tools/README.md) gives
+   every tool one role, `environment.yml` is the runtime scope only, and the minimum install
+   (biopython + PyYAML) was measured running the pure-Python modules from a freshly built wheel
+   ([platforms](platforms.md)).
 6. M4.5 still being open must appear in the whole-pipeline acceptance verdict. If a partial release
    is made before RNA editing is complete, the scope and the missing part must be clearly
    decided/announced; do not change "not built" to "deferred" just to close the pipeline. Assembly

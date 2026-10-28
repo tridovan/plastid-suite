@@ -29,7 +29,7 @@ from plastid.core.model import Genome, coding_sequence
 from plastid.core.normalize import normalize
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mafft import align
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -54,6 +54,17 @@ DEFAULT_SCOPE = "whole"
     requires_ir=True,
     arity=2,
     citations=("mafft",),
+    params=(
+        ParamSpec(
+            "scope", "str", "cds (shared annotated genes) or whole (the entire aligned plastome)"
+        ),
+        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+        ParamSpec(
+            "mafft_strategy",
+            "str",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+        ),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     reference = genomes[0]
@@ -64,7 +75,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         return _cds_scope(genomes, params, ctx)
 
     alignment = align(
-        [(genome.accession or genome.name, genome.sequence) for genome in genomes], ctx
+        [(genome.accession or genome.name, genome.sequence) for genome in genomes],
+        ctx,
+        strategy=str(params.get("mafft_strategy", "auto")),
     )
     # The CLI already chose the IR source for this run (annotation or the explicit
     # `ir_source=sequence`); re-detecting here would ignore that choice. A direct module call
@@ -290,7 +303,7 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
                 for genome, genes in annotated
             ],
         ]
-        alignment = align(rows, ctx)
+        alignment = align(rows, ctx, strategy=str(params.get("mafft_strategy", "auto")))
         counts = _zero_counts()
         for index in range(1, alignment.n_rows):
             # The counters now carry the twelve directed types as well as the two aggregates, and

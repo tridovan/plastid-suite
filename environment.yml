@@ -1,4 +1,4 @@
-# Tool-equipped environment (tier B and the later phases).
+# Tool-equipped environment — the tools a **released analysis** calls (M11.19).
 #
 # The minimum install is `pip install 'plastid-suite'` — the pure-Python analyses need none of
 # this, and every tier-B test skips with a printed reason when a tool is absent rather than
@@ -9,6 +9,17 @@
 # different golden numbers from the same genome. Every version below is the one the
 # golden numbers were measured with; where none was recorded, the line says so instead of pretending to be pinned.
 #
+# WHAT IS AND IS NOT IN THIS FILE (M11.19, G-04). `environment.yml` is the runtime scope: every
+# entry is called by a module or a CLI step, and the role of each is in `docs/tools/README.md`.
+# Two other files carry everything else, so that installing the analyses never drags in an
+# assembly pipeline:
+#
+#   environment-check.yml   cross-check engines — no module calls them
+#   environment-future.yml  deferred branches (assembly, dating) and survey-only tools
+#
+# A package installed in an environment is not a feature. `tests/unit/test_tool_inventory.py`
+# keeps the three files and that inventory in step, both directions.
+#
 # Installing:  conda env create -f environment.yml
 # Windows users run the toolkit through docker/ instead.
 name: plastid-suite
@@ -18,38 +29,34 @@ channels:
 dependencies:
   - python>=3.10
 
-  # --- Phase 2: SSR and alignment -------------------------------------------------------
+  # --- SSR and alignment ----------------------------------------------------------------
   - perl=5.32.1 # MISA 2.1 is a Perl script, and it is NOT bundled (its zip states no licence:
                 # D-q, docs/tools/misa.md has the download line and both hashes). perl is
                 # installed here; the script is obtained separately
   - mafft=7.526 # pinned, tarball md5 recorded. conda-forge only — bioconda stops
                 # at 7.525, and the aligner build changes the Ts/Tv number
-  - cpstools=3.0 # bioconda only — NOT on conda-forge. A CROSS-CHECK tool, not a module
-                # dependency (D-j): no module of this toolkit calls it, and the minimum install
-                # stays pip-only. The dev machine runs the same 3.0 as a pip install in its own
-                # env — docs/tools/cpstools.md, measured 10/10/2026
-  - kakscalculator2=2.0.1 # the KaKs_Calculator binary cpstools' KaKs sub-command shells out to;
-                # cross-check only. Our own Ka/Ks module uses PAML's yn00, pinned below
 
-  # --- Phase 3: annotation --------------------------------------------------------------
-  - aragorn=1.2.41 # the mito tRNA caller (P3A-04): 147 kB on bioconda, GPLv3, and the tool PMGA
+  # --- annotation -----------------------------------------------------------------------
+  - aragorn=1.2.41 # the tRNA caller (P3A-04): 147 kB on bioconda, GPLv3, and the tool PMGA
                    # itself runs inside. Upstream ansikte.se answers HTTP 455 (blocked), so
                    # bioconda is the route — docs/tools/aragorn.md
-  - blast=2.17.0 # our own mito caller (P3A-03) transfers annotations with it, so the version is
-                 # part of the result — measured 03/10/2026 (docs/tools/blast.md). Also satisfies
-                 # PGA's "BLAST+ 2.8.1 or newer".
+  - blast=2.17.0 # our own caller (P3A-03, plastid P3B-07) transfers annotations with it, so the
+                 # version is part of the result — measured 03/10/2026 (docs/tools/blast.md).
+                 # Also satisfies PGA's "BLAST+ 2.8.1 or newer"
 
-  # --- Phase 4+: comparison, figures, dating ---------------------------------------------
+  # --- comparison, figures --------------------------------------------------------------
   - mummer4=4.0.1 # nucmer + delta-filter + show-coords, the synteny pipeline (P4-01, D4-02),
-                 # and repeat-match, the repeats module's engine (M2.12, D-f). No version was
-                 # recorded before; this is the build the block numbers were measured with
-                 # (docs/tools/mummer4.md). The block count moves with the parameters, and the
-                 # alignment can move with the build — not pinned means not reproducible
-  - mreps # no version recorded
-  - trf # no version recorded
-  - vmatch=2.3.1 # academic-only licence
-
-  # --- Phase 10: the manuscript's figures -------------------------------------------------
+                  # and repeat-match, the repeats module's engine (M2.12, D-f). No version was
+                  # recorded before; this is the build the block numbers were measured with
+                  # (docs/tools/mummer4.md). The block count moves with the parameters, and the
+                  # alignment can move with the build — not pinned means not reproducible
+  - iqtree=2.3.6 # maximum-likelihood tree inference for the `phylogeny` module (M11.21),
+                 # following the CGAS route (MAFFT per gene -> supermatrix -> IQ-TREE). Model
+                 # selection is ModelFinder and the bootstrap implementation has changed between
+                 # 2.x builds, so the release is part of the tree — docs/tools/iqtree.md
+  - paml=4.10.10 # two programs of one package: yn00 is the Ka/Ks estimator (P4-02, D4-01,
+                 # docs/tools/paml.md) and is runtime; mcmctree is a dating program that is NOT
+                 # a module of this toolkit (removed from the plan 10/10/2026) and is survey-only
   - r-base=4.3 # the plotting engine behind the seven figure scripts (docs/tools/r.md). R is a
                # PLOTTING engine here and nothing else: none of the scripts computes a number the
                # toolkit does not already hold in a table cell. Measured 17/10/2026 — all seven
@@ -69,30 +76,24 @@ dependencies:
   - r-pheatmap
   - r-ape
 
-  # --- Phase 6/7: assembly and dating ----------------------------------------------------
-  - getorganelle=1.7.7.1 # needs a one-off seed download: get_organelle_config.py -a embplant_pt,embplant_mt
-  - spades=4.3.0
-  - sibelia=3.0.7
-  - bandage=0.9.0
-  - oatk=1.0 # needs an external HMM DB: github.com/c-zhou/OatkDB
-  - raven-assembler=1.8.3
-  - novoplasty # no version recorded
-  - minimap2 # no version recorded
-  - samtools # no version recorded
-  - wgsim # no version recorded
-  - paml=4.10.10 # two programs of one package: yn00 is Phase 4's Ka/Ks estimator (P4-02, D4-01,
-                 # docs/tools/paml.md); mcmctree is Phase 6's
-  - beast2=2.7.7
-
   # --- NOT here, on purpose ---------------------------------------------------------------
+  # vmatch, cpstools, kakscalculator2
+  #            cross-check only — no module calls them. environment-check.yml
+  # getorganelle, spades, bandage, oatk, raven-assembler, novoplasty, minimap2, samtools,
+  # wgsim, sibelia, mreps, trf, beast2
+  #            deferred/survey — no module calls them. environment-future.yml
   # PGA        retired from the toolkit 10/10/2026 (P3B-11) and never a dependency; its
   #            outputs survive as measured counter-examples in tests/data/corpus/*.pga.gb. Its
   #            pinned source is commit 0683a0ec… (sha256 0d55b70e…), and it is GPL-3.0 —
   #            it must not be bundled into the MIT-licensed package (docs/licensing.md).
   # table2asn  not on conda — NCBI ships it directly:
   #            ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/
+  # misa.pl    obtained separately, never bundled (docs/tools/misa.md)
+  # cpjsdraw   cloned by the user (docs/tools/cpjsdraw.md)
   # mito       MITOS2 is a METAZOAN annotator and cannot do a plant mitochondrion. PMGA
   #            (MAKER, CPGAVAS2, ARAGORN, tRNAscan-SE, TRF, Vmatch…) is far heavier and never ran
   #            here; the mito annotate step is this project's own caller (P3A), covered by
   #            the blast/aragorn pinned above — nothing here is open.
-  # deepred-mt needs TensorFlow ~2 GB; PMGA's RNA-editing module uses it
+  # deepred-mt needs TensorFlow ~2 GB; PMGA's RNA-editing module uses it. PREP-Cp is M4.5's
+  #            chosen predictor and has no verified local distribution (docs/tools/prep_cp.md);
+  #            no install line is invented for it.

@@ -178,7 +178,7 @@ def test_a_rotated_reference_gives_the_same_windows_and_locus_pi(
     from plastid.run.context import RunContext
     from plastid.run.layout import RunLayout
 
-    def fake_align(rows, ctx):
+    def fake_align(rows, ctx, *, strategy="auto"):
         return Alignment(
             names=tuple(name for name, _ in rows), sequences=tuple(seq for _, seq in rows)
         )
@@ -253,7 +253,7 @@ def test_identical_genomes_report_no_regions_instead_of_an_empty_table(
     from plastid.run.context import RunContext
     from plastid.run.layout import RunLayout
 
-    def fake_align(rows, ctx):
+    def fake_align(rows, ctx, *, strategy="auto"):
         return Alignment(
             names=tuple(name for name, _ in rows), sequences=tuple(seq for _, seq in rows)
         )

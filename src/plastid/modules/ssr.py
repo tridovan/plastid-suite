@@ -17,7 +17,7 @@ from plastid.core.ir import IRResult
 from plastid.core.model import Genome, Interval
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.misa import UNIT_LABELS, MisaResult, run_misa, threshold_text
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -43,6 +43,9 @@ _GENE_KINDS = ("CDS", "tRNA", "rRNA")
     title="SSR (microsatellites)",
     requires_ir=True,
     citations=("misa",),
+    params=(
+        ParamSpec("misa", "str", "path to misa.pl 2.1 (MISA is not bundled; docs/tools/misa.md)"),
+    ),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()

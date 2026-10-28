@@ -33,7 +33,8 @@ sudo apt-get install -y r-base-core \
   r-cran-zoo r-cran-scales r-cran-pheatmap r-cran-ape
 ```
 
-Conda route through `environment.yml`: R's series is pinned; the nine package versions are not:
+Conda route through `environment.yml` (the runtime file): R's series is pinned; the nine package
+versions are not, because they draw rather than compute a measured number (M11.19):
 
 ```yaml
 - r-base=4.3

@@ -1,0 +1,53 @@
+# Deferred branches and survey-only tools — nothing here is a feature of this release (M11.19).
+#
+# Why a file at all. These tools were installed while the project worked out what it could do, and
+# an installed package reads like a capability. It is not: **a tool that exists in an environment
+# has not been integrated**, and none of the tools below is called by any module, test-visible
+# product path or CLI command. They are named here so their status is a written fact rather than
+# something to infer from a dependency list, and so that installing the analyses never pulls in an
+# assembler. Reading them again is how G-04 closes; deleting them from the record would close it
+# by forgetting.
+#
+# Three groups, distinguished because their reasons differ:
+#   assembly   — Phase 7 is deferred until the plastid IR rework is accepted (M11.8/M11.4). The
+#                survey measurements are not part of the product record; no module exists.
+#   dating     — removed from the plan 10/10/2026: divergence time is the PI's analysis with her
+#                own tools, not a module of this toolkit (`docs/things_we_do_not_do.md`).
+#   survey     — tried while choosing an engine and not chosen; kept named because a later scope
+#                decision must not look like a new discovery.
+#
+# Installing:  conda env create -f environment-future.yml
+name: plastid-suite-future
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.10
+
+  # --- assembly (Phase 7, deferred) ------------------------------------------------------
+  - getorganelle=1.7.7.1 # needs a one-off seed download:
+                        # get_organelle_config.py -a embplant_pt,embplant_mt
+  - spades=4.3.0
+  - bandage=0.9.0 # graph figure; drew a PNG on a real OATK GFA in the survey. Drawing the graph
+                  # is not evidence that the assembly or its IR boundary was checked (M7.2)
+  - oatk=1.0 # needs an external HMM DB: github.com/c-zhou/OatkDB
+  - raven-assembler=1.8.3 # long-read route (M7.6), waiting on ONT/HiFi reads
+  - novoplasty # no version recorded — installed, never run with a real seed
+  - minimap2 # no version recorded — map-back, part of M7.1's read-support check
+  - samtools # no version recorded — pairs with minimap2 for the map-back check
+  - wgsim # no version recorded — read simulation used in the survey only
+
+  # --- dating and comparative genomics (not modules) -------------------------------------
+  - beast2=2.7.7 # survey-only: program confirmed to run, no real analysis. The PI's tools
+  - sibelia=3.0.7 # ran on 3 plastomes in the 26/9 survey; NOT the project's synteny route. That
+                  # route is nucmer (D4-02, M4.2) and no milestone needs LCB blocks
+
+  # --- survey-only repeat/tandem engines -------------------------------------------------
+  - mreps # no version recorded — a tandem-repeat finder, a different class from the exact
+          # repeats the `repeats` module publishes (docs/tools/vmatch.md). Its presence is not a
+          # tandem-repeat feature; that scope was never accepted
+  - trf # no version recorded — the same class as mreps, same status. Not available on this
+        # machine's PATH at all, which is itself a reason it cannot be a module's engine
+
+  # paml's mcmctree belongs to the dating group above; `paml` itself is runtime (yn00) and lives
+  # in environment.yml. Installing this file does not make mcmctree a module.

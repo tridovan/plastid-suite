@@ -122,6 +122,52 @@ inside the function that needs it. The minimum install stays pure Python: `biopy
 A missing extra is `ExportDependencyError` and exit 3 — a named failure, never an `ImportError`
 traceback. `lxml` arrives with `python-docx` and is used for the package pruning.
 
+### A module declares the parameters it accepts (M11.20, 28/10/2026)
+
+Until this change a module read parameters it never declared, and the command line accepted any
+`--set key=value`. Two failures came from that, both measured:
+
+* `--set this_key_does_not_exist=42` ran and exited 0, so a misspelt `min_lengh_bp` looked like a
+  successful override;
+* `--set unit_repeats="1-12 2-8 …"` on `ssr` was recorded in `manifest.params` and then ignored —
+  the run produced the same 37 SSRs as one that passed nothing, while the manifest said otherwise.
+
+A module now declares every parameter it reads, and the CLI refuses any key no module in the run
+declares:
+
+```python
+@module(
+    "repeats",
+    version="0.1.0",
+    group=GROUP_SHARED,
+    params=(
+        ParamSpec("min_length_bp", "int", "shortest exact match published, passed as -n"),
+        ParamSpec("repeats", "str", "directory holding repeat-match when it is not on PATH"),
+    ),
+)
+def run(genome, params, ctx): ...
+```
+
+The rule the tests enforce is one sentence: **every parameter a module accepts has an effect the
+manifest can show, and every parameter it does not accept is a usage error.** `ParamSpec` carries
+a name, a type the CLI validates, and a description the refusal message shows. The declaration is
+compared with the module's actual `params.get`/`params[...]` calls by
+`tests/unit/test_module_params.py`, so a key read but not declared, or declared but not read, fails
+the build. Run-level keys (`data_label`, `ir_source`, `reannotate`, `rscript`) are declared once in
+`registry.SHARED_PARAMS` because the CLI is also a place a parameter is consumed.
+
+**A tool parameter is typed, never a free-form string.** `--set mafft_strategy=einsi` selects one
+of six names (`auto`, `einsi`, `linsi`, `ginsi`, `fftns`, `nwns`); anything else is refused with the
+list, and the flag it becomes (`--einsi`) is what the manifest records. The default is `auto`, the
+algorithm every published number here was measured with. The same pattern applies to
+`ultrafast_bootstrap` on `phylogeny`, which refuses a value below 1000.
+
+**What is still not adjustable, and is refused rather than ignored.** A parameter whose value
+cannot reach the tool is not declared, so `--set` refuses it by name and says which keys would
+work. `ssr`'s MISA thresholds are the current example: MISA runs from the packaged `misa.ini`, so
+the threshold key is not accepted. Honouring it means writing `misa.ini` from the chosen values,
+which is separate work with its own golden-number consequence.
+
 ### A module may declare a privileged reference (P3B-04, 08/10/2026)
 
 `gene_normalize` works against a record that is not one of the run's equal inputs: the **naming

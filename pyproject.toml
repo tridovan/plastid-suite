@@ -9,7 +9,12 @@ description = "Toolkit for plastid and mitochondrial genome analysis (academic, 
 readme = "README.md"
 keywords = ["plastome", "chloroplast", "mitochondrial genome", "bioinformatics", "genomics"]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    # Development Status :: 4 - Beta, not 5 - Production/Stable (M11.9): the open correctness
+    # issues affect IR detection, caching and annotation handling, and whole-pipeline input/output
+    # acceptance is not complete (M11.8). The version number is the code's, not a readiness claim;
+    # a classifier that says "stable" while the code says otherwise is the kind of
+    # plausible-looking untruth this project exists to avoid.
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",

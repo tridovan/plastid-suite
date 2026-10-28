@@ -27,7 +27,7 @@ from plastid.core.model import Genome
 from plastid.core.normalize import NormalizedFrame, normalize
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.repeatmatch import MIN_LENGTH_BP, run_repeat_match
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -44,6 +44,12 @@ DEFAULT_MIN_LENGTH_BP = MIN_LENGTH_BP
     title="Repeats (exact)",
     requires_ir=True,
     citations=("mummer",),
+    params=(
+        ParamSpec(
+            "min_length_bp", "int", "shortest exact match published, passed to repeat-match as -n"
+        ),
+        ParamSpec("repeats", "str", "directory holding repeat-match when it is not on PATH"),
+    ),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()

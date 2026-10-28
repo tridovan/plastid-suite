@@ -46,7 +46,7 @@ from plastid.core.model import GENE_KINDS, Gene, Genome
 from plastid.core.normalize import normalize
 from plastid.core.organelle import GROUP_PLASTID
 from plastid.external.mafft import align
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
@@ -64,6 +64,27 @@ MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs
     requires_ir=True,
     arity=2,
     citations=("mafft", "cbol"),
+    params=(
+        ParamSpec(
+            "window",
+            "int",
+            "sliding window length in bp (default: defaults.yaml diversity.window_bp)",
+        ),
+        ParamSpec("step", "int", "window step in bp (default: defaults.yaml diversity.step_bp)"),
+        ParamSpec(
+            "threshold_sd",
+            "float",
+            "how many standard deviations above the mean marks a hypervariable window",
+        ),
+        ParamSpec(
+            "min_windows", "int", "how many windows a candidate must span before it is reported"
+        ),
+        ParamSpec(
+            "mafft_strategy",
+            "str",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+        ),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
@@ -87,6 +108,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         [(reference_name, reference.sequence)]
         + [(genome.accession or genome.name, genome.sequence) for genome in genomes[1:]],
         ctx,
+        strategy=str(params.get("mafft_strategy", "auto")),
     )
     positions = reference_positions(alignment)
     series = window_diversity(alignment, window=window, step=step)

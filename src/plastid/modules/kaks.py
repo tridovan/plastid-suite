@@ -28,7 +28,7 @@ from plastid.core.model import Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mafft import align
 from plastid.external.paml import resolve_binary, run_yn00, yn00_version
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError
@@ -60,6 +60,15 @@ STATUS_TOOL_FAILED = "yn00 refused the pair"
     requires_ir=False,  # gene-based; see the module docstring
     arity=2,
     citations=("paml", "yang_nielsen", "mafft"),
+    params=(
+        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+        ParamSpec("paml", "str", "directory holding yn00 when it is not on PATH"),
+        ParamSpec(
+            "mafft_strategy",
+            "str",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+        ),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     reference = genomes[0]
@@ -112,6 +121,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 genes,
                 ctx,
                 binary=binary,
+                strategy=str(params.get("mafft_strategy", "auto")),
             )
             gene_rows.append(row)
             if row["ka"] is not None and row["ks"] is not None:
@@ -255,6 +265,7 @@ def _score_gene(
     ctx: RunContext,
     *,
     binary: str,
+    strategy: str = "auto",
 ) -> dict[str, Any]:
     """One gene's row — a value, or the reason there is none. Never a silently missing row."""
     row: dict[str, Any] = {
@@ -302,7 +313,11 @@ def _score_gene(
             row["detail"] = f"{label}: stop at codon {protein.index('*') + 1}"
             return row
 
-    alignment = align([("reference", sequence_a), (genome_key, sequence_b)], ctx)
+    alignment = align(
+        [("reference", sequence_a), (genome_key, sequence_b)],
+        ctx,
+        strategy=strategy,
+    )
     breaks = codon_frame_breaks(alignment)
     if breaks:
         row["status"] = STATUS_FRAMESHIFT

@@ -52,6 +52,7 @@ by us* — which is **none of them**.
 | **BLAST+** | 2.17.0 | `external/blast.py` (mito annotation, corpus bar) | NCBI-PD (public domain) | bioconda metadata | no |
 | **ARAGORN** | 1.2.41 | `external/aragorn.py` (mito tRNA) | GPLv3 | bioconda metadata + `docs/tools/aragorn.md` | no |
 | **MUMmer 4** | 4.0.1 | `external/mummer.py`, `external/repeatmatch.py` (`synteny`, `repeats`) | Artistic License 2.0 | bioconda metadata + `docs/tools/mummer4.md` | no |
+| **IQ-TREE** | 2.3.6 | `external/iqtree.py` (`phylogeny`, M11.21) | GPL-2.0-or-later | the IQ-TREE repository's licence, bioconda metadata | no |
 | **PAML** (`yn00`) | 4.10.10 | `external/paml.py` (module `kaks`) | GPL-3.0-or-later | bioconda metadata (+ academic-free upstream, `docs/tools/paml.md`) | no |
 | **Vmatch** | 2.3.1 | `external/vmatch.py` — the *second engine* for the repeats count; never required | **academic use only** (upstream); conda metadata says `Unknown` | `docs/tools/vmatch.md` + bioconda metadata | no |
 | **table2asn** | 1.29.324 | module `submission` | NCBI converter — U.S. Government work, as BLAST+ | `docs/tools/table2asn.md`; **not independently measured** (no licence file ships with the binary) | no |

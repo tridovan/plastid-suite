@@ -223,3 +223,31 @@ def test_codon_frame_breaks_flags_a_row_whose_length_is_not_whole_codons() -> No
     breaks = codon_frame_breaks(alignment)
     assert len(breaks) == 2  # both rows, each named
     assert all("codon" in message for message in breaks)
+
+
+# ---------------------------------------------------------------- MAFFT strategy (M11.20)
+
+
+def test_every_strategy_name_maps_to_a_mafft_flag() -> None:
+    """The mapping is data, so a typo in a flag would be a wrong alignment, not a crash."""
+    from plastid.external.mafft import MAFFT_STRATEGIES
+
+    assert set(MAFFT_STRATEGIES) == {"auto", "einsi", "linsi", "ginsi", "fftns", "nwns"}
+    for name, flag in MAFFT_STRATEGIES.items():
+        assert flag.startswith("--"), f"{name}: {flag!r} is not a MAFFT option"
+        assert flag == f"--{name}"
+
+
+def test_an_unknown_strategy_is_refused_with_the_list() -> None:
+    """A misspelt algorithm must not silently fall back to MAFFT's default."""
+    from plastid.external.mafft import strategy_flag
+
+    with pytest.raises(ValueError, match="auto"):
+        strategy_flag("einsi-extra")
+
+
+def test_the_default_strategy_is_the_one_every_number_was_measured_with() -> None:
+    """A change of default is a change of measurement; it has to be deliberate."""
+    from plastid.external.mafft import DEFAULT_STRATEGY
+
+    assert DEFAULT_STRATEGY == "auto"

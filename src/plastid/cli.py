@@ -508,6 +508,22 @@ def _parse_sets(pairs: list[str]) -> dict:
     return params
 
 
+def _accept_params(module_ids: Sequence[str], params: Mapping[str, Any]) -> bool:
+    """Refuse a ``--set`` key no module in this run declares (M11.20).
+
+    Measured before this check: ``--set this_key_does_not_exist=42`` ran and exited 0, so a
+    misspelt ``min_length_bp`` looked like a successful override. A key a module accepts but
+    ignores is the same failure from the other side, which is why each module now declares what
+    it reads and a test compares that declaration with its source.
+
+    Returns False after printing every offending key, so the caller can return the usage code.
+    """
+    problems = registry.unknown_params(module_ids, params)
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    return not problems
+
+
 def _coerce(raw: str) -> object:
     for cast in (int, float):
         try:
@@ -680,6 +696,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     if args.label:
         params[DATA_LABEL_PARAM] = args.label
+    if not _accept_params([spec.id for spec in specs], params):
+        return EXIT_USAGE
 
     if args.groups:
         # Shared group labels for every comparison output (P2-11). Loaded here because a module
@@ -788,6 +806,8 @@ def _cmd_batch(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     if args.label:
         params[DATA_LABEL_PARAM] = args.label
+    if not _accept_params([spec.id for spec in specs], params):
+        return EXIT_USAGE
 
     records: list[batch_run.SampleRecord] = []
     results: dict[str, dict] = {}
@@ -2271,6 +2291,8 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     if args.reference:
         params["reference"] = args.reference
+    if not _accept_params([spec.id], params):
+        return EXIT_USAGE
     planted = params.get("exclude")
     exclusions = [planted] if isinstance(planted, str) else list(planted or ())
     if args.exclude:
@@ -2454,6 +2476,8 @@ def _cmd_mito_annotate(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     if args.reference:
         params["reference"] = args.reference
+    if not _accept_params([spec.id], params):
+        return EXIT_USAGE
 
     return _execute_run(
         genomes=(genome,),

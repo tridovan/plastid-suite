@@ -25,7 +25,7 @@ _MATK_B = "ATGAAACCCGGGTTTAAACCCAAG"
 
 @pytest.fixture
 def stubbed(monkeypatch):
-    def fake_align(rows, ctx):
+    def fake_align(rows, ctx, *, strategy="auto"):
         return Alignment(
             names=tuple(name for name, _ in rows), sequences=tuple(seq for _, seq in rows)
         )

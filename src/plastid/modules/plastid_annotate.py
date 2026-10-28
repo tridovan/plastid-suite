@@ -97,7 +97,7 @@ from plastid.external.blast import (
     run_blastn_trace,
     run_blastx,
 )
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
@@ -467,6 +467,15 @@ def _trna_naming_notes(namings: Sequence[TrnaNaming]) -> tuple[str, ...]:
     version=MODULE_VERSION,
     title="Plastid annotation (reference transfer)",
     requires_ir=True,
+    params=(
+        ParamSpec("reference", "str", "directory of GenBank records to transfer from"),
+        ParamSpec("exclude", "str", "accession to leave out of the search (repeatable)"),
+        ParamSpec("min_identity", "float", "minimum TBLASTN identity for a transferred call"),
+        ParamSpec("min_coverage", "float", "minimum query coverage for a transferred call"),
+        ParamSpec("evalue", "float", "maximum BLAST E-value"),
+        ParamSpec("transl_table", "int", "translation table stamped on called CDS"),
+        ParamSpec("tools", "str", "directory holding BLAST+/ARAGORN when they are not on PATH"),
+    ),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
