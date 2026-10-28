@@ -1255,6 +1255,18 @@ def _execute_run(
                 EXIT_USAGE,
                 downstream=_downstream(specs, order),
             )
+        except registry.ParamValueError as error:
+            # 2, not 1: the key is declared and the value is one the user can fix on the command
+            # line. Raised before the module calls its tool, so nothing is produced from it.
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_USAGE,
+                downstream=_downstream(specs, order),
+            )
         except UnsupportedTranslationError as error:
             # 2, next to the IR gate: the run was well-formed, and the record's own CDS declare a
             # frame or table this codon reading cannot translate honestly (M11.5).

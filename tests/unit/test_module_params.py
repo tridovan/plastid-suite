@@ -185,22 +185,50 @@ def test_a_tool_parameter_reaches_the_recorded_argv(tmp_path: Path) -> None:
     assert argv[argv.index("-c") + 1] == "90"
 
 
-def test_an_accepted_but_ignored_parameter_is_the_bug() -> None:
-    """SSR thresholds: either the value changes the run, or the key is refused.
+def test_a_declared_parameter_reaches_the_tool_that_uses_it() -> None:
+    """SSR thresholds: declared ⇒ the value is written into the ini MISA is handed.
 
-    Before the fix the key was accepted and recorded, and the run was identical to one that
-    passed nothing. This test states the rule without prescribing which half of the fix is
-    chosen — a module that declines the parameter must not declare it, and
-    ``test_the_declaration_matches_what_each_module_reads`` then makes the misspelling a named
-    error instead of a no-op.
+    The defect was the inverse — the key was recorded and the run ignored it. This test pins the
+    half of the rule the module now implements: the ini is built from the value, so there is no
+    path on which the manifest can name a threshold MISA did not read. The module reports the
+    thresholds read back out of that ini, not the string the user typed.
     """
+    from plastid.external.misa import misa_ini_text, parse_unit_repeats
+
     spec = registry.get("ssr")
     declared = {param.name for param in spec.params}
-    if "unit_repeats" in declared:
-        # Declared ⇒ it must be honoured. The implementation that honours it writes misa.ini
-        # from the chosen values; until then the key must not be declared at all.
-        pytest.fail(
-            "ssr declares unit_repeats; it must then reach MISA's misa.ini — measured before "
-            "the fix: accepted, recorded, and ignored"
-        )
-    assert {"misa"} <= declared
+    assert "unit_repeats" in declared, (
+        "ssr must declare unit_repeats now that the value reaches MISA's ini"
+    )
+    values = "1-12 2-8 3-7 4-6 5-5 6-5"
+    definition = misa_ini_text(parse_unit_repeats(values)).splitlines()[0]
+    assert definition.split(":", 1)[1].split() == values.split()
+
+
+def test_a_bad_ssr_threshold_is_a_usage_error_before_misa_runs(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A malformed value exits 2 with the accepted shape — not 1 and not a silent default.
+
+    It is refused before MISA is looked for, so this test needs no tool: the value is the
+    module's own contract, and the command line can fix it.
+    """
+    from plastid.cli import main
+
+    code = main(
+        [
+            "run",
+            "-m",
+            "ssr",
+            "-i",
+            str(GOLDEN),
+            "-o",
+            str(tmp_path),
+            "--dataset",
+            "bad-thresholds",
+            "--set",
+            "unit_repeats=not-a-pair",
+        ]
+    )
+    assert code == 2
+    assert "unit_repeats" in capsys.readouterr().err

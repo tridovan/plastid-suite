@@ -16,12 +16,21 @@ from typing import Any
 from plastid.core.ir import IRResult
 from plastid.core.model import Genome, Interval
 from plastid.core.organelle import GROUP_SHARED
-from plastid.external.misa import UNIT_LABELS, MisaResult, run_misa, threshold_text
+from plastid.external.misa import (
+    UNIT_LABELS,
+    MisaResult,
+    format_thresholds,
+    parse_unit_repeats,
+    run_misa,
+)
 from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "ssr"
+# 0.5.0 (28/10/2026): `unit_repeats` now reaches MISA's ini instead of being refused. The
+# default run is unchanged (the shipped ini is still what runs), so the golden numbers stand;
+# the version moves because a value that used to be a usage error now changes the result.
 # 0.4.0 (11/10/2026): MISA left the package (D-q — its zip states no licence), so the module takes
 # `--set misa=/path/to/misa.pl` and refuses a release other than the pinned 2.1. The golden numbers
 # are unchanged; the cache key (H-08) is why this is a version and not just an edit.
@@ -31,7 +40,7 @@ MODULE_ID = "ssr"
 # answer-key corpus). The run cache keys on this version, not on the source (H-08).
 # 0.2.0 (10/10/2026): the Context column changed — a trans-spliced gene's outer span no longer
 # makes everything inside it an "Intron" (found by the CPStools cross-check).
-MODULE_VERSION = "0.4.0"
+MODULE_VERSION = "0.5.0"
 
 _GENE_KINDS = ("CDS", "tRNA", "rRNA")
 
@@ -45,12 +54,22 @@ _GENE_KINDS = ("CDS", "tRNA", "rRNA")
     citations=("misa",),
     params=(
         ParamSpec("misa", "str", "path to misa.pl 2.1 (MISA is not bundled; docs/tools/misa.md)"),
+        ParamSpec(
+            "unit_repeats",
+            "str",
+            "MISA unit/min-repeat thresholds, e.g. '1-12 2-8 3-7 4-6 5-5 6-5' "
+            "(default: the shipped data/misa.ini)",
+        ),
     ),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
-    misa = run_misa(genome, ctx, params.get("misa"))
-    thresholds = threshold_text()
+    chosen = params.get("unit_repeats")
+    unit_repeats = parse_unit_repeats(str(chosen)) if chosen is not None else None
+    misa = run_misa(genome, ctx, params.get("misa"), unit_repeats=unit_repeats)
+    # Report what the ini MISA was handed says, not what the command line asked for: the two are
+    # the same here, and reading the result makes that a fact rather than a promise (M11.20).
+    thresholds = format_thresholds(misa.unit_repeats)
 
     rows = []
     for feature in misa.features:
@@ -95,7 +114,10 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "reconciliation": _reconciliation(misa, rows),
             },
         ),
-        scope=Scope(label="whole plastome; MISA defaults; both IR copies included"),
+        scope=Scope(
+            label=f"whole plastome; MISA unit/repeat thresholds {thresholds}; "
+            "both IR copies included"
+        ),
     )
 
     by_unit = Table(
@@ -159,7 +181,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
 
     tables = {summary.id: summary, region_table.id: region_table}
     notes = [
-        f"MISA {_misa_version(ctx)} with its default thresholds {thresholds}; "
+        f"MISA {_misa_version(ctx)} with unit/repeat thresholds {thresholds}; "
         f"{misa.compound} SSRs in compound formation — MISA's own count, **one per cluster**.",
         "The per-SSR table flags **every component** of a cluster, so its `yes` rows number "
         "more than MISA's count (a two-component cluster contributes 2 rows to 1): the two "

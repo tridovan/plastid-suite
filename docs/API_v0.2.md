@@ -164,9 +164,11 @@ algorithm every published number here was measured with. The same pattern applie
 
 **What is still not adjustable, and is refused rather than ignored.** A parameter whose value
 cannot reach the tool is not declared, so `--set` refuses it by name and says which keys would
-work. `ssr`'s MISA thresholds are the current example: MISA runs from the packaged `misa.ini`, so
-the threshold key is not accepted. Honouring it means writing `misa.ini` from the chosen values,
-which is separate work with its own golden-number consequence.
+work. `ssr`'s MISA thresholds used to be that example; they now reach the tool: `--set
+unit_repeats="1-12 2-8 3-7 4-6 5-5 6-5"` writes that `definition(unit_size,min_repeats)` line into
+the ini MISA is handed, the summary reports the thresholds read back out of that ini, and a
+malformed value exits 2 before MISA runs. Any other threshold that cannot reach its tool remains
+undeclared and is refused by name.
 
 ### A module may declare a privileged reference (P3B-04, 08/10/2026)
 

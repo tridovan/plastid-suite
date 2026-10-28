@@ -14,10 +14,12 @@ from plastid.core.model import Genome
 from plastid.core.organelle import GROUP_SHARED, GROUPS
 from plastid.result.result import Result
 from plastid.run.context import RunContext
+from plastid.run.params import ParamValueError
 
 __all__ = [
     "ModuleSpec",
     "ParamSpec",
+    "ParamValueError",
     "SHARED_PARAMS",
     "UnknownModuleError",
     "all_modules",

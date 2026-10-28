@@ -15,6 +15,8 @@ is not an intron of anything.
 
 from __future__ import annotations
 
+import pytest
+
 from plastid.core.ir import detect_ir
 from plastid.core.model import Genome, Interval
 from plastid.modules.ssr import _gene_context
@@ -64,12 +66,16 @@ def test_a_genome_with_no_ssr_reports_zero_instead_of_an_empty_table(
     """
     import plastid.modules.ssr as ssr_module
     from plastid.core.ir import detect_ir, enforce_ir_gate
-    from plastid.external.misa import MisaResult
+    from plastid.external.misa import MisaResult, unit_repeats_from_ini
     from plastid.run.context import RunContext
     from plastid.run.layout import RunLayout
 
     monkeypatch.setattr(
-        ssr_module, "run_misa", lambda genome, ctx, script=None: MisaResult(0, {}, 0, ())
+        ssr_module,
+        "run_misa",
+        lambda genome, ctx, script=None, *, unit_repeats=None: MisaResult(
+            0, {}, 0, (), unit_repeats_from_ini()
+        ),
     )
     layout = RunLayout.create(tmp_path / "runs", "ssr", fingerprint="test")
     layout.make_dirs()
@@ -83,3 +89,61 @@ def test_a_genome_with_no_ssr_reports_zero_instead_of_an_empty_table(
     assert "ssr_by_unit" not in result.tables
     assert len(result.tables["ssr_by_region"].rows) == 4
     assert any("absent rather than empty" in note for note in result.notes)
+
+
+# --- the user's thresholds (M11.20) --------------------------------------------------------
+
+
+def test_the_chosen_thresholds_reach_misa_and_are_reported_back(
+    tmp_path, monkeypatch, golden_genome
+) -> None:
+    """The value must cross the module boundary, and the summary must read what MISA was given."""
+    import plastid.modules.ssr as ssr_module
+    from plastid.core.ir import detect_ir, enforce_ir_gate
+    from plastid.external.misa import MisaResult
+    from plastid.run.context import RunContext
+    from plastid.run.layout import RunLayout
+
+    captured: dict = {}
+
+    def fake_run_misa(genome, ctx, script=None, *, unit_repeats=None):
+        captured["unit_repeats"] = unit_repeats
+        return MisaResult(0, {}, 0, (), unit_repeats=dict(unit_repeats or {}))
+
+    monkeypatch.setattr(ssr_module, "run_misa", fake_run_misa)
+    layout = RunLayout.create(tmp_path / "runs", "ssr", fingerprint="thresholds")
+    layout.make_dirs()
+    ctx = RunContext(layout=layout, params={}, module_id="ssr", module_order=1)
+    ctx.ir = enforce_ir_gate(detect_ir(golden_genome))
+
+    result = ssr_module.run(golden_genome, {"unit_repeats": "1-12 2-8 3-7 4-6 5-5 6-5"}, ctx)
+
+    assert captured["unit_repeats"] == {1: 12, 2: 8, 3: 7, 4: 6, 5: 5, 6: 5}
+    summary = result.tables["ssr_summary"]
+    assert summary.value("thresholds") == "(1/12) (2/8) (3/7) (4/6) (5/5) (6/5)"
+    assert "1/12" in summary.scope.label, "the scope label must carry the values that ran"
+
+
+def test_a_bad_threshold_stops_before_misa_is_called(tmp_path, monkeypatch, golden_genome) -> None:
+    import plastid.modules.ssr as ssr_module
+    from plastid.core.ir import detect_ir, enforce_ir_gate
+    from plastid.run.context import RunContext
+    from plastid.run.layout import RunLayout
+    from plastid.run.params import ParamValueError
+
+    called = False
+
+    def fake_run_misa(genome, ctx, script=None, *, unit_repeats=None):
+        nonlocal called
+        called = True
+        raise AssertionError("MISA must not run on a refused value")
+
+    monkeypatch.setattr(ssr_module, "run_misa", fake_run_misa)
+    layout = RunLayout.create(tmp_path / "runs", "ssr", fingerprint="bad")
+    layout.make_dirs()
+    ctx = RunContext(layout=layout, params={}, module_id="ssr", module_order=1)
+    ctx.ir = enforce_ir_gate(detect_ir(golden_genome))
+
+    with pytest.raises(ParamValueError, match="unit_repeats"):
+        ssr_module.run(golden_genome, {"unit_repeats": "1-12 7-8"}, ctx)
+    assert called is False

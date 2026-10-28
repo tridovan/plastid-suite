@@ -50,7 +50,10 @@ are a different number.
 down MISA's **default** definitions (unit sizes `1-10 2-6 3-5 4-5 5-5 6-5`, interruptions `100`,
 `GFF: true`). Those are the tool's documented defaults and the project uses exactly them —
 re-measured 10/10/2026: at the defaults our table reproduces the published answer key,
-while the thresholds that paper *states* in its Methods do not.
+while the thresholds that paper *states* in its Methods do not. A run that passes `--set
+unit_repeats="…"` hands MISA that definition line in place of the shipped one; every other line of
+the ini is left exactly as written, and the summary reports the thresholds read back from the ini
+MISA was given.
 
 **Not vendored, deliberately** — the licence paragraph above. The consequence, stated so it is not
 a surprise: `make golden`'s SSR test **skips with a named reason** on a machine without `misa.pl`
