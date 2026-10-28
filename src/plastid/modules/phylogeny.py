@@ -34,8 +34,9 @@ spacer loci `core.spans` derives, keyed by canonical gene name so two records th
 two ways still meet. Both are **position-based**, so each genome passes the IR gate before its
 spans are read, and the sequence taken is the forward strand (an intron has no reading strand).
 The IR's second copy is one locus and is kept once. A locus needs at least two carriers, exactly
-as a gene does. `aligner=macse` is refused for these matrices: MACSE aligns codons through a
-translation, and a spacer has no frame.
+as a gene does. `aligner=macse` and `partition=codon` are refused for these matrices: MACSE
+aligns codons through a translation and a codon partition splits codons, while a spacer has no
+reading frame; `partition=gene` works and names each locus.
 
 **Partitions are opt-in, and the aligner decides what a codon is.** `partition=none` (the
 default) is the unpartitioned supermatrix. `partition=gene` gives IQ-TREE one partition per gene
@@ -158,6 +159,11 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     partition_mode = _partition_mode(params.get("partition", "none"))
     matrix_mode = _matrix_mode(params.get("matrix", DEFAULT_MATRIX))
     aligner = _aligner(params.get("aligner", "mafft"))
+    if matrix_mode != "cds" and partition_mode == "codon":
+        raise ParamValueError(
+            f"phylogeny: partition=codon splits codons; matrix={matrix_mode} has no reading "
+            f"frame — use partition=gene or partition=none"
+        )
     if matrix_mode != "cds" and aligner == "macse":
         raise ParamValueError(
             "phylogeny: aligner=macse aligns a CDS through its translation; an intron or an "

@@ -279,6 +279,7 @@ def test_macse_is_opt_in_and_replaces_the_mafft_call(tmp_path: Path, monkeypatch
         ({"aligner": "clustal"}, "not one of mafft, macse"),
         ({"aligner": "macse", "mafft_strategy": "einsi"}, "mafft_strategy has no effect"),
         ({"aligner": "macse", "macse_timeout": 0}, "at least 1 second"),
+        ({"matrix": "igs", "partition": "codon"}, "no reading frame"),
         ({"macse": "/tmp/macse.jar"}, "has no effect with aligner=mafft"),
     ],
 )
