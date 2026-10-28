@@ -11,7 +11,9 @@
 #     Ts/Tv numbers from one genome.
 #
 # `PTS_REQUIRE_TOOLS=1` in the tier-B job turns "tool missing" from a printed skip into a failure:
-# a green build that quietly skipped the tools would prove nothing. table2asn is the one tool that
+# a green build that quietly skipped the tools would prove nothing. **R is a tool here** (M11.8):
+# until 28/10/2026 its checks called `pytest.skip` directly, so CI was green while every figure
+# script went unrun. `conftest.require_r` now honours the variable, and R is installed below. table2asn is the one tool that
 # cannot come from conda, so the job fetches the build `docs/tools/table2asn.md` records and
 # checks its md5 — the same reasoning as the pins.
 
@@ -61,6 +63,16 @@ jobs:
             perl=5.32.1
             mafft=7.526
             iqtree=2.3.6
+            r-base=4.3
+            r-ggplot2
+            r-dplyr
+            r-tidyr
+            r-reshape2
+            r-rcolorbrewer
+            r-zoo
+            r-scales
+            r-pheatmap
+            r-ape
             mummer4=4.0.1
             paml=4.10.10
             blast=2.17.0
@@ -76,6 +88,7 @@ jobs:
         run: |
           mafft --version
           iqtree2 --version | head -1
+          Rscript --version
           nucmer --version | head -1
           blastn -version | head -1
           aragorn -h 2>&1 | head -1

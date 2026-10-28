@@ -12,8 +12,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-import pytest
-
+from conftest import require_r
 from plastid.external.rscript import missing_packages, run_figure
 from plastid.run.context import RunContext
 from plastid.run.layout import RunLayout
@@ -30,10 +29,10 @@ def _context(tmp_path: Path) -> RunContext:
 def _require_r(ctx: RunContext) -> str:
     binary = shutil.which("Rscript")
     if binary is None:
-        pytest.skip("no Rscript on PATH (docs/tools/r.md)")
+        require_r("no Rscript on PATH (docs/tools/r.md)")
     missing = missing_packages(ctx, binary)
     if missing:
-        pytest.skip(f"R is missing {', '.join(missing)}")
+        require_r(f"R is missing {', '.join(missing)}")
     return binary
 
 

@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import require_r
 from plastid.core.genbank import read_genbank
 from plastid.external.rscript import missing_packages, run_figure
 from plastid.modules import amino_acid, codon_usage
@@ -33,7 +34,7 @@ PANEL = ROOT / ".panel" / "ir-validation" / "source"
 def _rscript() -> str:
     found = shutil.which("Rscript")
     if found is None:
-        pytest.skip("no Rscript on PATH (docs/tools/r.md)")
+        require_r("no Rscript on PATH (docs/tools/r.md)")
     return found
 
 
@@ -55,7 +56,7 @@ def _require_r(ctx: RunContext) -> str:
     binary = _rscript()
     missing = missing_packages(ctx, binary)
     if missing:
-        pytest.skip(f"R is missing {', '.join(missing)}")
+        require_r(f"R is missing {', '.join(missing)}")
     return binary
 
 

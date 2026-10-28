@@ -220,6 +220,27 @@ that failed (it skips, with a named reason, where `misa.pl` is absent).
 
 Sources: [page renderer](../src/plastid/run/runinfo.py), [regression](../tests/unit/test_run_info_tools.py).
 
+## K-09 — The golden's R checks skipped without honouring `PTS_REQUIRE_TOOLS` — **fixed (28/10/2026)**
+
+Found by reading a CI run's skip list, not by a failing test: the tier-B job reported **68 passed
+/ 58 skipped** and called that green. Twelve of the skips were `no Rscript on PATH`, because
+`tests/golden/test_tree_figure_output.py` and `tests/golden/test_r_multi_sample.py` called
+`pytest.skip` directly instead of going through `conftest.require_tools`.
+
+**Why that matters.** `PTS_REQUIRE_TOOLS=1` exists for exactly one purpose — a build that quietly
+skipped a tool proves nothing. It covered the aligners and callers but not the plotting engine, so
+every R figure script could go unrun in CI while the badge stayed green. The same class as K-08:
+a check that says "fine" without having looked.
+
+**Fix.** `conftest.require_r(reason)` — fail under `PTS_REQUIRE_TOOLS=1`, skip otherwise — and both
+files route through it. CI now installs `r-base=4.3` and the nine R packages, and prints
+`Rscript --version` with the other pins. Held by `tests/unit/test_require_r.py`, which exercises
+both branches directly (skip when optional, **fail** when required).
+
+The remaining CI skips are all `.panel/` — third-party data that is gitignored by design and cannot
+be fetched in CI; those checks skip with a named reason and are covered by the Docker run with the
+panel mounted (125 passed, 0 skipped).
+
 ## Other current limitations
 
 The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's
