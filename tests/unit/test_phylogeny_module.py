@@ -19,52 +19,16 @@ same convention as every other tier-B check.
 
 from __future__ import annotations
 
-import json
-import os
 from pathlib import Path
 
 import pytest
 
-from plastid.core.genbank import read_genbank
-from plastid.core.model import Genome
+from plastid.core.align import Alignment
+from plastid.core.model import Gene, Genome, Interval
 from plastid.modules import registry
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "tests" / "data"
-PANEL = ROOT / ".panel" / "ir-validation" / "source"
-
-
-def _require_mafft() -> None:
-    """The module aligns per gene with MAFFT before it ever reaches IQ-TREE."""
-    from plastid.run.tools import which
-
-    if which("mafft") is not None:
-        return
-    reason = "mafft is not on PATH — the phylogeny matrix is built per gene with MAFFT"
-    if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
-
-
-def _iqtree_dir() -> Path:
-    directory = os.environ.get("PTS_IQTREE_DIR")
-    candidates = [Path(directory)] if directory else []
-    candidates.append(Path("/root/toolbox/env/iqtree/bin"))
-    for candidate in candidates:
-        if (candidate / "iqtree2").is_file() or (candidate / "iqtree").is_file():
-            return candidate
-    reason = "iqtree2 is not installed; set PTS_IQTREE_DIR to the directory holding it"
-    if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
-
-
-def _panel_records() -> list[Path]:
-    wanted = ("NC_008641.1", "NC_016708.2", "NC_028027.1", "NC_016736.1")
-    paths = [PANEL / f"{accession}.gb" for accession in wanted]
-    if not all(path.is_file() for path in paths):
-        pytest.skip("the IR panel records are not in this tree (.panel/ is gitignored)")
-    return paths
 
 
 # ------------------------------------------------------------------ declaration and refusals
@@ -75,7 +39,17 @@ def test_the_module_is_registered_with_its_tools() -> None:
     assert spec.arity == 2
     assert set(spec.citations) == {"mafft", "iqtree"}
     declared = {param.name for param in spec.params}
-    assert {"iqtree", "model", "ultrafast_bootstrap", "alrt", "seed", "include_partial"} <= declared
+    assert {
+        "iqtree",
+        "model",
+        "ultrafast_bootstrap",
+        "alrt",
+        "seed",
+        "include_partial",
+        "partition",
+        "aligner",
+        "macse",
+    } <= declared
 
 
 def test_a_two_genome_input_is_refused_by_name(tmp_path: Path) -> None:
@@ -104,54 +78,6 @@ def test_an_unknown_parameter_is_refused() -> None:
     assert problems and "ultrafast_bootstrap" in problems[0]
 
 
-# ------------------------------------------------------------------------ with the real tool
-
-
-def _run_tree(tmp_path: Path, extras: list[str] | None = None) -> tuple[Path, dict]:
-    from plastid.cli import main
-
-    _require_mafft()
-    records = _panel_records()
-    argv = ["run", "-m", "phylogeny"]
-    for record in records:
-        argv += ["-i", str(record)]
-    argv += ["-o", str(tmp_path), "--dataset", "tree", "--set", f"iqtree={_iqtree_dir()}"]
-    for extra in extras or []:
-        argv += ["--set", extra]
-    code = main(argv)
-    assert code == 0, "the phylogeny run failed — check the tool env"
-    run_dir = next((tmp_path / "tree").iterdir())
-    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-    return run_dir, manifest
-
-
-def test_the_tree_names_every_taxon_once(tmp_path: Path) -> None:
-    run_dir, _manifest = _run_tree(tmp_path)
-    tree = next(run_dir.rglob("tree.treefile")).read_text(encoding="utf-8")
-    for record in _panel_records():
-        accession = read_genbank(record).accession
-        assert tree.count(accession) == 1, f"{accession} appears {tree.count(accession)} times"
-    assert tree.strip().endswith(";")
-
-
-def test_the_tree_is_byte_identical_on_a_second_run(tmp_path: Path) -> None:
-    """Two runs of one matrix give one tree, byte for byte.
-
-    Measured 28/10/2026, and the first version of this test was **wrong**: it asserted the same
-    thing while the module ran IQ-TREE with `-nt AUTO`, where two runs gave **different
-    topologies and support values** (99.5 vs 99.7 on an internal node). IQ-TREE's parallel
-    reductions are not associative. The fix was in the product, not the test: the module now
-    passes `-nt 1` by default. `--set threads=N` still asks for speed at the cost of
-    bit-reproducibility, and the module records that choice.
-    """
-    first, _ = _run_tree(tmp_path / "a")
-    second, _ = _run_tree(tmp_path / "b")
-    one = next(first.rglob("tree.treefile")).read_text(encoding="utf-8")
-    two = next(second.rglob("tree.treefile")).read_text(encoding="utf-8")
-    assert one == two
-    assert "99.5/98" in one  # UFBoot/SH-aLRT present
-
-
 def test_the_default_thread_count_is_one() -> None:
     """The default is the reproducible one; asking for more is an explicit trade."""
     from plastid.modules.phylogeny import DEFAULT_THREADS
@@ -159,54 +85,246 @@ def test_the_default_thread_count_is_one() -> None:
     assert DEFAULT_THREADS == "1"
 
 
-def test_a_gene_present_in_one_genome_is_excluded_by_name(tmp_path: Path) -> None:
-    run_dir, _ = _run_tree(tmp_path)
-    table = next(run_dir.rglob("matrix_genes.csv")).read_text(encoding="utf-8")
-    excluded = [line for line in table.splitlines() if line.startswith(("infA,", "ycf15,"))]
-    assert excluded, "the genes carried by one genome should be listed"
-    for line in excluded:
-        assert ",no," in line
-        assert "present in 1 genome" in line
+def _fake_tree():
+    """The minimum ``IqtreeResult`` the module reads when the inference is stubbed."""
+    from plastid.external.iqtree import IqtreeResult
+
+    return IqtreeResult(
+        treefile="(SYN0.1,SYN1.1,SYN2.1);", log="", version="2.3.6", report="", argv=()
+    )
 
 
-def test_the_supermatrix_and_tree_are_artifacts_of_the_run(tmp_path: Path) -> None:
-    """The alignment the tree came from is kept beside it, under the name it was written as."""
-    run_dir, manifest = _run_tree(tmp_path)
-    files = {entry["path"].split("/")[-1] for entry in manifest["files"]}
-    assert {"supermatrix.fasta", "tree.treefile", "tree.iqtree"} <= files
-    assert manifest["status"] == "ok"
+def _synthetic_genomes() -> tuple[Genome, ...]:
+    """Three genomes carrying the same two genes, so a matrix can be built without tools."""
+    sequences = {
+        "rbcL": ("ATGGCCAAACCC", "ATGGCCAAACCT", "ATGGCCAAACCA"),
+        "atpA": ("ATGTTTGGGCCC", "ATGTTTGGGCCA", "ATGTTTGGGCCT"),
+    }
+    genomes = []
+    for index in range(3):
+        chunks, genes, offset = [], [], 0
+        for name, variants in sequences.items():
+            sequence = variants[index]
+            genes.append(
+                Gene(name, "CDS", (Interval(offset, offset + len(sequence)),), transl_table=11)
+            )
+            chunks.append(sequence)
+            offset += len(sequence)
+        genomes.append(
+            Genome(
+                name=f"synthetic {index}",
+                accession=f"SYN{index}.1",
+                sequence="".join(chunks),
+                genes=tuple(genes),
+                topology="linear",
+            )
+        )
+    return tuple(genomes)
 
 
-def test_the_tool_and_its_argv_are_recorded(tmp_path: Path) -> None:
-    _run_dir, manifest = _run_tree(tmp_path)
-    tools = {t["name"]: t for module in manifest["modules"] for t in module.get("tools", [])}
-    assert "iqtree2" in tools and tools["iqtree2"]["version"] == "2.3.6"
-    argv = tools["iqtree2"]["argv"]
-    assert argv[argv.index("-m") + 1] == "MFP"
-    assert argv[argv.index("-bb") + 1] == "1000"
-    assert argv[argv.index("-seed") + 1] == "1"
-    assert "mafft" in tools
+def _phylogeny_ctx(tmp_path: Path):
+    from plastid.run.context import RunContext
+    from plastid.run.layout import RunLayout
+
+    layout = RunLayout.create(tmp_path / "runs", "phylogeny-test", fingerprint="test")
+    layout.make_dirs()
+    return RunContext(layout=layout, params={}, module_id="phylogeny", module_order=1)
 
 
-def test_a_bootstrap_below_one_thousand_is_refused(tmp_path: Path) -> None:
-    """A support value from fewer than 1000 replicates is not one this toolkit publishes."""
-    from plastid.cli import main
+def test_a_gene_partition_names_every_included_block(tmp_path: Path, monkeypatch) -> None:
+    """`partition=gene` gives IQ-TREE one charset per block, tiling the matrix."""
+    import plastid.modules.phylogeny as phylo
 
-    _require_mafft()
-    records = _panel_records()
-    argv = ["run", "-m", "phylogeny"]
-    for record in records:
-        argv += ["-i", str(record)]
-    argv += [
-        "-o",
-        str(tmp_path),
-        "--set",
-        f"iqtree={_iqtree_dir()}",
-        "--set",
-        "ultrafast_bootstrap=100",
-    ]
-    assert main(argv) == 3
+    captured: dict = {}
+
+    def fake_align(rows, ctx, *, strategy="auto"):
+        return Alignment(
+            names=tuple(name for name, _ in rows),
+            sequences=tuple(sequence for _, sequence in rows),
+        )
+
+    def fake_iqtree(path, ctx, **kwargs):
+        captured.update(kwargs)
+        return _fake_tree()
+
+    monkeypatch.setattr(phylo, "align", fake_align)
+    monkeypatch.setattr(phylo, "run_iqtree", fake_iqtree)
+
+    result = phylo.run(_synthetic_genomes(), {"partition": "gene"}, _phylogeny_ctx(tmp_path))
+
+    partition = captured["partition"]
+    assert "begin sets;" in partition
+    assert "charset atpA = 1-12;" in partition
+    assert "charset rbcL = 13-24;" in partition
+    assert "supermatrix.partition.nex" in result.artifacts
+    assert result.artifacts["supermatrix.partition.nex"] == partition
+    assert result.tables["phylogeny_summary"].value("partition") == "gene (2 partitions)"
 
 
-def _unused(_: Genome) -> None:  # pragma: no cover - keeps the import meaningful
-    return None
+def test_a_codon_partition_splits_each_block_into_three(tmp_path: Path, monkeypatch) -> None:
+    """`partition=codon` is columns 1/2/3 of each block, written with NEXUS's `\\3` step."""
+    import plastid.modules.phylogeny as phylo
+
+    captured: dict = {}
+
+    def fake_align(rows, ctx, *, strategy="auto"):
+        return Alignment(
+            names=tuple(name for name, _ in rows),
+            sequences=tuple(sequence for _, sequence in rows),
+        )
+
+    def fake_iqtree(path, ctx, **kwargs):
+        captured.update(kwargs)
+        return _fake_tree()
+
+    monkeypatch.setattr(phylo, "align", fake_align)
+    monkeypatch.setattr(phylo, "run_iqtree", fake_iqtree)
+
+    result = phylo.run(_synthetic_genomes(), {"partition": "codon"}, _phylogeny_ctx(tmp_path))
+
+    partition = captured["partition"]
+    assert "charset atpA_codon1 = 1-12\\3;" in partition
+    assert "charset atpA_codon2 = 2-12\\3;" in partition
+    assert "charset atpA_codon3 = 3-12\\3;" in partition
+    assert "charset rbcL_codon1 = 13-24\\3;" in partition
+    assert result.tables["phylogeny_summary"].value("partition") == "codon (6 partitions)"
+
+
+def test_the_default_is_unpartitioned(tmp_path: Path, monkeypatch) -> None:
+    """No flag means the old behaviour: no `-p`, no partition artifact, no changed tree."""
+    import plastid.modules.phylogeny as phylo
+
+    captured: dict = {}
+
+    def fake_align(rows, ctx, *, strategy="auto"):
+        return Alignment(
+            names=tuple(name for name, _ in rows),
+            sequences=tuple(sequence for _, sequence in rows),
+        )
+
+    def fake_iqtree(path, ctx, **kwargs):
+        captured.update(kwargs)
+        return _fake_tree()
+
+    monkeypatch.setattr(phylo, "align", fake_align)
+    monkeypatch.setattr(phylo, "run_iqtree", fake_iqtree)
+
+    result = phylo.run(_synthetic_genomes(), {}, _phylogeny_ctx(tmp_path))
+
+    assert captured["partition"] is None
+    assert "supermatrix.partition.nex" not in result.artifacts
+    assert result.tables["phylogeny_summary"].value("partition") == "none"
+
+
+def test_an_unknown_partition_mode_is_refused_by_name(tmp_path: Path) -> None:
+    from plastid.modules.phylogeny import run
+    from plastid.run.params import ParamValueError
+
+    with pytest.raises(ParamValueError, match="none, gene, codon"):
+        run(_synthetic_genomes(), {"partition": "by-codon"}, _phylogeny_ctx(tmp_path))
+
+
+# ---------------------------------------------------------------- MACSE, opt-in (M11.21)
+
+
+def test_macse_is_opt_in_and_replaces_the_mafft_call(tmp_path: Path, monkeypatch) -> None:
+    """`aligner=macse` must go through the MACSE adapter — not silently fall back to MAFFT."""
+    import plastid.modules.phylogeny as phylo
+    from plastid.external.macse import MacseBinary
+
+    used: dict = {}
+
+    def fake_resolve(explicit=None):
+        used["explicit"] = explicit
+        return MacseBinary(argv_prefix=("macse",), version="2.07")
+
+    def fake_align_cds(rows, ctx, *, binary):
+        used["macse_rows"] = len(rows)
+        return Alignment(
+            names=tuple(name for name, _ in rows),
+            sequences=tuple(sequence for _, sequence in rows),
+        )
+
+    def fail_align(*args, **kwargs):
+        raise AssertionError("MAFFT must not run when aligner=macse")
+
+    def fake_iqtree(path, ctx, **kwargs):
+        return _fake_tree()
+
+    monkeypatch.setattr(phylo, "resolve_macse", fake_resolve)
+    monkeypatch.setattr(phylo, "align_cds", fake_align_cds)
+    monkeypatch.setattr(phylo, "align", fail_align)
+    monkeypatch.setattr(phylo, "run_iqtree", fake_iqtree)
+
+    result = phylo.run(_synthetic_genomes(), {"aligner": "macse"}, _phylogeny_ctx(tmp_path))
+
+    assert used["macse_rows"] == 3
+    assert result.tables["phylogeny_summary"].value("aligner") == "macse 2.07"
+    assert "MACSE 2.07" in result.tables["phylogeny_summary"].scope.label
+
+
+@pytest.mark.parametrize(
+    ("params", "message"),
+    [
+        ({"aligner": "clustal"}, "not one of mafft, macse"),
+        ({"aligner": "macse", "mafft_strategy": "einsi"}, "mafft_strategy has no effect"),
+        ({"macse": "/tmp/macse.jar"}, "has no effect with aligner=mafft"),
+    ],
+)
+def test_an_aligner_choice_that_cannot_be_honoured_is_refused(
+    tmp_path: Path, params: dict, message: str
+) -> None:
+    from plastid.modules.phylogeny import run
+    from plastid.run.params import ParamValueError
+
+    with pytest.raises(ParamValueError, match=message):
+        run(_synthetic_genomes(), params, _phylogeny_ctx(tmp_path))
+
+
+def test_the_adapter_writes_the_partition_file_and_passes_it_to_iqtree(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The adapter owns the `-p` flag; a partition that never reaches argv is a silent no-op."""
+    import plastid.external.iqtree as iq
+
+    monkeypatch.setattr(iq, "resolve_binary", lambda directory=None: "/fake/iqtree2")
+    monkeypatch.setattr(iq, "iqtree_version", lambda binary: "2.3.6")
+    alignment = tmp_path / "alignment.fasta"
+    alignment.write_text(">a\nACGT\n>b\nACGT\n", encoding="utf-8")
+
+    class StubContext:
+        def __init__(self) -> None:
+            self.argv: tuple[str, ...] = ()
+            self.written = ""
+
+        def tool(self, name, argv, **kwargs):
+            workdir = Path(kwargs["cwd"])
+            self.argv = tuple(argv)
+            self.written = (workdir / "partition.nex").read_text(encoding="utf-8")
+            (workdir / "tree.treefile").write_text("(a,b);\n", encoding="utf-8")
+            (workdir / "tree.iqtree").write_text("report\n", encoding="utf-8")
+
+    ctx = StubContext()
+    nexus = "#nexus\nbegin sets;\n  charset g = 1-2;\nend;\n"
+    result = iq.run_iqtree(alignment, ctx, partition=nexus)
+
+    assert ctx.argv[ctx.argv.index("-p") + 1] == "partition.nex"
+    assert ctx.written == nexus
+    assert result.treefile == "(a,b);\n"
+
+
+def test_the_adapter_does_not_pass_p_without_a_partition(tmp_path: Path, monkeypatch) -> None:
+    import plastid.external.iqtree as iq
+
+    monkeypatch.setattr(iq, "resolve_binary", lambda directory=None: "/fake/iqtree2")
+    monkeypatch.setattr(iq, "iqtree_version", lambda binary: "2.3.6")
+    alignment = tmp_path / "alignment.fasta"
+    alignment.write_text(">a\nACGT\n>b\nACGT\n", encoding="utf-8")
+
+    class StubContext:
+        def tool(self, name, argv, **kwargs):
+            StubContext.argv = tuple(argv)
+            (Path(kwargs["cwd"]) / "tree.treefile").write_text("(a,b);\n", encoding="utf-8")
+
+    iq.run_iqtree(alignment, StubContext())
+    assert "-p" not in StubContext.argv

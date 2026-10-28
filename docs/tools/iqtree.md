@@ -34,8 +34,12 @@ conda env create -f environment.yml
 **The invocation the adapter uses:**
 
 ```
-iqtree2 -s alignment.fasta --prefix tree -m MFP -bb 1000 -alrt 1000 -bnni -nt AUTO -seed 1 --redo
+iqtree2 -s alignment.fasta --prefix tree -m MFP -bb 1000 -alrt 1000 -bnni -nt 1 -seed 1 --redo
 ```
+
+With `--set partition=gene` or `partition=codon`, the module writes a NEXUS `begin sets` block
+beside the matrix and the adapter adds `-p partition.nex` (edge-proportional partition model,
+ModelFinder choosing a model per partition).
 
 | Flag | Why |
 |---|---|
@@ -43,8 +47,9 @@ iqtree2 -s alignment.fasta --prefix tree -m MFP -bb 1000 -alrt 1000 -bnni -nt AU
 | `-bb 1000` | 1000 ultrafast bootstrap replicates. Below 1000 the adapter **refuses** — a support value from fewer replicates is not one this toolkit publishes |
 | `-alrt 1000` | 1000 SH-aLRT replicates, shown beside UFBoot as `UFBoot/SH-aLRT` |
 | `-bnni` | optimise the bootstrap trees by NNI, the setting IQ-TREE recommends with `-bb` |
-| `-nt AUTO` | threads; recorded in argv, and it does not change the topology |
+| `-nt 1` | one thread, so two runs of one matrix give the same tree. Measured 28/10/2026: with `-nt AUTO` two runs gave different topologies and support values (99.5 vs 99.7); IQ-TREE's parallel reductions are not associative. `--set threads=N` is the explicit trade of reproducibility for speed |
 | `-seed 1` | a fixed seed, so two runs of one matrix give one tree. Changing it is a deliberate act and shows in argv |
+| `-p partition.nex` | only with a partition file: one model per partition, edge-proportional. Absent for the default unpartitioned run |
 | `--redo` | an existing `--prefix` output is overwritten rather than silently reused |
 
 **What the adapter does not do.** It does not choose an outgroup or root the tree — a tree drawn

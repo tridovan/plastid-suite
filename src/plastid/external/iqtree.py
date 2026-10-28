@@ -119,12 +119,17 @@ def run_iqtree(
     seed: int = 1,
     directory: str | Path | None = None,
     timeout: int | None = None,
+    partition: str | None = None,
 ) -> IqtreeResult:
     """Run IQ-TREE on an aligned FASTA and return the tree it wrote.
 
     The input is copied into a throwaway directory so IQ-TREE's many side files
     (``.ckp.gz``, ``.bionj``, ``.contree``…) never land in the run directory; the files worth
     keeping are copied back by the caller from the returned strings.
+
+    ``partition`` is a NEXUS ``begin sets`` block. When given it is written beside the alignment
+    and passed as ``-p``, which asks IQ-TREE for an edge-proportional partition model with
+    ModelFinder choosing a model per partition. ``None`` keeps the unpartitioned run.
     """
     binary = resolve_binary(directory)
     version = iqtree_version(binary)
@@ -138,6 +143,8 @@ def run_iqtree(
         )
 
     argv = [binary, "-s", "alignment.fasta", "--prefix", "tree", "-m", model]
+    if partition is not None:
+        argv += ["-p", "partition.nex"]
     argv += ["-bb", str(ultrafast_bootstrap), "-alrt", str(alrt)]
     if bnni:
         argv.append("-bnni")
@@ -146,6 +153,8 @@ def run_iqtree(
     with tempfile.TemporaryDirectory(prefix="iqtree_") as work:
         workdir = Path(work)
         shutil.copyfile(alignment_path, workdir / "alignment.fasta")
+        if partition is not None:
+            (workdir / "partition.nex").write_text(partition, encoding="utf-8")
         ctx.tool(
             "iqtree2",
             argv,

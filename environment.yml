@@ -35,6 +35,9 @@ dependencies:
                 # installed here; the script is obtained separately
   - mafft=7.526 # pinned, tarball md5 recorded. conda-forge only — bioconda stops
                 # at 7.525, and the aligner build changes the Ts/Tv number
+  - macse=2.07 # codon-aware CDS alignment, opt-in for `phylogeny` (aligner=macse, M11.21).
+               # CeCILL 2.1, a Java jar; bioconda is the route because the vendor URL no longer
+               # serves 2.07 (measured 28/10/2026) — docs/tools/macse.md has both hashes
 
   # --- annotation -----------------------------------------------------------------------
   - aragorn=1.2.41 # the tRNA caller (P3A-04): 147 kB on bioconda, GPLv3, and the tool PMGA

@@ -33,6 +33,7 @@ failure, not a placeholder.
 | `repeat-match` | active-runtime | `mummer4` | 4.0.1 | `external/repeatmatch.py` ← `modules/repeats.py` (same package as `mummer4`) | [mummer4](mummer4.md) |
 | `paml` | active-runtime | `paml` | 4.10.10 | `external/paml.py` (`yn00`) ← `modules/kaks.py` | [paml](paml.md) |
 | `iqtree` | active-runtime | `iqtree` | 2.3.6 | `external/iqtree.py` ← `modules/phylogeny.py` | [iqtree](iqtree.md) |
+| `macse` | active-runtime | `macse` | 2.07 | `external/macse.py` ← `modules/phylogeny.py` (`aligner=macse`, opt-in) | [macse](macse.md) |
 | `R` | active-runtime | `r-base`, `r-ggplot2`, `r-dplyr`, `r-tidyr`, `r-reshape2`, `r-rcolorbrewer`, `r-zoo`, `r-scales`, `r-pheatmap`, `r-ape` | R 4.3; the nine packages deliberately unpinned (they draw, they do not compute a number) | `external/rscript.py` ← `cli.py` (`figures`, `package`) | [r](r.md) |
 | `misa` | active-runtime | — (obtained separately) | 2.1 | `external/misa.py` ← `modules/ssr.py` | [misa](misa.md) |
 | `table2asn` | active-runtime | — (NCBI binary) | 1.29.324 | `modules/submission.py` (`_build_sqn`, optional `.sqn` step) | [table2asn](table2asn.md) |

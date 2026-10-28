@@ -27,10 +27,22 @@ and a reader has to be able to check it:
 does not claim the tree is right. A topology is not a verifiable number, so the tables report what
 was built (taxa, blocks, sites, tool, argv, support present) and leave interpretation to the
 reader. `plastid figures` draws the `.treefile` it writes.
+
+**Partitions are opt-in, and the aligner decides what a codon is.** `partition=none` (the
+default) is the unpartitioned supermatrix. `partition=gene` gives IQ-TREE one partition per gene
+block, and `partition=codon` gives three per block (alignment columns 1/2/3). The default aligner
+is MAFFT on nucleotides; `aligner=macse` uses MACSE 2.07, which aligns through the amino-acid
+translation and writes a frameshift as `!` and a stop as `*` (both read as gaps here). It is
+opt-in, as it is in CGAS. Under MAFFT a codon partition is a partition of alignment columns, not
+of verified codon positions: an indel that shifts the frame inside a gene makes columns 1/2/3 stop
+being codon positions for the sequences after it. Under MACSE the alignment is codon-aware, but
+the codon partition is still a column partition of the alignment MACSE returned. The scope label
+and the summary's `Partitioning`/`Aligner` columns say which combination ran.
 """
 
 from __future__ import annotations
 
+import re
 import tempfile
 from collections.abc import Sequence
 from pathlib import Path
@@ -41,16 +53,22 @@ from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.model import Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.iqtree import run_iqtree
+from plastid.external.macse import align_cds, resolve_macse
 from plastid.external.mafft import align
 from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
+from plastid.run.params import ParamValueError
 
 MODULE_ID = "phylogeny"
-MODULE_VERSION = "0.1.0"
+# 0.3.0 (28/10/2026): `aligner=mafft|macse` — MACSE is opt-in and codon-aware (M11.21). The
+# default path and every number measured before this version are MAFFT, unchanged.
+MODULE_VERSION = "0.3.0"
 
 DEFAULT_THREADS = "1"
 DEFAULT_SEED = 1
+PARTITION_MODES = ("none", "gene", "codon")
+ALIGNERS = ("mafft", "macse")
 
 
 @module(
@@ -81,6 +99,17 @@ DEFAULT_SEED = 1
         ParamSpec(
             "include_partial", "bool", "include CDS marked partial instead of excluding them"
         ),
+        ParamSpec(
+            "partition",
+            "str",
+            "IQ-TREE partitioning: none (default), gene, or codon (alignment columns 1/2/3)",
+        ),
+        ParamSpec(
+            "aligner",
+            "str",
+            "per-gene aligner: mafft (default) or macse (codon-aware, opt-in)",
+        ),
+        ParamSpec("macse", "str", "path to macse_v2.07.jar or the `macse` wrapper"),
         ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
     ),
 )
@@ -93,6 +122,22 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     keys = [genome.accession or genome.name for genome in genomes]
     labels: dict[str, str] = params.get("groups", {}) or {}
     include_partial = _flag(params.get("include_partial"))
+    partition_mode = _partition_mode(params.get("partition", "none"))
+    aligner = _aligner(params.get("aligner", "mafft"))
+    macse_binary = None
+    if aligner == "macse":
+        if "mafft_strategy" in params:
+            raise ParamValueError(
+                "phylogeny: mafft_strategy has no effect with aligner=macse — set the strategy "
+                "on the MAFFT run, or drop it here"
+            )
+        # Resolved once, before the gene loop: a missing jar or an unpinned release fails here
+        # rather than after the first gene has been aligned.
+        macse_binary = resolve_macse(params.get("macse"))
+    elif "macse" in params:
+        raise ParamValueError(
+            "phylogeny: macse=… has no effect with aligner=mafft — pass aligner=macse to use it"
+        )
 
     by_genome = {
         key: cds_by_canonical_name(genome) for key, genome in zip(keys, genomes, strict=True)
@@ -124,11 +169,11 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 }
             )
             continue
-        alignment = align(
-            [(key, coding_sequence(genome, gene)) for key, genome, gene in carriers],
-            ctx,
-            strategy=str(params.get("mafft_strategy", "auto")),
-        )
+        rows = [(key, coding_sequence(genome, gene)) for key, genome, gene in carriers]
+        if macse_binary is not None:
+            alignment = align_cds(rows, ctx, binary=macse_binary)
+        else:
+            alignment = align(rows, ctx, strategy=str(params.get("mafft_strategy", "auto")))
         gene_alignments[name] = alignment
         kept.append(name)
         gene_rows.append(
@@ -163,6 +208,8 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     if len(lengths) != 1:
         raise ValueError(f"phylogeny: supermatrix rows differ in length: {sorted(lengths)}")
     matrix = Alignment(names=tuple(keys), sequences=tuple(sequences[key] for key in keys))
+    charsets = _block_charsets(blocks, partition_mode)
+    partition_text = _partition_nexus(charsets) if charsets else None
 
     # The matrix is written to a throwaway path for the tool to read; the *artifact* carries the
     # text, so the module never names a path in the run directory (seam 2: only write_payload
@@ -181,12 +228,22 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             threads=str(params.get("threads", DEFAULT_THREADS)),
             seed=int(params.get("seed", DEFAULT_SEED)),
             directory=params.get("iqtree"),
+            partition=partition_text,
         )
 
+    partition_label = (
+        "none" if partition_mode == "none" else f"{partition_mode} ({len(charsets)} partitions)"
+    )
+    aligner_label = (
+        f"MACSE {macse_binary.version} per gene (codon-aware; ! and * read as gaps)"
+        if macse_binary is not None
+        else "MAFFT per gene"
+    )
     scope = Scope(
         label=(
             f"{len(keys)} genomes; {len(kept)} CDS blocks concatenated in name order; "
-            f"one copy per gene name; MAFFT per gene; IQ-TREE {result.version}"
+            f"one copy per gene name; {aligner_label}; partition: {partition_label}; "
+            f"IQ-TREE {result.version}"
         )
     )
     matrix_rows = [
@@ -208,6 +265,8 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("genes_included", "Genes included", dtype="int"),
             Column("genes_excluded", "Genes excluded", dtype="int"),
             Column("alignment_sites", "Supermatrix sites", dtype="int", unit="bp"),
+            Column("partition", "Partitioning"),
+            Column("aligner", "Aligner"),
             Column("model", "Model"),
             Column("tool", "Tool"),
             Column("version", "Version"),
@@ -219,6 +278,8 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 "genes_included": len(kept),
                 "genes_excluded": len(gene_rows) - len(kept),
                 "alignment_sites": matrix.length,
+                "partition": partition_label,
+                "aligner": "macse " + macse_binary.version if macse_binary else "mafft",
                 "model": str(params.get("model", "MFP")),
                 "tool": "iqtree2",
                 "version": result.version,
@@ -266,9 +327,95 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             "supermatrix.fasta": matrix_text,
             "tree.treefile": result.treefile,
             "tree.iqtree": result.report,
+            **({"supermatrix.partition.nex": partition_text} if partition_text is not None else {}),
         },
         citations=("mafft", "iqtree"),
     )
+
+
+def _block_charsets(
+    blocks: Sequence[tuple[str, dict[str, str]]], mode: str
+) -> list[tuple[str, int, int, int | None]]:
+    """1-based inclusive column ranges for the partition file, in supermatrix order.
+
+    ``gene`` yields one range per block; ``codon`` yields three (columns 1/2/3 of the block).
+    The cursor is the first column of the block, so the ranges tile the matrix without gaps or
+    overlaps. ``none`` yields nothing — the adapter then runs IQ-TREE without ``-p``.
+    """
+    charsets: list[tuple[str, int, int, int | None]] = []
+    used_names: set[str] = set()
+    cursor = 1
+    for block_name, block in blocks:
+        width = len(next(iter(block.values())))
+        if mode == "gene":
+            charsets.append((_nexus_name(block_name, used_names), cursor, cursor + width - 1, None))
+        elif mode == "codon":
+            if width < 3:
+                raise ValueError(
+                    f"phylogeny: gene {block_name!r} aligns to {width} column(s); a codon "
+                    f"partition needs at least 3 — use partition=gene for this matrix"
+                )
+            for position in (1, 2, 3):
+                charsets.append(
+                    (
+                        _nexus_name(f"{block_name}_codon{position}", used_names),
+                        cursor + position - 1,
+                        cursor + width - 1,
+                        3,
+                    )
+                )
+        cursor += width
+    return charsets
+
+
+def _aligner(value: object) -> str:
+    """``mafft`` (default) or ``macse``, refused by name otherwise."""
+    aligner = str(value).strip().lower()
+    if aligner not in ALIGNERS:
+        raise ParamValueError(
+            f"phylogeny: aligner={value!r} is not one of {', '.join(ALIGNERS)} — choose the "
+            f"per-gene aligner explicitly"
+        )
+    return aligner
+
+
+def _partition_mode(value: object) -> str:
+    """``none`` · ``gene`` · ``codon``, refused by name otherwise (a typo is not a default)."""
+    mode = str(value).strip().lower()
+    if mode not in PARTITION_MODES:
+        raise ParamValueError(
+            f"phylogeny: partition={value!r} is not one of "
+            f"{', '.join(PARTITION_MODES)} — choose the partitioning explicitly"
+        )
+    return mode
+
+
+def _nexus_name(name: str, used: set[str]) -> str:
+    """A NEXUS-safe, unique charset name for a gene block (``rps12_codon3`` stays readable)."""
+    clean = re.sub(r"[^A-Za-z0-9_.]", "_", name) or "gene"
+    if clean[0].isdigit():
+        clean = f"g{clean}"
+    candidate, suffix = clean, 2
+    while candidate in used:
+        candidate = f"{clean}_{suffix}"
+        suffix += 1
+    used.add(candidate)
+    return candidate
+
+
+def _partition_nexus(charsets: Sequence[tuple[str, int, int, int | None]]) -> str:
+    """A NEXUS ``begin sets`` block for IQ-TREE's ``-p``.
+
+    Ranges are 1-based inclusive supermatrix columns, which is the coordinate system IQ-TREE
+    reads. ``step`` is written with NEXUS's ``\\N`` syntax (codon position 1 is ``1-N\\3``), so
+    the file stays a range description rather than a list of every column.
+    """
+    lines = ["#nexus", "begin sets;"]
+    for name, start, end, step in charsets:
+        step_text = f"\\{step}" if step is not None else ""
+        lines.append(f"  charset {name} = {start}-{end}{step_text};")
+    lines += ["end;", ""]
+    return "\n".join(lines)
 
 
 def _flag(value: object) -> bool:
