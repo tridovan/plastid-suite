@@ -32,7 +32,7 @@ uv pip install --python /root/toolbox/env/cgas/bin/python -e .data/cgas-review
 | Python-only modules | 3, 4, 5, 6, 7, 10, 11 — these ran |
 | Modules 8, 9, 12, 13 with R absent | they **compute every number in Python and skip only the plots** (`⚠ R is not installed or not in PATH → Skipping visualization`) — measured, not assumed |
 | R on this machine | **absent** — so no CGAS figure was produced |
-| Not run | 1 (needs FASTQ reads), 2 (annotation through PGA, retired from this project), 14 (needs IQ-TREE and MACSE) |
+| Not run | 1 (needs FASTQ reads), 2 (annotation through PGA, retired from this project). Module 14 was **run on 28/10/2026** with the now-installed MACSE and IQ-TREE — see below |
 | Licence | MIT |
 
 ## What CGAS has that this toolkit does not
@@ -43,7 +43,7 @@ uv pip install --python /root/toolbox/env/cgas/bin/python -e .data/cgas-review
 | **2 — annotation through PGA** (identity 40 %, coverage `0.5,2`, IR 1,000 bp) | `annotate` transfers annotation with its own BLAST/ARAGORN path; PGA is **retired** here | different engine, not a gap — but CGAS's wrapper expects PGA, which this project does not use |
 | **5 / 6 / 8 / 9 / 12 — one multi-genome table and figure across every input GenBank** (merged RSCU/amino-acid/SSR wide table, heatmaps, Word gene-content document) | `batch` writes a long-format `aggregate.csv` plus per-sample runs; the multi-sample R figures (F3/F4/F5) pivot it | **mostly closed.** Still missing natively: the publication **gene-content matrix across samples** (module 6's shape). CGAS's own assembly of the manuscript's 34-species panels is the reason that shape exists |
 | **11 — tRNA introns** (`trnK-UUU` 2,617 bp, 8 on the golden) | `introns` publishes CDS and tRNA introns separately with a `kind` column since M11.15 | **closed** — this comparison is what found the gap (H-23) |
-| **14 — partitioned supermatrix, MACSE codon-aware alignment, separate gene/intron/IGS trees** | `phylogeny` is CDS-only, one engine (MAFFT per gene → IQ-TREE), with opt-in `partition=gene` or `partition=codon` files; no MACSE, no separate intron/IGS matrices | **CGAS ahead on breadth.** MACSE and the separate intron/IGS matrices remain open on M11.21 |
+| **14 — partitioned supermatrix, MACSE codon-aware alignment, separate gene/intron/IGS trees** | `phylogeny` is CDS-only, one engine (MAFFT per gene → IQ-TREE), with opt-in `partition=gene` or `partition=codon` files and an opt-in MACSE aligner; no separate intron/IGS matrices | **CGAS ahead on breadth.** Separate intron/IGS matrices remain open on M11.21. Measured 28/10/2026 on the same 4 records with MACSE + IQ-TREE: same topology, 70,101 vs 70,110 sites, support 99.2/97 vs 100/100 — see below |
 | **4 — GenBank → FASTA/TBL converter plus a validator** | `submission` emits `.fsa`/`.tbl` and first-pass checks, optionally `.sqn` via table2asn | roughly equal; CGAS has no `.sqn` path |
 
 Module 3 (gene comparison against a reference: normalizes names, lists missing/extra genes, flags
@@ -100,8 +100,14 @@ needs the flags below stated next to it.
   (`0.0` for a per-gene 0.0056), so only its text report is comparable; it merges genes, introns
   and intergenic spacers into one 218-row list where PTS publishes three tables; and it prints no
   whole-alignment π to put beside PTS's. Module 3 writes a renamed record — a different product, not
-  a cell. Module 14 has **not** been run with the now-installed MACSE/IQ-TREE, so no m14 cell is
-  claimed.
+  a cell. Module 14 **was** run on 28/10/2026 (`--macse --genes-only --iqtree --threads 1`) on the
+  same 4 records PTS's MACSE run used: **same topology**, **70,101 sites in 78 gene partitions**
+  against PTS's 70,110 sites in 234 codon partitions, and support **99.2/97** against **100/100**
+  on the single internal split. The 9-site and support differences are **unexplained**: the
+  extraction rules differ (`feature.extract`-style region taking versus `coding_sequence`), the
+  partition schemes differ (gene versus codon), and CGAS fixes no seed (IQ-TREE drew 670299), so
+  its tree is not byte-reproducible. Naming the difference is the whole of the finding; no PTS
+  number moved.
 - **It fails silently where it cannot detect**, which is the improvement this project exists to
   make: on `NC_024936.1`, module 7 finds no region, prints no warning, writes `LSC 0 · SSC 0 ·
   IR 0`, and counts the record as analysed. The record is not wrong; the zero is.
