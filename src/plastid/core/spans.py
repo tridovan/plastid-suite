@@ -171,9 +171,13 @@ def introns_of(genome: Genome, ir: IRResult) -> IntronSet:
     for gene in cds_features(genome):
         copies[gene.name] += 1
         preceding = 0
+        number = 0
         pairs = zip(gene.parts, gene.parts[1:], strict=False)  # one shorter by design
-        for number, (first, second) in enumerate(pairs, start=1):
+        for first, second in pairs:
             preceding += first.length
+            if _same_exon_across_origin(first, second, len(genome)):
+                continue
+            number += 1
             start = min(first.end, second.end)
             end = max(first.start, second.start)
             # gene.copy.n: the IR carries a second copy of several genes, and a repeated table
@@ -380,6 +384,23 @@ def _region_of(frame: NormalizedFrame, position: int) -> str:
     if region is None:  # a normalized frame covers every position; this is a broken frame
         raise ValueError(f"position {position} is in no region of the normalized frame")
     return region.name
+
+
+def _same_exon_across_origin(first: Interval, second: Interval, length: int) -> bool:
+    """Two parts that touch at the record's origin are one exon, not an intron boundary.
+
+    A circular record writes an exon crossing position 1 as two pieces (`join(…,1..n)`, which
+    GenBank orders high then low on the plus strand), and :func:`rotate_gene` produces the same
+    shape whenever the new origin cuts an exon. On the circle the pieces are contiguous: one ends
+    at the last base and the other starts at the first. Reading that boundary as an intron
+    publishes a genome-length intron — measured 28/10/2026, `petD.1.2` at 153,243 bp on the golden
+    record rotated by half, while the 0-gap pair `_check_gap` refuses is a different defect (a
+    join() that overlaps). A real intron that crosses the origin leaves a gap on both sides of
+    it, so it does not match.
+    """
+    return (first.end == length and second.start == 0) or (
+        second.end == length and first.start == 0
+    )
 
 
 def _check_gap(gene: Gene, first: Interval, second: Interval, gap: int) -> None:

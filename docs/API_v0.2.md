@@ -157,8 +157,11 @@ the build. Run-level keys (`data_label`, `ir_source`, `reannotate`, `rscript`) a
 `registry.SHARED_PARAMS` because the CLI is also a place a parameter is consumed.
 
 **A tool parameter is typed, never a free-form string.** `--set mafft_strategy=einsi` selects one
-of six names (`auto`, `einsi`, `linsi`, `ginsi`, `fftns`, `nwns`); anything else is refused with the
-list, and the flag it becomes (`--einsi`) is what the manifest records. The default is `auto`, the
+of five names (`auto`, `einsi`, `linsi`, `ginsi`, `fftns`); anything else is refused with the
+list, and the flags it becomes (`--localpair --maxiterate 1000` for `linsi`, or `--retree 2
+--maxiterate 0` for `fftns`) are what the manifest records. `nwns` is not offered: MAFFT 7, the pinned release, has no NW-NS mode to map
+it to, and both `--fftns` and `--nwns` were removed from the aligner after v6 — the names had
+passed every in-suite check while failing against the pinned build. The default is `auto`, the
 algorithm every published number here was measured with. The same pattern applies to
 `ultrafast_bootstrap` on `phylogeny`, which refuses a value below 1000.
 

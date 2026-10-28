@@ -32,19 +32,26 @@ MAFFT_VERSION = "7.526"
 # and the one every published number here was measured with; the rest are offered because a
 # divergence-rich panel can need a different algorithm, and a user who runs MAFFT by hand picks
 # one. Adding a strategy changes the alignment, so it travels in argv and in the column.
-MAFFT_STRATEGIES: dict[str, str] = {
-    "auto": "--auto",
-    "einsi": "--einsi",
-    "linsi": "--linsi",
-    "ginsi": "--ginsi",
-    "fftns": "--fftns",
-    "nwns": "--nwns",
+#
+# Each value is the **argv fragment**, not one option. MAFFT 7 does not accept `--einsi`,
+# `--linsi`, `--ginsi`, `--fftns` or `--nwns`: those are v6 names, and the v7 aliases are the
+# separate wrapper programs of the same name, the algorithms themselves being selected by the
+# pair/hmm options below. Every non-default strategy therefore failed against the pinned build
+# (measured 28/10/2026: `Unknown option: --fftns`, then `--linsi`) while the in-suite check, which
+# only compared each string with `--<name>`, passed. `nwns` is gone: MAFFT 7 has no NW-NS mode to
+# map it to, and a name that always fails is worse than a refusal that lists the names that work.
+MAFFT_STRATEGIES: dict[str, tuple[str, ...]] = {
+    "auto": ("--auto",),
+    "einsi": ("--genafpair", "--maxiterate", "1000"),
+    "linsi": ("--localpair", "--maxiterate", "1000"),
+    "ginsi": ("--globalpair", "--maxiterate", "1000"),
+    "fftns": ("--retree", "2", "--maxiterate", "0"),
 }
 DEFAULT_STRATEGY = "auto"
 
 
-def strategy_flag(strategy: str) -> str:
-    """The MAFFT flag for a strategy name, refused by name when it is not one of ours."""
+def strategy_flag(strategy: str) -> tuple[str, ...]:
+    """The MAFFT argv flags for a strategy name, refused by name when it is not one of ours."""
     try:
         return MAFFT_STRATEGIES[strategy]
     except KeyError:
@@ -137,7 +144,7 @@ def _run(
         fasta.write_text(_to_fasta(rows), encoding="utf-8")
         record = ctx.tool(
             "mafft",
-            [binary, strategy_flag(strategy), "--quiet", *extra, fasta.name],
+            [binary, *strategy_flag(strategy), "--quiet", *extra, fasta.name],
             tool_path=binary,
             pinned_version=MAFFT_VERSION,
             cwd=workdir,

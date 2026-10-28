@@ -1,7 +1,6 @@
 # Known correctness and integration issues
 
-These issues were reproduced during the 26 October 2026 review. **K-01, K-02, K-03, K-04, K-05,
-K-06, K-07 and K-08 are fixed.** Documenting a defect did not fix it, and a fixed entry says which
+These issues were reproduced during the 26 October 2026 review. **K-01 to K-11 are fixed.** Documenting a defect did not fix it, and a fixed entry says which
 test now holds it. **K-07 was found by the M11.8 acceptance run on 28/10/2026 and fixed on the
 same day**; its regression is now a positive test, not an `xfail`. The code version is `1.0.0`;
 that version label does not establish readiness for scientific use. The "observed" columns below
@@ -259,6 +258,47 @@ both branches directly (skip when optional, **fail** when required).
 The remaining CI skips are all `.panel/` — third-party data that is gitignored by design and cannot
 be fetched in CI; those checks skip with a named reason and are covered by the Docker run with the
 panel mounted (125 passed, 0 skipped).
+
+## K-10 — Two modules aligned the reference before normalizing it — **fixed (28/10/2026)**
+
+Found by the M11.17 rotated panel, not by an assertion: `diversity` and `substitutions` aligned
+the reference **as deposited** (row 0 of the MAFFT alignment) and then named regions, genes,
+introns and spacers in the **normalized** frame. On a record whose origin is not the LSC's first
+base the two frames differ.
+
+Measured on the golden pair with the reference rotated by half (same two genomes, same tool):
+
+| | as deposited | after the fix |
+|---|---|---|
+| alignment columns | 230,663 | 154,827 |
+| columns compared | 76,502 | 152,338 |
+| substitutions | 386 | 1,094 |
+| π per gene | `None` on most rows | the unrotated values |
+
+`barcodes` already normalized its reference before aligning and was invariant; the two modules
+that report the same kind of coordinates were not. The fix is the one `barcodes` uses — align the
+normalized reference — plus `NormalizedFrame.region_at_normalized` for a position that is already
+in the frame, because `region_at` converts from the deposited one and would subtract the offset
+twice. `diversity` derives introns and spacers on the deposited genome (deriving them on the
+rotated one splits an exon at the origin) and maps each span into the normalized frame.
+
+Held by `tests/golden/test_m11_17_rotated_annotation_cases.py` (three alignment modules, reference
+rotated by half, every table identical) and by
+`tests/unit/test_substitutions.py::test_the_region_table_uses_the_normalized_frame_on_a_rotated_reference`.
+
+## K-11 — Two of six MAFFT strategy names were not options of the pinned build — **fixed (28/10/2026)**
+
+`--set mafft_strategy=` offered `auto`, `einsi`, `linsi`, `ginsi`, `fftns`, `nwns` and mapped each
+name to the flag `--<name>`. MAFFT 7 removed `--einsi`, `--linsi`, `--ginsi`, `--fftns` and
+`--nwns` (the v7 aliases are separate wrapper programs); every non-default name therefore reached
+the binary and exited 1, `Unknown option: --fftns` (measured 28/10/2026). The unit test that was
+supposed to guard the table asserted `flag == f"--{name}"`, so it held the mistake in place.
+
+The table now stores **argv fragments**, not single flags — `einsi` → `--genafpair --maxiterate
+1000`, `linsi` → `--localpair --maxiterate 1000`, `ginsi` → `--globalpair --maxiterate 1000`,
+`fftns` → `--retree 2 --maxiterate 0` — and `nwns` is refused by name: MAFFT 7 has no NW-NS mode to
+map it to. Held by `tests/golden/test_mafft_tool.py`, which runs every documented name against the
+pinned build on a four-sequence input; no in-suite check can see an option the tool rejects.
 
 ## Other current limitations
 

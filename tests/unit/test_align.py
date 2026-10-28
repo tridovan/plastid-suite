@@ -228,14 +228,24 @@ def test_codon_frame_breaks_flags_a_row_whose_length_is_not_whole_codons() -> No
 # ---------------------------------------------------------------- MAFFT strategy (M11.20)
 
 
-def test_every_strategy_name_maps_to_a_mafft_flag() -> None:
-    """The mapping is data, so a typo in a flag would be a wrong alignment, not a crash."""
+def test_every_strategy_name_maps_to_mafft_7_argv() -> None:
+    """The mapping is data, and the pinned build's argv is the only thing that defines it.
+
+    The first version of this test asserted ``flag == f"--{name}"`` for every name. It passed
+    while two of the six names did not exist: MAFFT 7 removed ``--fftns`` and ``--nwns``, and
+    ``--set mafft_strategy=fftns`` reached the tool and exited 1 with ``Unknown option``
+    (measured 28/10/2026). An in-suite assertion on the shape of a flag cannot see that; the
+    tier-B test in ``tests/golden/test_mafft_tool.py`` runs every name against the real build.
+    """
     from plastid.external.mafft import MAFFT_STRATEGIES
 
-    assert set(MAFFT_STRATEGIES) == {"auto", "einsi", "linsi", "ginsi", "fftns", "nwns"}
-    for name, flag in MAFFT_STRATEGIES.items():
-        assert flag.startswith("--"), f"{name}: {flag!r} is not a MAFFT option"
-        assert flag == f"--{name}"
+    assert set(MAFFT_STRATEGIES) == {"auto", "einsi", "linsi", "ginsi", "fftns"}
+    for name, flags in MAFFT_STRATEGIES.items():
+        assert flags, f"{name}: no flags"
+        assert flags[0].startswith("--"), f"{name}: {flags}"
+    assert MAFFT_STRATEGIES["fftns"] == ("--retree", "2", "--maxiterate", "0")
+    assert MAFFT_STRATEGIES["linsi"] == ("--localpair", "--maxiterate", "1000")
+    assert "nwns" not in MAFFT_STRATEGIES
 
 
 def test_an_unknown_strategy_is_refused_with_the_list() -> None:

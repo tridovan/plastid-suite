@@ -1,7 +1,8 @@
 """Substitutions — pairwise counts against a reference genome (ROADMAP M2.6).
 
 Every count is stated against the genome it was measured from: row 0 of the MAFFT alignment is
-the reference, and each other row is compared to it. Columns where either row is a gap or an
+the reference **in its normalized frame** (the frame its regions are named in — K-10), and each
+other row is compared to it. Columns where either row is a gap or an
 ambiguous base are skipped and reported, never scored as a match or a substitution.
 
 Scope matters more here than anywhere: the golden Ts/Tv was measured over **CDS only, shared
@@ -62,7 +63,7 @@ DEFAULT_SCOPE = "whole"
         ParamSpec(
             "mafft_strategy",
             "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
         ),
     ),
 )
@@ -74,16 +75,26 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     if scope == "cds":
         return _cds_scope(genomes, params, ctx)
 
-    alignment = align(
-        [(genome.accession or genome.name, genome.sequence) for genome in genomes],
-        ctx,
-        strategy=str(params.get("mafft_strategy", "auto")),
-    )
     # The CLI already chose the IR source for this run (annotation or the explicit
     # `ir_source=sequence`); re-detecting here would ignore that choice. A direct module call
     # (tests, a library user) has no CLI choice to honour, so it detects its own.
     ir = ctx.ir if ctx.ir is not None else detect_ir(reference)
     frame = normalize(reference, ir)
+    # Row 0 is the reference in its **normalized** frame: the region columns are the normalized
+    # frame's, and an alignment of the record as deposited indexes them with a cursor from a
+    # different frame. Measured 28/10/2026: the golden reference rotated by half aligned to
+    # 230,663 columns (154,827 unrotated), compared 76,502 of them and counted 386 substitutions
+    # where the unrotated reference counts 1,094 — the same genome, two answers. `barcodes` and
+    # `diversity` normalize their reference for the same reason.
+    rows_for_alignment = [(frame.genome.accession or frame.genome.name, frame.genome.sequence)]
+    rows_for_alignment += [
+        (genome.accession or genome.name, genome.sequence) for genome in genomes[1:]
+    ]
+    alignment = align(
+        rows_for_alignment,
+        ctx,
+        strategy=str(params.get("mafft_strategy", "auto")),
+    )
     positions = reference_positions(alignment)
 
     labels: dict[str, str] = params.get("groups", {})
@@ -106,10 +117,10 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     for column, position in enumerate(positions):
         if position is None:
             continue
-        # ``positions`` are the reference's own (raw) positions; region names live in the
-        # normalized frame. Mapping beats comparing the two directly: at rotation 0 they happen
-        # to coincide, which is how the direct comparison survived — see Frame.region_at.
-        region = frame.region_at(position)
+        # Row 0 is the normalized reference, so ``positions`` are normalized-frame positions and
+        # the region lookup is direct. ``region_at`` would convert a deposited-frame position and
+        # subtract the offset a second time.
+        region = frame.region_at_normalized(position)
         if region is not None:
             columns_by_region[region.name].append(column)
     regions = []
@@ -155,12 +166,15 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 "substitutions": whole["substitutions"],
                 "ts_tv": _ratio(whole)["ts_tv"],
                 "tool": "MAFFT",
-                "scope": "the whole aligned plastome against the reference, gap columns skipped",
+                "scope": (
+                    "the whole aligned plastome against the reference "
+                    "(row one, normalized frame); gap columns skipped"
+                ),
             },
         ),
         scope=Scope(
             label=(
-                "whole aligned plastome against the reference (row one of the alignment); "
+                "whole aligned plastome against the reference (row one, in its normalized frame); "
                 "gap and ambiguous columns skipped; not the CDS-only scope of the golden Ts/Tv"
             ),
             coord_system="normalized",

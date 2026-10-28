@@ -65,6 +65,20 @@ class NormalizedFrame:
                 return region
         return None
 
+    def region_at_normalized(self, position: int) -> Region | None:
+        """The region holding a position **in this frame** — no conversion.
+
+        ``region_at`` converts from the frame the record was read in; this one is for a caller
+        that already holds normalized positions, which is the case when the reference passed to an
+        aligner was :attr:`genome` rather than the record as deposited. Using ``region_at`` there
+        would subtract the offset a second time and label the regions wrongly on every record whose
+        origin is not the LSC's first base.
+        """
+        for region in self.regions:
+            if region.start <= position < region.end:
+                return region
+        return None
+
 
 def lsc_origin(genome_length: int, ira: Interval, irb: Interval) -> int:
     """0-based position of the LSC's first base: the start of the longer single-copy gap."""

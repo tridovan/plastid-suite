@@ -82,7 +82,7 @@ ALIGNERS = ("mafft", "macse")
         ParamSpec(
             "mafft_strategy",
             "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
         ),
         ParamSpec("iqtree", "str", "directory holding the pinned iqtree2 binary"),
         ParamSpec("model", "str", "substitution model or MFP for ModelFinder Plus"),

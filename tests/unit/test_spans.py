@@ -222,6 +222,32 @@ def test_region_labels_do_not_move_when_the_origin_rotates(golden_genome: Genome
     assert len(shifted.introns) == len(straight.introns) == 17
 
 
+def test_an_exon_the_rotation_splits_is_not_an_intron(golden_genome: Genome) -> None:
+    """A part cut by the record's origin is one exon, and the two pieces are not an intron.
+
+    Measured 28/10/2026: rotating the golden by half puts the origin inside `petD`'s second exon,
+    which `rotate_gene` writes as two touching parts (153451..153724 and 0..208). The intron
+    caller paired them and published `petD.1.2`, 153,243 bp — twice a real intron's ceiling and
+    most of the plastome. The pieces are contiguous on the circle (one ends at the last base, the
+    other starts at the first), which is also exactly how a circular record writes an exon that
+    crosses position 1, so the rule covers the deposited case too.
+    """
+    ir = ir_from_annotation(golden_genome)
+    assert ir is not None
+    straight = introns_of(golden_genome, ir)
+
+    shifted_genome = rotate_genome(golden_genome, len(golden_genome) // 2)
+    shifted_ir = detect_ir(shifted_genome)
+    enforce_ir_gate(shifted_ir)
+    shifted = introns_of(shifted_genome, shifted_ir)
+
+    assert [(span.intron_id, span.length) for span in shifted.introns] == [
+        (span.intron_id, span.length) for span in straight.introns
+    ]
+    assert len(shifted.introns) == 17
+    assert max(span.length for span in shifted.introns) < len(golden_genome) // 2
+
+
 def test_the_spacer_set_is_deterministic_and_type_stable() -> None:
     """The two dataclasses are what the modules pass around — frozen, so nobody edits a span."""
     derived: SpacerSet = spacers_of(_synthetic(), _ir())

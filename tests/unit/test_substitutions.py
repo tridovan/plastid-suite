@@ -170,26 +170,30 @@ def test_the_default_scope_is_whole_and_each_scope_names_itself(
 def test_the_region_table_uses_the_normalized_frame_on_a_rotated_reference(
     tmp_path: Path, stubbed, golden_genome: Genome
 ) -> None:
-    """Measured 27/10/2026: the region loop compared the reference's **raw** positions with
-    region boundaries that live in the **normalized** frame. At the golden's ``rotation_offset``
-    of 0 the two coincide, so only a record that starts anywhere else shows it: the same
-    biological substitution is then counted in whichever region holds the raw coordinate.
+    """The reference is aligned in its normalized frame, so its regions and its columns agree.
 
-    A per-region column count cannot see the bug — the four regions cover the genome and keep
-    their lengths under rotation — so the test puts one substitution at a known LSC base and
-    asks which region the table credits it to.
+    Measured 27/10/2026: the region loop compared the reference's **raw** positions with region
+    boundaries that live in the **normalized** frame. At the golden's ``rotation_offset`` of 0 the
+    two coincide, so only a record that starts anywhere else shows it. Measured 28/10/2026, the
+    same defect one level down: a reference rotated by half was itself row 0 of the alignment, and
+    the same two genomes produced 230,663 alignment columns instead of 154,827. The module now
+    aligns the normalized reference, so the frame the regions are named in is the frame the
+    columns are counted in.
+
+    The stub aligner returns its rows unchanged, so the query is expressed in the frame the
+    reference is normalized into — that is what a real aligner does, without the gaps.
     """
     from plastid.core.normalize import rotate_genome
 
-    def mutated_at(genome: Genome, raw_position: int) -> Genome:
-        base = genome.sequence[raw_position]
+    def mutated_at(genome: Genome, position: int) -> Genome:
+        base = genome.sequence[position]
         change = {"A": "G", "G": "A", "C": "T", "T": "C"}[base]
-        sequence = genome.sequence[:raw_position] + change + genome.sequence[raw_position + 1 :]
+        sequence = genome.sequence[:position] + change + genome.sequence[position + 1 :]
         return replace(genome, sequence=sequence)
 
-    def credited_region(reference: Genome, raw_position: int) -> str:
+    def credited_region(reference: Genome, position: int) -> str:
         result = substitutions.run(
-            (reference, mutated_at(reference, raw_position)), {}, _ctx(tmp_path)
+            (reference, mutated_at(golden_genome, position)), {}, _ctx(tmp_path)
         )
         rows = [
             row
@@ -203,7 +207,7 @@ def test_the_region_table_uses_the_normalized_frame_on_a_rotated_reference(
     rotated = rotate_genome(golden_genome, shift)
     normal_base = 100  # inside the golden's LSC (IRa starts at 83,127)
     assert credited_region(golden_genome, normal_base) == "LSC"
-    assert credited_region(rotated, (normal_base - shift) % len(golden_genome)) == "LSC"
+    assert credited_region(rotated, normal_base) == "LSC"
 
 
 def test_a_partial_reference_gene_is_counted_in_the_cds_scope(tmp_path: Path, stubbed) -> None:

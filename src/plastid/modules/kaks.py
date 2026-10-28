@@ -66,7 +66,7 @@ STATUS_TOOL_FAILED = "yn00 refused the pair"
         ParamSpec(
             "mafft_strategy",
             "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
         ),
     ),
 )

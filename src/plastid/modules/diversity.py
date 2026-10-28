@@ -1,7 +1,9 @@
 """Nucleotide diversity π — windows, regions, genes, introns and intergenic spacers.
 
-π is measured on a MAFFT alignment of the input genomes; row 0 is the reference and its
-annotation supplies the regions, genes and spans. Gapped columns are **dropped, never scored**,
+π is measured on a MAFFT alignment of the input genomes; row 0 is the reference **in its
+normalized frame** — the frame its regions, genes and spans are named in — and its annotation
+supplies them. Aligning the record as deposited instead gives a different alignment for the same
+genome written from another origin (K-10). Gapped columns are **dropped, never scored**,
 and the number of usable columns is published next to every π — a value from a mostly-empty
 window must not pass for a well-supported one.
 
@@ -59,16 +61,27 @@ DEFAULT_STEP_BP = 200
         ParamSpec(
             "mafft_strategy",
             "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
         ),
     ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     window = int(params.get("window", DEFAULT_WINDOW_BP))
     step = int(params.get("step", DEFAULT_STEP_BP))
-    reference = genomes[0]
+    raw_reference = genomes[0]
+    ir = ctx.require_ir()  # seam 4: the gate runs first, and it is the run's IR, not a re-detect
+    # The reference is aligned in its **normalized** frame, because every position this module
+    # publishes is a normalized-frame position (regions, genes, introns, spacers). Aligning the
+    # record as deposited put the annotation's cursor on a sequence that still had the record's
+    # origin: measured 28/10/2026, the same golden reference rotated by half produced a
+    # 230,663-column alignment (154,827 unrotated) and π None on nearly every gene row. `barcodes`
+    # already normalizes its reference for this reason; one frame for the alignment and the
+    # annotation is the rule.
+    frame = normalize(raw_reference, ir)
+    reference = frame.genome
     alignment = align(
-        [(genome.accession or genome.name, genome.sequence) for genome in genomes],
+        [(reference.accession or reference.name, reference.sequence)]
+        + [(genome.accession or genome.name, genome.sequence) for genome in genomes[1:]],
         ctx,
         strategy=str(params.get("mafft_strategy", "auto")),
     )
@@ -76,10 +89,8 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     whole_pi, usable = nucleotide_diversity(alignment, range(alignment.length))
     windows = window_diversity(alignment, window=window, step=step)
 
-    ir = ctx.require_ir()  # seam 4: the gate runs first, and it is the run's IR, not a re-detect
-    frame = normalize(reference, ir)
-    introns = introns_of(reference, ir)
-    spacers = spacers_of(reference, ir)
+    introns = introns_of(raw_reference, ir)
+    spacers = spacers_of(raw_reference, ir)
     positions = reference_positions(alignment)
     window_rows = []
     for entry in windows:
@@ -131,8 +142,8 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         ),
         scope=Scope(
             label=(
-                "whole aligned plastome, gaps dropped column-wise; positions are alignment "
-                "columns, the region column follows the reference genome"
+                "whole aligned plastome, gaps dropped column-wise; row one is the reference in "
+                "its normalized frame, and the region column follows that frame"
             ),
             coord_system="normalized",
         ),
@@ -197,13 +208,15 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         key="gene",
     )
 
+    length = len(raw_reference)
+    offset = frame.rotation_offset
     intron_rows = [
         {
             "intron_id": span.intron_id,
             "gene": span.gene,
             "region": span.region,
             "length_bp": span.length,
-            **_span_diversity(alignment, span.start, span.end),
+            **_span_diversity(alignment, _span_pieces(span.start, span.end, offset, length)),
         }
         for span in introns.introns
     ]
@@ -236,7 +249,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             "right": span.right,
             "region": span.region,
             "length_bp": span.length,
-            **_span_diversity(alignment, span.start, span.end),
+            **_span_diversity(alignment, _span_pieces(span.start, span.end, offset, length)),
         }
         for span in spacers.igs
     ]
@@ -304,9 +317,27 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     )
 
 
-def _span_diversity(alignment: Alignment, start: int, end: int) -> dict[str, Any]:
+def _span_pieces(start: int, end: int, offset: int, length: int) -> tuple[tuple[int, int], ...]:
+    """One span of the record as the one or two spans it occupies in the normalized frame.
+
+    The introns and spacers are derived on the **deposited** genome: deriving them on the rotated
+    one splits a single exon at the new origin into two touching parts, which the intron caller
+    correctly refuses as a 0-bp intron. So they are derived where the annotation is exact and
+    moved here, where a split is harmless — the two pieces are just more columns of one span.
+    """
+    shifted = (start - offset) % length
+    span = end - start
+    if shifted + span <= length:
+        return ((shifted, shifted + span),)
+    return ((shifted, length), (0, shifted + span - length))
+
+
+def _span_diversity(alignment: Alignment, pieces: Sequence[tuple[int, int]]) -> dict[str, Any]:
     """π over one reference span, as the two columns every span table publishes."""
-    pi, usable = nucleotide_diversity(alignment, columns_for_span(alignment, 0, (start, end)))
+    columns: list[int] = []
+    for start, end in pieces:
+        columns.extend(columns_for_span(alignment, 0, (start, end)))
+    pi, usable = nucleotide_diversity(alignment, columns)
     return {"usable_columns": usable, "pi": pi}
 
 
@@ -340,14 +371,15 @@ def _span_notes(introns: Sequence[IntronSpan], spacers: SpacerSet) -> tuple[str,
 
 
 def _region_name(frame: NormalizedFrame, position: int) -> str:
-    """The reference's region at one of its **own** positions — the frames are not the same.
+    """The reference's region at one of its positions, which are **already normalized**.
 
-    Measured 10/10/2026: this module compared GenBank-frame positions against normalized-frame
-    bounds until P2B-01. The golden's rotation offset is 0, so the two agreed by accident; the
-    first record whose origin is not the LSC's first base would have been labelled with another
-    genome's regions. ``region_at`` does the conversion.
+    The alignment's row 0 is the normalized reference (`run` normalizes it before aligning), so
+    ``positions`` are normalized-frame positions and no conversion applies. Until 28/10/2026 the
+    row was the record as deposited and this called ``region_at``, which subtracts the offset;
+    that was right for the deposited frame and would now subtract it twice. The golden's offset is
+    0, so both readings agree there and only a rotated record can tell them apart.
     """
-    region = frame.region_at(position)
+    region = frame.region_at_normalized(position)
     return region.name if region else ""
 
 

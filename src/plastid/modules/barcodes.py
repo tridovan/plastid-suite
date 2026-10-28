@@ -82,7 +82,7 @@ MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs
         ParamSpec(
             "mafft_strategy",
             "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns, nwns",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
         ),
     ),
 )
