@@ -104,7 +104,7 @@ from plastid.run.defaults import load_defaults
 from plastid.run.tools import ToolError
 
 MODULE_ID = "plastid_annotate"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"  # 0.2.0: max_hsps is a parameter and is named in the scope (M11.20)
 
 # The organelle this run serves, declared on the artifact's source (H-11) and in the scope label.
 ORGANELLE = "plastid"
@@ -473,6 +473,11 @@ def _trna_naming_notes(namings: Sequence[TrnaNaming]) -> tuple[str, ...]:
         ParamSpec("min_identity", "float", "minimum TBLASTN identity for a transferred call"),
         ParamSpec("min_coverage", "float", "minimum query coverage for a transferred call"),
         ParamSpec("evalue", "float", "maximum BLAST E-value"),
+        ParamSpec(
+            "max_hsps",
+            "int",
+            "BLAST HSPs kept per query-subject pair; a pair returning exactly this is capped",
+        ),
         ParamSpec("transl_table", "int", "translation table stamped on called CDS"),
         ParamSpec("tools", "str", "directory holding BLAST+/ARAGORN when they are not on PATH"),
     ),
@@ -487,6 +492,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         params.get("min_coverage", defaults.get("min_coverage", DEFAULT_MIN_COVERAGE))
     )
     evalue = float(params.get("evalue", defaults.get("evalue", 1.0e-5)))
+    max_hsps = int(params.get("max_hsps", MAX_HSPS))
+    if max_hsps < 1:
+        raise ValueError(
+            f"plastid_annotate: max_hsps must be at least 1, got {max_hsps} — BLAST would "
+            f"return no hit at all"
+        )
     table = int(params.get("transl_table", defaults.get("translation_table", PLASTID_TRANSL_TABLE)))
     tools_dir = params.get("tools")
     seq_id = genome.accession or genome.name
@@ -515,10 +526,10 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             seq_id=seq_id,
             directory=tools_dir,
             evalue=evalue,
-            max_hsps=MAX_HSPS,
+            max_hsps=max_hsps,
         )
         rrna_run = run_blastn(
-            genome, rrna, ctx, seq_id=seq_id, directory=tools_dir, evalue=evalue, max_hsps=MAX_HSPS
+            genome, rrna, ctx, seq_id=seq_id, directory=tools_dir, evalue=evalue, max_hsps=max_hsps
         )
         repeat_run = run_blastn(
             genome,
@@ -527,7 +538,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             seq_id=seq_id,
             directory=tools_dir,
             evalue=evalue,
-            max_hsps=MAX_HSPS,
+            max_hsps=max_hsps,
         )
         trna_run = run_aragorn(
             genome, ctx, seq_id=seq_id, directory=tools_dir, introns=True
@@ -543,7 +554,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 seq_id=seq_id,
                 directory=tools_dir,
                 evalue=evalue,
-                max_hsps=MAX_HSPS,
+                max_hsps=max_hsps,
             )
             if trna_reference is not None
             else None
@@ -571,7 +582,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             min_identity=min_identity,
             min_coverage=min_coverage,
             transl_table=table,
-            max_hsps_per_subject=MAX_HSPS,
+            max_hsps_per_subject=max_hsps,
         )
         # The reference's own exon structure, for the loci the caller just decided — the protein
         # search cannot see an exon shorter than one of its words, and it has no evidence at all
@@ -589,7 +600,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 seq_id=seq_id,
                 directory=tools_dir,
                 evalue=evalue,
-                max_hsps=MAX_HSPS,
+                max_hsps=max_hsps,
             )
             cds = transfer_structure(cds, _by_subject(structure_run.hits))
         rrna_calls = call_plastid_rrna(
@@ -598,7 +609,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             rrna_run.hits,
             min_identity=min_identity,
             min_coverage=min_coverage,
-            max_hsps_per_subject=MAX_HSPS,
+            max_hsps_per_subject=max_hsps,
         )
         if not cds.calls and not rrna_calls.calls:
             raise ToolError(
@@ -626,6 +637,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         repeat_note=repeat_agreement(ir, searched_repeat),
         floors=(min_identity, min_coverage),
         evalue=evalue,
+        max_hsps=max_hsps,
         table=table,
         text=text,
     )
@@ -864,6 +876,7 @@ def _result(
     repeat_note: str,
     floors: tuple[float, float],
     evalue: float,
+    max_hsps: int,
     table: int,
     text: str,
 ) -> Result:
@@ -926,7 +939,10 @@ def _result(
                 "reference": reference.label,
             },
         ),
-        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+        scope=Scope(
+            label=f"{SCOPE_LABEL}; BLAST max_hsps {max_hsps} per query-subject pair",
+            coord_system="genbank",
+        ),
     )
 
     called = Table(
@@ -965,7 +981,10 @@ def _result(
             }
             for call in (*calls, *unnameable)
         ),
-        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+        scope=Scope(
+            label=f"{SCOPE_LABEL}; BLAST max_hsps {max_hsps} per query-subject pair",
+            coord_system="genbank",
+        ),
         key="gene",
     )
 
@@ -1004,7 +1023,10 @@ def _result(
                 }
                 for row in not_called
             ),
-            scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+            scope=Scope(
+                label=f"{SCOPE_LABEL}; BLAST max_hsps {max_hsps} per query-subject pair",
+                coord_system="genbank",
+            ),
             key="gene",
         )
     else:
@@ -1074,7 +1096,10 @@ def _result(
                 }
                 for hit in dropped
             ),
-            scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+            scope=Scope(
+                label=f"{SCOPE_LABEL}; BLAST max_hsps {max_hsps} per query-subject pair",
+                coord_system="genbank",
+            ),
         )
     else:
         notes.append("no hit was rejected: every alignment the searches returned was used")

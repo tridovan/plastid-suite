@@ -44,6 +44,10 @@ icode = 0     # standard genetic code — NCBI table 11 differs from it only in 
 weighting = 0 # equal weighting of pathways (the YN default)
 ```
 
+Both values are parameters, not constants (M11.20): `kaks --set yn00_icode=… yn00_weighting=…`
+writes the chosen numbers into this file and states them in the run's notes. The defaults above
+are what every published number was measured with.
+
 **Three measured facts about the tool** (each of them silent when ignored):
 
 * **the version is not a flag.** Run with no ctl it prints its banner on stdout and exits **1** —

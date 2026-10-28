@@ -273,3 +273,21 @@ def test_the_recorded_allow_list_does_not_filter_a_user_directory(
         searched = {genome.accession for genome in reference.records}
 
     assert searched == {"NC_999999.1", "NC_888888.1"}
+
+
+def test_a_max_hsps_below_one_is_refused_before_any_search(tmp_path: Path) -> None:
+    """M11.20: the BLAST HSP cap is a parameter; zero would ask BLAST for no hit at all."""
+    with pytest.raises(ValueError, match="max_hsps"):
+        plastid_annotate.run(GENOME, {"max_hsps": 0}, _ctx(tmp_path))
+
+
+def test_the_blast_cap_is_in_the_summary_scope(tmp_path: Path) -> None:
+    """A run whose cap is not the default must say so where its numbers are read.
+
+    The summary's scope carries the value the run used, so a table produced with a looser cap
+    cannot be read as the default run's table.
+    """
+    result = _run(tmp_path, max_hsps=25)
+
+    summary = result.tables["plastid_annotation_summary"]
+    assert "max_hsps 25" in summary.scope.label

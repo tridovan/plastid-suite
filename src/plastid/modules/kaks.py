@@ -27,14 +27,21 @@ from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.model import Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mafft import align
-from plastid.external.paml import resolve_binary, run_yn00, yn00_version
+from plastid.external.paml import (
+    DEFAULT_ICODE,
+    DEFAULT_WEIGHTING,
+    ctl_text,
+    resolve_binary,
+    run_yn00,
+    yn00_version,
+)
 from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError
 
 MODULE_ID = "kaks"
-MODULE_VERSION = "0.3.0"  # behaviour changed 2026-10-04 after the first runs
+MODULE_VERSION = "0.4.0"  # 0.4.0: yn00 icode/weighting are parameters (M11.20)
 
 ESTIMATOR = "Yang & Nielsen 2000 (yn00)"
 STOPS = ("TAA", "TAG", "TGA")
@@ -63,6 +70,12 @@ STATUS_TOOL_FAILED = "yn00 refused the pair"
     params=(
         ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
         ParamSpec("paml", "str", "directory holding yn00 when it is not on PATH"),
+        ParamSpec("yn00_icode", "int", "PAML genetic code passed to yn00 (0 = universal)"),
+        ParamSpec(
+            "yn00_weighting",
+            "int",
+            "yn00 pathway weighting: 0 equal (default) or 1 weighted",
+        ),
         ParamSpec(
             "mafft_strategy",
             "str",
@@ -75,6 +88,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     reference_name = reference.accession or reference.name
     labels: dict[str, str] = params.get("groups", {})
     directory = params.get("paml")
+    icode = int(params.get("yn00_icode", DEFAULT_ICODE))
+    weighting = int(params.get("yn00_weighting", DEFAULT_WEIGHTING))
+    ctl_text(icode=icode, weighting=weighting)  # refuse an out-of-range value before any gene
 
     # A missing or unpinned estimator is a run-level failure, raised before any gene is scored;
     # a single gene yn00 cannot score is data, and becomes a row below.
@@ -122,6 +138,8 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 ctx,
                 binary=binary,
                 strategy=str(params.get("mafft_strategy", "auto")),
+                icode=icode,
+                weighting=weighting,
             )
             gene_rows.append(row)
             if row["ka"] is not None and row["ks"] is not None:
@@ -237,6 +255,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     notes = [
         f"Estimator: {ESTIMATOR}, through PAML yn00 {version}; each gene is aligned on its own "
         f"CDS with MAFFT, terminal stop trimmed.",
+        f"yn00 control file: icode = {icode}, weighting = {weighting}.",
         "A gene with Ks = 0 has an undefined Ka/Ks — the cell is blank, never zero or one.",
         "Genes that could not be scored keep a row and a status; nothing is dropped silently.",
     ]
@@ -266,6 +285,8 @@ def _score_gene(
     *,
     binary: str,
     strategy: str = "auto",
+    icode: int = DEFAULT_ICODE,
+    weighting: int = DEFAULT_WEIGHTING,
 ) -> dict[str, Any]:
     """One gene's row — a value, or the reason there is none. Never a silently missing row."""
     row: dict[str, Any] = {
@@ -332,6 +353,8 @@ def _score_gene(
             alignment.sequences[1],
             ctx,
             binary=binary,
+            icode=icode,
+            weighting=weighting,
         )
     except (ToolError, ValueError) as error:
         # One gene yn00 cannot score is a finding about that gene; a missing or unpinned tool

@@ -803,3 +803,35 @@ def test_the_recorded_reference_resolves_without_a_checkout(
     monkeypatch.chdir(tmp_path)
 
     assert _resolve_recorded_reference(recorded) == reference
+
+
+def test_the_naming_search_uses_the_requested_evalue_and_cap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """M11.20: blastp's E-value ceiling and HSP cap are the run's parameters, not constants.
+
+    The search is stubbed at the adapter boundary — the module's contract is that the values it
+    declares are the values the search receives.
+    """
+    import plastid.external.blast as blast_module
+
+    seen: dict[str, object] = {}
+
+    def fake_search(queries, reference, ctx, **kwargs):
+        seen.update(kwargs)
+        return type("Hits", (), {"for_query": lambda self, query_id: ()})()
+
+    monkeypatch.setattr(blast_module, "run_blastp", fake_search)
+    reference = read_genbank(GOLDEN)
+    queries = naming._protein_queries([read_genbank(GATESII)])
+    naming._search(queries, reference, {}, _context(tmp_path), evalue=1e-3, max_hsps=3)
+
+    assert seen["evalue"] == 1e-3
+    assert seen["max_hsps"] == 3
+
+
+def test_a_max_hsps_below_one_is_refused_before_the_search(tmp_path: Path) -> None:
+    reference = read_genbank(GOLDEN)
+    record = read_genbank(GATESII)
+    with pytest.raises(ValueError, match="max_hsps"):
+        naming.run((reference, record), {"max_hsps": 0}, _context(tmp_path))
