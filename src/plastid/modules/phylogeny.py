@@ -28,6 +28,15 @@ does not claim the tree is right. A topology is not a verifiable number, so the 
 was built (taxa, blocks, sites, tool, argv, support present) and leave interpretation to the
 reader. `plastid figures` draws the `.treefile` it writes.
 
+**Three matrices, one tree at a time.** `matrix=cds` (the default) builds the CDS supermatrix
+described above. `matrix=introns` and `matrix=igs` build a matrix from the intron and intergenic-
+spacer loci `core.spans` derives, keyed by canonical gene name so two records that spell a locus
+two ways still meet. Both are **position-based**, so each genome passes the IR gate before its
+spans are read, and the sequence taken is the forward strand (an intron has no reading strand).
+The IR's second copy is one locus and is kept once. A locus needs at least two carriers, exactly
+as a gene does. `aligner=macse` is refused for these matrices: MACSE aligns codons through a
+translation, and a spacer has no frame.
+
 **Partitions are opt-in, and the aligner decides what a codon is.** `partition=none` (the
 default) is the unpartitioned supermatrix. `partition=gene` gives IQ-TREE one partition per gene
 block, and `partition=codon` gives three per block (alignment columns 1/2/3). The default aligner
@@ -49,9 +58,11 @@ from pathlib import Path
 from typing import Any
 
 from plastid.core.align import Alignment
-from plastid.core.gene_names import cds_by_canonical_name
-from plastid.core.model import Genome, coding_sequence
+from plastid.core.gene_names import aliases_for, cds_by_canonical_name, normalize_name
+from plastid.core.ir import IRGateError, detect_ir, enforce_ir_gate
+from plastid.core.model import Genome, Interval, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
+from plastid.core.spans import introns_of, spacers_of
 from plastid.external.iqtree import run_iqtree
 from plastid.external.macse import align_cds, resolve_macse
 from plastid.external.mafft import align
@@ -61,13 +72,15 @@ from plastid.run.context import RunContext
 from plastid.run.params import ParamValueError
 
 MODULE_ID = "phylogeny"
-# 0.3.0 (28/10/2026): `aligner=mafft|macse` — MACSE is opt-in and codon-aware (M11.21). The
-# default path and every number measured before this version are MAFFT, unchanged.
-MODULE_VERSION = "0.3.0"
+# 0.4.0 (28/10/2026): `matrix=cds|introns|igs` — one tree per matrix type, as CGAS module 14
+# offers; the default is still the CDS supermatrix and every earlier number is unchanged.
+MODULE_VERSION = "0.4.0"
 
 DEFAULT_THREADS = "1"
 DEFAULT_SEED = 1
 PARTITION_MODES = ("none", "gene", "codon")
+MATRIX_MODES = ("cds", "introns", "igs")
+DEFAULT_MATRIX = "cds"
 ALIGNERS = ("mafft", "macse")
 
 
@@ -100,6 +113,11 @@ ALIGNERS = ("mafft", "macse")
             "include_partial", "bool", "include CDS marked partial instead of excluding them"
         ),
         ParamSpec(
+            "matrix",
+            "str",
+            "which loci the supermatrix holds: cds (default), introns, or igs (intergenic spacers)",
+        ),
+        ParamSpec(
             "partition",
             "str",
             "IQ-TREE partitioning: none (default), gene, or codon (alignment columns 1/2/3)",
@@ -110,6 +128,11 @@ ALIGNERS = ("mafft", "macse")
             "per-gene aligner: mafft (default) or macse (codon-aware, opt-in)",
         ),
         ParamSpec("macse", "str", "path to macse_v2.07.jar or the `macse` wrapper"),
+        ParamSpec(
+            "ir_source",
+            "str",
+            "annotation or sequence: which IR path matrix=introns/igs reads (M11.17)",
+        ),
         ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
     ),
 )
@@ -123,7 +146,14 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     labels: dict[str, str] = params.get("groups", {}) or {}
     include_partial = _flag(params.get("include_partial"))
     partition_mode = _partition_mode(params.get("partition", "none"))
+    matrix_mode = _matrix_mode(params.get("matrix", DEFAULT_MATRIX))
     aligner = _aligner(params.get("aligner", "mafft"))
+    if matrix_mode != "cds" and aligner == "macse":
+        raise ParamValueError(
+            "phylogeny: aligner=macse aligns a CDS through its translation; an intron or an "
+            "intergenic spacer has no reading frame — drop aligner=macse for matrix="
+            f"{matrix_mode}"
+        )
     macse_binary = None
     if aligner == "macse":
         if "mafft_strategy" in params:
@@ -139,24 +169,36 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             "phylogeny: macse=… has no effect with aligner=mafft — pass aligner=macse to use it"
         )
 
-    by_genome = {
-        key: cds_by_canonical_name(genome) for key, genome in zip(keys, genomes, strict=True)
-    }
-    names = sorted({name for mapping in by_genome.values() for name in mapping})
+    units: dict[str, dict[str, str]] = {}
+    partial_by: dict[str, set[str]] = {}
+    if matrix_mode == "cds":
+        by_genome = {
+            key: cds_by_canonical_name(genome) for key, genome in zip(keys, genomes, strict=True)
+        }
+        for key, genome in zip(keys, genomes, strict=True):
+            for name, gene in by_genome[key].items():
+                units.setdefault(name, {})[key] = coding_sequence(genome, gene)
+                if gene.partial:
+                    partial_by.setdefault(name, set()).add(key)
+    else:
+        for key, genome in zip(keys, genomes, strict=True):
+            for locus, sequence in _span_loci(genome, matrix_mode, params).items():
+                units.setdefault(locus, {})[key] = sequence
+    names = sorted(units)
 
     gene_rows: list[dict[str, Any]] = []
     gene_alignments: dict[str, Alignment] = {}
     kept: list[str] = []
     for name in names:
-        carriers = [
-            (key, genome, by_genome[key][name])
-            for key, genome in zip(keys, genomes, strict=True)
-            if name in by_genome[key]
-        ]
+        carriers = [(key, units[name][key]) for key in keys if key in units[name]]
         reason = None
         if len(carriers) < 2:
             reason = f"present in {len(carriers)} genome(s); a block needs at least 2"
-        elif not include_partial and any(_partial(genome, name) for _, genome, _ in carriers):
+        elif (
+            matrix_mode == "cds"
+            and not include_partial
+            and partial_by.get(name, set()) & {key for key, _ in carriers}
+        ):
             reason = "partial CDS in at least one genome (set include_partial=yes to admit)"
         if reason is not None:
             gene_rows.append(
@@ -169,11 +211,10 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 }
             )
             continue
-        rows = [(key, coding_sequence(genome, gene)) for key, genome, gene in carriers]
         if macse_binary is not None:
-            alignment = align_cds(rows, ctx, binary=macse_binary)
+            alignment = align_cds(carriers, ctx, binary=macse_binary)
         else:
-            alignment = align(rows, ctx, strategy=str(params.get("mafft_strategy", "auto")))
+            alignment = align(carriers, ctx, strategy=str(params.get("mafft_strategy", "auto")))
         gene_alignments[name] = alignment
         kept.append(name)
         gene_rows.append(
@@ -188,8 +229,8 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
     if len(kept) < 2:
         raise ValueError(
-            f"phylogeny: {len(kept)} gene(s) usable across {len(genomes)} genomes — a "
-            f"supermatrix needs at least 2 shared non-partial CDS; see the gene table for why "
+            f"phylogeny: {len(kept)} {_unit_word(matrix_mode)}(s) usable across {len(genomes)} "
+            f"genomes — a supermatrix needs at least 2 shared loci; see the locus table for why "
             f"the others were left out"
         )
 
@@ -239,9 +280,14 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         if macse_binary is not None
         else "MAFFT per gene"
     )
+    matrix_label = {
+        "cds": "CDS blocks",
+        "introns": "intron blocks (forward strand)",
+        "igs": "intergenic-spacer blocks (forward strand)",
+    }[matrix_mode]
     scope = Scope(
         label=(
-            f"{len(keys)} genomes; {len(kept)} CDS blocks concatenated in name order; "
+            f"{len(keys)} genomes; {len(kept)} {matrix_label} concatenated in name order; "
             f"one copy per gene name; {aligner_label}; partition: {partition_label}; "
             f"IQ-TREE {result.version}"
         )
@@ -262,6 +308,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         scope=scope,
         columns=(
             Column("genomes", "Genomes", dtype="int"),
+            Column("matrix", "Matrix"),
             Column("genes_included", "Genes included", dtype="int"),
             Column("genes_excluded", "Genes excluded", dtype="int"),
             Column("alignment_sites", "Supermatrix sites", dtype="int", unit="bp"),
@@ -275,6 +322,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         rows=(
             {
                 "genomes": len(keys),
+                "matrix": matrix_mode,
                 "genes_included": len(kept),
                 "genes_excluded": len(gene_rows) - len(kept),
                 "alignment_sites": matrix.length,
@@ -331,6 +379,60 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         },
         citations=("mafft", "iqtree"),
     )
+
+
+def _matrix_mode(value: object) -> str:
+    """``cds`` · ``introns`` · ``igs``, refused by name otherwise (a typo is not a default)."""
+    mode = str(value).strip().lower()
+    if mode not in MATRIX_MODES:
+        raise ParamValueError(
+            f"phylogeny: matrix={value!r} is not one of "
+            f"{', '.join(MATRIX_MODES)} — choose the matrix explicitly"
+        )
+    return mode
+
+
+def _unit_word(mode: str) -> str:
+    return {"cds": "gene", "introns": "intron", "igs": "spacer"}[mode]
+
+
+def _span_loci(genome: Genome, key: str, mode: str, params: dict[str, Any]) -> dict[str, str]:
+    """The intron or intergenic-spacer sequences of one genome, keyed by a comparable locus id.
+
+    The ids come from `core.spans`, the one derivation the `introns`/`diversity` tables use, so a
+    locus here is the locus those tables name. Gene names are canonicalised before they enter an
+    id because the whole point of a cross-genome matrix is that two records spell one locus two
+    ways; the IR's second copy is the same locus and is kept once (first copy wins), as `stats`
+    collapses it.
+
+    **Position-based, so the IR gate runs**: an intron boundary is a coordinate, and a record whose
+    two copies disagree past the threshold cannot supply one. Each genome is checked on its own —
+    `ctx.ir` is the reference's, and a query genome's IR is its own.
+
+    The sequence is the **forward strand**. An intron is not transcribed, so there is no reading
+    strand to follow; taking the record's own strand would make the same locus align in two
+    orientations across records. The scope label says so.
+    """
+    source = str(params.get("ir_source", "annotation"))
+    label = genome.accession or genome.name
+    try:
+        ir = enforce_ir_gate(detect_ir(genome, source=source))
+    except IRGateError as error:
+        raise IRGateError(f"phylogeny: matrix={mode} needs an IR on {label}: {error}") from error
+    aliases = aliases_for(genome)
+    sequences: dict[str, str] = {}
+    if mode == "introns":
+        for span in introns_of(genome, ir).introns:
+            gene, _copy, number = span.intron_id.rsplit(".", 2)
+            locus = f"{normalize_name(gene, aliases).canonical}.{number}"
+            sequences.setdefault(locus, genome.subseq(Interval(span.start, span.end)))
+    else:
+        for spacer in spacers_of(genome, ir).igs:
+            left = normalize_name(spacer.left, aliases).canonical
+            right = normalize_name(spacer.right, aliases).canonical
+            locus = f"{left}-{right}"
+            sequences.setdefault(locus, genome.subseq(Interval(spacer.start, spacer.end)))
+    return sequences
 
 
 def _block_charsets(
@@ -422,16 +524,6 @@ def _flag(value: object) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _partial(genome: Genome, name: str) -> bool:
-    """Whether this genome's copy of ``name`` is marked partial at either end."""
-    from plastid.core.gene_names import cds_by_canonical_name
-
-    gene = cds_by_canonical_name(genome).get(name)
-    if gene is None:
-        return False
-    return any(part.partial_start or part.partial_end for part in gene.parts)
 
 
 def _to_fasta(alignment: Alignment, width: int = 60) -> str:

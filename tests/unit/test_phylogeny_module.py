@@ -328,3 +328,123 @@ def test_the_adapter_does_not_pass_p_without_a_partition(tmp_path: Path, monkeyp
 
     iq.run_iqtree(alignment, StubContext())
     assert "-p" not in StubContext.argv
+
+
+# ------------------------------------------------------------------ matrix=introns / matrix=igs
+
+
+def _lsc_span(kind: str):
+    """One LSC intron or spacer of the golden record, with the genome that carries it."""
+    from plastid.core.genbank import read_genbank
+    from plastid.core.ir import detect_ir
+    from plastid.core.spans import introns_of, spacers_of
+
+    genome = read_genbank(DATA / "NC_050833.1.gb")
+    ir = detect_ir(genome)
+    spans = introns_of(genome, ir).introns if kind == "introns" else spacers_of(genome, ir).igs
+    for span in spans:
+        if span.region == "LSC" and span.length > 30:
+            return genome, span
+    raise AssertionError(f"the golden has no LSC {kind} longer than 30 bp")
+
+
+def _lsc_variants(kind: str) -> tuple[Genome, ...]:
+    """Three genomes that differ only inside one LSC intron (or spacer)."""
+    genome, span = _lsc_span(kind)
+    position = span.start + 10
+    original = genome.sequence[position]
+    changes = {"A": "G", "G": "A", "C": "T", "T": "C"}
+
+    def variant(replacement: str) -> Genome:
+        sequence = genome.sequence[:position] + replacement + genome.sequence[position + 1 :]
+        from dataclasses import replace
+
+        return replace(genome, sequence=sequence, accession=f"{genome.accession}_{replacement}")
+
+    first = changes[original]
+    second = changes[first]
+    return (genome, variant(first), variant(second))
+
+
+def _stub_matrix_tools(monkeypatch, captured: dict) -> None:
+    import plastid.modules.phylogeny as phylo
+
+    def fake_align(rows, ctx, *, strategy="auto"):
+        captured.setdefault("blocks", []).append([len(sequence) for _, sequence in rows])
+        return Alignment(
+            names=tuple(name for name, _ in rows),
+            sequences=tuple(sequence for _, sequence in rows),
+        )
+
+    def fake_iqtree(path, ctx, **kwargs):
+        captured["matrix"] = path.read_text(encoding="utf-8")
+        return _fake_tree()
+
+    monkeypatch.setattr(phylo, "align", fake_align)
+    monkeypatch.setattr(phylo, "run_iqtree", fake_iqtree)
+
+
+def test_the_intron_matrix_holds_intron_sequences_not_cds(tmp_path: Path, monkeypatch) -> None:
+    """`matrix=introns` aligns the spans `core.spans` derives, keyed by canonical gene name."""
+    import plastid.modules.phylogeny as phylo
+
+    captured: dict = {}
+    _stub_matrix_tools(monkeypatch, captured)
+    genomes = _lsc_variants("introns")
+    _genome, span = _lsc_span("introns")
+
+    result = phylo.run(genomes, {"matrix": "introns"}, _phylogeny_ctx(tmp_path))
+
+    summary = result.tables["phylogeny_summary"]
+    assert summary.value("matrix") == "introns"
+    assert "intron blocks" in summary.scope.label
+    from plastid.core.gene_names import aliases_for, normalize_name
+
+    gene, _copy, number = span.intron_id.rsplit(".", 2)
+    locus = f"{normalize_name(gene, aliases_for(genomes[0])).canonical}.{number}"
+    row = next(row for row in result.tables["matrix_genes"].rows if row["gene"] == locus)
+    assert row["included"] == "yes"
+    assert row["sites"] == span.length
+
+
+def test_the_igs_matrix_holds_spacer_sequences(tmp_path: Path, monkeypatch) -> None:
+    import plastid.modules.phylogeny as phylo
+
+    captured: dict = {}
+    _stub_matrix_tools(monkeypatch, captured)
+    genomes = _lsc_variants("igs")
+    _genome, span = _lsc_span("igs")
+
+    result = phylo.run(genomes, {"matrix": "igs"}, _phylogeny_ctx(tmp_path))
+
+    from plastid.core.gene_names import aliases_for, normalize_name
+
+    assert result.tables["phylogeny_summary"].value("matrix") == "igs"
+    assert "intergenic-spacer blocks" in result.tables["phylogeny_summary"].scope.label
+    aliases = aliases_for(genomes[0])
+    locus = (
+        f"{normalize_name(span.left, aliases).canonical}-"
+        f"{normalize_name(span.right, aliases).canonical}"
+    )
+    row = next(row for row in result.tables["matrix_genes"].rows if row["gene"] == locus)
+    assert row["included"] == "yes"
+    assert row["sites"] == span.length
+
+
+def test_an_unknown_matrix_is_refused_by_name(tmp_path: Path) -> None:
+    import plastid.modules.phylogeny as phylo
+
+    with pytest.raises(ValueError, match="matrix="):
+        phylo.run(_synthetic_genomes(), {"matrix": "exons"}, _phylogeny_ctx(tmp_path))
+
+
+def test_macse_is_refused_for_a_matrix_without_a_reading_frame(tmp_path: Path) -> None:
+    """MACSE aligns codons through a translation; an intron or a spacer has no frame."""
+    import plastid.modules.phylogeny as phylo
+
+    with pytest.raises(ValueError, match="reading frame"):
+        phylo.run(
+            _lsc_variants("introns"),
+            {"matrix": "introns", "aligner": "macse"},
+            _phylogeny_ctx(tmp_path),
+        )

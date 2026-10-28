@@ -176,3 +176,26 @@ def test_a_bootstrap_below_one_thousand_is_refused(tmp_path: Path) -> None:
         "ultrafast_bootstrap=100",
     ]
     assert main(argv) == 3
+
+
+def test_an_intron_matrix_is_built_and_treed_by_the_real_tools(tmp_path: Path) -> None:
+    """`matrix=introns` is CGAS module 14's separate-matrix route, on this toolkit's spans.
+
+    The matrix must be intron sequences — its sites are the loci table's, not the CDS matrix's —
+    and the IR gate runs for every genome before a span is read, because an intron boundary is a
+    coordinate. A short panel keeps this cheap: introns are hundreds of bases, not a plastome.
+    """
+    run_dir, manifest = _run_tree(tmp_path, ["matrix=introns"])
+
+    summary = next(run_dir.rglob("phylogeny_summary.csv")).read_text(encoding="utf-8")
+    assert ",introns," in summary
+
+    loci = next(run_dir.rglob("matrix_genes.csv")).read_text(encoding="utf-8")
+    included = [line for line in loci.splitlines()[1:] if ",yes," in line]
+    assert len(included) > 1
+    sites = sum(int(line.split(",")[3]) for line in included)
+    assert f",{sites}," in summary  # the supermatrix is the included loci, nothing else
+
+    tree = next(run_dir.rglob("tree.treefile")).read_text(encoding="utf-8")
+    assert tree.strip().endswith(";")
+    assert manifest["status"] == "ok"
