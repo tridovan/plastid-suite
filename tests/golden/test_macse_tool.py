@@ -14,25 +14,31 @@ from pathlib import Path
 import pytest
 
 from plastid.external.macse import MacseBinary, align_cds, resolve_macse
+from plastid.run.tools import ToolError
 
 pytestmark = pytest.mark.tier_b
 
 ROOT = Path(__file__).resolve().parents[2]
 PANEL = ROOT / ".panel" / "ir-validation" / "source"
 RECORDS = ("NC_008641.1", "NC_016708.2", "NC_028027.1", "NC_016736.1")
-JAR = Path("/root/toolbox/env/macse/share/macse-2.07-0/macse_v2.07.jar")
 
 
 def _real_binary() -> MacseBinary:
+    """The jar named by ``PTS_MACSE_JAR``, else the installed package's ``macse`` on ``PATH``.
+
+    No path of one developer's machine is baked in: CI installs the pinned package and this
+    resolves it through ``PATH``, while a local tree that keeps only the jar sets the variable.
+    A probe of an unreadable candidate used to raise ``PermissionError`` from ``Path.is_file``
+    instead of skipping, which is why the resolution is the adapter's, not the test's.
+    """
     explicit = os.environ.get("PTS_MACSE_JAR")
-    candidates = [Path(explicit)] if explicit else []
-    candidates.append(JAR)
-    for candidate in candidates:
-        if candidate.is_file():
-            return resolve_macse(candidate)
-    if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
-        pytest.fail("MACSE jar is not installed; set PTS_MACSE_JAR or install bioconda::macse=2.07")
-    pytest.skip("MACSE jar is not installed; set PTS_MACSE_JAR to the pinned jar")
+    try:
+        return resolve_macse(explicit) if explicit else resolve_macse()
+    except ToolError as error:
+        reason = f"MACSE is not installed: {error}"
+        if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
+            pytest.fail(reason)
+        pytest.skip(reason)
 
 
 def test_the_real_jar_aligns_one_gene_across_four_records(tmp_path: Path) -> None:

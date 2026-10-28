@@ -77,6 +77,8 @@ jobs:
             paml=4.10.10
             blast=2.17.0
             aragorn=1.2.41
+            macse=2.07
+            openjdk=17
             vmatch=2.3.1
       - name: put the pinned tools on PATH
         # The action activates the environment for interactive shells; a `run:` step is neither
@@ -92,6 +94,7 @@ jobs:
           nucmer --version | head -1
           blastn -version | head -1
           aragorn -h 2>&1 | head -1
+          macse -help 2>&1 | head -1
           vmatch -version 2>&1 | head -2
           perl -v | grep -E "^This is perl 5"
       - name: fetch table2asn and check the recorded md5
