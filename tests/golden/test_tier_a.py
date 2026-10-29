@@ -398,3 +398,39 @@ def test_gene_table_flags_a_gene_no_group_claims() -> None:
     assert rows["CDS"]["agreement"] == "agrees"
     assert result.tables["gene_table_summary"].rows[0]["n_unclassified"] == 1
     assert any("mystery9" in note for note in result.notes)
+
+
+def test_a_gene_no_group_claims_gets_its_own_row_and_counts_copies() -> None:
+    """`gene_groups.yaml` promises an "Unclassified" row; the table must carry it.
+
+    Measured 29/10/2026 on `NC_016068.1` (Solanaceae): 24 copies of `hypothetical protein` had no
+    group, the notes named the label once, and the summary read "Unclassified: 1" — a **name**
+    count in a summary whose every other cell counts copies. A reader comparing it with
+    `n_genes_total` cannot make the two add up.
+    """
+    from plastid.core.model import Gene as Feature
+    from plastid.core.model import Genome, Interval
+    from plastid.modules import gene_table
+
+    genome = Genome(
+        name="synthetic",
+        sequence="ATGC" * 400,
+        genes=(
+            Feature("rbcL", "CDS", (Interval(0, 120),)),
+            Feature("mystery9", "CDS", (Interval(200, 300),)),
+            Feature("mystery9", "CDS", (Interval(400, 500),)),
+            Feature("mystery9", "CDS", (Interval(600, 700),)),
+        ),
+    )
+    ctx = RunContext(layout=None, params={}, module_id="gene_table", module_order=1)  # type: ignore[arg-type]
+    result = gene_table.run(genome, {}, ctx)
+
+    rows = {row["group"]: row for row in result.tables["gene_groups"].rows}
+    assert "Unclassified" in rows, "the catalogue's promised row is missing"
+    assert rows["Unclassified"]["copies"] == 3
+    assert "mystery9" in rows["Unclassified"]["genes"]
+
+    summary = result.tables["gene_table_summary"].rows[0]
+    assert summary["n_unclassified"] == 3  # copies, like every other count in the summary
+    assert rows["Total"]["copies"] == summary["n_genes_total"] == 4
+    assert sum(row["copies"] for name, row in rows.items() if name != "Total") == 4

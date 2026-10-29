@@ -330,10 +330,26 @@ two names, or under the wrong one:
 * **`rrn23s` did not fold** — the rRNA size-suffix rule accepted only an uppercase `S`;
   `NC_028733.1` writes the lowercase form. Both cases now fold to `rrn23`; the mitochondrial
   `rrnS`/`rrnL` dialect (no digits) is still untouched.
+* **`tRNA-H (GUG)` and `tRNA-fM (CAU)` did not fold** (found 29/10/2026 while running the
+  ten-family panel): the bracket rule required the `trn` prefix and the spelled-out rule required a
+  bare three-letter amino acid, so a spelled-out name **with** an anticodon matched neither and fell
+  through to the catalogue unclassified. `NC_020098.1` names two genes this way and the gene table
+  reported `rpoC`, `tRNA-H (GUG)` and `tRNA-fM (CAU)` as unclassified. They now fold to
+  `trnH-GUG` and `trnfM-CAU` (formyl-methionine is its own locus, never a methionine tRNA), and an
+  unknown amino acid still keeps its spelling rather than being guessed.
 
 Held by `tests/unit/test_gene_names.py` (the corrected `TRNA-LEU` expectation, a new spelled-out
-case, the spaced bracket, and the lowercase rRNA suffix). No golden record uses these spellings in
-a gene name (their `tRNA-…` strings are `/product` text), so no golden number moves.
+case, the spaced bracket, the lowercase rRNA suffix, and the spelled-out-with-anticodon form). No
+golden record uses these spellings in a gene name (their `tRNA-…` strings are `/product` text), so
+no golden number moves.
+
+**Related, found by the same ten-family run:** the functional-group catalogue lacked `rpoC` (it
+listed `rpoA`, `rpoB`, `rpoC1`, `rpoC2`), and `gene_table` never emitted the `Unclassified` row
+that `data/gene_groups.yaml` promises — so a gene no group claims was only counted, and
+`n_unclassified` counted **distinct names** while every other cell counted copies (on
+`NC_016068.1`: "1" for 24 copies of `hypothetical protein`). `rpoC` is now claimed by the RNA
+polymerase group, the row is emitted with its copies, and `n_unclassified` counts copies. The
+golden pair has no unclassified gene, so its numbers do not move.
 
 ## Other current limitations
 

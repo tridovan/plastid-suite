@@ -116,3 +116,18 @@ def test_every_gene_of_the_golden_genome_is_classified(data_dir: Path) -> None:
     rows = assign(genome, groups)
     assert len(rows) == count_genes(genome).total == 132
     assert [row.gene.name for row in rows if row.group is None] == []
+
+
+def test_rpoc_is_claimed_by_the_rna_polymerase_group() -> None:
+    """`rpoC` is a plastome gene, so the catalogue must claim it.
+
+    Measured 29/10/2026 on `NC_020098.1` (Lamiaceae): the record names the gene `rpoC`, the
+    catalogue listed `rpoA`, `rpoB`, `rpoC1` and `rpoC2`, and the gene table reported the gene as
+    unclassified — a catalogue gap, not a record error (`rpoC1`/`rpoC2` are the split cyanobacterial
+    names and both stay claimed).
+    """
+    groups = load_gene_groups()
+    genome = _genome(Feature("rpoC", "CDS", (Interval(0, 300),)))
+    row = assign(genome, groups)[0]
+    assert row.group is not None
+    assert row.group.name == "DNA-dependent RNA polymerase"

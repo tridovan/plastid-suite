@@ -24,7 +24,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "gene_table"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"
 
 SCOPE_LABEL = "every counted gene, both IR copies; grouped by function"
 
@@ -43,7 +43,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     names = normalize_genome(genome, load_gene_aliases())
     rows = assign(genome, groups, canonical_of=names.canonical)
     counts = count_genes(genome)
-    unclassified = sorted({names.label(row.gene) for row in rows if row.group is None})
+    # Copies, not names: every other number in the summary counts copies, and a reader
+    # subtracting this cell from `n_genes_total` must land on the grouped rows. Measured
+    # 29/10/2026 on NC_016068.1 (Solanaceae): 24 copies of `hypothetical protein` had no group
+    # while the summary read 1.
+    unclassified_genes = [row.gene for row in rows if row.group is None]
+    unclassified_labels = sorted({names.label(gene) for gene in unclassified_genes})
 
     by_group: dict[GeneGroup, list[Gene]] = defaultdict(list)
     by_kind: Counter[str] = Counter()
@@ -76,7 +81,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "n_unique_names": len(
                     {names.canonical(gene) for gene in genome.genes if gene.kind in GENE_KINDS}
                 ),
-                "n_unclassified": len(unclassified),
+                "n_unclassified": len(unclassified_genes),
                 "coord_system": "genbank",
             },
         ),
@@ -92,7 +97,11 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("genes", "Name of genes"),
             Column("copies", "Number", dtype="int"),
         ),
-        rows=(*_group_rows(groups, by_group, names), _total_row(len(rows))),
+        rows=(
+            *_group_rows(groups, by_group, names),
+            *_unclassified_rows(unclassified_genes, names),
+            _total_row(len(rows)),
+        ),
         scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
         key="group",
         emphasis=("Total",),
@@ -125,9 +134,9 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             "A name printed with a synonym is one locus under two nomenclatures (D3-02); the "
             f"canonical name leads: {', '.join(aliased)}"
         )
-    if unclassified:
+    if unclassified_labels:
         notes.append(
-            f"Unclassified genes (no group in gene_groups.yaml): {', '.join(unclassified)}"
+            f"Unclassified genes (no group in gene_groups.yaml): {', '.join(unclassified_labels)}"
         )
 
     return Result(
@@ -173,6 +182,23 @@ def _group_rows(
         }
         for group in groups.groups
         if by_group.get(group)
+    )
+
+
+def _unclassified_rows(genes: list[Gene], names: GenomeNames) -> tuple[dict[str, Any], ...]:
+    """The row the grouping file promises for a gene no group claims.
+
+    Without it the table's rows do not add up to its own total, and the gene is only counted.
+    """
+    if not genes:
+        return ()
+    return (
+        {
+            "category": "",
+            "group": "Unclassified",
+            "genes": _names(genes, names),
+            "copies": len(genes),
+        },
     )
 
 

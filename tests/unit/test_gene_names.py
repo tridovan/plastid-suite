@@ -650,3 +650,21 @@ def test_the_records_own_organelle_picks_the_vocabulary() -> None:
     # the same sentence: one record is a mitogenome and gets the symbol, the other is not
     assert set(cds_by_canonical_name(mito)) == {"nad1"}
     assert set(cds_by_canonical_name(plastid)) == {"NADH dehydrogenase subunit 1"}
+
+
+def test_a_spelled_out_trna_with_an_anticodon_keeps_the_anticodon() -> None:
+    """`tRNA-H (GUG)` and `tRNA-fM (CAU)` are named genes, not unknown text.
+
+    Measured 29/10/2026 on `NC_020098.1` (Lamiaceae), where the gene table reported both as
+    unclassified. Neither rule covered the shape: `_BRACKET_TRNA` requires the `trn` prefix and
+    `_SPELLED_TRNA` requires a bare three-letter amino acid with no anticodon, so the name fell
+    through both and never reached the catalogue.
+    """
+    assert normalize_name("tRNA-H (GUG)", ALIASES).canonical == "trnH-GUG"
+    assert normalize_name("tRNA-H(GUG)", ALIASES).canonical == "trnH-GUG"
+    assert normalize_name("tRNA-Trp (CCA)", ALIASES).canonical == "trnW-CCA"
+    # Formyl-methionine is its own locus (`trnfM`), not a methionine tRNA.
+    assert normalize_name("tRNA-fM (CAU)", ALIASES).canonical == "trnfM-CAU"
+    assert normalize_name("tRNA-fM(CAU)", ALIASES).canonical == "trnfM-CAU"
+    # An amino acid the map does not know keeps its spelling: no letter is guessed.
+    assert normalize_name("tRNA-Xyz (AAA)", ALIASES).canonical == "tRNA-Xyz (AAA)"

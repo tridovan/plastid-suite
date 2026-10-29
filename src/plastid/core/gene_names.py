@@ -104,6 +104,12 @@ _BRACKET_TRNA = re.compile(r"^(trn\w+)\s*\(([A-Za-z]{3})\)$")
 # slip of "trnA-Ile" and silently relabels an isoleucine tRNA as alanine (measured 29/10/2026 on
 # NC_008641.1, one of the panel's own records).
 _SPELLED_TRNA = re.compile(r"^tRNA-([A-Za-z]{3})$", re.IGNORECASE)
+# A spelled-out amino acid *with* the anticodon: "tRNA-H (GUG)", "tRNA-fM (CAU)". Measured
+# 29/10/2026 on NC_020098.1, where the gene table reported both as unclassified: `_BRACKET_TRNA`
+# requires the `trn` prefix and `_SPELLED_TRNA` requires a bare three-letter amino acid, so this
+# shape matched neither and never reached the catalogue. The anticodon is kept, so the locus is
+# named exactly rather than resolved by sequence.
+_SPELLED_BRACKET_TRNA = re.compile(r"^tRNA-([A-Za-z]{1,4})\s*\(([A-Za-z]{3})\)$", re.IGNORECASE)
 _AMINO_ACID_LETTER = {
     "Ala": "A",
     "Arg": "R",
@@ -334,6 +340,27 @@ def normalize_name(name: str, aliases: AliasTable | None = None) -> NormalizedNa
     )
 
 
+def _trna_amino_letter(token: str) -> str | None:
+    """The gene letter of a spelled-out tRNA amino acid, or ``None`` when it is unknown.
+
+    Accepts the one-letter form (`H`), the three-letter form (`Trp`), and formyl-methionine in any
+    of the spellings a record uses (`fM`, `fMet`, `f`). Unknown tokens return ``None`` so the name
+    keeps its spelling instead of being guessed.
+    """
+    text = token.strip()
+    if not text:
+        return None
+    if len(text) == 1:
+        return "fM" if text.lower() == "f" else text.upper()
+    lowered = text.lower()
+    if lowered in ("fm", "fmet"):
+        return "fM"
+    if lowered.startswith("f") and len(lowered) == 4:
+        letter = _AMINO_ACID_LETTER.get(lowered[1:].capitalize())
+        return f"f{letter}" if letter is not None else None
+    return _AMINO_ACID_LETTER.get(text.capitalize())
+
+
 def _normalize_syntax(name: str) -> tuple[str, bool]:
     """``(canonical, changed)`` for the syntax-only rules."""
     canonical = name
@@ -347,6 +374,12 @@ def _normalize_syntax(name: str) -> tuple[str, bool]:
         letter = _AMINO_ACID_LETTER.get(spelled.group(1).capitalize())
         if letter is not None:
             canonical = f"trn{letter}"
+
+    spelled_bracket = _SPELLED_BRACKET_TRNA.match(canonical)
+    if spelled_bracket is not None:
+        letter = _trna_amino_letter(spelled_bracket.group(1))
+        if letter is not None:
+            canonical = f"trn{letter}-{spelled_bracket.group(2).upper()}"
 
     sized = _RRNA_SIZE_SUFFIX.match(canonical)
     if sized is not None:
