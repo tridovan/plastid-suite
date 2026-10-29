@@ -5,7 +5,8 @@
 {{ssr_summary.tri}} trinucleotide repeats, with {{ssr_summary.compound}} present in compound
 formation.
 
-Thresholds used (unit size / minimum repeats): {{ssr_summary.thresholds}} — the MISA defaults.
+Thresholds used (unit size / minimum repeats): {{ssr_summary.thresholds}} — the values MISA
+read from the ini for this run.
 
 By region: LSC {{ssr_by_region.LSC.total}} · IRa {{ssr_by_region.IRa.total}} ·
 SSC {{ssr_by_region.SSC.total}} · IRb {{ssr_by_region.IRb.total}}.

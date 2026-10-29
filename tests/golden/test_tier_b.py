@@ -795,7 +795,7 @@ def test_the_sqn_step_runs_and_ncbi_reads_the_table(
     nobody opens.
 
     The template is the repository's **stand-in** — a real submission uses the team's own, which
-    NCBI's form generates from cô Trang's details (``tests/data/PROVENANCE.md``). What is checked
+    NCBI's form generates from Trang's details (``tests/data/PROVENANCE.md``). What is checked
     here is the pipeline: the tool exits 0, the ``.sqn`` exists, and every error NCBI reports
     belongs to the one class a duplicated inverted-repeat plastome produces (measured 2026-10-03
     against a published plastome submission) — a new class would fail this test,

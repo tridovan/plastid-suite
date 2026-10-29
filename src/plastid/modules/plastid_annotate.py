@@ -18,7 +18,9 @@ the weaker overlap would delete real genes, so both calls stand and the pair is 
 **Four things this module refuses to do**, each for a measured reason:
 
 * **merge with the input's own annotation.** An assembled plastome arrives bare; if it carries
-  features, they are not the answer and appending them would double the gene count.
+  features, they are not the answer and appending them would double the gene count. The CLI
+  refuses an already-annotated GenBank by name unless the run says `--set reannotate=yes`, so
+  replacing an external annotation is a decision rather than an accident (M11.16).
 * **invent a product string.** Features are named by their symbol; the product wording belongs to
   a submitter, and the vocabulary's synonyms were quoted *from* the records this run is checked
   against.
@@ -32,7 +34,16 @@ the weaker overlap would delete real genes, so both calls stand and the pair is 
 the run when the two copies are not ≥ 99.9 % identical (naive detection got 2 of 9 published
 plastomes wrong, one silently). The self-search is a second opinion and a disagreement is a
 finding (``core/plastid_caller.repeat_agreement``); the structural frame is what the artifact
-writes and what positions are normalized against.
+writes and what positions are normalized against. Genes the repeat carries are written twice
+through the gate's own alignment (``IRResult.mapping``), so a pair whose copies differ in length
+is placed by the path the identity was measured on, not by an equal-copy constant (M11.11).
+
+**An intron tRNA is named at its locus, not from the anticodon ARAGORN prints beside the intron.**
+Measured 26/10/2026 (H-24): ARAGORN locates `trnV-UAC` on the golden correctly and calls it
+`tRNA-Cys(aca)`; on the Crataegus corpus the same locus is `tRNA-Stop` and no gene was written at
+all. The reference set annotates that locus, so its own tRNA sequences are searched and a strict
+majority of supporting records names the gene. Without that evidence ARAGORN's name stands, and a
+line ARAGORN cannot name is still reported rather than dropped.
 
 **Scope (D5-08's non-goals), stated because a paper has to:** reference transfer only. No de-novo
 gene discovery, no intron model beyond the alignment's own evidence, no RNA-editing prediction.
@@ -44,7 +55,7 @@ from __future__ import annotations
 import tempfile
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -54,6 +65,7 @@ from plastid.core.exon_structure import Junction, render_junctions
 from plastid.core.genbank import read_genbank, to_genbank
 from plastid.core.ir import IRGateError
 from plastid.core.model import Gene, Genome, Interval, count_genes
+from plastid.core.normalize import rotate_genes, rotate_genome
 from plastid.core.orf import check_genome
 from plastid.core.organelle import GROUP_PLASTID, PLASTID_PATH, check_set
 from plastid.core.plastid_caller import (
@@ -85,21 +97,22 @@ from plastid.external.blast import (
     run_blastn_trace,
     run_blastx,
 )
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
 from plastid.run.tools import ToolError
 
 MODULE_ID = "plastid_annotate"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"  # 0.2.0: max_hsps is a parameter and is named in the scope (M11.20)
 
 # The organelle this run serves, declared on the artifact's source (H-11) and in the scope label.
 ORGANELLE = "plastid"
 
 SCOPE_LABEL = (
-    "CDS and rRNA called by transfer from the pinned plastid reference set; tRNA called de novo "
-    "by ARAGORN; one call per vocabulary locus; GenBank coordinates"
+    "CDS and rRNA called by transfer from the pinned plastid reference set; tRNA located de novo "
+    "by ARAGORN and, where an intron sits beside the anticodon, named at its locus by the "
+    "reference set's own tRNA annotation; one call per vocabulary locus; GenBank coordinates"
 )
 
 
@@ -126,6 +139,11 @@ def _reference_directory(params: dict[str, Any], target: str) -> tuple[Path, tup
     **leave-one-out** rule — a record must never annotate a copy of itself, which is the corpus's
     own measured trap (the PGA set carried the golden's sequence and read 85 CDS where the
     contract says 86).
+
+    The recorded allow-list belongs to the **recorded directory**. Applying it to a directory the
+    user supplied (a family's own records, a second panel) excluded every one of those records
+    with "leave-one-out" when none of them was the target. A custom set is still searched
+    leave-one-out: :func:`_reference_set` drops the target's own accession by name.
     """
     manifest = load_recorded_manifest()
     directory = resolve_directory(params.get("reference"))
@@ -135,7 +153,8 @@ def _reference_directory(params: dict[str, Any], target: str) -> tuple[Path, tup
             f"records live outside the repository (.panel/ is gitignored), so a run is pointed at "
             f"them with `--set reference=<directory of GenBank records>`"
         )
-    allowed = manifest.references_for(target) if manifest is not None else ()
+    recorded = manifest is not None and directory.resolve() == Path(manifest.directory).resolve()
+    allowed = manifest.references_for(target) if recorded else ()
     return directory, allowed
 
 
@@ -183,6 +202,11 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
             continue
         genome = read_genbank(path)
         accession = genome.accession or genome.name
+        if accession == target:
+            # Leave-one-out is a rule, not a property of the recorded manifest: the target's own
+            # record must never annotate itself, in any directory a run is pointed at.
+            excluded.append(accession)
+            continue
         if allowed and accession not in allowed:
             excluded.append(accession)
             continue
@@ -268,13 +292,173 @@ def _by_subject(hits: Sequence[Any]) -> dict[str, list[Any]]:
     return grouped
 
 
-def _search_files(records: Sequence[Genome], work: Path) -> tuple[Path, Path]:
-    """The two FASTA files the searches run against — one per kind, never one pooled database."""
+def _search_files(
+    records: Sequence[Genome], work: Path, *, trna_entries: Sequence[Any] = ()
+) -> tuple[Path, Path, Path | None]:
+    """The FASTA files the searches run against — one per kind, never one pooled database.
+
+    The tRNA file exists for naming, not for calling: ARAGORN still finds every tRNA locus, and
+    the reference's own sequences say which locus it is when ARAGORN's anticodon reading is
+    wrong next to an intron (H-24). It is ``None`` when the reference set annotates no tRNA, so a
+    set with none keeps ARAGORN's names rather than failing on an empty database.
+    """
     proteins = work / "proteins.faa"
     rrna = work / "rrna.fa"
     proteins.write_text(render_fasta(reference_entries(records, kind="CDS")), encoding="utf-8")
     rrna.write_text(render_fasta(reference_entries(records, kind="rRNA")), encoding="utf-8")
-    return proteins, rrna
+    if not trna_entries:
+        return proteins, rrna, None
+    trna = work / "trna.fa"
+    trna.write_text(render_fasta(trna_entries), encoding="utf-8")
+    return proteins, rrna, trna
+
+
+# How far a reference tRNA's alignment may sit outside the ARAGORN gene span and still be the
+# same locus: the two tools disagree about a tRNA's terminal base by a few bases (the golden's
+# `trnP-UGG` is 2 bp short on every record in the corpus). A wider window would let a neighbouring
+# tRNA answer for this one.
+_TRNA_LOCUS_SLACK = 5
+# A reference tRNA is the locus's answer only if the search aligned at least this much of it: a
+# single exon of an intron tRNA covers about half the molecule, so one HSP cannot carry a name.
+_TRNA_SUBJECT_COVERAGE = 0.9
+
+
+@dataclass(frozen=True, slots=True)
+class TrnaNaming:
+    """One ARAGORN tRNA whose name the reference set's own locus settled (H-24)."""
+
+    old: str | None  # what ARAGORN said; None when it could not name the line at all
+    new: str
+    locus: str  # 1-based inclusive span and strand, as the report writes it
+    supporting: int  # reference accessions that place this tRNA at the locus
+    considered: int  # reference accessions that place any tRNA there
+    recovered: bool  # True when the line was unnameable and the locus named it
+
+
+def _locus_name(
+    call: Any,
+    groups: dict[str, list[Any]],
+    meta: dict[str, tuple[str, int, str]],
+) -> tuple[str, int, int] | None:
+    """The reference's name for one ARAGORN intron tRNA's locus, or ``None`` without evidence.
+
+    The search is a blastn of the reference's own tRNA sequences against the genome, so every
+    HSP is a pair of genomic coordinates. A reference tRNA answers for this locus when all of its
+    HSPs sit inside the ARAGORN span on the same strand and together cover at least
+    ``_TRNA_SUBJECT_COVERAGE`` of the reference sequence. Names are then counted **by reference
+    accession**, not by HSP: one record's two IR copies are one piece of evidence, and a set of
+    33 relatives saying `trnV-UAC` outvotes a single dissent. No strict majority means no rename —
+    the evidence does not settle it, and ARAGORN's own name stands.
+    """
+    if call.wrapped:
+        # A locus that crosses the origin is two coordinates; the containment test below would
+        # have to reassemble it, and none of the measured H-24 cases is wrapped.
+        return None
+    low, high = sorted((call.start, call.end))
+    supports: dict[str, set[str]] = {}
+    accessions: set[str] = set()
+    for key, hsps in groups.items():
+        name, subject_length, accession = meta.get(key, ("", 0, ""))
+        if not name or not subject_length:
+            continue
+        covered: set[int] = set()
+        used = False
+        for hsp in hsps:
+            query_low, query_high = sorted((int(hsp.qstart), int(hsp.qend)))
+            if query_low < low - _TRNA_LOCUS_SLACK or query_high > high + _TRNA_LOCUS_SLACK:
+                continue
+            # A plus-strand tRNA is matched by the reference in its forward orientation; a
+            # minus-strand one is matched reverse-complemented. BLAST reports the query always
+            # on its plus strand, so the subject's direction carries the strand.
+            if (int(hsp.sstart) < int(hsp.send)) != (call.strand > 0):
+                continue
+            subject_low, subject_high = sorted((int(hsp.sstart), int(hsp.send)))
+            covered.update(range(max(1, subject_low), min(subject_length, subject_high) + 1))
+            used = True
+        if used and len(covered) >= _TRNA_SUBJECT_COVERAGE * subject_length:
+            supports.setdefault(name, set()).add(accession)
+            accessions.add(accession)
+    if not accessions:
+        return None
+    best = max(supports, key=lambda candidate: (len(supports[candidate]), candidate))
+    supporting = len(supports[best])
+    if supporting * 2 <= len(accessions):
+        return None
+    return best, supporting, len(accessions)
+
+
+def _apply_trna_naming(
+    trna: AragornResult,
+    reference_hits: Sequence[Any],
+    entries: Sequence[Any],
+    genome_length: int,
+) -> tuple[AragornResult, tuple[TrnaNaming, ...]]:
+    """Name each intron tRNA from the reference locus; recover a line ARAGORN could not name.
+
+    ARAGORN reads an intron tRNA's anticodon beside the intron, and on the measured records it
+    reads the wrong three bases: the golden's `trnV-UAC` comes out `trnC-ACA`, and on the
+    Crataegus panel the same locus is `tRNA-Stop` and is not called at all. The reference set's
+    own annotation is the independent locus evidence — its tRNA at the same place has a name —
+    so where the search supports a locus by a strict majority that name is used. Nothing else
+    changes: coordinates, strand and introns stay ARAGORN's, a locus with no reference support
+    keeps ARAGORN's name, and an unnameable line with no support is still reported, never dropped.
+    A locus that crosses the origin is left as ARAGORN named it: the containment test would have
+    to reassemble two coordinates, and none of the measured H-24 cases is wrapped.
+    """
+    meta: dict[str, tuple[str, int, str]] = {}
+    for entry in entries:
+        if entry.vocabulary is None:
+            continue
+        meta[entry.key] = (entry.vocabulary, len(entry.sequence), entry.accession)
+    groups: dict[str, list[Any]] = {}
+    for hit in reference_hits:
+        groups.setdefault(hit.subject_key, []).append(hit)
+
+    calls: list[Any] = []
+    namings: list[TrnaNaming] = []
+    for call in trna.calls:
+        if call.intron is None:
+            calls.append(call)
+            continue
+        decision = _locus_name(call, groups, meta)
+        if decision is None or decision[0] == call.name:
+            calls.append(call)
+            continue
+        name, supporting, considered = decision
+        calls.append(call.with_name(name))
+        low, high = sorted((call.start, call.end))
+        namings.append(
+            TrnaNaming(
+                old=call.name,
+                new=name,
+                locus=f"{low}-{high}({'+' if call.strand > 0 else '-'}1)",
+                supporting=supporting,
+                considered=considered,
+                recovered=call.name is None,
+            )
+        )
+    hits = tuple(call for call in calls if call.name is not None)
+    named_lines = {call.raw_line for call in hits}
+    others = tuple(line for line in trna.others if line not in named_lines)
+    updated = replace(
+        trna,
+        hits=hits,
+        genes=tuple(call.gene(genome_length) for call in hits),
+        others=others,
+        calls=tuple(calls),
+    )
+    return updated, tuple(namings)
+
+
+def _trna_naming_notes(namings: Sequence[TrnaNaming]) -> tuple[str, ...]:
+    """One sentence per renamed or recovered tRNA, with the evidence that settled it."""
+    return tuple(
+        f"{naming.locus}: ARAGORN said {naming.old or 'nothing nameable'}; the reference set's "
+        f"own tRNA at this locus is {naming.new} in {naming.supporting} of {naming.considered} "
+        f"supporting record(s)"
+        + (" — the line was recovered, not invented" if naming.recovered else "")
+        for naming in namings
+    )
 
 
 @module(
@@ -283,6 +467,20 @@ def _search_files(records: Sequence[Genome], work: Path) -> tuple[Path, Path]:
     version=MODULE_VERSION,
     title="Plastid annotation (reference transfer)",
     requires_ir=True,
+    params=(
+        ParamSpec("reference", "str", "directory of GenBank records to transfer from"),
+        ParamSpec("exclude", "str", "accession to leave out of the search (repeatable)"),
+        ParamSpec("min_identity", "float", "minimum TBLASTN identity for a transferred call"),
+        ParamSpec("min_coverage", "float", "minimum query coverage for a transferred call"),
+        ParamSpec("evalue", "float", "maximum BLAST E-value"),
+        ParamSpec(
+            "max_hsps",
+            "int",
+            "BLAST HSPs kept per query-subject pair; a pair returning exactly this is capped",
+        ),
+        ParamSpec("transl_table", "int", "translation table stamped on called CDS"),
+        ParamSpec("tools", "str", "directory holding BLAST+/ARAGORN when they are not on PATH"),
+    ),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
@@ -294,6 +492,12 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         params.get("min_coverage", defaults.get("min_coverage", DEFAULT_MIN_COVERAGE))
     )
     evalue = float(params.get("evalue", defaults.get("evalue", 1.0e-5)))
+    max_hsps = int(params.get("max_hsps", MAX_HSPS))
+    if max_hsps < 1:
+        raise ValueError(
+            f"plastid_annotate: max_hsps must be at least 1, got {max_hsps} — BLAST would "
+            f"return no hit at all"
+        )
     table = int(params.get("transl_table", defaults.get("translation_table", PLASTID_TRANSL_TABLE)))
     tools_dir = params.get("tools")
     seq_id = genome.accession or genome.name
@@ -303,7 +507,11 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         tempfile.TemporaryDirectory(prefix="plastid_annotate_") as work,
     ):
         workdir = Path(work)
-        proteins, rrna = _search_files(reference.records, workdir)
+        trna_vocabulary = vocabulary_of(reference.records, kind="tRNA")
+        trna_entries = reference_entries(reference.records, kind="tRNA", vocabulary=trna_vocabulary)
+        proteins, rrna, trna_reference = _search_files(
+            reference.records, workdir, trna_entries=trna_entries
+        )
         # The self-search's subject is the record itself, so its header has to be the same
         # three-field shape every other reference header is (measured 08/10/2026: a bare
         # accession comes back as a one-field id and the parser refuses it by name — rightly,
@@ -318,10 +526,10 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             seq_id=seq_id,
             directory=tools_dir,
             evalue=evalue,
-            max_hsps=MAX_HSPS,
+            max_hsps=max_hsps,
         )
         rrna_run = run_blastn(
-            genome, rrna, ctx, seq_id=seq_id, directory=tools_dir, evalue=evalue, max_hsps=MAX_HSPS
+            genome, rrna, ctx, seq_id=seq_id, directory=tools_dir, evalue=evalue, max_hsps=max_hsps
         )
         repeat_run = run_blastn(
             genome,
@@ -330,11 +538,33 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             seq_id=seq_id,
             directory=tools_dir,
             evalue=evalue,
-            max_hsps=MAX_HSPS,
+            max_hsps=max_hsps,
         )
         trna_run = run_aragorn(
             genome, ctx, seq_id=seq_id, directory=tools_dir, introns=True
         )  # measured: without it ARAGORN skips 8 of the golden's 38 tRNAs, silently
+        # The reference's own tRNA sequences, searched only to **name** an intron locus whose
+        # anticodon ARAGORN reads beside the intron (H-24). Skipped when the set has no tRNA
+        # annotation — then ARAGORN's names stand, which is the negative case this rule needs.
+        trna_reference_run = (
+            run_blastn(
+                genome,
+                trna_reference,
+                ctx,
+                seq_id=seq_id,
+                directory=tools_dir,
+                evalue=evalue,
+                max_hsps=max_hsps,
+            )
+            if trna_reference is not None
+            else None
+        )
+        trna_run, trna_naming = _apply_trna_naming(
+            trna_run,
+            trna_reference_run.hits if trna_reference_run is not None else (),
+            trna_entries,
+            len(genome),
+        )
 
         if not protein_run.hits and not rrna_run.hits:
             raise ToolError(
@@ -352,7 +582,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             min_identity=min_identity,
             min_coverage=min_coverage,
             transl_table=table,
-            max_hsps_per_subject=MAX_HSPS,
+            max_hsps_per_subject=max_hsps,
         )
         # The reference's own exon structure, for the loci the caller just decided — the protein
         # search cannot see an exon shorter than one of its words, and it has no evidence at all
@@ -370,7 +600,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 seq_id=seq_id,
                 directory=tools_dir,
                 evalue=evalue,
-                max_hsps=MAX_HSPS,
+                max_hsps=max_hsps,
             )
             cds = transfer_structure(cds, _by_subject(structure_run.hits))
         rrna_calls = call_plastid_rrna(
@@ -379,7 +609,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             rrna_run.hits,
             min_identity=min_identity,
             min_coverage=min_coverage,
-            max_hsps_per_subject=MAX_HSPS,
+            max_hsps_per_subject=max_hsps,
         )
         if not cds.calls and not rrna_calls.calls:
             raise ToolError(
@@ -399,6 +629,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         cds=cds,
         rrna=rrna_calls,
         trna=trna_run,
+        trna_naming=trna_naming,
         reference=reference,
         protein_run=protein_run,
         rrna_run=rrna_run,
@@ -406,6 +637,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         repeat_note=repeat_agreement(ir, searched_repeat),
         floors=(min_identity, min_coverage),
         evalue=evalue,
+        max_hsps=max_hsps,
         table=table,
         text=text,
     )
@@ -424,19 +656,33 @@ def _annotated(
     that does not say which organelle it is cannot be checked by the modules behind it (H-11 —
     the mito artifact was measured copying an empty ``source`` through, and failing
     ``submission``'s first pass 24 times). ``repeat_regions`` are the gate's own two IR spans.
+
+    The IR's coordinates are in the frame the gate measured, which is the record's frame rotated by
+    ``ir.frame_offset`` when a copy crossed the origin (D11-1). The calls are in the record's frame,
+    so they are moved into the IR's frame here, the copies are written there, and the finished
+    genome is rotated back. Doing it once, around all the coordinate work, is why a joined copy
+    keeps its coordinates and why a mirrored gene that crosses the origin comes back as a join.
     """
-    genes = _ir_copies([call.to_gene() for call in (*cds.calls, *rrna.calls)], ir) + tuple(trna)
+    frame = int(getattr(ir, "frame_offset", 0) or 0)
+    length = len(genome)
+    working_sequence = (
+        genome.sequence[frame:] + genome.sequence[:frame] if frame else genome.sequence
+    )
+    calls = rotate_genes(tuple(call.to_gene() for call in (*cds.calls, *rrna.calls)), frame, length)
+    trna_genes = rotate_genes(tuple(trna), frame, length)
+    genes = _ir_copies(calls, ir) + trna_genes
     source = dict(genome.source)
     source["organelle"] = ORGANELLE
-    return Genome(
+    annotated = Genome(
         name=genome.name,
-        sequence=genome.sequence,
+        sequence=working_sequence,
         accession=genome.accession,
         topology=genome.topology,
         genes=genes,
         repeat_regions=(Interval(ir.ira.start, ir.ira.end), Interval(ir.irb.start, ir.irb.end)),
         source=source,
     )
+    return rotate_genome(annotated, -frame) if frame else annotated
 
 
 def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
@@ -448,8 +694,13 @@ def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
     caller makes **one call per locus** on purpose; the copies are the *export's* job, and they
     are the same fact written in the record's own coordinates rather than a second measurement.
 
-    The mapping is the inversion itself: a part at ``[s, e]`` inside one copy sits at the mirrored
-    offset inside the other, on the opposite strand.
+    The mapping is the inversion itself while the copies are equal: a part at ``[s, e]`` inside
+    one copy sits at the mirrored offset inside the other, on the opposite strand. When the
+    annotation's copies differ in length the inversion's arithmetic is off by the difference, so
+    the copy is placed through the gate's own alignment (M11.11) — the path that pairs every base
+    with its partner, including the one-base indel the constant cannot express. Without that path
+    there is no evidence for a position, and the run refuses by name rather than mirroring from
+    the wrong end.
 
     A gene that **straddles** a boundary — a trans-spliced one whose exons span the single-copy
     region *and* the repeat — is copied too, and only its exons inside the repeat are mirrored;
@@ -461,12 +712,14 @@ def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
     ``ycf1`` and two ``rps12``.
     """
     ira, irb = ir.ira, ir.irb
-    if ira.length != irb.length:
-        # Named refusal, exit 2 at the CLI: mapping a gene between unequal copies is alignment
-        # work (M11.11), not a bare ValueError that would be reported as an internal error.
+    mapping = getattr(ir, "mapping", None)
+    if ira.length != irb.length and mapping is None:
+        # Named refusal, exit 2 at the CLI, before any artifact: no alignment means no evidence
+        # for where the second copy's bases sit relative to the first (M11.11).
         raise IRGateError(
             f"plastid_annotate: the two inverted-repeat copies are {ira.length} and {irb.length} "
-            f"bp — a gene cannot be mirrored between copies of different length yet (M11.11)"
+            f"bp and this run carries no alignment between them — a gene cannot be mirrored "
+            f"between copies of different length without one"
         )
     inside: list[Gene] = []
     for gene in genes:
@@ -474,11 +727,11 @@ def _ir_copies(genes: Sequence[Gene], ir: Any) -> tuple[Gene, ...]:
         where = _ir_side(gene, ira, irb)
         if where is not None:
             source, target = (ira, irb) if where == "IRa" else (irb, ira)
-            inside.append(_mirrored(gene, source, target, whole=True))
+            inside.append(_mirrored(gene, source, target, whole=True, mapping=mapping))
             continue
         for source, target in ((ira, irb), (irb, ira)):
             if any(_within(part, source) for part in gene.parts):
-                inside.append(_mirrored(gene, source, target, whole=False))
+                inside.append(_mirrored(gene, source, target, whole=False, mapping=mapping))
                 break
     return tuple(sorted(inside, key=lambda gene: gene.parts[0].start))
 
@@ -488,24 +741,81 @@ def _within(part: Interval, region: Any) -> bool:
     return region.start <= part.start and part.end <= region.end
 
 
-def _mirrored(gene: Gene, source: Any, target: Any, *, whole: bool) -> Gene:
+def _mapped_part(part: Interval, mapping: Any) -> Interval | None:
+    """One exon expressed as the other copy carries it, through the alignment's path.
+
+    ``None`` when every base of the exon aligned to gaps in the other copy: there is no interval
+    to write, and inventing one would place a feature the alignment says is absent.
+    """
+    first, second = mapping.first, mapping.second
+    if _within(part, first):
+        mapped = mapping.first_to_second(part.start - first.start, part.end - first.start)
+        if mapped is None:
+            return None
+        start, end = mapped
+        # copy B's reverse-complement index j is genome position second.end - 1 - j
+        return Interval(
+            second.end - end,
+            second.end - start,
+            -part.strand,
+            partial_start=part.partial_end,
+            partial_end=part.partial_start,
+        )
+    if _within(part, second):
+        mapped = mapping.second_to_first(second.end - part.end, second.end - part.start)
+        if mapped is None:
+            return None
+        start, end = mapped
+        return Interval(
+            first.start + start,
+            first.start + end,
+            -part.strand,
+            partial_start=part.partial_end,
+            partial_end=part.partial_start,
+        )
+    return None
+
+
+def _mirrored(gene: Gene, source: Any, target: Any, *, whole: bool, mapping: Any = None) -> Gene:
     """One gene as the *other* copy of the repeat carries it.
 
-    The arithmetic is the inversion: a part at ``[s, e]`` inside one copy sits the same distance
-    inside the other, counted from that other copy's own start, on the opposite strand. Measured
-    09/10/2026 (P3B-10): it used to count from the first repeat's **start** instead of its
-    **end**, which put every mirrored copy exactly one repeat-length (26,214 bp on the golden)
-    away from where it belongs — outside the repeat, in the single-copy region. The gene *count*
-    was right, so nothing caught it; the published record's own copy is what caught it.
+    With an alignment (``mapping``) every exon inside ``source`` is placed through it; without
+    one the arithmetic is the inversion: a part at ``[s, e]`` inside one copy sits the same
+    distance inside the other, counted from that other copy's own start, on the opposite strand.
+    Measured 09/10/2026 (P3B-10): the arithmetic used to count from the first repeat's **start**
+    instead of its **end**, which put every mirrored copy exactly one repeat-length (26,214 bp on
+    the golden) away from where it belongs — outside the repeat, in the single-copy region. The
+    gene *count* was right, so nothing caught it; the published record's own copy is what caught
+    it.
 
     ``whole`` mirrors every exon — the gene sits inside one side. Otherwise only the exons inside
     ``source`` are mirrored and the rest travel unchanged, which is how a trans-spliced gene's
     shared exon ends up in both features.
     """
-    return Gene(
-        name=gene.name,
-        kind=gene.kind,
-        parts=tuple(
+    parts: list[Interval] = []
+    for part in gene.parts:
+        if not (whole or _within(part, source)):
+            parts.append(part)
+            continue
+        if mapping is not None:
+            mapped = _mapped_part(part, mapping)
+            if mapped is None:
+                start, end = part.to_1based()
+                raise IRGateError(
+                    f"plastid_annotate: {gene.name} has no counterpart in the other "
+                    f"inverted-repeat copy — its bases {start}..{end} aligned to gaps, so "
+                    f"writing a second copy would place a feature the alignment does not support"
+                )
+            if not _within(mapped, target):
+                raise IRGateError(
+                    f"plastid_annotate: the alignment placed {gene.name} at "
+                    f"{mapped.to_1based()[0]}..{mapped.to_1based()[1]}, outside the other "
+                    f"inverted-repeat copy {target.to_1based()[0]}..{target.to_1based()[1]} "
+                    f"— the alignment and the copy boundaries disagree"
+                )
+            parts.append(mapped)
+            continue
+        parts.append(
             Interval(
                 start=target.start + (source.end - part.end),
                 end=target.start + (source.end - part.start),
@@ -513,10 +823,11 @@ def _mirrored(gene: Gene, source: Any, target: Any, *, whole: bool) -> Gene:
                 partial_start=part.partial_end,
                 partial_end=part.partial_start,
             )
-            if whole or _within(part, source)
-            else part
-            for part in gene.parts
-        ),
+        )
+    return Gene(
+        name=gene.name,
+        kind=gene.kind,
+        parts=tuple(parts),
         transl_table=gene.transl_table,
         translation=gene.translation,
     )
@@ -557,6 +868,7 @@ def _result(
     cds: Any,
     rrna: Any,
     trna: AragornResult,
+    trna_naming: Sequence[TrnaNaming] = (),
     reference: _Reference,
     protein_run: BlastResult,
     rrna_run: BlastResult,
@@ -564,6 +876,7 @@ def _result(
     repeat_note: str,
     floors: tuple[float, float],
     evalue: float,
+    max_hsps: int,
     table: int,
     text: str,
 ) -> Result:
@@ -626,7 +939,10 @@ def _result(
                 "reference": reference.label,
             },
         ),
-        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+        scope=Scope(
+            label=f"{SCOPE_LABEL}; BLAST max_hsps {max_hsps} per query-subject pair",
+            coord_system="genbank",
+        ),
     )
 
     called = Table(
@@ -665,7 +981,10 @@ def _result(
             }
             for call in (*calls, *unnameable)
         ),
-        scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+        scope=Scope(
+            label=f"{SCOPE_LABEL}; BLAST max_hsps {max_hsps} per query-subject pair",
+            coord_system="genbank",
+        ),
         key="gene",
     )
 
@@ -678,6 +997,7 @@ def _result(
         *_truncated_notes(reference.truncated),
         *_dropped_notes(reference.dropped),
         *_aragorn_notes(trna),
+        *_trna_naming_notes(trna_naming),
         *cds.findings,
         *rrna.findings,
     ]
@@ -703,7 +1023,10 @@ def _result(
                 }
                 for row in not_called
             ),
-            scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+            scope=Scope(
+                label=f"{SCOPE_LABEL}; BLAST max_hsps {max_hsps} per query-subject pair",
+                coord_system="genbank",
+            ),
             key="gene",
         )
     else:
@@ -773,7 +1096,10 @@ def _result(
                 }
                 for hit in dropped
             ),
-            scope=Scope(label=SCOPE_LABEL, coord_system="genbank"),
+            scope=Scope(
+                label=f"{SCOPE_LABEL}; BLAST max_hsps {max_hsps} per query-subject pair",
+                coord_system="genbank",
+            ),
         )
     else:
         notes.append("no hit was rejected: every alignment the searches returned was used")
@@ -840,6 +1166,18 @@ def _aragorn_notes(trna: AragornResult) -> tuple[str, ...]:
     the gene look absent; stopping the run would have lost the other thirty-seven with it.
     """
     notes: list[str] = []
+    if trna.intron_search is None:
+        notes.append(
+            "tRNA introns were not searched (ARAGORN without -i) — the record's tRNA genes "
+            "carrying an intron are not detected, and their absence here is not assessed."
+        )
+    else:
+        minimum, maximum = trna.intron_search
+        notes.append(
+            f"tRNA introns searched with ARAGORN -i, {minimum:,}–{maximum:,} bp (its documented "
+            f"range); a tRNA whose intron falls outside that range is not reported by this call "
+            f"and is not counted as absent."
+        )
     if trna.others:
         notes.append(
             f"{len(trna.others)} ARAGORN line(s) are reported here rather than called — this "

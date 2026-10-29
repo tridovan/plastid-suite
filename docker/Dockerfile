@@ -6,8 +6,9 @@
 # number measured here is the number measured there.
 #
 # **Versions are part of the result** (two MAFFT builds gave two Ts/Tv numbers
-# from one genome). Every pin below is the one `environment.yml` records, and the build
-# *prints* them: a version nobody can read is not a pin.
+# from one genome). Every pin below is one the repository records — the runtime ones in
+# `environment.yml`, Vmatch in `environment-check.yml` — and the build *prints* them: a version
+# nobody can read is not a pin.
 #
 # **Licence (M9.3 — docs/licensing.md).** This image is built on the user's machine, from recorded
 # URLs with recorded hashes, so what it contains is the user's own copies for their own academic
@@ -32,9 +33,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 USER $MAMBA_USER
 
-# The pinned tool set — perl (MISA is a Perl script), MAFFT, MUMmer 4, PAML, BLAST+, ARAGORN, and
+# The pinned tool set — perl (MISA is a Perl script), MAFFT, MUMmer 4, PAML, BLAST+, ARAGORN,
+# IQ-TREE (the `phylogeny` module's inference step, M11.21) and
 # Vmatch (academic-only: the *second engine* the repeats count is checked against — optional in the
-# toolkit, installed here so the checks that need it run rather than skip).
+# toolkit, installed here so the checks that need it run rather than skip). Vmatch is a
+# `cross-check` tool in `docs/tools/README.md`, not a runtime one: it is in this image because the
+# tier-B golden compares the two engines, and a job that silently skipped would prove nothing.
+# Nothing from `environment-future.yml` is here — a deferred branch has no business in a
+# release image.
 RUN micromamba install -y -n base -c conda-forge -c bioconda \
         python=3.12 \
         perl=5.32.1 \
@@ -43,7 +49,18 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
         paml=4.10.10 \
         blast=2.17.0 \
         aragorn=1.2.41 \
+        iqtree=2.3.6 \
         vmatch=2.3.1 \
+        r-base=4.3 \
+        r-ggplot2 \
+        r-dplyr \
+        r-tidyr \
+        r-reshape2 \
+        r-rcolorbrewer \
+        r-zoo \
+        r-scales \
+        r-pheatmap \
+        r-ape \
     && micromamba clean -a -y
 
 # **table2asn is deliberately NOT in this image.** It is the one tool that (a) is optional — the
@@ -69,14 +86,18 @@ RUN mkdir -p "$PTS_MISA_DIR" \
 
 WORKDIR /work
 COPY --chown=$MAMBA_USER:$MAMBA_USER . /work
-# `pytest` is named explicitly: pip does not read PEP 735 dependency-groups (dev).
-RUN pip install --no-cache-dir . pytest
+# `pytest` is named explicitly: pip does not read PEP 735 dependency-groups (dev). The optional
+# extras are installed too (M11.8): without them the in-image golden skipped 61 tests — every
+# figure, every .docx and every R-script check — and a build that skips half the suite proves
+# nothing. They are optional for a *user*; they are not optional for this check.
+RUN pip install --no-cache-dir '.[figures,docx,excel,stats]' pytest
 
 # The pins, printed where they can be read.
 RUN mafft --version \
     && nucmer --version | head -1 \
     && blastn -version | head -1 \
     && aragorn -h 2>&1 | grep -m1 "^ARAGORN" \
+    && iqtree2 --version | head -1 \
     && perl -v | grep -E "^This is perl 5" \
     && python -c "import plastid; print('plastid', plastid.__version__)" \
     && ls -l "$PTS_MISA_DIR/misa.pl"
@@ -86,7 +107,19 @@ RUN mafft --version \
 # above rather than left out. **One** check is deselected, **by name and with its reason printed**:
 # table2asn's `.sqn` step, which this image does not carry (see the note above). A deselect that
 # says what it dropped is not a silent skip; nothing else may skip.
+# The pinned panels (`.panel/`) are not in the build context by design — they are gitignored,
+# ~250 MB, and third-party data, so the panel half of the golden skips here and the number printed
+# is the vendored-fixture half only. To run the whole suite, including the panel:
+#
+#   docker run --rm -v "$PWD:/work" -w /work pts-local:golden \
+#     sh -c 'PTS_REQUIRE_TOOLS=1 python -m pytest tests/golden -q -rs \
+#       --deselect tests/golden/test_tier_b.py::test_the_sqn_step_runs_and_ncbi_reads_the_table'
+#
+# Measured 28/10/2026: 55 skips inside the build, every one of them "`.panel/` is not in this
+# tree"; **0 skips** with the repository mounted. And the skip count is not silent: the suite
+# prints every reason, which is why this note exists.
 RUN echo "table2asn is not in this image: its one optional .sqn check is deselected by name" \
+    && echo "panel checks skip here: .panel/ is mounted at run time, not built in" \
     && PTS_REQUIRE_TOOLS=1 python -m pytest tests/golden -q -rs \
          --deselect tests/golden/test_tier_b.py::test_the_sqn_step_runs_and_ncbi_reads_the_table
 

@@ -24,7 +24,7 @@ _GENE = "ATGGCTTCTAAACCCGGGTTTTAA"
 
 @pytest.fixture
 def stubbed(monkeypatch):
-    def fake_align(rows, ctx):
+    def fake_align(rows, ctx, *, strategy="auto"):
         return Alignment(
             names=tuple(name for name, _ in rows), sequences=tuple(seq for _, seq in rows)
         )
@@ -145,3 +145,84 @@ def test_the_whole_scope_also_carries_the_type_table(
     assert counts[(mutated.accession, "A_to_G")] == 5
     assert len(rows) == len(SUBSTITUTION_TYPES)
     assert "twelve directed changes" in result.tables["substitutions_by_type"].scope.label
+
+
+def test_the_default_scope_is_whole_and_each_scope_names_itself(
+    tmp_path: Path, stubbed, golden_genome: Genome
+) -> None:
+    """M11.5: the two scopes are different numbers and the output says which one it is.
+
+    The default stays the whole alignment; the CDS scope is the golden's narrower method. A
+    report that quotes one as the other is the failure this distinction exists to prevent, so
+    neither the default nor the label may drift silently.
+    """
+    assert substitutions.DEFAULT_SCOPE == "whole"
+    mutated = replace(golden_genome, sequence=golden_genome.sequence.replace("A", "G", 5))
+
+    whole = substitutions.run((golden_genome, mutated), {}, _ctx(tmp_path))
+    assert whole.tables["substitutions_summary"].rows[0]["scope"].startswith("the whole aligned")
+    assert "not the CDS-only scope" in whole.tables["substitutions_summary"].scope.label
+
+    cds = substitutions.run((golden_genome, golden_genome), {"scope": "cds"}, _ctx(tmp_path))
+    assert "CDS only" in cds.tables["substitutions_summary"].scope.label
+
+
+def test_the_region_table_uses_the_normalized_frame_on_a_rotated_reference(
+    tmp_path: Path, stubbed, golden_genome: Genome
+) -> None:
+    """The reference is aligned in its normalized frame, so its regions and its columns agree.
+
+    Measured 27/10/2026: the region loop compared the reference's **raw** positions with region
+    boundaries that live in the **normalized** frame. At the golden's ``rotation_offset`` of 0 the
+    two coincide, so only a record that starts anywhere else shows it. Measured 28/10/2026, the
+    same defect one level down: a reference rotated by half was itself row 0 of the alignment, and
+    the same two genomes produced 230,663 alignment columns instead of 154,827. The module now
+    aligns the normalized reference, so the frame the regions are named in is the frame the
+    columns are counted in.
+
+    The stub aligner returns its rows unchanged, so the query is expressed in the frame the
+    reference is normalized into — that is what a real aligner does, without the gaps.
+    """
+    from plastid.core.normalize import rotate_genome
+
+    def mutated_at(genome: Genome, position: int) -> Genome:
+        base = genome.sequence[position]
+        change = {"A": "G", "G": "A", "C": "T", "T": "C"}[base]
+        sequence = genome.sequence[:position] + change + genome.sequence[position + 1 :]
+        return replace(genome, sequence=sequence)
+
+    def credited_region(reference: Genome, position: int) -> str:
+        result = substitutions.run(
+            (reference, mutated_at(golden_genome, position)), {}, _ctx(tmp_path)
+        )
+        rows = [
+            row
+            for row in result.tables["substitutions_by_region"].rows
+            if row["substitutions"] == 1
+        ]
+        assert len(rows) == 1
+        return str(rows[0]["region"])
+
+    shift = 7500
+    rotated = rotate_genome(golden_genome, shift)
+    normal_base = 100  # inside the golden's LSC (IRa starts at 83,127)
+    assert credited_region(golden_genome, normal_base) == "LSC"
+    assert credited_region(rotated, normal_base) == "LSC"
+
+
+def test_a_partial_reference_gene_is_counted_in_the_cds_scope(tmp_path: Path, stubbed) -> None:
+    from dataclasses import replace
+
+    reference = _genome("REF.1", {"rbcL": _GENE})
+    reference = replace(
+        reference,
+        genes=(
+            replace(
+                reference.genes[0],
+                parts=(replace(reference.genes[0].parts[0], partial_start=True),),
+            ),
+        ),
+    )
+    query = _genome("QRY.1", {"rbcL": _GENE})
+    result = substitutions.run((reference, query), {"scope": "cds"}, _ctx(tmp_path))
+    assert result.tables["substitutions_summary"].rows[0]["n_partial_genes"] == 1

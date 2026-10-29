@@ -16,14 +16,61 @@ from plastid.core.align import Alignment
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, tool_version, which
 
-__all__ = ["MAFFT_VERSION", "adjust_direction", "align", "parse_directions"]
+__all__ = [
+    "DEFAULT_STRATEGY",
+    "MAFFT_STRATEGIES",
+    "MAFFT_VERSION",
+    "adjust_direction",
+    "align",
+    "parse_directions",
+    "strategy_flag",
+]
 
 MAFFT_VERSION = "7.526"
 
+# The aligner's own entry points, by the name this toolkit gives each. `auto` is MAFFT's default
+# and the one every published number here was measured with; the rest are offered because a
+# divergence-rich panel can need a different algorithm, and a user who runs MAFFT by hand picks
+# one. Adding a strategy changes the alignment, so it travels in argv and in the column.
+#
+# Each value is the **argv fragment**, not one option. MAFFT 7 does not accept `--einsi`,
+# `--linsi`, `--ginsi`, `--fftns` or `--nwns`: those are v6 names, and the v7 aliases are the
+# separate wrapper programs of the same name, the algorithms themselves being selected by the
+# pair/hmm options below. Every non-default strategy therefore failed against the pinned build
+# (measured 28/10/2026: `Unknown option: --fftns`, then `--linsi`) while the in-suite check, which
+# only compared each string with `--<name>`, passed. `nwns` is gone: MAFFT 7 has no NW-NS mode to
+# map it to, and a name that always fails is worse than a refusal that lists the names that work.
+MAFFT_STRATEGIES: dict[str, tuple[str, ...]] = {
+    "auto": ("--auto",),
+    "einsi": ("--genafpair", "--maxiterate", "1000"),
+    "linsi": ("--localpair", "--maxiterate", "1000"),
+    "ginsi": ("--globalpair", "--maxiterate", "1000"),
+    "fftns": ("--retree", "2", "--maxiterate", "0"),
+}
+DEFAULT_STRATEGY = "auto"
 
-def align(rows: Sequence[tuple[str, str]], ctx: RunContext) -> Alignment:
-    """Align ``(name, sequence)`` rows and return them in the order given."""
-    text = _run(rows, ctx, extra=())
+
+def strategy_flag(strategy: str) -> tuple[str, ...]:
+    """The MAFFT argv flags for a strategy name, refused by name when it is not one of ours."""
+    try:
+        return MAFFT_STRATEGIES[strategy]
+    except KeyError:
+        raise ValueError(
+            f"mafft: unknown strategy {strategy!r} — choose one of "
+            f"{', '.join(sorted(MAFFT_STRATEGIES))}"
+        ) from None
+
+
+def align(
+    rows: Sequence[tuple[str, str]], ctx: RunContext, *, strategy: str = DEFAULT_STRATEGY
+) -> Alignment:
+    """Align ``(name, sequence)`` rows and return them in the order given.
+
+    ``strategy`` selects MAFFT's algorithm (M11.20). The default is ``auto``, which is what every
+    number in this repository was measured with; anything else is a different alignment and must
+    say so — the module records it in the table's scope and the argv in the manifest.
+    """
+    text = _run(rows, ctx, extra=(), strategy=strategy)
     aligned = _parse_fasta(text)
     missing = [name for name, _ in rows if name not in aligned]
     if missing:
@@ -70,7 +117,13 @@ def parse_directions(text: str) -> dict[str, bool]:
     return directions
 
 
-def _run(rows: Sequence[tuple[str, str]], ctx: RunContext, *, extra: Sequence[str]) -> str:
+def _run(
+    rows: Sequence[tuple[str, str]],
+    ctx: RunContext,
+    *,
+    extra: Sequence[str],
+    strategy: str = DEFAULT_STRATEGY,
+) -> str:
     """One MAFFT call, through the tool door: a temp file in, its stdout out.
 
     Both callers need the same three things — the binary located and version-checked, the aligned
@@ -91,7 +144,7 @@ def _run(rows: Sequence[tuple[str, str]], ctx: RunContext, *, extra: Sequence[st
         fasta.write_text(_to_fasta(rows), encoding="utf-8")
         record = ctx.tool(
             "mafft",
-            [binary, "--auto", "--quiet", *extra, fasta.name],
+            [binary, *strategy_flag(strategy), "--quiet", *extra, fasta.name],
             tool_path=binary,
             pinned_version=MAFFT_VERSION,
             cwd=workdir,

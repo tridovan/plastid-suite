@@ -489,7 +489,10 @@ def test_the_reference_normalizes_to_itself_with_nothing_to_change(tmp_path: Pat
     result = naming.run((golden, golden), {"mode": "verify"}, _context(tmp_path))
 
     assert result.artifacts == {}  # verify writes no record
-    assert result.tables["normalize_summary"].rows[0]["renamed"] == 0
+    summary = result.tables["normalize_summary"].rows[0]
+    assert summary["renamed"] == 0
+    # a decision, never "verified": no rename, and the genes without evidence stay visible
+    assert summary["decision"] == ("not measured" if summary["not_measured"] else "no change")
     assert any("nothing would change" in note for note in result.notes)
 
 
@@ -694,7 +697,9 @@ def test_the_run_resolves_audits_and_records_the_naming_reference(tmp_path: Path
     assert code == EXIT_OK
     run_dir = next(path.parent for path in out.glob("*/*/manifest.json"))
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["schema_version"] == 2
+    from plastid.run.manifest import MANIFEST_SCHEMA_VERSION
+
+    assert manifest["schema_version"] == MANIFEST_SCHEMA_VERSION
     assert manifest["inputs"][0]["path"].endswith("NC_050833.1.gb")  # the reference came first
     entry = manifest["modules"][0]
     assert entry["reference"]["accession"] == "NC_050833.1"
@@ -798,3 +803,35 @@ def test_the_recorded_reference_resolves_without_a_checkout(
     monkeypatch.chdir(tmp_path)
 
     assert _resolve_recorded_reference(recorded) == reference
+
+
+def test_the_naming_search_uses_the_requested_evalue_and_cap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """M11.20: blastp's E-value ceiling and HSP cap are the run's parameters, not constants.
+
+    The search is stubbed at the adapter boundary — the module's contract is that the values it
+    declares are the values the search receives.
+    """
+    import plastid.external.blast as blast_module
+
+    seen: dict[str, object] = {}
+
+    def fake_search(queries, reference, ctx, **kwargs):
+        seen.update(kwargs)
+        return type("Hits", (), {"for_query": lambda self, query_id: ()})()
+
+    monkeypatch.setattr(blast_module, "run_blastp", fake_search)
+    reference = read_genbank(GOLDEN)
+    queries = naming._protein_queries([read_genbank(GATESII)])
+    naming._search(queries, reference, {}, _context(tmp_path), evalue=1e-3, max_hsps=3)
+
+    assert seen["evalue"] == 1e-3
+    assert seen["max_hsps"] == 3
+
+
+def test_a_max_hsps_below_one_is_refused_before_the_search(tmp_path: Path) -> None:
+    reference = read_genbank(GOLDEN)
+    record = read_genbank(GATESII)
+    with pytest.raises(ValueError, match="max_hsps"):
+        naming.run((reference, record), {"max_hsps": 0}, _context(tmp_path))

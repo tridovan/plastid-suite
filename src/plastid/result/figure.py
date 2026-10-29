@@ -25,6 +25,7 @@ import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from plastid.core.deps import require_module
@@ -33,6 +34,7 @@ from plastid.result.result import Result
 __all__ = [
     "FIGURE_FORMATS",
     "Figure",
+    "FigureRecord",
     "FigureSpec",
     "THEME",
     "Theme",
@@ -151,6 +153,41 @@ def missing_tables(
         for module, table in requires
         if module not in results or table not in results[module].tables
     )
+
+
+@dataclass(frozen=True, slots=True)
+class FigureRecord:
+    """One catalogue entry's outcome — what was drawn, or why nothing was (M11.18).
+
+    Both figure catalogues report through this one record, so ``plastid figures``, ``package``
+    and ``qc`` can list the same set with the same statuses. ``renderer`` separates the two
+    engines (``matplotlib`` and ``R``) that a missing extra or a missing tool stops for
+    different reasons. ``provenance`` is the scope label of every source table the figure read,
+    plus any caption line the renderer wrote: a figure made from someone else's records says so
+    on the same page that lists it.
+    """
+
+    figure_id: str
+    renderer: str  # "matplotlib" | "R"
+    files: tuple[Path, ...] = ()
+    provenance: tuple[str, ...] = ()
+    reason: str = ""  # non-empty exactly when nothing was drawn
+
+    def __post_init__(self) -> None:
+        if self.renderer not in ("matplotlib", "R"):
+            raise ValueError(f"figure {self.figure_id!r}: unknown renderer {self.renderer!r}")
+        if self.files and self.reason:
+            raise ValueError(
+                f"figure {self.figure_id!r}: a rendered figure cannot also carry a skip reason"
+            )
+        if not self.files and not self.reason:
+            raise ValueError(
+                f"figure {self.figure_id!r}: a record must say what it drew or why it drew nothing"
+            )
+
+    @property
+    def status(self) -> str:
+        return "rendered" if self.files else "skipped"
 
 
 @dataclass(frozen=True, slots=True)

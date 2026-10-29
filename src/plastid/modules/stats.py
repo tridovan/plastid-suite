@@ -27,9 +27,9 @@ from dataclasses import dataclass, replace
 from plastid.core import stats as statistics
 from plastid.core.codon import codon_counts, enc
 from plastid.core.gene_names import load_gene_aliases, normalize_name
-from plastid.core.model import Genome
+from plastid.core.model import Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -37,6 +37,13 @@ MODULE_ID = "stats"
 MODULE_VERSION = "0.1.0"
 
 MEASURES = ("length_bp", "gc_pct", "gc3_pct", "enc")
+
+# What one observation is. Exported with every test row so a reader cannot mistake a
+# locus × genome test for a test over taxa or populations, and so the IR copies and pseudogenes
+# policies travel with the p-value instead of living only in the module docstring.
+OBSERVATION_UNIT = (
+    "one observation per locus per genome (IR copies collapsed, pseudogenes excluded)"
+)
 _MEASURE_LABELS = {
     "length_bp": ("Length", "bp", 0),
     "gc_pct": ("GC", "%", 2),
@@ -53,8 +60,9 @@ class Observation:
 
     locus: str
     group: str
+    partial: bool
     length_bp: int
-    gc_pct: float
+    gc_pct: float | None
     gc3_pct: float | None
     enc: float | None
 
@@ -70,6 +78,7 @@ class TestRow:
     measure: str
     status: str
     reason: str
+    labels: tuple[str, ...]
     n: tuple[int, ...]
     medians: tuple[float | None, ...]
     statistic: float | None
@@ -80,12 +89,15 @@ class TestRow:
     significant: str = "no"
 
 
-def _sequence_of(genome: Genome, gene: object) -> str:
-    """The CDS as the record spells it, parts joined — exon order, not genomic order."""
-    parts = getattr(gene, "parts", ())
-    if not parts:
-        return ""
-    return "".join(genome.sequence[part.start : part.end] for part in parts).upper()
+def _sequence_of(genome: Genome, gene: Gene) -> str:
+    """The CDS as its transcript reads it — per exon, 5'→3' on the exon's own strand.
+
+    The forward slice is not the gene: on a minus-strand CDS it moves every codon position, so
+    GC3 and ENC would be read off the wrong bases (measured 27/10/2026: 20 % against 60 % GC3 on
+    one fixture). ``coding_sequence`` is the reading every other module uses — one reading, so two
+    modules cannot disagree about one gene.
+    """
+    return coding_sequence(genome, gene).upper()
 
 
 def _gc_pct(sequence: str) -> float | None:
@@ -140,8 +152,9 @@ def measure(
                 Observation(
                     locus=locus,
                     group=groups[key],
+                    partial=gene.partial,
                     length_bp=gene.length,
-                    gc_pct=_gc_pct(sequence) or 0.0,
+                    gc_pct=_gc_pct(sequence),
                     gc3_pct=_gc3_pct(sequence),
                     enc=enc(codon_counts(sequence)),
                 )
@@ -183,6 +196,7 @@ def _test_rows(observations: Sequence[Observation], measures: Sequence[str]) -> 
                         status=statistics.NOT_COMPUTABLE,
                         reason="only one group carries this locus "
                         f"({labels[0] if labels else '—'})",
+                        labels=tuple(labels),
                         n=tuple(len(values[label]) for label in labels),
                         medians=medians,
                         statistic=None,
@@ -202,6 +216,7 @@ def _test_rows(observations: Sequence[Observation], measures: Sequence[str]) -> 
                     measure=name,
                     status=outcome.status,
                     reason=outcome.reason,
+                    labels=tuple(labels),
                     n=outcome.n,
                     medians=medians,
                     statistic=outcome.statistic,
@@ -232,6 +247,11 @@ def _below(value: float | None, alpha: float) -> bool:
     title="Group comparison statistics",
     arity=2,
     citations=("biopython",),
+    params=(
+        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+        ParamSpec("alpha", "float", "significance level after FDR correction"),
+        ParamSpec("measures", "str", "which measurements the group comparison reads"),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict, ctx: RunContext) -> Result:
     groups = params.get("groups")
@@ -276,6 +296,7 @@ def run(genomes: Sequence[Genome], params: dict, ctx: RunContext) -> Result:
             Column("n_not_computable", "Not computable", dtype="int"),
             Column("n_significant", "Significant after correction", dtype="int"),
             Column("n_observations", "Observations", dtype="int"),
+            Column("n_partial_observations", "Observations from a partial CDS", dtype="int"),
             Column("n_collapsed_cds", "CDS collapsed to one per locus", dtype="int"),
             Column("n_genomes_with_cds", "Genomes carrying CDS", dtype="int"),
             Column("n_genomes_without_cds", "Genomes contributing no CDS", dtype="int"),
@@ -298,6 +319,7 @@ def run(genomes: Sequence[Genome], params: dict, ctx: RunContext) -> Result:
                 "n_not_computable": len(rows) - len(tested),
                 "n_significant": len(significant),
                 "n_observations": len(observations),
+                "n_partial_observations": sum(1 for item in observations if item.partial),
                 "n_collapsed_cds": collapsed,
                 "n_genomes_with_cds": len(genomes) - len(unannotated),
                 "n_genomes_without_cds": len(unannotated),
@@ -346,6 +368,8 @@ def run(genomes: Sequence[Genome], params: dict, ctx: RunContext) -> Result:
             Column("p_bh", "p (BH)", dtype="float", precision=6),
             Column("p_bonferroni", "p (Bonferroni)", dtype="float", precision=6),
             Column("significant", "Significant"),
+            Column("assumption", "Assumption"),
+            Column("unit", "Observation unit"),
             Column("status", "Status"),
             Column("note", "Note"),
         ),
@@ -355,7 +379,7 @@ def run(genomes: Sequence[Genome], params: dict, ctx: RunContext) -> Result:
                 "locus": row.locus,
                 "measure": row.measure,
                 "n_per_group": " · ".join(
-                    f"{label}: {n}" for label, n in zip(labels, row.n, strict=True)
+                    f"{label}: {n}" for label, n in zip(row.labels, row.n, strict=True)
                 ),
                 "medians": " · ".join(_number(value) for value in row.medians),
                 "statistic": row.statistic,
@@ -363,6 +387,8 @@ def run(genomes: Sequence[Genome], params: dict, ctx: RunContext) -> Result:
                 "p_bh": row.p_bh,
                 "p_bonferroni": row.p_bonferroni,
                 "significant": row.significant,
+                "assumption": row.assumption,
+                "unit": OBSERVATION_UNIT,
                 "status": row.status,
                 "note": row.reason,
             }

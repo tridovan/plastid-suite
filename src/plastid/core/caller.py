@@ -47,7 +47,7 @@ absent from the reference set is reported as not called, never guessed.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from io import StringIO
@@ -394,6 +394,8 @@ def call_cds(
     transl_table: int = 1,
     max_hsps_per_subject: int | None = None,
     structure_first: bool = False,
+    read_upstream_start: bool = False,
+    model_guard: bool = False,
 ) -> CallResult:
     """Call the protein-coding genes of ``genome`` from a blastx run's hits.
 
@@ -404,6 +406,15 @@ def call_cds(
     candidate whose protein is the C-terminal stretch of another candidate's, which is what a
     record annotating one gene from an inner start codon looks like. The plastid path measured a
     case for it (``rps19``) and asks for it; the mito path does not, so it does not.
+
+    ``read_upstream_start`` asks for the one-codon 5' read described in :func:`_refine_start`.
+    The plastid path measured the case (``psbL`` on 39 Crataegus records: the alignment starts at
+    codon 2 and the codon before it is ``ACG``, an accepted initiator); the mito prototype keeps
+    its previous behaviour.
+
+    ``model_guard`` asks :func:`_choose` not to transfer a rare model whose start is over-long
+    when a majority model is its suffix. The plastid path measured the case on 39 Crataegus
+    records (see :func:`_choose`); the mito prototype keeps identity-only.
     """
     if transl_table not in START_CODONS:
         raise ValueError(
@@ -421,6 +432,8 @@ def call_cds(
         transl_table=transl_table,
         max_hsps_per_subject=max_hsps_per_subject,
         structure_first=structure_first,
+        read_upstream_start=read_upstream_start,
+        model_guard=model_guard,
     )
 
 
@@ -545,6 +558,8 @@ def _call(
     transl_table: int | None,
     max_hsps_per_subject: int | None,
     structure_first: bool = False,
+    read_upstream_start: bool = False,
+    model_guard: bool = False,
 ) -> CallResult:
     by_key: dict[str, list[Hsp]] = defaultdict(list)
     for hsp in _deduplicate(hsps):
@@ -601,7 +616,11 @@ def _call(
         if not mine:
             not_called.append(_nothing_found(symbol, below_floor.get(symbol), min_identity))
             continue
-        chosen = _choose(mine, structure_first=structure_first)
+        chosen = _choose(
+            mine,
+            structure_first=structure_first,
+            model_support=_model_support(references.for_symbol(symbol)) if model_guard else None,
+        )
         competing.extend(_competing_row(symbol, item, chosen) for item in mine)
         if chosen is None:
             not_called.append(_below_the_floors(symbol, mine, min_coverage))
@@ -611,11 +630,14 @@ def _call(
                 for hsp in item.kept
             )
             continue
-        calls.append(_to_call(genome, symbol, kind, chosen, transl_table))
+        calls.append(_to_call(genome, symbol, kind, chosen, transl_table, read_upstream_start))
         dropped.extend(chosen.dropped)
 
     unnameable = sorted(
-        (_to_call(genome, item.entry.source_gene, kind, item, transl_table) for item in unnamed),
+        (
+            _to_call(genome, item.entry.source_gene, kind, item, transl_table, read_upstream_start)
+            for item in unnamed
+        ),
         key=lambda call: call.span,
     )
     calls.sort(key=lambda call: call.span)
@@ -869,8 +891,19 @@ def _candidate(
     )
 
 
+# A reference model is the length of the sequence a candidate would transfer — residues for a
+# CDS, nucleotides for an rRNA. Measured on 39 Crataegus records (27/10/2026): the three
+# references carrying models with extra residues before the start scored highest everywhere and
+# made every genome inherit the extension; see _choose and _over_long_start.
+RARE_MODEL_SHARE = 0.20
+MAJORITY_MODEL_SHARE = 0.50
+
+
 def _choose(
-    candidates: Sequence[_Candidate], *, structure_first: bool = False
+    candidates: Sequence[_Candidate],
+    *,
+    structure_first: bool = False,
+    model_support: Mapping[int, float] | None = None,
 ) -> _Candidate | None:
     """The highest-identity candidate that passes the floors; bitscore breaks ties.
 
@@ -887,13 +920,89 @@ def _choose(
     ones, so identity alone transfers the truncation and the call lands 54 bp short of the
     published CDS. A candidate that is a stretch of another candidate's protein explains a proper
     subset of the target's residues and can never be the better model of it.
+
+    **A rare model does not decide, either.** ``model_support`` is the share of the locus's
+    reference entries that carry each sequence length (residues for a CDS, nucleotides for an
+    rRNA); the plastid path passes it. Measured 27/10/2026 on 39 Crataegus records: three
+    references carry extended small-CDS models (``psbM`` 270 bp where 36 records say 105,
+    ``psbK`` 195 where 36 say 186, ``psaJ`` 318 where 38 say 135, ``psbZ`` 279 where 38 say 189,
+    ``psbJ`` 144 where 36 say 123, ``accD`` 1,527 where 36 say 1,476, ``rpoB`` 3,258 where 38 say
+    3,207). They scored highest, so every genome inherited the extension; removing them from the
+    reference set raised CDS exact agreement from 76.7 % to 85.7 % and CDS within 1 bp from
+    80.8 % to 89.9 %.
+
+    The guard is deliberately narrower than "the modal model wins":
+
+    * **The extension must be at the 5' end.** All seven outlier proteins above are the protein
+      most records carry **plus residues before its start** (the majority protein is a suffix of
+      the rare one) — an over-long start annotation. A 3' extension is not displaced: measured
+      on the same corpus, five records' ``rps18`` and two ``atpA`` models are three or four
+      residues longer at 3' than the consensus, and shortening them cut the call before its stop
+      codon (``no_stop``). The longer model was the real one.
+    * **The model must already be rare.** The identity winner is displaced only when under
+      :data:`RARE_MODEL_SHARE` of the locus's reference entries carry it, and only by a model
+      more than :data:`MAJORITY_MODEL_SHARE` of them carry.
+    * **The guard runs before** :func:`_not_truncated`. The consensus protein is a *suffix* of
+      the over-long one, so the structure rule would drop exactly the candidate the guard needs
+      (measured: ``psbM`` and the other six loci never moved until this order was fixed). With
+      no majority candidate among the floor-passing alignments the identity winner stands, and
+      the structure rule still decides the ``rps19`` case where the *shorter* model is the
+      artifact.
+    * **A different model is not an extension**: ``rpl2``'s identity winner in the pinned golden
+      is a 2-of-33 274 aa model; the modal 271 aa model is a different start codon, not the 274
+      protein with residues removed, so the guard does not fire.
     """
     passing = [item for item in candidates if item.passes_floors]
     if not passing:
         return None
+    chosen = max(passing, key=_score)
+    if model_support is not None:
+        share = model_support.get(chosen.length)
+        if share is not None and share < RARE_MODEL_SHARE:
+            majority = [
+                item
+                for item in passing
+                if item.length < chosen.length
+                and model_support.get(item.length, 0.0) > MAJORITY_MODEL_SHARE
+                and _over_long_start(item.entry.sequence, chosen.entry.sequence)
+            ]
+            if majority:
+                return max(majority, key=_score)
     if structure_first:
         passing = _not_truncated(passing)
-    return max(passing, key=lambda item: (item.identity, item.bitscore, item.coverage))
+        chosen = max(passing, key=_score)
+    return chosen
+
+
+def _over_long_start(majority: str, winner: str) -> bool:
+    """``winner`` is ``majority`` with extra residues **before its start** — an over-long 5' end.
+
+    Both sequences are the reference entries' own protein (or rRNA) sequence. The direction is
+    measured, not assumed: every extended model in the Crataegus set is the majority protein as
+    its suffix, while the same corpus's 3'-longer ``rps18``/``atpA`` models are the real ones.
+    A model that merely differs in length is not an extension either: in the golden's ``rpl2``
+    the modal 271 aa protein is a different start codon, not the 274 aa protein cut short.
+    """
+    return len(majority) < len(winner) and winner.endswith(majority)
+
+
+def _score(item: _Candidate) -> tuple[float, float, float]:
+    return (item.identity, item.bitscore, item.coverage)
+
+
+def _model_support(entries: Sequence[ReferenceEntry]) -> dict[int, float]:
+    """Share of one locus's reference entries that carry each sequence length.
+
+    Counted over the **whole** reference set for the locus, not over the candidates: a reference
+    that did not align in this genome still states how the locus is annotated, and that is the
+    evidence the guard weighs. Counting over candidates would let an unlucky hit set manufacture
+    a majority.
+    """
+    total = len(entries)
+    if not total:
+        return {}
+    counts = Counter(len(entry.sequence) for entry in entries)
+    return {length: count / total for length, count in counts.items()}
 
 
 def _not_truncated(candidates: Sequence[_Candidate]) -> list[_Candidate]:
@@ -944,10 +1053,13 @@ def _to_call(
     kind: str,
     candidate: _Candidate,
     transl_table: int | None,
+    read_upstream_start: bool = False,
 ) -> GeneCall:
     notes: list[str] = []
     exons = [list(exon) for exon in candidate.exons]
-    partial_start = _refine_start(genome, candidate, exons, kind, transl_table, notes)
+    partial_start = _refine_start(
+        genome, candidate, exons, kind, transl_table, notes, read_upstream_start
+    )
     partial_end = _refine_end(genome, candidate, exons, kind, notes)
     parts = tuple(
         Interval(
@@ -999,14 +1111,32 @@ def _refine_start(
     kind: str,
     transl_table: int | None,
     notes: list[str],
+    read_upstream_start: bool = False,
 ) -> bool:
-    """Is the 5' coordinate established? One codon is read, and nothing is ever moved."""
+    """Is the 5' coordinate established? At most one codon is read on either side; no walking.
+
+    When the alignment reaches the reference's 5' end the first codon is the model's own, and it
+    is checked against the table. When it does not reach, the coordinate is partial — except that
+    the codon **immediately before** the alignment is read, and an accepted initiator there
+    establishes the start. This is the 5' mirror of :func:`_refine_end`'s one-codon look for a
+    stop, and it is opt-in per path: measured 27/10/2026 on 39 Crataegus records, the plastid
+    caller wrote ``psbL`` as a 114 bp no-start CDS while the codon before the alignment was
+    ``ACG`` (an accepted plastid initiator), making the model 117 bp with a complete ORF and the
+    reference's own length. No codon beyond that one is read, and a non-initiator leaves the
+    coordinate partial rather than stretching to a distant ATG.
+    """
     reached = _reaches_five_prime(candidate, exons[0])
     if kind != "CDS":
         if not reached:
             notes.append(NOT_REACHED_FIVE_PRIME)
         return not reached
     if not reached:
+        if read_upstream_start and _extend_to_upstream_start(genome, exons[0], transl_table or 1):
+            notes.append(
+                NOT_REACHED_FIVE_PRIME
+                + " — the codon before it is an initiator, so that one codon is read (not walked)"
+            )
+            return False
         notes.append(
             NOT_REACHED_FIVE_PRIME + " — the start is partial, and it is not moved to the next ATG"
         )
@@ -1016,6 +1146,27 @@ def _refine_start(
         notes.append(f"the first codon {codon} is not an initiator — a partial start, unmoved")
         return True
     return False
+
+
+def _extend_to_upstream_start(genome: Genome, exon: list[int], table: int) -> bool:
+    """Read the one codon 5' of an exon; extend the exon onto it when it is an initiator.
+
+    ``exon`` is ``[start, end, strand, subject_start]``, 1-based inclusive, and is mutated in
+    place only when the extension happens. A codon that leaves the record (a circular origin is
+    not a coordinate this alignment shows) or is not an initiator leaves the exon untouched.
+    """
+    start, end, strand, _ = exon
+    if strand < 0:
+        new_start, new_end = start, end + 3
+    else:
+        new_start, new_end = start - 3, end
+    if new_start < 1 or new_end > len(genome):
+        return False
+    codon = _codons(genome, [new_start, new_end, strand, 0], table)[0]
+    if codon not in START_CODONS[table]:
+        return False
+    exon[0], exon[1] = new_start, new_end
+    return True
 
 
 def _refine_end(

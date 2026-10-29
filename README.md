@@ -3,20 +3,24 @@
 [![CI](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml)
 
 Toolkit for **plastid (chloroplast) genome analysis**, developed for academic research and
-**MIT licensed**. Twenty-two analysis modules: genome statistics, structure (LSC/SSC/IR), gene
+**MIT licensed**. Twenty-three analysis modules: genome statistics, structure (LSC/SSC/IR), gene
 tables, codon usage, amino-acid composition, introns, SSR, repeats, substitutions (Ts/Tv),
 diversity (π), barcodes, Ka/Ks, population genetics, synteny, group statistics, ORF checks,
-gene-name unification, annotation and NCBI submission files. The existing mitochondrial path
-(`mito annotate` · `mito genes`) is an experimental prototype; current development targets plastids.
+gene-name unification, annotation, maximum-likelihood phylogeny and NCBI submission files. The
+existing mitochondrial path (`mito annotate` · `mito genes`) is an experimental prototype;
+current development targets plastids.
 
 Every run writes its own directory with tables and a draft report. External tool calls record
 their name, version and command line. Output from a new analysis run does not overwrite an older run.
 
-**Status: v1.0.0.** This is the code version, not a claim that acceptance is complete. Open
+**Status: v1.0.0.** This is the code version, not a claim that acceptance is complete — the
+package metadata says `Development Status :: 4 - Beta`, and that is the accurate label. Open
 [correctness issues](docs/known_issues.md) affect IR detection, caching and annotation handling;
 the toolkit is under corrective development. What it currently does **not** do is in
 [docs/things_we_do_not_do.md](docs/things_we_do_not_do.md); which modules need which tool, and how
-much memory they take, is in [docs/platforms.md](docs/platforms.md).
+much memory they take, is in [docs/platforms.md](docs/platforms.md). Every external tool the
+toolkit can call, with its role — runtime, cross-check, deferred or survey-only — is listed in
+[docs/tools/](docs/tools/).
 
 The [canonical pipeline](docs/pipeline.md) shows reference preparation, annotation, analysis and
 outputs, including deferred assembly, the open RNA-editing work and the integration still missing.
@@ -41,8 +45,11 @@ docker run --rm -v "$PWD:/work" plastid-suite plastid --version
 
 Some analyses need external tools (MAFFT, MISA, BLAST+, MUMmer, PAML…). The toolkit never bundles
 them, and never silently skips one: a missing tool stops the run and names it. What each tool is
-and how to install it: [docs/tools/](docs/tools/). The tool-equipped environment for everything at
-once is `environment.yml` (`conda env create -f environment.yml`).
+and how to install it: [docs/tools/](docs/tools/) — its front page lists every tool with its role
+(runtime · cross-check · deferred · survey-only). The runtime environment is `environment.yml`
+(`conda env create -f environment.yml`); the cross-check engines and the deferred assembly tools
+are in `environment-check.yml` and `environment-future.yml`, so installing the analyses never
+pulls in an assembler.
 
 ## Use
 

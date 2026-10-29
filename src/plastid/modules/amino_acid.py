@@ -6,6 +6,10 @@ never disagree about which sequences they describe. Every translation is built w
 record's own CDS declare (plastid records declare 11; the two share every amino acid and differ
 only in initiation codons, and the initiator is read as its own amino acid).
 
+**No inverted repeat is needed.** Composition is a property of the translated CDS set, not a
+position; the module no longer waits behind the IR gate (M11.5). A frame or declared table this
+compiled code cannot read is refused by name, never translated silently.
+
 Cross-check that must hold (and is asserted in the golden tests): the residue total equals the
 sense-codon total of `codon_usage`, because every sense codon contributes exactly one residue.
 """
@@ -14,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from plastid.core.codon import translate, translation_table_label
+from plastid.core.codon import require_translatable, translate, translation_table_label
 from plastid.core.model import Genome, cds_features, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
 from plastid.core.protein import (
@@ -30,7 +34,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "amino_acid"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"  # 0.2.0: no IR requirement; unsupported frame/table refused (M11.5)
 
 
 @module(
@@ -38,12 +42,13 @@ MODULE_VERSION = "0.1.0"
     group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Amino-acid composition",
-    requires_ir=True,
+    # CDS sequences only: no position in the inverted repeat enters any number here (M11.5).
+    requires_ir=False,
     citations=("biopython",),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
-    ctx.require_ir()
     cdss = cds_features(genome)
+    require_translatable(cdss, module=MODULE_ID)
     table_label = translation_table_label(cdss)
 
     translation = "".join(translate(coding_sequence(genome, gene)) for gene in cdss)
@@ -58,6 +63,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
             Column("accession", "Accession"),
             Column("organism", "Organism"),
             Column("n_cds", "CDS in the set", dtype="int"),
+            Column("n_partial_cds", "Of which partial", dtype="int"),
             Column("n_residues", "Residues counted", dtype="int"),
             Column("ignored_symbols", "Stops and ambiguous symbols", dtype="int"),
             Column("gravy", "GRAVY (Kyte–Doolittle)", dtype="float", precision=4),
@@ -69,6 +75,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "accession": genome.accession or "",
                 "organism": genome.name,
                 "n_cds": len(cdss),
+                "n_partial_cds": sum(1 for gene in cdss if gene.partial),
                 "n_residues": residues,
                 "ignored_symbols": ignored,
                 # raw values: the export layer formats by Column.precision, JSON keeps them exact

@@ -31,15 +31,28 @@ from plastid.core.orf import (
 )
 
 __all__ = [
+    "SubmissionInputError",
     "TblFeature",
     "TblRecord",
     "parse_tbl",
     "partial_start_genes",
     "source_qualifiers_left_out",
     "submission_problems",
+    "submittable_features",
     "to_fasta",
     "to_tbl",
 ]
+
+
+class SubmissionInputError(ValueError):
+    """The input is not the checked, annotated GenBank a submission is built from.
+
+    A bare FASTA has a sequence and nothing else; writing an empty feature table from it would
+    turn "this sequence was never annotated" into "this sequence has no genes". A submission is
+    made from the GenBank the annotation/verify steps produced, never from an analysis table
+    (M11.18).
+    """
+
 
 # The feature kinds the reader keeps and the submission carries. `gene` features are parents:
 # they say where the locus is; CDS/tRNA/rRNA say what it is.
@@ -74,6 +87,11 @@ class TblRecord:
 
     seq_id: str
     features: tuple[TblFeature, ...]
+
+
+def submittable_features(genome: Genome) -> tuple[Gene, ...]:
+    """The features a submission carries, in the record's annotation order."""
+    return tuple(gene for gene in genome.genes if gene.kind in SUBMITTED_KINDS)
 
 
 def to_fasta(genome: Genome, seq_id: str, *, width: int = 60) -> str:

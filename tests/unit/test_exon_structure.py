@@ -296,6 +296,66 @@ def test_a_minus_strand_gene_is_placed_in_its_own_direction() -> None:
     assert placed.spans == ((81865, 81873), (80539, 80638))
 
 
+def _split_hits(only: Junction) -> tuple[Hit, Hit]:
+    """The two alignments the search returned for MW201730's rps16 junction, in miniature.
+
+    One starts at the first exon and runs into the intron, the other starts inside the intron and
+    runs through the second exon; neither carries both exons.
+    """
+    left = Hit([(offset, 7416 + offset - only.left[0]) for offset in range(only.left[0], 101)])
+    right = Hit(
+        [(offset, 5250 + offset - only.right[0]) for offset in range(900, only.right[1] + 1)]
+    )
+    return left, right
+
+
+def test_a_junction_the_search_splits_into_two_alignments_still_places_both_exons() -> None:
+    """Measured 27/10/2026 on ``MW201730``'s ``rps16``: the 1,134 bp junction came back as two
+    alignments (766 bp + 421 bp) because the intron's own length diverged, and each one carried a
+    single exon. Requiring one alignment for both deleted the gene's 40 bp first exon: the call
+    was written as the 3' exon alone, partial 5'.
+
+    Both exons are still mapped end to end, each by an alignment of the junction's own DNA, so
+    the reference's structure is evidence about both. The pair is used only where it orders and
+    anchors exactly like a single hit.
+    """
+    (only,) = junctions(
+        genome("A" * 50),
+        Gene(name="rps16", kind="CDS", parts=(Interval(6399, 6439, -1), Interval(5249, 5477, -1))),
+        "x|rps16|j",
+    )
+    call = Transfer(
+        symbol="rps16", strand=-1, spans=((5250, 5477),), partial_start=True, partial_end=False
+    )
+    left, right = _split_hits(only)
+
+    placed = place(call, [only], {only.key: [left, right]})
+
+    assert placed is not None
+    assert placed.spans == ((7416, 7455), (5250, 5477))
+    assert (placed.partial_start, placed.partial_end) == (False, False)
+
+
+def test_two_alignments_that_do_not_sit_in_gene_order_place_nothing() -> None:
+    """The pair rule is the single-hit rule: the second exon still has to sit an intron away, in
+    the gene's direction, or the two alignments are not describing this gene."""
+    (only,) = junctions(
+        genome("A" * 50),
+        Gene(name="rps16", kind="CDS", parts=(Interval(6399, 6439, -1), Interval(5249, 5477, -1))),
+        "x|rps16|j",
+    )
+    call = Transfer(
+        symbol="rps16", strand=-1, spans=((5250, 5477),), partial_start=True, partial_end=False
+    )
+    left, right = _split_hits(only)
+    above = Hit(
+        [(offset, 7500 + offset - only.right[0]) for offset in range(900, only.right[1] + 1)]
+    )
+
+    assert place(call, [only], {only.key: [left, above]}) is None
+    assert right  # the ordered pair is the one the first test used
+
+
 @pytest.mark.parametrize("offset", [0, 2_000])
 def test_a_position_outside_the_alignment_has_no_place_on_the_target(offset: int) -> None:
     from plastid.external.blast import TraceHit

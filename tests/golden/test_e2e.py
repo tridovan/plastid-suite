@@ -172,6 +172,18 @@ def test_second_golden_genome_runs_cleanly(tmp_path: Path, data_dir: Path) -> No
     assert manifest["params"]["ir_source"] == "sequence"
     assert manifest["ir"]["gate_passed"] is True
     assert manifest["ir"]["source"] == "denovo_diag"
+    # The path the operator asked for and the path that produced the result are both recorded,
+    # and the annotation it did not use is a named state, not "IR ok" (M11.16).
+    assert manifest["ir"]["requested_source"] == "sequence"
+    assert manifest["ir"]["status"] == "sequence_annotation_present"
+    assert manifest["ir"]["annotation_used"] is False
+    assert (
+        manifest["ir"]["matched_columns"]
+        + manifest["ir"]["mismatched_columns"]
+        + manifest["ir"]["ambiguous_columns"]
+        + manifest["ir"]["gap_columns"]
+        == manifest["ir"]["compared_columns"]
+    )
     # the annotation it did not use is still recorded, so the choice is visible
     assert manifest["ir"]["annotated_lengths"] == [26_220, 26_186]
     assert manifest["ir"]["alignment_method"] == "anchored"
@@ -190,6 +202,9 @@ def test_the_annotation_source_is_refused_with_the_way_out(
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "failed"
     assert manifest["ir"]["gate_passed"] is False
+    assert manifest["ir"]["requested_source"] == "annotation"
+    assert manifest["ir"]["status"] == "annotation"
+    assert manifest["ir"]["annotation_used"] is True
     assert manifest["ir"]["annotated_lengths"] == [26_220, 26_186]
 
 
@@ -403,11 +418,18 @@ def test_a_run_writes_its_figure_and_a_second_run_writes_the_same_bytes(
     manifest = json.loads((first_dir / "manifest.json").read_text(encoding="utf-8"))
     entry = next(item for item in manifest["files"] if item["path"] == "figures/pi_window.svg")
     assert entry["module"] == "figures" and entry["sha256"] == digest
-    assert manifest["figures"]["rendered"] == [
+    assert manifest["figures"]["rendered"][:3] == [
         "pi_window.svg",
         "pi_window.pdf",
         "pi_window.eps",
     ]
+    # The caption carries the scope; the R catalogue is collected in the same pass (M11.18).
+    extra = manifest["figures"]["rendered"][3:]
+    assert "pi_window.caption.txt" in extra
+    assert all(name.startswith("r_diversity") for name in extra if name != "pi_window.caption.txt")
+    r_skips = [entry for entry in manifest["figures"]["skipped"] if entry["renderer"] == "R"]
+    assert all(entry["reason"] for entry in r_skips)  # an absence is never blank
+    assert manifest["figures"]["status"] in {"complete", "partial"}
     assert "--figures" in manifest["command"]
 
     # The second run is served from the cache — and must still get its figure, from the result

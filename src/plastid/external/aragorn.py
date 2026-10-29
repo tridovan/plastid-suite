@@ -31,11 +31,12 @@ from __future__ import annotations
 
 import re
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from plastid.core.gene_names import normalize_name
 from plastid.core.model import Gene, Genome, Interval
+from plastid.core.spans import TRNA_INTRON_MAX_BP
 from plastid.core.submission import to_fasta
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, which
@@ -45,14 +46,28 @@ __all__ = [
     "AMINO_ACIDS",
     "AragornResult",
     "TrnaHit",
+    "ARAGORN_INTRON_LIMITS",
     "aragorn_binary",
     "aragorn_version",
     "parse_batch",
+    "parse_calls",
     "run_aragorn",
     "trna_name",
 ]
 
 ARAGORN_VERSION = "1.2.41"
+
+# What ARAGORN's own `-h` says about its intron search: "minimum intron length is 0 bases" and
+# the default maximum is 3,000 bases (`-i<min>,<max>` changes them). Declared here and carried
+# on the result, because a caller that searched 0–3,000 bp must not report "no intron" for a
+# locus whose intron is longer: it did not look there (H-22).
+#
+# Measured 26/10/2026 on ARAGORN 1.2.41 with a golden trnK-UUU whose intron was lengthened in
+# steps: 3,000 bp is found, 3,001 bp is not, and `-i0,4000`, `-i4000` and `-i0,6000` do not
+# change that — the documented switch does not lift the internal maximum. The minimum does work
+# (`-i2700,3000` drops a 2,618 bp intron). A request above this maximum is therefore refused by
+# name rather than passed as a flag that silently has no effect.
+ARAGORN_INTRON_LIMITS: tuple[int, int] = (0, TRNA_INTRON_MAX_BP)
 
 # One-letter codes for the amino acid names ARAGORN prints. A table, not a heuristic: every entry
 # is a standard IUPAC name, and an unknown one is refused rather than guessed at.
@@ -97,9 +112,16 @@ _VERSION = re.compile(r"ARAGORN\s+v(\d+\.\d+\.\d+)", re.IGNORECASE)
 
 @dataclass(frozen=True, slots=True)
 class TrnaHit:
-    """One tRNA, as ARAGORN reported it and as this toolkit names it. 1-based inclusive."""
+    """One tRNA, as ARAGORN reported it and as this toolkit names it. 1-based inclusive.
 
-    name: str  # trnM-CAU — through the shared normalizer
+    ``name`` is ``None`` when ARAGORN printed a gene this adapter cannot name — a ``tRNA-Stop``
+    line whose anticodon is one base off, or a ``tmRNA``. The coordinates, strand and intron are
+    still real: a later step with locus evidence (``plastid_annotate`` against the reference set's
+    own tRNAs) can name the gene, and dropping the line here would turn "unnameable" into
+    "absent" (H-24).
+    """
+
+    name: str | None  # trnM-CAU — through the shared normalizer; None when unnameable
     source_name: str  # tRNA-Met — what ARAGORN printed
     anticodon: str  # CAU — RNA, 5'→3' on the gene
     start: int
@@ -118,6 +140,12 @@ class TrnaHit:
     # on the published record's own joined exons. ARAGORN's help documents the intron's maximum
     # *length* (``-i<min>,<max>``) and never mentions an end coordinate.
     intron: tuple[int, int] | None = None
+    # The line ARAGORN printed, kept for the report when the name is the thing in question.
+    raw_line: str = ""
+
+    def with_name(self, name: str) -> TrnaHit:
+        """This hit carrying a name established by independent locus evidence."""
+        return replace(self, name=name)
 
     def length(self, genome_length: int) -> int:
         """How long the gene is, intron included — ARAGORN's span is the whole gene."""
@@ -167,6 +195,11 @@ class TrnaHit:
         return tuple(Interval.from_1based(min(run), max(run), self.strand) for run in runs if run)
 
     def gene(self, genome_length: int) -> Gene:
+        if self.name is None:
+            raise ValueError(
+                f"{self.source_name} at {self.start}..{self.end} has no name — a gene the adapter "
+                f"cannot name is reported, not written under a guessed symbol"
+            )
         return Gene(name=self.name, kind="tRNA", parts=self.parts(genome_length))
 
 
@@ -177,9 +210,15 @@ class AragornResult:
     hits: tuple[TrnaHit, ...]
     genes: tuple[Gene, ...]
     declared: int | None  # ARAGORN's own "N genes found" line
-    others: tuple[str, ...]  # gene lines that were not tRNA (a tmRNA, if one is ever found)
+    others: tuple[str, ...]  # gene lines that were not tRNA, or that this adapter cannot name
     raw: str
     version: str
+    # Every tRNA line with its coordinates, named or not. The plastid path names an unnameable
+    # intron tRNA from the reference set's own locus (H-24); the mito path ignores this.
+    calls: tuple[TrnaHit, ...] = ()
+    # The intron length range this call searched, or None when intron detection was off. A
+    # consumer must read it: absence of a tRNA intron is only a measurement inside this range.
+    intron_search: tuple[int, int] | None = None
 
 
 def aragorn_binary(explicit: str | Path | None = None, directory: str | Path | None = None) -> str:
@@ -250,49 +289,65 @@ def trna_name(amino: str, anticodon: str) -> str:
     return normalize_name(f"trn{letter}-{rna}").canonical
 
 
+def _call_from_line(line: str) -> TrnaHit | None:
+    """One ARAGORN gene line as a hit, named when the amino acid is one this adapter knows.
+
+    ``None`` means the line is not a parseable tRNA/tmRNA gene line at all; a line that parses but
+    whose amino acid is unknown comes back with ``name=None`` and keeps its coordinates.
+    """
+    match = _LINE.match(line)
+    if match is None or match.group("kind") != "tRNA":
+        return None
+    amino = match.group("amino")
+    name = (
+        trna_name(amino, match.group("anticodon"))
+        if amino is not None and amino in AMINO_ACIDS
+        else None
+    )
+    start, end = int(match.group("start")), int(match.group("end"))
+    intron_start = match.group("intron_start")
+    return TrnaHit(
+        name=name,
+        source_name=f"tRNA-{amino}" if amino else "tRNA",
+        anticodon=match.group("anticodon").upper().replace("T", "U"),
+        start=start,
+        end=end,
+        strand=-1 if match.group("strand") else 1,
+        score=int(match.group("score")) if match.group("score") else None,
+        wrapped=start > end,
+        intron=(
+            (int(intron_start), int(match.group("intron_length")))
+            if intron_start is not None
+            else None
+        ),
+        raw_line=line.strip(),
+    )
+
+
+def parse_calls(text: str) -> tuple[TrnaHit, ...]:
+    """Every tRNA gene line, named or not — the input locus evidence can act on (H-24)."""
+    calls = (_call_from_line(line) for line in text.splitlines())
+    return tuple(call for call in calls if call is not None)
+
+
 def parse_batch(text: str) -> tuple[tuple[TrnaHit, ...], tuple[str, ...]]:
-    """Read ARAGORN's ``-w`` output into hits, plus any gene line that is not a tRNA."""
+    """Read ARAGORN's ``-w`` output into named hits, plus every gene line that was not named."""
     hits: list[TrnaHit] = []
     others: list[str] = []
     for line in text.splitlines():
-        match = _LINE.match(line)
-        if match is None:
+        if _LINE.match(line) is None:
             continue
-        if (
-            match.group("kind") != "tRNA"
-            or match.group("amino") is None
-            or match.group("amino") not in AMINO_ACIDS
-        ):
-            # Not a tRNA this reader can name — a tmRNA, or a tRNA whose amino acid is not one of
-            # the twenty-two. Reported through `others`, never dropped and never guessed at: an
-            # unparsed gene that vanished would look like a gene that is absent, and a run that
-            # *stopped* on one would lose every other gene with it. Measured 09/10/2026 on the
-            # pinned corpus (with `-i`): two records (`NC_072561.1` · `NC_072580.1`) bring a
-            # `tRNA-Stop` line at the `trnK-UUU` locus — ARAGORN reading the anticodon one base
-            # off, so that it spells a stop codon. The gene is real; the *name* is what this
-            # adapter cannot supply, and the run says so (the module's notes carry `others` and
-            # the gap against ARAGORN's own "N genes found").
+        call = _call_from_line(line)
+        if call is None or call.name is None:
+            # A tmRNA, or a tRNA whose amino acid is not one of the twenty-two. Reported through
+            # `others`, never dropped and never guessed at: an unparsed gene that vanished would
+            # look like a gene that is absent. Measured 09/10/2026 on the pinned corpus (with
+            # `-i`): two records (`NC_072561.1` · `NC_072580.1`) bring a `tRNA-Stop` line at the
+            # `trnK-UUU` locus — ARAGORN reading the anticodon one base off, so that it spells a
+            # stop codon. The gene is real; the *name* is what this adapter cannot supply.
             others.append(line.strip())
             continue
-        start, end = int(match.group("start")), int(match.group("end"))
-        intron_start = match.group("intron_start")
-        hits.append(
-            TrnaHit(
-                name=trna_name(match.group("amino"), match.group("anticodon")),
-                source_name=f"tRNA-{match.group('amino')}",
-                anticodon=match.group("anticodon").upper().replace("T", "U"),
-                start=start,
-                end=end,
-                strand=-1 if match.group("strand") else 1,
-                score=int(match.group("score")) if match.group("score") else None,
-                wrapped=start > end,
-                intron=(
-                    (int(intron_start), int(match.group("intron_length")))
-                    if intron_start is not None
-                    else None
-                ),
-            )
-        )
+        hits.append(call)
     return tuple(hits), tuple(others)
 
 
@@ -305,8 +360,33 @@ def run_aragorn(
     directory: str | Path | None = None,
     timeout: int = 600,
     introns: bool = False,
+    intron_limits: tuple[int, int] | None = None,
 ) -> AragornResult:
-    """Call the tRNA genes of one genome, and read them back as :class:`Gene` records."""
+    """Call the tRNA genes of one genome, and read them back as :class:`Gene` records.
+
+    ``intron_limits`` is ARAGORN's ``-i<min>,<max>`` range. The default (``introns=True``) is the
+    caller's documented 0–3,000 bp. Passing an explicit range turns intron detection on: a caller
+    that widens it says so, and :attr:`AragornResult.intron_search` carries what was searched so
+    downstream code cannot report a locus outside the range as "no intron" (H-22).
+    """
+    if intron_limits is not None:
+        if not introns:
+            introns = True
+        minimum, maximum = intron_limits
+        if minimum < 0 or maximum <= minimum:
+            raise ValueError(
+                f"intron_limits must be (min, max) with 0 <= min < max, got {intron_limits!r}"
+            )
+        if maximum > ARAGORN_INTRON_LIMITS[1]:
+            raise ValueError(
+                f"ARAGORN {ARAGORN_VERSION} does not search a tRNA intron longer than "
+                f"{ARAGORN_INTRON_LIMITS[1]:,} bp: measured 26/10/2026, a 3,000 bp intron is "
+                f"reported and a 3,001 bp one is not, even with -i0,{maximum}. A locus beyond "
+                f"that range is not assessed, never counted as intron-free. Use "
+                f"intron_limits=(min, {ARAGORN_INTRON_LIMITS[1]}) or a caller that reports "
+                f"longer introns."
+            )
+    searched = (intron_limits or ARAGORN_INTRON_LIMITS) if introns else None
     binary = aragorn_binary(aragorn, directory)
     version = aragorn_version(binary)
     with tempfile.TemporaryDirectory(prefix="aragorn_") as work:
@@ -329,7 +409,7 @@ def run_aragorn(
                 # its tRNAs carry an intron), while on the mito answer key it turns 17 into 21,
                 # four of which the published record does not have. The plastid path passes it;
                 # whether the mito path should is a question with a name, not a default.
-                *(["-i"] if introns else []),
+                *([] if searched is None else [_intron_flag(searched)]),
                 "-gc1",  # the standard code — the same table the CDS calls carry
                 "-c" if genome.topology == "circular" else "-l",
                 str(fasta),
@@ -353,4 +433,14 @@ def run_aragorn(
         others=others,
         raw=raw,
         version=version,
+        calls=parse_calls(raw),
+        intron_search=searched,
     )
+
+
+def _intron_flag(limits: tuple[int, int]) -> str:
+    """ARAGORN's intron switch for one range — plain ``-i`` for its own documented default."""
+    if limits == ARAGORN_INTRON_LIMITS:
+        return "-i"
+    minimum, maximum = limits
+    return f"-i{minimum},{maximum}"

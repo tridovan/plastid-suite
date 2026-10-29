@@ -348,8 +348,13 @@ def test_figures_render_from_a_run_directory_alone(tmp_path: Path) -> None:
     (module_dir / "result.json").write_text(export_json(_diversity_result()), encoding="utf-8")
 
     outcome = render_run_figures(run, figures=["pi_window"], formats=("svg",))
-    assert [path.name for path in outcome.files] == ["pi_window.svg"]
+    assert [path.name for path in outcome.files] == [
+        "pi_window.svg",
+        "pi_window.caption.txt",
+    ]
     assert (run / "figures" / "pi_window.svg").is_file()
+    caption = (run / "figures" / "pi_window.caption.txt").read_text(encoding="utf-8")
+    assert "scope: " in caption
     assert outcome.skipped == ()
     # The run's own layout must agree with the renderer about where a figure lives.
     layout = RunLayout(out_root=tmp_path, dataset="standin", run_id="20261005-000000-abcdef12")

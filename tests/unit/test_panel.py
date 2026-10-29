@@ -324,3 +324,31 @@ def test_the_cli_pins_a_file_with_its_note(tmp_path: Path, data_dir: Path, capsy
     assert "86 CDS + 38 tRNA + 8 rRNA" in printed
     manifest = json.loads((tmp_path / "panel" / "PINNED.json").read_text(encoding="utf-8"))
     assert manifest["genomes"][0]["note"] == "PMGA web service, 2026-10-03"
+
+
+def test_a_pinned_record_is_immutable(tmp_path: Path, data_dir: Path) -> None:
+    """A second pin of the same accession with different bytes is a different record.
+
+    Replacing it silently would leave every result computed from the first bytes attached to a
+    file that no longer hashes to the recorded digest.
+    """
+    from dataclasses import replace
+
+    from plastid.core.genbank import read_genbank, to_genbank
+
+    source = tmp_path / "first.gb"
+    source.write_bytes((data_dir / "NC_050833.1.gb").read_bytes())
+    pin_files([source], tmp_path / "panel")
+
+    # the same bytes again is idempotent
+    pin_files([source], tmp_path / "panel")
+
+    changed = read_genbank(data_dir / "NC_050833.1.gb")
+    edit = replace(changed, sequence="A" + changed.sequence[1:])
+    second = tmp_path / "second.gb"
+    second.write_text(to_genbank(edit), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="a pin is immutable"):
+        pin_files([second], tmp_path / "panel")
+    # the first bytes are still the pinned ones
+    assert (tmp_path / "panel" / "NC_050833.1.gb").read_bytes() == source.read_bytes()

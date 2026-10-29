@@ -156,3 +156,16 @@ def edge_genomes() -> dict[str, Genome]:
     starts inside an IR copy, all with their real GenBank annotations."""
     records = read_genbank_records(DATA_DIR / "iridaceae_edge_cases.gb")
     return {genome.accession: genome for genome in records}
+
+
+def require_r(reason: str) -> None:
+    """Skip a check that needs R — or fail under PTS_REQUIRE_TOOLS=1.
+
+    Measured 28/10/2026: the golden's R checks called ``pytest.skip`` directly, so CI (which has
+    no R) reported green while every figure script went unrun — the exact silent-skip failure
+    ``PTS_REQUIRE_TOOLS`` exists to prevent. A missing plotting engine is a missing tool like any
+    other, and this is the one door the golden uses to say so.
+    """
+    if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
+        pytest.fail(reason)
+    pytest.skip(reason)

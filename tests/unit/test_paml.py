@@ -207,3 +207,28 @@ def test_an_empty_result_file_is_refused_rather_than_read(tmp_path: Path) -> Non
             _ctx(tmp_path),
             directory=stub,
         )
+
+
+def test_the_control_file_carries_the_values_the_run_asked_for() -> None:
+    """M11.20: the yn00 ctl is output, not a constant buried in the adapter.
+
+    ``icode`` and ``weighting`` change what yn00 estimates, so a run that asks for them has to
+    see them in the file the tool reads — otherwise the parameter is "accepted and ignored".
+    """
+    from plastid.external.paml import ctl_text
+
+    text = ctl_text(icode=1, weighting=1)
+    assert "icode = 1" in text
+    assert "weighting = 1" in text
+    assert ctl_text() == ctl_text(icode=0, weighting=0)
+    assert "seqfile = input.dat" in text and "outfile = yn00.out" in text
+
+
+def test_a_control_value_outside_the_supported_set_is_refused_by_name() -> None:
+    """PAML's icode is 0–10 and yn00's weighting flag is 0 or 1; anything else is a typo."""
+    from plastid.external.paml import ctl_text
+
+    with pytest.raises(ValueError, match="icode"):
+        ctl_text(icode=11)
+    with pytest.raises(ValueError, match="weighting"):
+        ctl_text(weighting=2)

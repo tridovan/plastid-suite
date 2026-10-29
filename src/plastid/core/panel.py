@@ -368,6 +368,7 @@ def pin_files(
         accession = _record_id(source_path)
         target = directory / f"{accession}.gb"
         if source_path.resolve() != target.resolve():
+            _refuse_changed_pin(target, payload, accession)
             target.write_bytes(payload)
         pinned.append(_measured(accession, target, payload, source="file", note=note))
 
@@ -383,6 +384,28 @@ def pin_files(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     return tuple(pinned)
+
+
+def _refuse_changed_pin(target: Path, payload: bytes, accession: str) -> None:
+    """A pinned record's bytes are the record; re-pinning different bytes is not a refresh.
+
+    The whole point of the pin is that ``PINNED.json``'s digest still describes the file. An
+    accidental second pin — a colleague's re-export, a different service's answer — would replace
+    the bytes and silently invalidate every result computed from them, so it stops here and names
+    both digests. Re-pinning intentionally means removing the file (or the panel) first.
+    """
+    if not target.is_file():
+        return
+    existing = target.read_bytes()
+    if existing == payload:
+        return
+    before = hashlib.sha256(existing).hexdigest()
+    after = hashlib.sha256(payload).hexdigest()
+    raise ValueError(
+        f"{accession}: already pinned at {target} with sha256 {before[:12]}… but these bytes "
+        f"hash to {after[:12]}… — a pin is immutable. Remove the pinned copy and its PINNED.json "
+        f"entry to replace it deliberately."
+    )
 
 
 def _record_id(path: Path) -> str:

@@ -40,6 +40,24 @@ part of the initial adapter and must not be implemented against an assumed API. 
 local distribution is subsequently obtained and verified, it may execute the same original engine
 through `run_tool()`, with version/source provenance; that is not permission to reimplement it.
 
+### Local-first strategy (27/10/2026)
+
+The preferred integration is a **local engine on the machine**, not a web step. In order:
+
+1. the official PREP-Cp distribution, standalone or callable, run through `run_tool()` with its
+   file/argv contract and recorded name · version · source · argv · exit code;
+2. an open-source implementation of the same published method, held to the same provenance and to
+   the comparison case below;
+3. an implementation built here from the published method, which must be validated against the
+   pinned case and must not silently become a different (e.g. conservation-only) predictor;
+4. only if none of the above exists: run the original service and import its outputs as described
+   below.
+
+The prepare/import contract below is the fallback path, not the default. A local engine that cannot
+state its version or reference revision records **not reported**; an unverified local build is
+**not run**, never a reason to claim a version. Assembly remains the only part with a deliberate
+local/external split; a predictor is not assembly-scale.
+
 If the service cannot be used, retain the prepared input and report **awaiting external result**.
 An existing genuine PREP-Cp output can be imported for the matching input; PTS must not synthesize
 predictions, upload through another service or mark this run complete without a result. Parser

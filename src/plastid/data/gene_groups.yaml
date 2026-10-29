@@ -52,7 +52,7 @@ categories:
       - name: Large subunit of ribosome
         genes: [rpl2, rpl14, rpl16, rpl20, rpl21, rpl22, rpl23, rpl32, rpl33, rpl36]
       - name: DNA-dependent RNA polymerase
-        genes: [rpoA, rpoB, rpoC1, rpoC2]
+        genes: [rpoA, rpoB, rpoC, rpoC1, rpoC2]
 
   - name: Other genes
     groups:

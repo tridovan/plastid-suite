@@ -34,7 +34,7 @@ micromamba create -y -p /root/toolbox/env/kakscalculator -c conda-forge -c bioco
 | Package version attribute | `cpstools.__version__` says **1.0.0** — the CLI and the module disagree; the CLI's is the release (PyPI's newest is 3.0) |
 | Dependencies it pulls | biopython ≥1.84, numpy, pandas, matplotlib, tqdm |
 | KaKs_Calculator | **2.0.1** (bioconda `kakscalculator2`), `KaKs_Calculator` on `PATH` |
-| `environment.yml` | `cpstools=3.0` (bioconda) — the same release this pip install is |
+| `environment-check.yml` | `cpstools=3.0` (bioconda) — the same release this pip install is. It left `environment.yml` in M11.19: the runtime file is the analyses, and no module calls this |
 
 **The argv the cross-check used:**
 

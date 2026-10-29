@@ -27,14 +27,21 @@ from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.model import Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mafft import align
-from plastid.external.paml import resolve_binary, run_yn00, yn00_version
-from plastid.modules.registry import module
+from plastid.external.paml import (
+    DEFAULT_ICODE,
+    DEFAULT_WEIGHTING,
+    ctl_text,
+    resolve_binary,
+    run_yn00,
+    yn00_version,
+)
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError
 
 MODULE_ID = "kaks"
-MODULE_VERSION = "0.3.0"  # behaviour changed 2026-10-04 after the first runs
+MODULE_VERSION = "0.4.0"  # 0.4.0: yn00 icode/weighting are parameters (M11.20)
 
 ESTIMATOR = "Yang & Nielsen 2000 (yn00)"
 STOPS = ("TAA", "TAG", "TGA")
@@ -60,12 +67,30 @@ STATUS_TOOL_FAILED = "yn00 refused the pair"
     requires_ir=False,  # gene-based; see the module docstring
     arity=2,
     citations=("paml", "yang_nielsen", "mafft"),
+    params=(
+        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+        ParamSpec("paml", "str", "directory holding yn00 when it is not on PATH"),
+        ParamSpec("yn00_icode", "int", "PAML genetic code passed to yn00 (0 = universal)"),
+        ParamSpec(
+            "yn00_weighting",
+            "int",
+            "yn00 pathway weighting: 0 equal (default) or 1 weighted",
+        ),
+        ParamSpec(
+            "mafft_strategy",
+            "str",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
+        ),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     reference = genomes[0]
     reference_name = reference.accession or reference.name
     labels: dict[str, str] = params.get("groups", {})
     directory = params.get("paml")
+    icode = int(params.get("yn00_icode", DEFAULT_ICODE))
+    weighting = int(params.get("yn00_weighting", DEFAULT_WEIGHTING))
+    ctl_text(icode=icode, weighting=weighting)  # refuse an out-of-range value before any gene
 
     # A missing or unpinned estimator is a run-level failure, raised before any gene is scored;
     # a single gene yn00 cannot score is data, and becomes a row below.
@@ -112,6 +137,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 genes,
                 ctx,
                 binary=binary,
+                strategy=str(params.get("mafft_strategy", "auto")),
+                icode=icode,
+                weighting=weighting,
             )
             gene_rows.append(row)
             if row["ka"] is not None and row["ks"] is not None:
@@ -157,6 +185,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("n_genomes", "Genomes compared", dtype="int"),
             Column("n_genes", "Genes considered", dtype="int"),
             Column("n_shared", "Genes shared with every annotated genome", dtype="int"),
+            Column("n_partial_genes", "Reference genes partial", dtype="int"),
             Column("estimator", "Estimator"),
             Column("aligner", "Aligner"),
             Column("tool", "Tool"),
@@ -169,6 +198,9 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 "n_genomes": len(genomes) - 1,
                 "n_genes": len(names),
                 "n_shared": len(shared),
+                "n_partial_genes": sum(
+                    1 for name in names if name in reference_genes and reference_genes[name].partial
+                ),
                 "estimator": ESTIMATOR,
                 "aligner": "MAFFT",
                 "tool": "PAML yn00",
@@ -204,6 +236,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("gene", "Gene"),
             Column("genome", "Genome"),
             Column("group", "Group"),
+            Column("partial", "Partial CDS"),
             Column("codons", "Codons", dtype="int"),
             Column("sites_s", "Synonymous sites", dtype="float", precision=1),
             Column("sites_n", "Nonsynonymous sites", dtype="float", precision=1),
@@ -222,6 +255,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     notes = [
         f"Estimator: {ESTIMATOR}, through PAML yn00 {version}; each gene is aligned on its own "
         f"CDS with MAFFT, terminal stop trimmed.",
+        f"yn00 control file: icode = {icode}, weighting = {weighting}.",
         "A gene with Ks = 0 has an undefined Ka/Ks — the cell is blank, never zero or one.",
         "Genes that could not be scored keep a row and a status; nothing is dropped silently.",
     ]
@@ -250,6 +284,9 @@ def _score_gene(
     ctx: RunContext,
     *,
     binary: str,
+    strategy: str = "auto",
+    icode: int = DEFAULT_ICODE,
+    weighting: int = DEFAULT_WEIGHTING,
 ) -> dict[str, Any]:
     """One gene's row — a value, or the reason there is none. Never a silently missing row."""
     row: dict[str, Any] = {
@@ -257,6 +294,7 @@ def _score_gene(
         "gene": name,
         "genome": genome_key,
         "group": group,
+        "partial": "",
         "codons": None,
         "ka": None,
         "ks": None,
@@ -270,6 +308,7 @@ def _score_gene(
         row["status"] = STATUS_ABSENT_REFERENCE
         row["detail"] = f"{name} is not a CDS of the reference record"
         return row
+    row["partial"] = "yes" if reference_genes[name].partial else "no"
     if name not in genes:
         row["status"] = STATUS_ABSENT_GENOME
         row["detail"] = f"{genome_key} does not carry {name}"
@@ -295,7 +334,11 @@ def _score_gene(
             row["detail"] = f"{label}: stop at codon {protein.index('*') + 1}"
             return row
 
-    alignment = align([("reference", sequence_a), (genome_key, sequence_b)], ctx)
+    alignment = align(
+        [("reference", sequence_a), (genome_key, sequence_b)],
+        ctx,
+        strategy=strategy,
+    )
     breaks = codon_frame_breaks(alignment)
     if breaks:
         row["status"] = STATUS_FRAMESHIFT
@@ -310,6 +353,8 @@ def _score_gene(
             alignment.sequences[1],
             ctx,
             binary=binary,
+            icode=icode,
+            weighting=weighting,
         )
     except (ToolError, ValueError) as error:
         # One gene yn00 cannot score is a finding about that gene; a missing or unpinned tool

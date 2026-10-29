@@ -233,8 +233,8 @@ def test_makeblastdb_is_not_asked_to_parse_the_sequence_ids() -> None:
 
 
 def test_a_missing_binary_names_the_document_that_declares_it(tmp_path: Path) -> None:
-    """The message has to say where the tool is declared and how to point a run at one — anh
-    Điềm's machine keeps BLAST+ outside PATH, so "not found" alone would be a dead end."""
+    """The message has to say where the tool is declared and how to point a run at one — Điềm's
+    machine keeps BLAST+ outside PATH, so "not found" alone would be a dead end."""
     with pytest.raises(ToolError, match="docs/tools/blast.md"):
         resolve_binary("blastx", explicit=tmp_path / "nowhere" / "blastx")
     with pytest.raises(ToolError, match="docs/tools/blast.md"):

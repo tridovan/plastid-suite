@@ -225,12 +225,22 @@ def test_copies_of_unequal_length_are_measured_end_to_end(
 def test_de_novo_finds_shorter_repeats_inside_the_two_diverged_records(
     edge_genomes: dict[str, Genome],
 ) -> None:
-    """The sequence path must not return the full divergent pair, and must not hide it either.
+    """The sequence path must not manufacture a passing IR out of a divergent pair.
 
-    Re-measured 26/10/2026 (M11.4): NC_063921 contains a perfect 16,197 bp reverse-complement
-    repeat inside the 26,183 bp annotated pair; NC_063920 contains a 23,446 bp repeat
-    (99.945 %) whose exact core is 22,998 bp. Both are shorter than the annotated copies, so the
-    annotation path is what measures the full pair; the de-novo lengths are cross-checks.
+    Re-measured 28/10/2026 with the overlap-aware chain (K-07): the two records now behave
+    differently, and the difference is the record, not the detector.
+
+    * ``NC_063921`` diverges too far inside the pair for the chain to cross it, so the longest pair
+      it can build is the perfect 16,197 bp reverse-complement repeat inside the annotated copies.
+    * ``NC_063920`` carries five internal gaps and ten mismatches across the whole annotated pair,
+      so the chain now reaches the pair's own boundaries — 26,161 bp at 99.9427 % over 26,164
+      columns, the same interval the record annotates, which clears the 99.9 % gate. The old
+      23,446 bp value was the chain stopping at the first gap; the de-novo path is a cross-check,
+      and here it corroborates the annotation instead of truncating it.
+
+    Independent evidence for the 26,161 bp reading: re-measuring the unedited pair over the
+    annotation's own interval gives the same 10 mismatches and 5 gaps (26,149 / 26,164 columns,
+    0.999427).
     """
     short = ir_de_novo(edge_genomes["NC_063921.1"])
     assert short is not None
@@ -239,20 +249,36 @@ def test_de_novo_finds_shorter_repeats_inside_the_two_diverged_records(
     assert short.identity == pytest.approx(16_196 / 16_197)
     assert short.length < 26_183
 
-    shorter = ir_de_novo(edge_genomes["NC_063920.1"])
-    assert shorter is not None
-    assert shorter.length == 23_446
-    assert shorter.exact_core == 22_998
-    assert (shorter.matched, shorter.mismatches, shorter.internal_gaps) == (23_435, 9, 4)
-    assert shorter.length < 26_161
+    full = ir_de_novo(edge_genomes["NC_063920.1"])
+    assert full is not None
+    assert full.length == 26_161
+    assert full.exact_core == 22_998  # the exact core is still not what the identity measures
+    assert (full.matched, full.mismatches, full.internal_gaps) == (26_149, 10, 5)
+    # columns = matched + mismatched + gaps = 26,164, the identity denominator
+    assert full.identity == pytest.approx(26_149 / 26_164)
+    assert full.gate_passed  # five internal gaps and ten mismatches still clear the 99.9 % gate
 
 
-def test_detect_ir_records_the_de_novo_disagreement(edge_genomes: dict[str, Genome]) -> None:
-    ir = detect_ir(edge_genomes["NC_063920.1"])
+def test_detect_ir_records_the_de_novo_disagreement(
+    edge_genomes: dict[str, Genome],
+) -> None:
+    """The annotation wins, and a de-novo result that disagrees with it stays visible.
+
+    ``NC_063921`` is the record where the two paths really disagree (16,197 bp inside a 26,183 bp
+    annotated pair), so it is the one that can hold this contract. ``NC_063920`` is not: with the
+    overlap-aware chain the sequence path reaches the same interval the annotation names, and its
+    delta is 0 — dropping that record from the test is the honest consequence, not a weakened
+    check.
+    """
+    ir = detect_ir(edge_genomes["NC_063921.1"])
     assert ir.source == "annotation"  # annotation wins ...
-    assert ir.length == 26_161
-    assert ir.denovo_length == 23_446
-    assert ir.denovo_delta == 2_715  # ... but the disagreement is stored, never dropped
+    assert ir.length == 26_183
+    assert ir.denovo_length == 16_197
+    assert ir.denovo_delta == 9_986  # ... but the disagreement is stored, never dropped
+
+    agrees = detect_ir(edge_genomes["NC_063920.1"])
+    assert agrees.source == "annotation" and agrees.length == 26_161
+    assert agrees.denovo_length == 26_161 and agrees.denovo_delta == 0
 
 
 def test_de_novo_agrees_with_annotation_on_the_golden(golden_genome: Genome) -> None:

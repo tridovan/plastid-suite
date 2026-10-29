@@ -2,10 +2,10 @@
 
 Each test names the issue in [docs/known_issues.md](../../docs/known_issues.md) and the milestone
 that owned it. K-01, K-03 and K-04 were fixed by M11.3/M11.4 and their markers were removed in the
-same change; their expected values come from what the record was constructed to be — the golden's
+same change; **K-06 was fixed by the M11.7 forwarding work** and its marker was removed with the
+fix. Their expected values come from what the record was constructed to be — the golden's
 annotated 26,214 bp copies, the synthetic fixture's LSC 1,000 / IR 6,000 / SSC 1,000 — never from
-the reader or detector under test. **K-06 remains a strict ``xfail``**: if it starts passing
-without M11.7, the marker must be removed deliberately.
+the reader or detector under test.
 
 K-02 and K-05 are exercised where their fixes live: ``test_run.py`` (cache) and
 ``test_normalize.py`` (rotation). They are not duplicated here.
@@ -369,14 +369,16 @@ def test_k04_unknown_bases_are_not_matching_evidence(golden: Genome) -> None:
 
 
 # --------------------------------------------------------------------------------------
-# K-06 — the CLI does not forward tree options to R (M11.7)
+# K-06 — the CLI did not forward tree options to R (fixed by M11.7's forwarding work)
 # --------------------------------------------------------------------------------------
+#
+# The marker was removed with the fix: `_render_r_figures` now passes the tree script's
+# `--set root/outgroup/drop-tips` (and its drawing options) through to R, and the script no longer
+# defaults to the manuscript's tips or outgroup. The check below holds the argv, which is what the
+# defect was about; the output tree is the R script's own concern and is exercised by the R figure
+# pass on a machine with R.
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="K-06 open (M11.7): root/outgroup/drop-tips are not forwarded to the R adapter",
-)
 def test_k06_the_tree_figure_forwards_its_options(tmp_path: Path) -> None:
     """``--set root=none --set outgroup=... --set drop-tips=...`` must reach the script argv."""
     from plastid.cli import _render_r_figures
@@ -429,7 +431,7 @@ def test_k06_the_tree_figure_forwards_its_options(tmp_path: Path) -> None:
             "drop-tips=Tip one",
         ],
     )
-    outcome, ctx = _render_r_figures(run_dir, args)
+    outcome, ctx = _render_r_figures(run_dir, sets=args.sets, figures=args.figure)
 
     assert outcome.files, "the fake Rscript should have produced a figure"
     argv = next(record.argv for record in ctx.tools if record.name == "rscript:tree")

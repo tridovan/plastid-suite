@@ -10,7 +10,9 @@ engine a module runs on:
 * **Vmatch is academic-only.** Its licence covers academic use; anything else needs a commercial
   licence from the authors. A toolkit module that *required* it could not be released to everyone
   (M9.3's licence review), so the module does not: `external/vmatch.py` exists for the
-  cross-check, and the release note has to say so.
+  cross-check, and the release note has to say so. Since M11.19 it lives in
+  `environment-check.yml`, not in the runtime file, and `tests/unit/test_tool_inventory.py`
+  fails if any product module imports it.
 
 **What it is.** Vmatch (Stefan Kurtz) finds maximal exact matches — `mkvtree` builds the index,
 `vmatch` queries it. `-d` reports **direct** repeats and `-p` **palindromic** (inverted) ones,

@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 from plastid.report.audit import audit_run
+from plastid.result.figure import FigureRecord
 
 __all__ = ["QC_FILENAME", "render_qc", "render_qc_for_run"]
 
@@ -24,12 +25,50 @@ def _table(rows: list[tuple[str, ...]], header: tuple[str, ...]) -> list[str]:
     return lines
 
 
+def _figure_section(
+    figure_records: tuple[FigureRecord, ...],
+    figures: tuple[str, ...],
+    skipped: tuple[tuple[str, str], ...],
+    missing_renderers: tuple[tuple[str, str], ...],
+) -> list[str]:
+    """Every catalogue entry with its status — never just the files that happened to exist."""
+    lines = ["", "## Figures", ""]
+    if figure_records:
+        lines += _table(
+            [
+                (
+                    record.figure_id,
+                    record.renderer,
+                    record.status,
+                    ", ".join(path.name for path in record.files),
+                    record.reason,
+                )
+                for record in figure_records
+            ],
+            ("Figure", "Renderer", "Status", "Files", "Reason"),
+        )
+        provenance = [line for record in figure_records for line in record.provenance]
+        if provenance:
+            lines += ["", "Figure provenance:", ""]
+            lines += [f"- {line}" for line in dict.fromkeys(provenance)]
+    else:
+        lines += [f"- {name}" for name in figures] or ["- none rendered"]
+        lines += [f"- skipped `{figure_id}` — {reason}" for figure_id, reason in skipped]
+    if missing_renderers:
+        lines += ["", "Renderers unavailable:", ""]
+        lines += [f"- {renderer} — {reason}" for renderer, reason in missing_renderers]
+    return lines
+
+
 def render_qc(
     manifest: dict,
     *,
     figures: tuple[str, ...] = (),
     skipped: tuple[tuple[str, str], ...] = (),
     audits: tuple[tuple[str, bool, int], ...] = (),
+    figure_records: tuple[FigureRecord, ...] = (),
+    missing_renderers: tuple[tuple[str, str], ...] = (),
+    data_label: str = "",
 ) -> str:
     """The QC report as markdown — every line traceable to the manifest or to an audit."""
     lines = [
@@ -39,10 +78,15 @@ def render_qc(
         f"- package: plastid-suite {manifest['package_version']}",
         f"- started: {manifest['started_at']} · finished: {manifest.get('finished_at')}",
         f"- status: {manifest['status']}",
+    ]
+    if data_label:
+        lines.append(f"- data label: {data_label} (third-party data, not the toolkit's own)")
+    lines += [
         "",
         "## Inputs",
         "",
     ]
+
     lines += _table(
         [
             (entry["path"], entry["sha256"], str(entry["bytes"]))
@@ -101,10 +145,7 @@ def render_qc(
         f"{coordinates.get('rotation_offset')}"
     )
 
-    lines += ["", "## Figures", ""]
-    lines += [f"- {name}" for name in figures] or ["- none rendered"]
-    if skipped:
-        lines += [f"- skipped `{figure_id}` — {reason}" for figure_id, reason in skipped]
+    lines += _figure_section(figure_records, figures, skipped, missing_renderers)
 
     lines += ["", "## Queryable-number audit", ""]
     if audits:
@@ -140,7 +181,12 @@ def render_qc(
 
 
 def render_qc_for_run(
-    run_dir: str | Path, *, figures: tuple[str, ...] = (), skipped: tuple[tuple[str, str], ...] = ()
+    run_dir: str | Path,
+    *,
+    figures: tuple[str, ...] = (),
+    skipped: tuple[tuple[str, str], ...] = (),
+    figure_records: tuple[FigureRecord, ...] = (),
+    missing_renderers: tuple[tuple[str, str], ...] = (),
 ) -> tuple[str, Path]:
     """Read a run's manifest, audit its reports, and write ``report/qc.md``."""
     root = Path(run_dir)
@@ -149,7 +195,16 @@ def render_qc_for_run(
     audits = tuple(
         (report.module, report.audit.ok, report.audit.n_numbers) for report in audit_run(root)
     )
-    text = render_qc(manifest, figures=figures, skipped=skipped, audits=audits)
+    label = str(manifest.get("params", {}).get("data_label", ""))
+    text = render_qc(
+        manifest,
+        figures=figures,
+        skipped=skipped,
+        audits=audits,
+        figure_records=figure_records,
+        missing_renderers=missing_renderers,
+        data_label=label,
+    )
     target = root / "report" / QC_FILENAME
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, encoding="utf-8")

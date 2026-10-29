@@ -28,7 +28,7 @@ from plastid.core.model import Genome
 from plastid.core.normalize import normalize
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mummer import run_nucmer
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
@@ -45,6 +45,15 @@ MODULE_VERSION = "0.1.0"
     requires_ir=True,
     arity=2,
     citations=("mummer",),
+    params=(
+        ParamSpec("window", "int", "window length in bp for the %identity series"),
+        ParamSpec("step", "int", "window step in bp"),
+        ParamSpec("min_match", "int", "nucmer -l: minimum exact match length"),
+        ParamSpec("min_cluster", "int", "nucmer -c: minimum cluster length"),
+        ParamSpec("filter", "str", "delta-filter mode (the toolkit default is -1)"),
+        ParamSpec("mummer", "str", "directory holding nucmer/delta-filter/show-coords"),
+        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()

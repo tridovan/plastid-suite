@@ -59,7 +59,7 @@ from plastid.external.blast import (
     run_blastn,
     run_blastx,
 )
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
@@ -134,7 +134,15 @@ def _reference_set(params: dict[str, Any], vocabulary: Sequence[str]) -> Iterato
     group=GROUP_MITO,
     version=MODULE_VERSION,
     title="Mitochondrial annotation (reference transfer, prototype)",
-    requires_ir=False,  # deliberate: see NO_IR_NOTE
+    requires_ir=False,  # deliberate: see NO_IR_NOTE,
+    params=(
+        ParamSpec("reference", "str", "directory of GenBank records to transfer from"),
+        ParamSpec("min_identity", "float", "minimum identity for a transferred call"),
+        ParamSpec("min_coverage", "float", "minimum query coverage for a transferred call"),
+        ParamSpec("evalue", "float", "maximum BLAST E-value"),
+        ParamSpec("transl_table", "int", "translation table stamped on called CDS"),
+        ParamSpec("tools", "str", "directory holding BLAST+/ARAGORN when they are not on PATH"),
+    ),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     defaults = load_defaults()["mito"]

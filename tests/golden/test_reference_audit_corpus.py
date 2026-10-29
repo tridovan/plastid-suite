@@ -39,22 +39,25 @@ def _paths() -> list[Path]:
 
 
 def test_the_audit_reproduces_the_measured_corpus() -> None:
-    """31/34 one orientation · 2/34 inverted and reported · one record blocked on two checks.
+    """32/34 one orientation · 2/34 inverted and reported · nothing blocked.
 
-    Re-measured 26/10/2026: NC_024936.1's annotated IR is 26,220/26,186 bp and aligns at 99.80 %
-    end to end, so it is blocked on the IR as well as on its partial coordinates. It cannot vote on
-    orientation — 31 same, 1 unknown, 2 opposite (the same two inverted records).
+    Re-measured 26/10/2026 after H-21: NC_024936.1's annotated IR is 26,220/26,186 bp at 99.80 %
+    end to end, and the sequence's own repeat passes at 100 %, so the record is **reported** on
+    both counts rather than blocked. Its SSC orientation is now measured (from the sequence path):
+    32 same, 0 unknown, 2 opposite (the same two inverted records).
     """
     report = audit.audit_files(_paths(), confirm=None)
 
     assert len(report.records) == 34
-    assert {Path(finding.file).name for finding in report.blocked} == {PARTIAL}
-    assert {finding.check for finding in report.blocked} == {"partial", "ir"}
-    assert not report.ok  # a blocked record stops a run — that is the gate
+    assert report.blocked == ()
+    assert report.ok  # the default set is usable; its special cases are reports
+    # The reference set used for annotation passes the IR gene-mirror rule (measured 29/10/2026):
+    # a gene inside one IR copy has its copy inside the other, on the opposite strand.
+    assert not [finding for finding in report.findings if finding.check == "mirror"]
 
     orientations = {Path(record.file).name: record.ssc_orientation for record in report.records}
-    assert sum(1 for value in orientations.values() if value == "same") == 31
-    assert sum(1 for value in orientations.values() if value == "unknown") == 1
+    assert sum(1 for value in orientations.values() if value == "same") == 32
+    assert sum(1 for value in orientations.values() if value == "unknown") == 0
     assert {name for name, value in orientations.items() if value == "opposite"} == INVERTED
 
     reported = {Path(finding.file).name for finding in report.reported}
@@ -62,11 +65,12 @@ def test_the_audit_reproduces_the_measured_corpus() -> None:
 
 
 def test_every_record_carries_its_own_translation_and_translates() -> None:
-    """Every record carries and translates its proteins; one annotated IR is refused, by name.
+    """Every record carries and translates its proteins; one annotated IR is reported, by name.
 
     NC_024936.1's 26,220/26,186 bp copies align at 99.80 % — below the gate — so annotation-first
-    refuses that record rather than silently substituting the sequence's repeat (D11-2). The
-    other 33 annotated IRs pass; no translation or ORF finding is present.
+    refuses its own repeat. H-21 fixed the audit to name the explicit sequence path as an
+    alternative instead of blocking the record: the report carries both numbers, and the other 33
+    annotated IRs pass. No translation or ORF finding is present.
     """
     report = audit.audit_files(_paths(), confirm=None)
 
@@ -74,8 +78,9 @@ def test_every_record_carries_its_own_translation_and_translates() -> None:
     assert not [finding for finding in report.findings if finding.check == "orf"]
     ir_findings = [finding for finding in report.findings if finding.check == "ir"]
     assert [Path(finding.file).name for finding in ir_findings] == [PARTIAL]
-    assert all(finding.blocks for finding in ir_findings)
+    assert not any(finding.blocks for finding in ir_findings)
     assert "99.80 %" in ir_findings[0].reason
+    assert "--set ir_source=sequence" in ir_findings[0].reason
 
 
 def test_the_gene_set_report_names_the_records_that_spell_a_locus_differently() -> None:

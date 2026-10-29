@@ -86,7 +86,7 @@
 | `corpus/Eleutherine_bulbosa_PX516262.1.published.gb` | PX516262.1 | published NCBI | 272,037 B |
 | `corpus/Eleutherine_bulbosa_PX516262.1.pga.gb` | `Eleutherine_bulbosa` | PGA | 228,555 B |
 
-- **What the corpus is:** 34 Iridaceae plastomes that **anh Điềm** provided on 2026-10-04, in two
+- **What the corpus is:** 34 Iridaceae plastomes that **Điềm** provided on 2026-10-04, in two
   annotations of the *same sequences* — the published NCBI record and a **PGA** re-annotation —
   plus the bare sequences (`.fasta`). 136 files · 28 MB. Both annotation sets and the FASTA
   manifest are pinned under `.panel/iridaceae-34{,-pga}/` (gitignored, re-pinnable); the full
@@ -105,7 +105,7 @@
   `/note="Annotation Method :: PGA-Plastid Genome Annotator"` on their `source` feature; none of
   the first set does. The naming style alone would not have been evidence.
 - **Source:** `D:\business\pts\thanhdiem_data\{01_NCBI_tai_truc_tiep,02_da_hieu_chinh}\gb\`
-  (anh Điềm, 2026-10-04), copied into `.data/thanhdiem_data/` in the working tree (gitignored) and
+  (Điềm, 2026-10-04), copied into `.data/thanhdiem_data/` in the working tree (gitignored) and
   verified file by file — 136/136 sha256 match the source.
 - **What these fixtures do NOT cover:** the other 29 genomes, the `.fasta` half (its bytes are in
   `.panel/iridaceae-34/fasta.json`, and every one of its 68 sequences was proven identical to a

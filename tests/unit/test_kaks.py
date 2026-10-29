@@ -63,7 +63,7 @@ def stubbed(monkeypatch):
     """Replace MAFFT, the two PAML entry points, and the version probe."""
     calls: list[tuple[str, str]] = []
 
-    def fake_align(rows, ctx):
+    def fake_align(rows, ctx, *, strategy="auto"):
         return Alignment(
             names=tuple(name for name, _ in rows), sequences=tuple(seq for _, seq in rows)
         )
@@ -148,7 +148,7 @@ def test_a_cds_that_is_not_whole_codons_is_reported_not_scored(tmp_path: Path, s
 def test_a_frameshifted_alignment_is_reported_not_scored(
     tmp_path: Path, stubbed, monkeypatch
 ) -> None:
-    def shifting_align(rows, ctx):
+    def shifting_align(rows, ctx, *, strategy="auto"):
         sequences = tuple(seq for _, seq in rows)
         return Alignment(
             names=tuple(name for name, _ in rows),
@@ -222,3 +222,70 @@ def test_shared_means_carried_by_both_not_by_the_reference(tmp_path: Path, stubb
     assert pooled["n_shared"] == 1
     assert pooled["n_computed"] == 1
     assert pooled["n_not_computed"] == 0
+
+
+def test_a_partial_reference_gene_is_counted_and_marked(tmp_path: Path, stubbed) -> None:
+    """M11.17: a truncated model is visible in the row and in the summary, not merged silently."""
+    from dataclasses import replace
+
+    reference = _genome("A1", _CDS)
+    reference = replace(
+        reference,
+        genes=tuple(
+            replace(gene, parts=(replace(gene.parts[0], partial_start=True),))
+            if gene.name == "rbcL"
+            else gene
+            for gene in reference.genes
+        ),
+    )
+    result = kaks.run((reference, _genome("A2", _CDS)), {}, _ctx(tmp_path))
+
+    assert result.tables["kaks_summary"].rows[0]["n_partial_genes"] == 1
+    row = next(row for row in result.tables["kaks_genes"].rows if row["gene"] == "rbcL")
+    assert row["partial"] == "yes"
+
+
+def test_the_yn00_control_values_reach_the_estimator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """M11.20: icode/weighting are the run's, not a constant inside the adapter."""
+    received: dict[str, object] = {}
+
+    def fake_align(rows, ctx, *, strategy="auto"):
+        return Alignment(
+            names=tuple(name for name, _ in rows), sequences=tuple(seq for _, seq in rows)
+        )
+
+    def fake_yn00(name_a, sequence_a, name_b, sequence_b, ctx, **kwargs):
+        received.update(kwargs)
+        return Yn00Result(
+            dN=0.01,
+            dS=0.05,
+            omega=0.2,
+            kappa=2.0,
+            t=0.06,
+            sites_synonymous=100.0,
+            sites_nonsynonymous=300.0,
+            codons=len(sequence_a) // 3,
+            raw="",
+        )
+
+    monkeypatch.setattr(kaks, "align", fake_align)
+    monkeypatch.setattr(kaks, "run_yn00", fake_yn00)
+    monkeypatch.setattr(kaks, "resolve_binary", lambda **kwargs: "/fake/yn00")
+    monkeypatch.setattr(kaks, "yn00_version", lambda binary: "4.10.10")
+    reference = _genome("REF.1", {"rbcL": _CDS["rbcL"]})
+    query = _genome("QRY.1", {"rbcL": _CDS["rbcL"].replace("GCT", "GCC")})
+    result = kaks.run((reference, query), {"yn00_icode": 1, "yn00_weighting": 1}, _ctx(tmp_path))
+
+    assert received["icode"] == 1
+    assert received["weighting"] == 1
+    assert any("icode = 1" in note and "weighting = 1" in note for note in result.notes)
+
+
+def test_an_unsupported_yn00_control_value_is_refused_before_the_tool(tmp_path: Path) -> None:
+    reference = _genome("REF.1", {"rbcL": _CDS["rbcL"]})
+    with pytest.raises(ValueError, match="icode"):
+        kaks.run((reference, reference), {"yn00_icode": 99}, _ctx(tmp_path))
+    with pytest.raises(ValueError, match="weighting"):
+        kaks.run((reference, reference), {"yn00_weighting": 2}, _ctx(tmp_path))

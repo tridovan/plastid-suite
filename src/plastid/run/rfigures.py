@@ -20,13 +20,16 @@ from __future__ import annotations
 import hashlib
 import shutil
 import tempfile
-from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from plastid.result.figure import FigureRecord
 from plastid.result.figures import all_r_figures
+from plastid.result.result import Result
 from plastid.result.rfigure import RFigureSkip
+from plastid.run import batch_frames
 from plastid.run.figures import read_run_results
 from plastid.run.layout import FIGURES_DIRNAME
 from plastid.run.tools import ToolError
@@ -49,6 +52,8 @@ class RFigureOutcome:
     # command can tell "the run has no such table" (a data problem) from "R is not installed"
     # (a tool problem, exit 3) — the two must not share an exit code.
     blocked: str | None = None
+    # One record per catalogue entry, in the same shape the matplotlib pass reports (M11.18).
+    records: tuple[FigureRecord, ...] = field(default_factory=tuple)
 
 
 def render_run_rfigures(
@@ -58,6 +63,8 @@ def render_run_rfigures(
     preflight: Preflight | None = None,
     figures: Iterable[str] | None = None,
     params: Mapping[str, Any] | None = None,
+    results: Mapping[str, Result] | None = None,
+    provenance: Sequence[str] = (),
 ) -> RFigureOutcome:
     """Draw every R figure whose source tables this run holds, into ``<run_dir>/figures/``.
 
@@ -66,7 +73,7 @@ def render_run_rfigures(
     size or an aligner choice has somewhere to find it.
     """
     root = Path(run_dir)
-    results = read_run_results(root)
+    results = dict(results) if results is not None else read_run_results(root)
     target = root / FIGURES_DIRNAME
     wanted = None if figures is None else set(figures)
     settings: Mapping[str, Any] = params or {}
@@ -77,37 +84,70 @@ def render_run_rfigures(
     blocked = preflight() if candidates and preflight is not None else None
     files: list[Path] = []
     skipped: list[tuple[str, str]] = []
+    records: list[FigureRecord] = []
     for spec in candidates:
         if blocked is not None:
+            _discard(target, spec.id)
             skipped.append((spec.id, blocked))
+            records.append(FigureRecord(spec.id, "R", reason=blocked))
             continue
         missing = spec.missing(results)
         if missing:
-            skipped.append((spec.id, f"needs {', '.join(missing)} — not in this run"))
+            reason = f"needs {', '.join(missing)} — not in this run"
+            _discard(target, spec.id)
+            skipped.append((spec.id, reason))
+            records.append(FigureRecord(spec.id, "R", reason=reason))
             continue
         source = _source_file(spec, settings)
         if source is _NO_SOURCE:
-            skipped.append(
-                (
-                    spec.id,
-                    f"needs --set {spec.source_param}=<file> — "
-                    f"{settings.get(spec.source_param)!r} is not a file",
-                )
+            reason = (
+                f"needs --set {spec.source_param}=<file> — "
+                f"{settings.get(spec.source_param)!r} is not a file"
             )
+            _discard(target, spec.id)
+            skipped.append((spec.id, reason))
+            records.append(FigureRecord(spec.id, "R", reason=reason))
             continue
         try:
-            frame = spec.frame(results)
+            frame = batch_frames.frame_for(spec.id, results) or spec.frame(results)
         except RFigureSkip as reason:
+            _discard(target, spec.id)
             skipped.append((spec.id, str(reason)))
+            records.append(FigureRecord(spec.id, "R", reason=str(reason)))
             continue
         try:
-            files.extend(_draw(spec, frame, target, runner, results, source))
+            drawn, record_lines = _draw(spec, frame, target, runner, results, source, provenance)
         except ToolError as error:
             # R itself refused — a missing script, a package it does not have, a non-zero exit.
             # The adapter already named what was missing, so the figure is skipped with that name
             # rather than failing the pass: the other figures can still be drawn.
+            _discard(target, spec.id)
             skipped.append((spec.id, str(error)))
-    return RFigureOutcome(files=tuple(files), skipped=tuple(skipped), blocked=blocked)
+            records.append(FigureRecord(spec.id, "R", reason=str(error)))
+            continue
+        files.extend(drawn)
+        records.append(FigureRecord(spec.id, "R", tuple(drawn), provenance=record_lines))
+    return RFigureOutcome(
+        files=tuple(files), skipped=tuple(skipped), blocked=blocked, records=tuple(records)
+    )
+
+
+def _discard(target: Path, figure_id: str) -> None:
+    """Remove every file a previous pass left for one R figure — a refresh, not a stale pile.
+
+    The R scripts decide their own output names, so the whole ``<id>__*`` space belongs to the
+    figure, together with its caption and the pivot directory R read.
+    """
+    if not target.is_dir():
+        return
+    for path in target.glob(f"{figure_id}__*"):
+        if path.is_dir():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+    caption = target / f"{figure_id}.caption.txt"
+    if caption.is_file():
+        caption.unlink()
 
 
 # Distinct from `None`, which means "this spec needs no source file at all".
@@ -125,9 +165,20 @@ def _source_file(spec, params: Mapping[str, Any]) -> Path | None | object:
     return path if path.is_file() else _NO_SOURCE
 
 
-def _draw(spec, frame, target: Path, runner: Runner, results, source: Path | None) -> list[Path]:
+def _draw(
+    spec,
+    frame,
+    target: Path,
+    runner: Runner,
+    results,
+    source: Path | None,
+    run_provenance: Sequence[str] = (),
+) -> tuple[list[Path], tuple[str, ...]]:
     """One figure: write what R reads, run the script, keep its images and its caption."""
     target.mkdir(parents=True, exist_ok=True)
+    # A repeat render replaces the figure's whole output space; the script may draw a different
+    # set of names on a different table, and a stale image would look current (M11.18).
+    _discard(target, spec.id)
     inputs = frame.inputs()
     # The pivot files stay in the run: they are the table R actually read, so a figure can be
     # reproduced — and checked — without re-deriving them. Named ``<id>__`` so two figures can
@@ -159,10 +210,16 @@ def _draw(spec, frame, target: Path, runner: Runner, results, source: Path | Non
     # figure carries no room for one on its face (the scripts draw what they draw), so it is
     # written beside the image. Every label here is the one the *run* stored.
     caption = target / f"{spec.id}.caption.txt"
-    lines = [spec.title, frame.caption(), *_source_line(spec, source), *spec.scope_lines(results)]
+    lines = [
+        spec.title,
+        *run_provenance,
+        frame.caption(),
+        *_source_line(spec, source),
+        *spec.scope_lines(results),
+    ]
     lines.extend(spec.notes)
     caption.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return [*produced, caption]
+    return [*produced, caption], tuple(lines)
 
 
 def _source_line(spec, source: Path | None) -> tuple[str, ...]:

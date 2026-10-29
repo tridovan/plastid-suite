@@ -1,18 +1,18 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# R_F5_SSR_distribution.R — Phân bố SSR của 34 plastome: (A) vị trí gene, (B) vùng LSC/SSC/IR, (C) loại motif
-# Hình trong bài: Figure 5
-# Gọi:
-#   Rscript R_F5_SSR_distribution.R --input <file dữ liệu> --outdir <thư mục kết quả>
-# Mặc định: đọc data_mau/ssr_summary_for_r.csv, ghi <thư mục>/Figures/*.png + *.pdf
+# R_F5_SSR_distribution.R — SSR distribution across 34 plastomes: (A) gene location, (B) LSC/SSC/IR region, (C) motif type
+# Figure in the paper: Figure 5
+# Usage:
+#   Rscript R_F5_SSR_distribution.R --input <data file> --outdir <output directory>
+# Default: reads sample_data/ssr_summary_for_r.csv, writes <directory>/Figures/*.png + *.pdf
 # =============================================================================
 .local_dir <- local({
   a <- commandArgs(FALSE)
   f <- sub("^--file=", "", a[grep("^--file=", a)])
   if (length(f) > 0) dirname(normalizePath(f[1])) else "."
 })
-source(file.path(.local_dir, "00_ham_chung.R"))
-khoi_tao()
+source(file.path(.local_dir, "00_common.R"))
+init_script()
 cat("\n=== R_F5_SSR_distribution.R ===\n")
 
 # CGAS Module 12: SSR Visualization Script with Formula-Based Dynamic Sizing
@@ -31,7 +31,7 @@ cat("========================================\n\n")
 
 # Read data
 cat("Reading SSR summary data from CSV...\n")
-data <- read.csv(duong_dan_vao("ssr_summary_for_r.csv"), check.names=FALSE)
+data <- read.csv(input_path("ssr_summary_for_r.csv"), check.names=FALSE)
 
 if (nrow(data) == 0) {
   stop("ERROR: CSV file is empty - no data to plot")

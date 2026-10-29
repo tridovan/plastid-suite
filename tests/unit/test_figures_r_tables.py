@@ -690,10 +690,8 @@ def test_every_caption_carries_the_scope_label_of_every_table_it_read() -> None:
             assert line.startswith(f"{mod}.{table_name} — scope: ")
 
 
-def test_a_run_of_a_species_the_script_does_not_order_by_is_skipped_by_name() -> None:
-    """Measured: F3 and F4 draw only species on their own list, and draw nothing for any other."""
-    from plastid.result.rfigure import RFigureSkip
-
+def test_a_species_outside_the_paper_list_is_drawn_not_skipped() -> None:
+    """M11.7: F3 reads the species from the input, so there is no list to be outside of."""
     result = _codon_usage_result()
     summary = result.tables["codon_usage"]
     other = Result(
@@ -710,13 +708,13 @@ def test_a_run_of_a_species_the_script_does_not_order_by_is_skipped_by_name() ->
             ),
         },
     )
-    with pytest.raises(RFigureSkip, match="Coleus amboinicus"):
-        r_rscu.frame({"codon_usage": other})
+    frame = r_rscu.frame({"codon_usage": other})
+    assert frame.species == "Coleus_amboinicus"
+    assert "every species column" in frame.caption()
 
 
-def test_the_amino_acid_pivot_refuses_a_species_the_script_cannot_place() -> None:
-    from plastid.result.rfigure import RFigureSkip
-
+def test_the_amino_acid_pivot_also_draws_a_species_outside_the_paper_list() -> None:
+    """M11.7: F4 reads the species from the input, exactly as F3 does."""
     result = _amino_acid_result()
     summary = result.tables["amino_acid"]
     other = Result(
@@ -733,8 +731,9 @@ def test_the_amino_acid_pivot_refuses_a_species_the_script_cannot_place() -> Non
             ),
         },
     )
-    with pytest.raises(RFigureSkip, match="Coleus amboinicus"):
-        r_amino_acid.frame({"amino_acid": other})
+    frame = r_amino_acid.frame({"amino_acid": other})
+    assert frame.species == "Coleus_amboinicus"
+    assert "every species column" in frame.caption()
 
 
 def test_the_kaks_pivot_refuses_a_one_genome_matrix_by_name() -> None:

@@ -43,10 +43,10 @@ def test_every_figure_the_adapter_names_ships_with_the_package() -> None:
 def test_the_shared_helper_is_carried_and_makes_input_paths_absolute() -> None:
     """The one change to the bundle's scripts, and the reason it exists.
 
-    ``khoi_tao()`` calls ``setwd(OUT_DIR)``, so a relative ``--inputdir`` would point into the
+    ``init_script()`` calls ``setwd(OUT_DIR)``, so a relative ``--inputdir`` would point into the
     output directory. Measured 17/10/2026: every script fails to find its own data that way.
     """
-    helper = figure_script("rscu").parent / "00_ham_chung.R"
+    helper = figure_script("rscu").parent / "00_common.R"
     text = helper.read_text(encoding="utf-8")
     assert "setwd(OUT_DIR)" in text
     assert "normalizePath(IN_DIR" in text
@@ -102,9 +102,9 @@ def _sample_data() -> Path:
     root = (
         Path(__file__).parents[2]
         / "feedback"
-        / "goi_tool_hinh_IR_2026-10-16"
+        / "tool_ir_figure_2026-10-16"
         / "01_R_scripts"
-        / "data_mau"
+        / "sample_data"
     )
     if not root.is_dir():
         pytest.skip(f"the bundle's sample tables are not here: {root}")

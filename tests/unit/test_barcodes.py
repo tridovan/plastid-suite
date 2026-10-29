@@ -160,3 +160,112 @@ def test_the_direct_route_wins_when_both_routes_are_empty() -> None:
     span = _locate(locus, copies, genome.genes, genome)
     assert span is not None and span.wrapped is False
     assert span.parts == ((61, 199),)
+
+
+def test_a_rotated_reference_gives_the_same_windows_and_locus_pi(
+    tmp_path, monkeypatch, golden_genome
+) -> None:
+    """Measured 27/10/2026: the module aligned the **raw** reference but located windows and
+    loci on the **normalized** one, so on a record that does not start at the LSC every window
+    span and candidate π was off by the rotation. The fix puts the normalized record in row 0
+    of the alignment, which is the frame the tables claim."""
+    from dataclasses import replace
+
+    import plastid.modules.barcodes as barcodes
+    from plastid.core.align import Alignment
+    from plastid.core.ir import detect_ir, enforce_ir_gate
+    from plastid.core.normalize import rotate_genome
+    from plastid.run.context import RunContext
+    from plastid.run.layout import RunLayout
+
+    def fake_align(rows, ctx, *, strategy="auto"):
+        return Alignment(
+            names=tuple(name for name, _ in rows), sequences=tuple(seq for _, seq in rows)
+        )
+
+    monkeypatch.setattr(barcodes, "align", fake_align)
+
+    changes = {"A": "G", "G": "A", "C": "T", "T": "C"}
+    sequence = list(golden_genome.sequence)
+    for position in range(
+        1_000, 1_100
+    ):  # one hypervariable window, so the region table is non-empty
+        sequence[position] = changes[sequence[position]]
+    mutated = replace(golden_genome, sequence="".join(sequence))
+
+    def tables(reference):
+        layout = RunLayout.create(tmp_path / "runs", "barcodes", fingerprint="test")
+        layout.make_dirs()
+        ctx = RunContext(layout=layout, params={}, module_id="barcodes", module_order=1)
+        ctx.ir = enforce_ir_gate(detect_ir(reference))
+        result = barcodes.run(
+            (reference, mutated), {"window": 1000, "step": 1000, "min_windows": 1}, ctx
+        )
+        windows = [
+            (
+                row["alignment_start"],
+                row["reference_start"],
+                row["reference_end"],
+                row["pi"],
+            )
+            for row in result.tables["barcodes_windows"].rows
+        ]
+        candidates = [
+            (row["locus"], row["reference_start"], row["reference_end"], row["pi"])
+            for row in result.tables["barcodes_candidates"].rows
+        ]
+        return windows, candidates
+
+    assert tables(rotate_genome(golden_genome, 7500)) == tables(golden_genome)
+
+
+def test_a_pseudogene_is_not_a_barcode_locus() -> None:
+    """A pseudogene is not evidence that the locus is present (measured 27/10/2026)."""
+    from plastid.core.align import Alignment
+    from plastid.core.model import Gene, Genome, Interval
+    from plastid.modules.barcodes import _candidates
+
+    sequence = "ACGT" * 50
+    genome = Genome(
+        name="Testus",
+        accession="T.1",
+        sequence=sequence,
+        genes=(Gene(name="rbcL", kind="CDS", parts=(Interval(0, 24),), pseudo=True),),
+    )
+    rows = _candidates(genome, Alignment(names=("T.1",), sequences=(sequence,)))
+    rbc = next(row for row in rows if row["locus"] == "rbcL")
+    assert rbc["found"] == "no"
+    assert "rbcL" in rbc["note"]
+
+
+def test_identical_genomes_report_no_regions_instead_of_an_empty_table(
+    tmp_path, monkeypatch, golden_genome
+) -> None:
+    """A legitimate "no hypervariable region" result must not be a schema exception.
+
+    ``Table`` refuses zero rows, so the first version crashed on two identical genomes — the
+    commonest negative case there is. The summary still reports the zero and a note says the
+    table is absent rather than empty, so "none found" and "did not run" stay distinguishable.
+    """
+    import plastid.modules.barcodes as barcodes
+    from plastid.core.align import Alignment
+    from plastid.core.ir import detect_ir, enforce_ir_gate
+    from plastid.run.context import RunContext
+    from plastid.run.layout import RunLayout
+
+    def fake_align(rows, ctx, *, strategy="auto"):
+        return Alignment(
+            names=tuple(name for name, _ in rows), sequences=tuple(seq for _, seq in rows)
+        )
+
+    monkeypatch.setattr(barcodes, "align", fake_align)
+    layout = RunLayout.create(tmp_path / "runs", "barcodes", fingerprint="test")
+    layout.make_dirs()
+    ctx = RunContext(layout=layout, params={}, module_id="barcodes", module_order=1)
+    ctx.ir = enforce_ir_gate(detect_ir(golden_genome))
+
+    result = barcodes.run((golden_genome, golden_genome), {"window": 1000, "step": 1000}, ctx)
+
+    assert "barcodes_regions" not in result.tables
+    assert result.tables["barcodes_summary"].rows[0]["n_regions"] == 0
+    assert any("regions table is absent" in note for note in result.notes)

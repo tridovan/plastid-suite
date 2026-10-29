@@ -223,3 +223,41 @@ def test_codon_frame_breaks_flags_a_row_whose_length_is_not_whole_codons() -> No
     breaks = codon_frame_breaks(alignment)
     assert len(breaks) == 2  # both rows, each named
     assert all("codon" in message for message in breaks)
+
+
+# ---------------------------------------------------------------- MAFFT strategy (M11.20)
+
+
+def test_every_strategy_name_maps_to_mafft_7_argv() -> None:
+    """The mapping is data, and the pinned build's argv is the only thing that defines it.
+
+    The first version of this test asserted ``flag == f"--{name}"`` for every name. It passed
+    while two of the six names did not exist: MAFFT 7 removed ``--fftns`` and ``--nwns``, and
+    ``--set mafft_strategy=fftns`` reached the tool and exited 1 with ``Unknown option``
+    (measured 28/10/2026). An in-suite assertion on the shape of a flag cannot see that; the
+    tier-B test in ``tests/golden/test_mafft_tool.py`` runs every name against the real build.
+    """
+    from plastid.external.mafft import MAFFT_STRATEGIES
+
+    assert set(MAFFT_STRATEGIES) == {"auto", "einsi", "linsi", "ginsi", "fftns"}
+    for name, flags in MAFFT_STRATEGIES.items():
+        assert flags, f"{name}: no flags"
+        assert flags[0].startswith("--"), f"{name}: {flags}"
+    assert MAFFT_STRATEGIES["fftns"] == ("--retree", "2", "--maxiterate", "0")
+    assert MAFFT_STRATEGIES["linsi"] == ("--localpair", "--maxiterate", "1000")
+    assert "nwns" not in MAFFT_STRATEGIES
+
+
+def test_an_unknown_strategy_is_refused_with_the_list() -> None:
+    """A misspelt algorithm must not silently fall back to MAFFT's default."""
+    from plastid.external.mafft import strategy_flag
+
+    with pytest.raises(ValueError, match="auto"):
+        strategy_flag("einsi-extra")
+
+
+def test_the_default_strategy_is_the_one_every_number_was_measured_with() -> None:
+    """A change of default is a change of measurement; it has to be deliberate."""
+    from plastid.external.mafft import DEFAULT_STRATEGY
+
+    assert DEFAULT_STRATEGY == "auto"

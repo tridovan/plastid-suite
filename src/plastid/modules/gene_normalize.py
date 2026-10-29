@@ -61,12 +61,13 @@ from plastid.core.gene_names import (
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
 from plastid.core.model import GENE_KINDS, Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_PLASTID
-from plastid.modules.registry import module
+from plastid.external.blast import MAX_HSPS, NAMING_EVALUE
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "gene_normalize"
-MODULE_VERSION = "0.1.0"
+MODULE_VERSION = "0.2.0"  # 0.2.0: blastp evalue/max_hsps are parameters (M11.20)
 
 MODE_NORMALIZE = "normalize"
 MODE_VERIFY = "verify"
@@ -91,7 +92,21 @@ _NUCLEOTIDE_CANDIDATES = 8
     title="Reference-driven gene naming (A/B pairing)",
     requires_ir=False,  # names are not a position-based analysis; the IR frame only feeds test 4
     arity=2,  # the naming reference plus at least one record to normalize
-    reference_param="naming_reference",  # D5-09: recorded, not spelled `reference`
+    reference_param="naming_reference",  # D5-09: recorded, not spelled `reference`,
+    params=(
+        ParamSpec("mode", "str", "normalize (rename to the reference) or verify (report only)"),
+        ParamSpec(
+            "on_conflict", "str", "stop or report when the data disagrees with the naming reference"
+        ),
+        ParamSpec("ir_source", "str", "annotation or sequence: which IR path the step reads"),
+        ParamSpec("tools", "str", "directory holding blastp when it is not on PATH"),
+        ParamSpec("evalue", "float", "blastp E-value ceiling for the naming search"),
+        ParamSpec(
+            "max_hsps",
+            "int",
+            "blastp HSPs kept per query-subject pair; a pair returning exactly this is capped",
+        ),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     reference, records = genomes[0], tuple(genomes[1:])
@@ -109,10 +124,20 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     # names are one locus, the reference says which of them the project prints.
     aliases = oriented_aliases(load_gene_aliases(), reference)
     vocabulary = vocabulary_of(reference)
+    evalue = float(params.get("evalue", NAMING_EVALUE))
+    max_hsps = int(params.get("max_hsps", MAX_HSPS))
+    if max_hsps < 1:
+        raise ValueError(
+            f"gene_normalize: max_hsps must be at least 1, got {max_hsps} — blastp would "
+            f"return no hit at all"
+        )
     ir_source = str(params.get("ir_source", "annotation"))
     reference_ir = _frame_of(reference, source=ir_source)
 
-    notes: list[str] = []
+    notes: list[str] = [
+        f"naming search: blastp E-value ceiling {evalue:g}, max_hsps {max_hsps} per "
+        f"query-subject pair"
+    ]
     for record in records:
         already = duplicate_names(record, _frame_of(record, source=ir_source))
         if already:
@@ -130,7 +155,11 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         )
 
     queries = _protein_queries(records)
-    protein_hits = _search(queries, reference, params, ctx) if queries else {}
+    protein_hits = (
+        _search(queries, reference, params, ctx, evalue=evalue, max_hsps=max_hsps)
+        if queries
+        else {}
+    )
     if not protein_hits:
         notes.append(
             "no CDS carried a /translation on both sides, so the sequence tests could not run — "
@@ -241,6 +270,9 @@ def _search(
     reference: Genome,
     params: dict[str, Any],
     ctx: RunContext,
+    *,
+    evalue: float = NAMING_EVALUE,
+    max_hsps: int = MAX_HSPS,
 ) -> dict[tuple[int, int], tuple[Hit, ...]]:
     """One blastp of every record's proteins against the reference's own — the ranking of test 2.
 
@@ -263,6 +295,8 @@ def _search(
             fasta,
             ctx,
             directory=params.get("tools"),
+            evalue=evalue,
+            max_hsps=max_hsps,
         )
     return {
         (index, gene_number): _by_locus(result.for_query(query_id))
@@ -458,11 +492,27 @@ def _summary(
     artifacts: dict[str, str],
 ) -> Table:
     counts = Counter(decision.status for _, decision in decisions)
+    renamed = sum(1 for _, decision in decisions if decision.renamed)
+    not_measured = counts.get(STATUS_NOT_MEASURED, 0)
+    if mode == MODE_VERIFY:
+        # A decision, never "verified": missing evidence is its own state, and a finding stays a
+        # finding until a human resolves it (M11.16).
+        if conflicts:
+            decision = "conflict"
+        elif renamed:
+            decision = "findings"
+        elif not_measured:
+            decision = "not measured"
+        else:
+            decision = "no change"
+    else:
+        decision = "normalized"
     return Table(
         id="normalize_summary",
         title="Reference-driven naming",
         columns=(
             Column("mode", "Mode"),
+            Column("decision", "Decision"),
             Column("reference", "Naming reference (A)"),
             Column("reference_genes", "Genes in the reference", dtype="int"),
             Column("records", "Records normalized", dtype="int"),
@@ -478,17 +528,18 @@ def _summary(
         rows=(
             {
                 "mode": mode,
+                "decision": decision,
                 "reference": _label(reference),
                 "reference_genes": len(reference.genes),
                 "records": len(records),
                 "genes": len(decisions),
-                "renamed": sum(1 for _, decision in decisions if decision.renamed),
+                "renamed": renamed,
                 "confirmed": sum(
                     1 for _, decision in decisions if decision.outcome == OUTCOME_CONFIRMED
                 ),
                 "conflicts": len(conflicts),
                 "measured": counts.get(STATUS_MEASURED, 0),
-                "not_measured": counts.get(STATUS_NOT_MEASURED, 0),
+                "not_measured": not_measured,
                 "outside": counts.get(STATUS_OUTSIDE, 0),
                 "artifacts": len(artifacts),
             },

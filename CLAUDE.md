@@ -70,6 +70,12 @@ tables. Convert only with `Interval.to_1based` / `Interval.from_1based`.
 
 - **Fail loud.** Use specific exceptions with actionable messages. Never fall back silently, and
   never let a gate degrade into a warning.
+- **A disagreement has two possible causes: the tool or the data.** Do not assume a published
+  record is right. Before blaming the code, test the record's own claim; before accepting the
+  record, show why the code is right (an arithmetic construction, an independent measurement, or
+  corroborating annotation such as the gene pairs a real IR carries). "Data is wrong" and "tool is
+  wrong" both need evidence, and an unexplained difference stays unexplained rather than being
+  assigned to either side.
 - **Banned:** `sys.exit` outside `cli.py`; `shell=True`; hand-written FASTA/GenBank parsers (use
   BioPython); hardcoded absolute paths; monkey-patching; hidden globals or cwd.
 - **Extend by adding.** A new analysis is a new file in `modules/` plus one registry line. Apply DRY

@@ -4,12 +4,16 @@
 #     — pure Python over the vendored fixture. It needs no external tool and no network, so a
 #     broken golden number turns this build red on its own.
 #   * `golden-tier-b` installs the **pinned** tools the tool-dependent golden needs. Every pin
-#     below is the version `environment.yml` pins; an unpinned
-#     `conda install mafft` is not a shortcut — two MAFFT builds were measured giving two Ts/Tv
-#     numbers from one genome.
+#     below is a version the repository records: the runtime ones in `environment.yml`, Vmatch in
+#     `environment-check.yml` (M11.19 — it is a cross-check engine, not a module's dependency, and
+#     the tier-B job installs it on purpose because a check that skips proves nothing). An
+#     unpinned `conda install mafft` is not a shortcut — two MAFFT builds were measured giving two
+#     Ts/Tv numbers from one genome.
 #
 # `PTS_REQUIRE_TOOLS=1` in the tier-B job turns "tool missing" from a printed skip into a failure:
-# a green build that quietly skipped the tools would prove nothing. table2asn is the one tool that
+# a green build that quietly skipped the tools would prove nothing. **R is a tool here** (M11.8):
+# until 28/10/2026 its checks called `pytest.skip` directly, so CI was green while every figure
+# script went unrun. `conftest.require_r` now honours the variable, and R is installed below. table2asn is the one tool that
 # cannot come from conda, so the job fetches the build `docs/tools/table2asn.md` records and
 # checks its md5 — the same reasoning as the pins.
 
@@ -58,10 +62,23 @@ jobs:
             python=3.12
             perl=5.32.1
             mafft=7.526
+            iqtree=2.3.6
+            r-base=4.3
+            r-ggplot2
+            r-dplyr
+            r-tidyr
+            r-reshape2
+            r-rcolorbrewer
+            r-zoo
+            r-scales
+            r-pheatmap
+            r-ape
             mummer4=4.0.1
             paml=4.10.10
             blast=2.17.0
             aragorn=1.2.41
+            macse=2.07
+            openjdk=17
             vmatch=2.3.1
       - name: put the pinned tools on PATH
         # The action activates the environment for interactive shells; a `run:` step is neither
@@ -72,9 +89,12 @@ jobs:
       - name: the pins, printed — a version nobody can read is not a pin
         run: |
           mafft --version
+          iqtree2 --version | head -1
+          Rscript --version
           nucmer --version | head -1
           blastn -version | head -1
           aragorn -h 2>&1 | head -1
+          macse -help 2>&1 | head -1
           vmatch -version 2>&1 | head -2
           perl -v | grep -E "^This is perl 5"
       - name: fetch table2asn and check the recorded md5

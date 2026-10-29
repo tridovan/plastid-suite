@@ -16,6 +16,13 @@ from plastid.core.model import Gene, Genome, Interval
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
+from plastid.run.contract import (
+    ARTIFACT_SCHEMA_VERSION,
+    ContractError,
+    describe_artifact,
+    describe_reference_set,
+    validate_artifact,
+)
 from plastid.run.layout import RunLayout, slugify
 from plastid.run.manifest import (
     MANIFEST_SCHEMA_VERSION,
@@ -767,3 +774,166 @@ def test_a_second_run_asking_for_a_document_is_not_served_the_cached_payload(
         render_document=None,
     )
     assert third.status == "ok", "a payload without the document must not answer a --docx run"
+
+
+# ------------------------------------------------- artifact and reference-set contract (M11.16)
+
+
+def _artifact_file(tmp_path: Path) -> Path:
+    path = tmp_path / "plastid_annotation.gb"
+    path.write_text("LOCUS       TEST                    36 bp    DNA\n//\n", encoding="utf-8")
+    return path
+
+
+def test_the_artifact_contract_names_what_a_next_step_reads(tmp_path: Path) -> None:
+    path = _artifact_file(tmp_path)
+    entry = describe_artifact(
+        path,
+        relative_to=tmp_path,
+        sample_id="SYNTH.1",
+        topology="circular",
+        status="ok",
+        reference_sha256="a" * 64,
+    )
+    assert entry["path"] == "plastid_annotation.gb"
+    assert entry["format"] == "genbank"
+    assert entry["artifact_schema_version"] == ARTIFACT_SCHEMA_VERSION
+    assert (entry["sample_id"], entry["topology"], entry["frame"], entry["status"]) == (
+        "SYNTH.1",
+        "circular",
+        "genbank",
+        "ok",
+    )
+    assert entry["reference_sha256"] == "a" * 64
+    validate_artifact(entry)
+
+    for broken in (
+        {**entry, "status": "failed"},  # a failed step's output may not be consumed
+        {**entry, "format": "fasta"},  # a format this build cannot read as an artifact
+        {key: value for key, value in entry.items() if key != "sha256"},
+    ):
+        with pytest.raises(ContractError):
+            validate_artifact(broken)
+
+
+def test_a_reference_set_digest_names_the_records_a_run_searched(tmp_path: Path) -> None:
+    directory = tmp_path / "references"
+    directory.mkdir()
+    first = directory / "ONE.gb"
+    second = directory / "TWO.gb"
+    first.write_text("LOCUS       ONE\n//\n", encoding="utf-8")
+    second.write_text("LOCUS       TWO\n//\n", encoding="utf-8")
+
+    described = describe_reference_set(directory)
+    assert described["role"] == "annotation_db"
+    assert described["records"] == 2
+    assert described["format"] == "genbank"
+
+    second.write_text("LOCUS       TWO changed\n//\n", encoding="utf-8")
+    assert describe_reference_set(directory)["sha256"] != described["sha256"], (
+        "a changed record must change the reference-set digest"
+    )
+
+    with pytest.raises(ContractError, match="no GenBank records"):
+        describe_reference_set(tmp_path)
+
+
+def test_the_manifest_always_carries_the_contract_lists() -> None:
+    manifest = build_manifest(
+        run_id="r1",
+        command=["plastid", "run"],
+        package_version="1.0.0",
+        started_at="2026-10-27T12:00:00",
+        params={},
+        inputs=[],
+        coordinate_system={"name": "genbank"},
+    )
+    assert manifest["artifacts"] == []
+    assert manifest["reference_sets"] == []
+    validate(manifest)
+
+    without = dict(manifest)
+    del without["artifacts"]
+    with pytest.raises(ManifestError, match="artifacts"):
+        validate(without)
+
+
+def test_the_ir_manifest_records_the_policy_that_measured_identity() -> None:
+    """M11.16: an IR identity is a measurement, and the artifact must say how it was measured."""
+    from plastid.cli import _ir_manifest_fields
+    from plastid.core.ir import IR_SCORING_POLICY, IR_SCORING_POLICY_VERSION, IRResult
+    from plastid.core.model import Interval
+
+    ir = IRResult(
+        ira=Interval(0, 10),
+        irb=Interval(20, 30),
+        identity=0.999,
+        mismatches=1,
+        compared_length=10,
+        exact_core=1,
+        mirror_constant=29,
+        source="manual",
+        matched=7,
+        ambiguous_columns=1,
+        internal_gaps=1,
+        terminal_gaps=0,
+        known_columns=8,
+    )
+    fields = _ir_manifest_fields(ir)
+    assert fields["scoring_policy"] == IR_SCORING_POLICY
+    assert fields["scoring_policy_version"] == IR_SCORING_POLICY_VERSION
+    # The four column classes partition the compared columns, and each is named on its own.
+    assert fields["matched_columns"] == 7
+    assert fields["mismatched_columns"] == 1
+    assert fields["ambiguous_columns"] == 1
+    assert fields["gap_columns"] == 1
+    assert (
+        fields["matched_columns"]
+        + fields["mismatched_columns"]
+        + fields["ambiguous_columns"]
+        + fields["gap_columns"]
+        == fields["compared_columns"]
+    )
+    assert fields["requested_source"] == "annotation"
+
+
+def test_the_ir_manifest_names_the_sequence_path_and_a_refused_annotation_differently() -> None:
+    """M11.16: four IR outcomes, four states — never one "IR ok".
+
+    The de-novo scan runs both when the operator asked for it and when the annotation was absent
+    or refused, so the requested source and the presence of a refusal note are what separate the
+    states. A gate failure stays visible through `gate_passed`, not by renaming the path.
+    """
+    from plastid.cli import _ir_status
+    from plastid.core.ir import IRResult
+    from plastid.core.model import Interval
+
+    base = {
+        "ira": Interval(0, 10),
+        "irb": Interval(20, 30),
+        "identity": 0.999,
+        "mismatches": 0,
+        "compared_length": 10,
+        "exact_core": 1,
+        "mirror_constant": 29,
+    }
+    assert _ir_status(IRResult(source="annotation", **base), "annotation") == "annotation"
+    assert _ir_status(IRResult(source="manual", **base), "annotation") == "manual"
+    assert (
+        _ir_status(IRResult(source="denovo_diag", annotated_lengths=(10, 10), **base), "sequence")
+        == "sequence_annotation_present"
+    )
+    assert (
+        _ir_status(
+            IRResult(
+                source="denovo_diag",
+                annotation_note="expected exactly two repeat_region copies",
+                **base,
+            ),
+            "sequence",
+        )
+        == "sequence_annotation_refused"
+    )
+    assert (
+        _ir_status(IRResult(source="denovo_diag", **base), "annotation") == "sequence_no_annotation"
+    )

@@ -13,7 +13,7 @@ own "one directory up" guess.
 - `r_scripts/` — the seven R scripts the manuscript's figures 3–9 were drawn with, plus the helper
   they share. **The team's own code**, carried so a figure can be reproduced, and kept in the
   language its authors wrote it in. R itself is not bundled: it is declared in `docs/tools/r.md`.
-  The one change made to them is in `00_ham_chung.R` — input paths are made absolute before
+  The one change made to them is in `00_common.R` — input paths are made absolute before
   `setwd()`, without which a relative `--inputdir` finds nothing (measured 17/10/2026).
 
 `gene_groups.yaml` is data, not code, on purpose: it holds external knowledge (the grouping

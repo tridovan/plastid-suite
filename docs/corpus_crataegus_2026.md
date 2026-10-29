@@ -14,7 +14,7 @@ pattern applied to a dataset instead of a tool (D-m).
 | Journal | *Frontiers in Plant Science* **17** (2026), article 1767012 |
 | DOI | `10.3389/fpls.2026.1767012` — Open Access, **CC-BY** |
 | Published | 11 Feb 2026 |
-| Delivered to us | 10/10/2026, by anh Điềm, as `D:\business\pts\thanhdiem_data\db_test_new` |
+| Delivered to us | 10/10/2026, by Điềm, as `D:\business\pts\thanhdiem_data\db_test_new` |
 
 The 22 MB PDF and the publisher's supplements are in the drop but **not in git** — the same call as
 for tools: the note is durable, the 22 MB of third-party PDF is not ours to relicense.
@@ -80,7 +80,7 @@ The point of an answer key is that it was not chosen by us. Running the corpus f
 |---|---|---|
 | MISA marks a compound cluster two ways; `_parse_gff` read one — 0 of 16 components flagged on `PX413282` | `modules/ssr.py` | **fixed test-first**, module `ssr` 0.3.0 |
 | `ssr`'s `Context` column read a trans-spliced gene's outer span (11 of the golden's 37 rows) | `modules/ssr.py` | **fixed test-first** in Phase 8 |
-| `trnV-UAC` is never called — ARAGORN reads that locus as `tRNA-Stop(tta)` here and as `tRNA-Cys(aca)` on the golden, so an intron-containing tRNA is missing from every run | `modules/plastid_annotate.py` + ARAGORN | **open, named H-24**; the run reports it as "Vocabulary loci not called" |
+| `trnV-UAC` is never called — ARAGORN reads that locus as `tRNA-Stop(tta)` here and as `tRNA-Cys(aca)` on the golden, so an intron-containing tRNA is missing from every run | `modules/plastid_annotate.py` + ARAGORN | **fixed 26/10/2026 (H-24)**: the intron tRNA is named from the reference set's own tRNA at the same locus. Measured: the golden's `trnC-ACA` → `trnV-UAC` (32/32 supporting records), and the Crataegus `tRNA-Stop` line is recovered as `trnV-UAC` rather than dropped. Recipes without reference tRNA annotation keep ARAGORN's name; a tie does not rename. Held by `tests/unit/test_annotate_trna_naming.py` and the golden annotate run |
 
 ## Re-reading the labels
 

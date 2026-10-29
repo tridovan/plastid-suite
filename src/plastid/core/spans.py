@@ -45,14 +45,27 @@ __all__ = [
     "IntronSpan",
     "JunctionSpan",
     "SpacerSet",
+    "TRNA_INTRON_MAX_BP",
     "introns_of",
     "spacers_of",
+    "trna_introns_of",
 ]
+
+# The longest intron ARAGORN documents for its intron search (`-i`): "maximum length 3000
+# bases". A tRNA gap longer than this cannot have come from that caller's intron field, and on a
+# circular record it is usually not a gap at all but a join across the origin. The derivation
+# treats anything longer as **not assessed**, never as "no intron" (H-22/H-23).
+TRNA_INTRON_MAX_BP = 3000
 
 
 @dataclass(frozen=True, slots=True)
 class IntronSpan:
-    """One intron: the gap between two consecutive CDS parts, both ends in one region."""
+    """One intron: the gap between two consecutive parts of a gene, both ends in one region.
+
+    ``kind`` is ``"CDS"`` or ``"tRNA"``. Both are introns by the same rule — a gap inside one
+    plastid region between two exons of one feature — and are published together with the kind
+    stated, because "17 CDS introns" and "8 tRNA introns" are different facts (H-23).
+    """
 
     intron_id: str  # "ndhA.1.1" — gene.copy.number, the id the `introns` table publishes
     gene: str
@@ -60,6 +73,7 @@ class IntronSpan:
     end: int
     phase: int  # bases of the preceding exon(s) modulo three, in transcript order
     region: str  # "LSC" | "IRa" | "SSC" | "IRb", from the normalized frame
+    kind: str = "CDS"  # "CDS" | "tRNA"
 
     @property
     def length(self) -> int:
@@ -122,10 +136,20 @@ class Gap:
 
 @dataclass(frozen=True, slots=True)
 class IntronSet:
-    """Every intron and trans-splicing junction of one genome, with the region of each."""
+    """Every intron and trans-splicing junction of one genome, with the region of each.
 
-    introns: tuple[IntronSpan, ...]  # both IR copies, as the `introns` module publishes them
+    ``introns`` is the CDS set ``diversity`` measures π over, unchanged by H-23: adding tRNA
+    exons there would change a published diversity baseline for a RNA that is not translated.
+    ``trna_introns`` is the separate tRNA set the ``introns`` module publishes beside it.
+    ``unassessed`` names every multi-part tRNA gap that is neither: a join across the origin, a
+    gap longer than the caller's documented maximum, or parts in different regions. Those are
+    reported, never dropped into an intron count (H-22).
+    """
+
+    introns: tuple[IntronSpan, ...]  # CDS introns, both IR copies
     junctions: tuple[JunctionSpan, ...]
+    trna_introns: tuple[IntronSpan, ...] = ()
+    unassessed: tuple[str, ...] = ()  # "trnX-Y.c.n: 3,400 bp — longer than the 3,000 bp maximum"
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,9 +171,13 @@ def introns_of(genome: Genome, ir: IRResult) -> IntronSet:
     for gene in cds_features(genome):
         copies[gene.name] += 1
         preceding = 0
+        number = 0
         pairs = zip(gene.parts, gene.parts[1:], strict=False)  # one shorter by design
-        for number, (first, second) in enumerate(pairs, start=1):
+        for first, second in pairs:
             preceding += first.length
+            if _same_exon_across_origin(first, second, len(genome)):
+                continue
+            number += 1
             start = min(first.end, second.end)
             end = max(first.start, second.start)
             # gene.copy.n: the IR carries a second copy of several genes, and a repeated table
@@ -178,7 +206,110 @@ def introns_of(genome: Genome, ir: IRResult) -> IntronSet:
                         regions=(head, tail),
                     )
                 )
-    return IntronSet(introns=tuple(introns), junctions=tuple(junctions))
+    trna_introns, unassessed = trna_introns_of(genome, frame)
+    return IntronSet(
+        introns=tuple(introns),
+        junctions=tuple(junctions),
+        trna_introns=trna_introns,
+        unassessed=unassessed,
+    )
+
+
+def trna_introns_of(
+    genome: Genome, frame: NormalizedFrame | None = None
+) -> tuple[tuple[IntronSpan, ...], tuple[str, ...]]:
+    """The tRNA intron set, and the multi-part tRNA gaps that are not introns.
+
+    A tRNA has no reading frame, so ``phase`` is reported as the same arithmetic fact the CDS
+    rows use (bases of the preceding exon modulo three) and carries no biological claim.
+
+    Three cases are **not** introns:
+
+    * a part pair that joins across the origin — on a circular record a gene may be written as
+      ``join(<end>..end, 1..<start>)``, and the "gap" between those parts is the rest of the
+      genome, not an intron;
+    * a gap longer than :data:`TRNA_INTRON_MAX_BP`, ARAGORN's documented intron maximum. This
+      caller cannot have produced such an intron, and the record's own annotation may carry one
+      in a gene the caller did not search — that is **not assessed**, not absent;
+    * a gap whose two ends sit in different plastid regions. Plastid tRNA introns are in the
+      anticodon loop inside one region; a cross-region gap is a trans-splicing junction at best
+      and is named rather than counted as an intron.
+
+    A gap shorter than one base is a fourth non-intron: the record's join overlaps or is out of
+    order. It is named here rather than raised, so one malformed tRNA does not discard every span
+    the rest of the record supports. The CDS derivation keeps raising, because ``diversity``
+    measures π over those spans and a negative span would be published as a length.
+    """
+    length = len(genome)
+    introns: list[IntronSpan] = []
+    unassessed: list[str] = []
+    copies: Counter[str] = Counter()
+    for gene in genome.genes:
+        if gene.kind != "tRNA" or gene.pseudo or len(gene.parts) < 2:
+            continue
+        copies[gene.name] += 1
+        preceding = 0
+        for number, (first, second) in enumerate(
+            zip(gene.parts, gene.parts[1:], strict=False), start=1
+        ):
+            preceding += first.length
+            span_id = f"{gene.name}.{copies[gene.name]}.{number}"
+            if _joins_across_origin(first, second, length):
+                continue  # one gene written across the origin, not an intron
+            start = min(first.end, second.end)
+            end = max(first.start, second.start)
+            gap = end - start
+            if gap < 1:
+                # Measured 26/10/2026 on a PGA annotation variant: trnG-GCC's two parts overlap
+                # by 5 bp. That is a malformed join, not an intron; the record still yields every
+                # other span, so it is named here instead of aborting the analysis (H-23's
+                # "not assessed" case). The CDS derivation keeps raising: `diversity` measures π
+                # over those spans, and a negative span would become a length.
+                unassessed.append(
+                    f"{span_id}: its parts {first.to_1based()} and {second.to_1based()} leave a "
+                    f"gap of {gap} bp — an overlapping join, not an intron"
+                )
+                continue
+            if gap > TRNA_INTRON_MAX_BP:
+                unassessed.append(
+                    f"{span_id}: {gap:,} bp between its parts — longer than the "
+                    f"{TRNA_INTRON_MAX_BP:,} bp maximum the tRNA caller documents; not assessed"
+                )
+                continue
+            if frame is None:
+                unassessed.append(f"{span_id}: no normalized frame, so its region is unknown")
+                continue
+            head, tail = _region_of(frame, start), _region_of(frame, end - 1)
+            if head != tail:
+                unassessed.append(
+                    f"{span_id}: its parts sit in {head} and {tail} — a cross-region gap, not "
+                    f"an intron"
+                )
+                continue
+            introns.append(
+                IntronSpan(
+                    intron_id=span_id,
+                    gene=gene.name,
+                    start=start,
+                    end=end,
+                    phase=preceding % 3,
+                    region=head,
+                    kind="tRNA",
+                )
+            )
+    return tuple(introns), tuple(unassessed)
+
+
+def _joins_across_origin(first: Interval, second: Interval, length: int) -> bool:
+    """Do two consecutive parts of one feature meet at the origin rather than through a gap?
+
+    GenBank writes a gene that crosses the origin as a join whose two parts end at the last base
+    and start at the first. Counting the space between them as an intron would report most of the
+    genome as one.
+    """
+    return (first.end == length and second.start == 0) or (
+        second.end == length and first.start == 0
+    )
 
 
 def spacers_of(genome: Genome, ir: IRResult) -> SpacerSet:
@@ -253,6 +384,23 @@ def _region_of(frame: NormalizedFrame, position: int) -> str:
     if region is None:  # a normalized frame covers every position; this is a broken frame
         raise ValueError(f"position {position} is in no region of the normalized frame")
     return region.name
+
+
+def _same_exon_across_origin(first: Interval, second: Interval, length: int) -> bool:
+    """Two parts that touch at the record's origin are one exon, not an intron boundary.
+
+    A circular record writes an exon crossing position 1 as two pieces (`join(…,1..n)`, which
+    GenBank orders high then low on the plus strand), and :func:`rotate_gene` produces the same
+    shape whenever the new origin cuts an exon. On the circle the pieces are contiguous: one ends
+    at the last base and the other starts at the first. Reading that boundary as an intron
+    publishes a genome-length intron — measured 28/10/2026, `petD.1.2` at 153,243 bp on the golden
+    record rotated by half, while the 0-gap pair `_check_gap` refuses is a different defect (a
+    join() that overlaps). A real intron that crosses the origin leaves a gap on both sides of
+    it, so it does not match.
+    """
+    return (first.end == length and second.start == 0) or (
+        second.end == length and first.start == 0
+    )
 
 
 def _check_gap(gene: Gene, first: Interval, second: Interval, gap: int) -> None:

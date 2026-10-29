@@ -17,8 +17,8 @@ import argparse
 import hashlib
 import json
 import sys
-from collections.abc import Sequence
-from dataclasses import asdict
+from collections.abc import Mapping, Sequence
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from functools import partial
 from pathlib import Path
@@ -26,6 +26,7 @@ from typing import Any
 
 from plastid import __version__
 from plastid.core import organelle, plastid_reference, reference_audit
+from plastid.core.codon import UnsupportedTranslationError
 from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
 from plastid.core.gene_names import (
@@ -34,7 +35,15 @@ from plastid.core.gene_names import (
     checkout_root,
     load_recorded_reference,
 )
-from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
+from plastid.core.ir import (
+    IR_SCORING_POLICY,
+    IR_SCORING_POLICY_VERSION,
+    IRDetectionError,
+    IRGateError,
+    IRResult,
+    detect_ir,
+    enforce_ir_gate,
+)
 from plastid.core.junctions import JunctionError
 from plastid.core.model import Genome
 from plastid.core.normalize import normalize
@@ -55,13 +64,27 @@ from plastid.report.engine import CitationError, load_template, render
 from plastid.report.package import build_package
 from plastid.report.qc import render_qc_for_run
 from plastid.result.docx_export import DocxMeta, export_docx, merge_documents
+from plastid.result.figure import FIGURE_FORMATS, FigureRecord
+from plastid.result.figures import all_figures, all_r_figures
 from plastid.result.result import Result
+from plastid.run import batch as batch_run
 from plastid.run.cache import Cache
 from plastid.run.context import RunContext
-from plastid.run.figures import read_run_results, render_run_figures
+from plastid.run.contract import (
+    ContractError,
+    describe_artifact,
+    describe_reference_set,
+    sha256_file,
+)
+from plastid.run.figures import (
+    FigureOutcome,
+    read_run_results,
+    render_run_figures,
+    stale_figure_files,
+)
 from plastid.run.junction import junction_config, junction_rows, junction_table
-from plastid.run.layout import RunLayout
-from plastid.run.manifest import build_manifest, write_manifest
+from plastid.run.layout import FIGURES_DIRNAME, RunLayout
+from plastid.run.manifest import ManifestError, build_manifest, write_manifest
 from plastid.run.ncbi import NcbiClient, NcbiError
 from plastid.run.rfigures import RFigureOutcome, render_run_rfigures
 from plastid.run.runinfo import render_run_info
@@ -127,8 +150,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--figures",
         action="store_true",
         help=(
-            "also render the figures whose source tables this run produces, into the run's "
-            "figures directory (needs the 'figures' extra)"
+            "also collect the figures whose source tables this run produces — the toolkit's "
+            "matplotlib figures and the manuscript's R figures — into the run's figures "
+            "directory (needs the 'figures' extra; R figures are skipped by name when R is absent)"
         ),
     )
     run_parser.add_argument(
@@ -149,20 +173,76 @@ def build_parser() -> argparse.ArgumentParser:
         help="module parameter (repeatable)",
     )
 
+    batch_parser = subparsers.add_parser(
+        "batch",
+        help="run one or more single-sample modules over N genomes and aggregate their tables",
+    )
+    batch_parser.add_argument(
+        "-m",
+        "--module",
+        required=True,
+        action="append",
+        help="arity-1 module id (e.g. genome_stats); repeat the flag to run several",
+    )
+    batch_parser.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        action="append",
+        help="GenBank or FASTA sample, one record; repeat the flag for one run per sample",
+    )
+    batch_parser.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
+    batch_parser.add_argument(
+        "--dataset", default=None, help="batch dataset label (default: 'batch')"
+    )
+    batch_parser.add_argument(
+        "--label",
+        default=None,
+        metavar="TEXT",
+        help="data-provenance label written into every exported table's scope",
+    )
+    batch_parser.add_argument(
+        "--docx",
+        action="store_true",
+        help="also write report.docx in each sample's module directories (needs the 'docx' extra)",
+    )
+    batch_parser.add_argument("--force", action="store_true", help="ignore the cache and re-run")
+    batch_parser.add_argument(
+        "--figures",
+        action="store_true",
+        help=(
+            "after the aggregate, draw the multi-sample R figures from it (needs R; "
+            "the same pass as `plastid figures <batch-dir>`)"
+        ),
+    )
+    batch_parser.add_argument(
+        "--set", action="append", default=[], metavar="KEY=VALUE", help="module parameter"
+    )
+
     package_parser = subparsers.add_parser(
         "package",
-        help="regenerate the Supplementary package from a run directory (tables + figures + index)",
+        help=(
+            "regenerate the Supplementary package from a run directory "
+            "(tables + figures + reports + index); missing extras/R are recorded, not fatal"
+        ),
     )
     package_parser.add_argument("run", metavar="RUN_DIR", help="a run directory")
 
     qc_parser = subparsers.add_parser(
-        "qc", help="write the technical QC report for a run (what ran, versions, inputs, audits)"
+        "qc",
+        help=(
+            "write the technical QC report for a run (what ran, versions, inputs, audits, "
+            "figure catalogue); it needs neither the plotting extra nor R"
+        ),
     )
     qc_parser.add_argument("run", metavar="RUN_DIR", help="a run directory")
 
     figures_parser = subparsers.add_parser(
         "figures",
-        help="re-render a run's figures from the tables it stored (no analysis is re-run)",
+        help=(
+            "re-render a run's figures from the tables it stored — both catalogues, no analysis "
+            "re-run; a batch directory draws its multi-sample R figures"
+        ),
     )
     figures_parser.add_argument("run", metavar="RUN_DIR", help="a run directory")
     figures_parser.add_argument(
@@ -428,6 +508,22 @@ def _parse_sets(pairs: list[str]) -> dict:
     return params
 
 
+def _accept_params(module_ids: Sequence[str], params: Mapping[str, Any]) -> bool:
+    """Refuse a ``--set`` key no module in this run declares (M11.20).
+
+    Measured before this check: ``--set this_key_does_not_exist=42`` ran and exited 0, so a
+    misspelt ``min_length_bp`` looked like a successful override. A key a module accepts but
+    ignores is the same failure from the other side, which is why each module now declares what
+    it reads and a test compares that declaration with its source.
+
+    Returns False after printing every offending key, so the caller can return the usage code.
+    """
+    problems = registry.unknown_params(module_ids, params)
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    return not problems
+
+
 def _coerce(raw: str) -> object:
     for cast in (int, float):
         try:
@@ -437,8 +533,12 @@ def _coerce(raw: str) -> object:
     return raw
 
 
+def _truthy(value: object) -> bool:
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
 def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return sha256_file(path)
 
 
 def _finish(manifest: dict, layout: RunLayout, ctx: RunContext, version: str, code: int) -> int:
@@ -453,6 +553,11 @@ def _finish(manifest: dict, layout: RunLayout, ctx: RunContext, version: str, co
     return code
 
 
+def _downstream(specs: Sequence[registry.ModuleSpec], order: int) -> list[tuple[str, str]]:
+    """The modules still to run after the one at 1-based ``order`` — recorded as skipped."""
+    return [(spec.id, spec.version) for spec in specs[order:]]
+
+
 def _fail(
     manifest: dict,
     layout: RunLayout,
@@ -460,7 +565,14 @@ def _fail(
     version: str,
     message: str,
     code: int,
+    downstream: Sequence[tuple[str, str]] = (),
 ) -> int:
+    """Record the failed step, then every step that therefore did not run.
+
+    A failure stops the remaining modules; leaving them out of the manifest made "the run never
+    reached them" look like "they were never asked for". ``downstream`` carries
+    ``(module_id, version)`` for each, recorded as ``skipped`` with the reason (M11.16).
+    """
     print(message, file=sys.stderr)
     manifest["modules"].append(
         {
@@ -472,6 +584,17 @@ def _fail(
             "files": [],
         }
     )
+    for module_id, module_version in downstream:
+        manifest["modules"].append(
+            {
+                "id": module_id,
+                "version": module_version,
+                "status": "skipped",
+                "reason": f"skipped: {ctx.module_id} failed, so this step did not run",
+                "tools": [],
+                "files": [],
+            }
+        )
     manifest["status"] = "failed"
     return _finish(manifest, layout, ctx, version, code)
 
@@ -573,6 +696,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     if args.label:
         params[DATA_LABEL_PARAM] = args.label
+    if not _accept_params([spec.id for spec in specs], params):
+        return EXIT_USAGE
 
     if args.groups:
         # Shared group labels for every comparison output (P2-11). Loaded here because a module
@@ -646,6 +771,193 @@ def _cmd_run(args: argparse.Namespace) -> int:
         inputs=inputs,
         references=reference,
     )
+
+
+def _cmd_batch(args: argparse.Namespace) -> int:
+    """Run each arity-1 module once per sample, then copy the stored cells into one table.
+
+    This is the multi-sample orchestrator M11.6 needs, and it is deliberately thin: every sample
+    goes through ``_execute_run`` (the same body as ``plastid run``), and the aggregate only reads
+    what those runs stored. No value is recomputed, and a failed sample contributes a status, not
+    a zero.
+    """
+    specs: list[registry.ModuleSpec] = []
+    try:
+        for module_id in args.module:
+            spec = registry.get(module_id)
+            if spec.id not in {item.id for item in specs}:
+                specs.append(spec)
+    except registry.UnknownModuleError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_ERROR
+    multi = [spec.id for spec in specs if spec.arity != 1]
+    if multi:
+        print(
+            f"batch applies arity-1 modules only; {', '.join(multi)} compares genomes within one "
+            f"run — run it once over the whole set with `plastid run`",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+
+    try:
+        params = _parse_sets(args.set or [])
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_USAGE
+    if args.label:
+        params[DATA_LABEL_PARAM] = args.label
+    if not _accept_params([spec.id for spec in specs], params):
+        return EXIT_USAGE
+
+    records: list[batch_run.SampleRecord] = []
+    results: dict[str, dict] = {}
+    codes: list[int] = []
+    for text in args.input:
+        try:
+            genome = _read_input(text)
+        except (OSError, ValueError) as error:
+            print(f"{text} — {error}", file=sys.stderr)
+            records.append(
+                batch_run.SampleRecord(
+                    sample_id=Path(text).stem,
+                    species="",
+                    accession="",
+                    input=text,
+                    sha256="",
+                    status="failed",
+                    exit_code=EXIT_ERROR,
+                    error=str(error),
+                )
+            )
+            codes.append(EXIT_ERROR)
+            continue
+        species = genome.name
+        accession = genome.accession or genome.name
+        label = accession
+        taken = {record.sample_id for record in records}
+        suffix = 2
+        while label in taken:
+            label = f"{accession}#{suffix}"
+            suffix += 1
+        layout = RunLayout.create(args.out, label, fingerprint=_run_fingerprint((genome,), params))
+        code = _execute_run(
+            genomes=(genome,),
+            specs=tuple(specs),
+            params=dict(params),
+            out=args.out,
+            dataset=label,
+            force=args.force,
+            docx=args.docx,
+            command=[
+                "plastid",
+                "batch",
+                *[part for spec in specs for part in ("--module", spec.id)],
+                *[part for value in args.input for part in ("--input", value)],
+                *(["--dataset", args.dataset] if args.dataset else []),
+            ],
+            inputs=[text],
+            layout=layout,
+        )
+        record = batch_run.read_sample(
+            sample_id=label,
+            species=species,
+            accession=accession,
+            input_path=text,
+            sha256=_sha256_file(Path(text)),
+            exit_code=code,
+            run_dir=layout.run_dir,
+        )
+        records.append(record)
+        results[label] = dict(batch_run.read_results(record))
+        codes.append(code)
+
+    if not records:
+        print("batch: no input was readable — nothing was aggregated", file=sys.stderr)
+        return EXIT_USAGE
+    batch_label = args.dataset or "batch"
+    fingerprint = hashlib.sha256(
+        json.dumps(
+            {"samples": [record.sample_id for record in records], "params": params},
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+    layout = RunLayout.create(args.out, batch_label, fingerprint=fingerprint)
+    layout.make_dirs()
+    batch_run.write_batch(
+        run_dir=layout.run_dir,
+        dataset=batch_label,
+        records=records,
+        results=results,
+        params=params,
+        command=[
+            "plastid",
+            "batch",
+            *[part for spec in specs for part in ("--module", spec.id)],
+            *[part for text in args.input for part in ("--input", text)],
+        ],
+        inputs=list(args.input),
+    )
+    if args.figures:
+        # The multi-sample figures read the aggregate, not the per-sample results: the same pass
+        # `plastid figures <batch-dir>` runs, kept here so one command can finish the batch.
+        from plastid.run.batch import read_batch_results
+
+        payload = json.loads((layout.run_dir / "batch.json").read_text(encoding="utf-8"))
+        outcome = _render_output_figures(
+            layout.run_dir,
+            sets=params,
+            results=read_batch_results(layout.run_dir),
+            include_matplotlib=False,
+            allow_missing_extra=True,
+            provenance=_batch_provenance(payload),
+        )
+        payload.setdefault("figures", {})["files"] = [
+            {
+                "path": path.relative_to(layout.run_dir).as_posix(),
+                "sha256": _sha256_file(path),
+                "bytes": path.stat().st_size,
+            }
+            for path in outcome.files
+        ]
+        payload["figures"]["skipped"] = [
+            {
+                "figure": figure_id,
+                "renderer": _renderer_of(outcome.records, figure_id),
+                "reason": reason,
+            }
+            for figure_id, reason in outcome.skipped
+        ]
+        payload["figures"]["missing_renderers"] = [
+            {"renderer": renderer, "reason": reason} for renderer, reason in outcome.missing
+        ]
+        payload["figures"]["status"] = outcome.as_manifest()["status"]
+        payload["figures"]["policy"] = (
+            "a batch has no single genome; the one-genome matplotlib figures are not drawn, "
+            "and the sample figures are the R ones read from aggregate.csv"
+        )
+        payload["figures"]["records"] = [
+            {
+                "figure": record.figure_id,
+                "renderer": record.renderer,
+                "status": record.status,
+                "files": [path.name for path in record.files],
+                "reason": record.reason,
+            }
+            for record in outcome.records
+        ]
+        if outcome.tools:
+            payload["figures"]["tools"] = [asdict(record) for record in outcome.tools]
+        (layout.run_dir / "batch.json").write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        for path in outcome.files:
+            print(f"wrote {path.relative_to(layout.run_dir).as_posix()}")
+        for figure_id, reason in outcome.skipped:
+            print(f"skipped {figure_id}: {reason}", file=sys.stderr)
+
+    failed = [code for code in codes if code != EXIT_OK]
+    print(f"batch: {len(records) - len(failed)} of {len(records)} sample(s) ok — {layout.run_dir}")
+    return failed[0] if failed else EXIT_OK
 
 
 def _resolve_reference(
@@ -750,34 +1062,102 @@ def _read_input(path: str) -> Genome:
     raise ValueError(f"{path}: empty file")
 
 
-def _ir_manifest_fields(ir: IRResult) -> dict:
+def _ir_manifest_fields(ir: IRResult, *, requested_source: str = "annotation") -> dict:
     """The IR evidence a manifest records — success and refusal use the same shape.
 
     D11-2 requires a refused annotation to stay visible: the source, the measured columns, the
     annotated lengths and the reason the sequence path was not taken all travel in the manifest.
+
+    ``requested_source`` is the operator's choice (``ir_source=annotation|sequence``) and
+    ``source`` is the path that produced the result; they are different facts. ``status`` names
+    the combination, so "annotation used", "sequence path with an annotation that was not used",
+    "sequence path after the annotation was refused" and "no annotation at all" are four states
+    rather than one "IR ok". A gate failure is reported by ``gate_passed``/``error``, not by
+    collapsing the path state.
     """
     return {
+        "requested_source": requested_source,
+        "status": _ir_status(ir, requested_source),
         "source": ir.source,
+        "annotation_used": ir.source == "annotation",
+        "annotation_refused": ir.annotation_note is not None,
+        "scoring_policy": IR_SCORING_POLICY,
+        "scoring_policy_version": IR_SCORING_POLICY_VERSION,
         "length": ir.length,
         "identity": ir.identity,
         "gate_passed": ir.gate_passed,
         "mirror_constant": ir.mirror_constant,
-        # End-to-end alignment evidence (D11-3): the denominator and every column class.
+        # End-to-end alignment evidence (D11-3): the denominator and every column class. The four
+        # classes partition `compared_columns`: matched + mismatched + ambiguous + gaps.
         "matched_columns": ir.matched,
+        "mismatched_columns": ir.mismatches,
+        "ambiguous_columns": ir.ambiguous_columns,
+        "gap_columns": ir.internal_gaps + ir.terminal_gaps,
         "compared_columns": ir.compared_length,
         "known_columns": ir.known_columns,
-        "ambiguous_columns": ir.ambiguous_columns,
         "internal_gaps": ir.internal_gaps,
         "terminal_gaps": ir.terminal_gaps,
         "alignment_method": ir.method,
         # which end of a length difference the identity was measured at (H-25); "both" means
         # the copies have terminal overhangs at each end and mapping is not supported
         "excess_at": ir.excess_at,
+        # The alignment-derived mapping the annotator uses to write a gene between copies of
+        # different length (M11.11). None means a consumer that needs one must refuse by name.
+        "mapping_supported": ir.mapping is not None,
+        "mapping_method": ir.mapping.method if ir.mapping is not None else None,
+        # Every copy length the record annotated, even when it was not used, and the reason the
+        # annotation path was refused (D11-2). Together with `denovo_length`/`denovo_delta` these
+        # are the independent checks a reader can repeat: the de-novo scan checks an annotated
+        # result, and the annotation checks a de-novo result. Which one was available, and whether
+        # it agreed, is recorded rather than left for the reader to infer from a null.
         "annotated_lengths": list(ir.annotated_lengths),
         "annotation_note": ir.annotation_note,
         "denovo_length": ir.denovo_length,
         "denovo_delta": ir.denovo_delta,
+        "independent_check": _independent_check(ir)[0],
+        "independent_agreement": _independent_check(ir)[1],
     }
+
+
+def _independent_check(ir: IRResult) -> tuple[str, str]:
+    """Which independent check this result has, and what it said.
+
+    An annotated result is checked by the de-novo scan; a de-novo result is checked by the copy
+    lengths the record annotated, when it has any. Neither is "not measured" when no second
+    measurement exists — that word is reserved for the absence itself, never written as agreement.
+    """
+    if ir.denovo_length is not None:
+        delta = ir.denovo_delta
+        return "de_novo", "agrees" if delta == 0 else "differs"
+    if ir.annotated_lengths and ir.source != "annotation":
+        return "annotation", ("agrees" if set(ir.annotated_lengths) == {ir.length} else "differs")
+    return "none", "not measured"
+
+
+def _ir_status(ir: IRResult, requested_source: str) -> str:
+    """Which IR path produced this result — one state per distinct situation (M11.16).
+
+    ``source`` alone cannot answer this: the de-novo scan runs both when the operator asked for
+    the sequence and when the annotation was refused or absent. The requested source separates
+    those cases, and whether the refused annotation is named separates "refused" from "not used".
+    """
+    if ir.source == "manual":
+        return "manual"
+    if ir.source == "annotation":
+        return "annotation"
+    # The result came from the de-novo scan, not from the annotation.
+    if ir.annotation_note is not None:
+        return "sequence_annotation_refused"
+    if ir.annotated_lengths:
+        return "sequence_annotation_present"
+    return "sequence_no_annotation"
+
+
+def _run_fingerprint(genomes: Sequence[Genome], params: dict) -> str:
+    """The run's identity from its ordered sequences and parameters (no clock, no path)."""
+    overlay = json.dumps(params, sort_keys=True)
+    sequences = "".join(item.sequence + "\x00" for item in genomes)  # ordered: order is meaning
+    return hashlib.sha256((sequences + overlay).encode("ascii", "replace")).hexdigest()
 
 
 def _execute_run(
@@ -793,6 +1173,8 @@ def _execute_run(
     inputs: Sequence[str],
     figures: bool = False,
     references: dict | None = None,
+    reference_sets: Sequence[dict] | None = None,
+    layout: RunLayout | None = None,
 ) -> int:
     """One run's shared body: both ``plastid run`` and ``plastid mito annotate`` end up here.
 
@@ -801,11 +1183,9 @@ def _execute_run(
     so an annotation produced by the mito command is traceable exactly like any other run.
     """
 
-    overlay = json.dumps(params, sort_keys=True)
-    sequences = "".join(item.sequence + "\x00" for item in genomes)  # ordered: order is meaning
-    fingerprint = hashlib.sha256((sequences + overlay).encode("ascii", "replace")).hexdigest()
     label = dataset or genomes[0].accession or genomes[0].name
-    layout = RunLayout.create(out, label, fingerprint=fingerprint)
+    if layout is None:
+        layout = RunLayout.create(out, label, fingerprint=_run_fingerprint(genomes, params))
     layout.make_dirs()
 
     ctx = RunContext(layout=layout, params=params, module_id=specs[0].id, module_order=1)
@@ -832,19 +1212,35 @@ def _execute_run(
             ),
         },
         dataset=label,
+        reference_sets=list(reference_sets or []),
+    )
+    # The set a GenBank artifact was transferred from; recorded on the artifact itself so a
+    # consumer does not have to infer it from the module's parameters (M11.16).
+    annotation_reference = next(
+        (
+            item["sha256"]
+            for item in manifest["reference_sets"]
+            if item.get("role") == "annotation_db"
+        ),
+        None,
     )
 
     if any(spec.requires_ir for spec in specs):
+        requested = str(params.get("ir_source", "annotation"))
         gated: list[IRResult] = []
         for candidate in genomes:
             attempted: IRResult | None = None
             try:
-                attempted = detect_ir(candidate, source=str(params.get("ir_source", "annotation")))
+                attempted = detect_ir(candidate, source=requested)
                 gated.append(enforce_ir_gate(attempted))
             except (IRGateError, IRDetectionError) as error:
                 # every genome in a comparison must pass: one diverged IR corrupts them all
                 manifest["ir"] = {
-                    **(_ir_manifest_fields(attempted) if attempted is not None else {}),
+                    **(
+                        _ir_manifest_fields(attempted, requested_source=requested)
+                        if attempted is not None
+                        else {"requested_source": requested, "status": "undetected"}
+                    ),
                     "gate_passed": False,
                     "error": str(error),
                 }
@@ -852,7 +1248,7 @@ def _execute_run(
                     manifest, layout, ctx, specs[0].version, f"IR gate: {error}", EXIT_USAGE
                 )
         ctx.ir = gated[0]
-        manifest["ir"] = _ir_manifest_fields(gated[0])
+        manifest["ir"] = _ir_manifest_fields(gated[0], requested_source=requested)
         manifest["coordinate_system"]["rotation_offset"] = normalize(
             genomes[0], gated[0]
         ).rotation_offset
@@ -910,7 +1306,39 @@ def _execute_run(
                 render_document=render_document,
             )
         except IRGateError as error:
-            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_USAGE)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_USAGE,
+                downstream=_downstream(specs, order),
+            )
+        except registry.ParamValueError as error:
+            # 2, not 1: the key is declared and the value is one the user can fix on the command
+            # line. Raised before the module calls its tool, so nothing is produced from it.
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_USAGE,
+                downstream=_downstream(specs, order),
+            )
+        except UnsupportedTranslationError as error:
+            # 2, next to the IR gate: the run was well-formed, and the record's own CDS declare a
+            # frame or table this codon reading cannot translate honestly (M11.5).
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_USAGE,
+                downstream=_downstream(specs, order),
+            )
         except reference_audit.ReferenceAuditError as error:
             # 2, the gate's own number, next to the IR gate: the run was well-formed and it is the
             # reference set that cannot be used. The message is the audit's own `file — reason`
@@ -924,18 +1352,51 @@ def _execute_run(
                 f"anything; `--exclude <accession>` drops a record from the search, and the run "
                 f"says which records it did not search",
                 EXIT_USAGE,
+                downstream=_downstream(specs, order),
             )
         except NamingConflictError as error:
             # 4, not 2: the run was well-formed and the data disagrees with the reference — a
             # number of its own keeps it apart from the IR gate and the audit (D5-09).
-            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_CONFLICT)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_CONFLICT,
+                downstream=_downstream(specs, order),
+            )
         except ExportDependencyError as error:
-            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_TOOL,
+                downstream=_downstream(specs, order),
+            )
         except ToolError as error:
-            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_TOOL)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                str(error),
+                EXIT_TOOL,
+                downstream=_downstream(specs, order),
+            )
         except Exception as error:  # noqa: BLE001 — report any module failure, then exit 1
             message = f"{type(error).__name__}: {error}"
-            return _fail(manifest, layout, ctx, spec.version, message, EXIT_ERROR)
+            return _fail(
+                manifest,
+                layout,
+                ctx,
+                spec.version,
+                message,
+                EXIT_ERROR,
+                downstream=_downstream(specs, order),
+            )
 
         module_files = []
         for path_text in outcome.files:
@@ -966,6 +1427,25 @@ def _execute_run(
             # digest, because a path alone cannot say whether the reference changed (D5-09).
             module_entry["reference"] = references
         manifest["modules"].append(module_entry)
+        for entry in module_files:
+            if Path(entry["path"]).suffix != ".gb":
+                continue
+            # A GenBank output is the file the next step reads: say what it is and what it was
+            # transferred from, so a consumer can refuse a missing, changed or failed artifact
+            # instead of trusting the run directory's shape (M11.16).
+            try:
+                manifest["artifacts"].append(
+                    describe_artifact(
+                        layout.run_dir / entry["path"],
+                        relative_to=layout.run_dir,
+                        sample_id=genomes[-1].accession or genomes[-1].name,
+                        topology=genomes[-1].topology,
+                        status=outcome.status,
+                        reference_sha256=annotation_reference,
+                    )
+                )
+            except ContractError as error:
+                return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_ERROR)
 
     manifest["files"] = files
     if len(documents) > 1:
@@ -993,9 +1473,16 @@ def _execute_run(
     if figures:
         # Rendering reads the results the run has just written, not the ones in memory: a module
         # served from the cache has no result object left, and a figure must not depend on whether
-        # the analysis ran or was restored (P5-01).
+        # the analysis ran or was restored (P5-01). Both catalogues are collected here, so
+        # `run --figures` and `plastid figures` produce the same set (M11.18); a missing plotting
+        # extra is still the explicit request's failure, while a missing R is a recorded skip.
         try:
-            outcome = render_run_figures(layout.run_dir)
+            outcome = _render_output_figures(
+                layout.run_dir,
+                sets=params,
+                allow_missing_extra=False,
+                provenance=_manifest_provenance(manifest),
+            )
         except ExportDependencyError as error:
             return _fail(manifest, layout, ctx, specs[-1].version, str(error), EXIT_TOOL)
         except (OSError, ValueError) as error:
@@ -1009,12 +1496,7 @@ def _execute_run(
                     "bytes": path.stat().st_size,
                 }
             )
-        manifest["figures"] = {
-            "rendered": [path.name for path in outcome.files],
-            "skipped": [
-                {"figure": figure_id, "reason": reason} for figure_id, reason in outcome.skipped
-            ],
-        }
+        manifest["figures"] = outcome.as_manifest()
     manifest["status"] = "ok"
     return _finish(manifest, layout, ctx, specs[-1].version, EXIT_OK)
 
@@ -1033,28 +1515,105 @@ def _combine_documents(
     return path
 
 
-def _run_dir_or_error(path: str) -> Path | None:
-    """A run directory, or None after saying what is missing."""
+def _run_dir_or_error(path: str, *, allow_batch: bool = False) -> Path | None:
+    """A run directory (or, where the caller can use one, a batch directory)."""
     run_dir = Path(path)
-    if not (run_dir / "manifest.json").is_file():
-        print(
-            f"{run_dir} is not a run directory — no manifest.json in it (run `plastid run` first)",
-            file=sys.stderr,
-        )
-        return None
-    return run_dir
+    if (run_dir / "manifest.json").is_file():
+        return run_dir
+    if allow_batch and (run_dir / "batch.json").is_file():
+        return run_dir
+    print(
+        f"{run_dir} is not a run directory — no manifest.json"
+        + (" or batch.json" if allow_batch else "")
+        + " in it (run `plastid run` first)",
+        file=sys.stderr,
+    )
+    return None
+
+
+def _manifest_provenance(manifest: Mapping[str, Any]) -> tuple[str, ...]:
+    """The run-level lines every figure and package must carry (M11.18).
+
+    A figure or a supplement made from third-party records must say whose records, with which
+    data label, and on which IR path — not leave the reader to open ``manifest.json``. Only what
+    the run recorded is printed; nothing is inferred.
+    """
+    lines: list[str] = []
+    label = (manifest.get("params") or {}).get(DATA_LABEL_PARAM)
+    if label:
+        lines.append(f"data label: {label}")
+    for entry in manifest.get("inputs", []):
+        digest = str(entry.get("sha256", ""))
+        lines.append(f"input: {entry.get('path')} (sha256 {digest[:16]}…)")
+    ir = manifest.get("ir") or {}
+    if ir:
+        gate = "passed" if ir.get("gate_passed") else "failed"
+        lines.append(f"IR: source {ir.get('source')} · identity {ir.get('identity')} · gate {gate}")
+    return tuple(lines)
+
+
+def _batch_provenance(payload: Mapping[str, Any]) -> tuple[str, ...]:
+    """The batch-level lines: the data label, the accessions, and the IR statuses.
+
+    A multi-sample figure cannot name one accession, so it names the set. The per-sample mapping
+    (accession · IR source · gate) is ``samples.csv`` beside ``batch.json``; the summary here is
+    what fits in a caption without pretending the set is one record.
+    """
+    lines: list[str] = []
+    label = payload.get("data_label") or (payload.get("params") or {}).get(DATA_LABEL_PARAM)
+    if label:
+        lines.append(f"data label: {label}")
+    samples = list(payload.get("samples", []))
+    lines.append(f"batch: {payload.get('dataset')} — {len(samples)} sample(s)")
+    accessions = [str(sample.get("accession")) for sample in samples if sample.get("accession")]
+    if accessions:
+        lines.append("accessions: " + ", ".join(accessions))
+    for key, label_text in (("ir_source", "IR source"), ("ir_gate", "IR gate")):
+        counts: dict[str, int] = {}
+        for sample in samples:
+            value = str(sample.get(key) or "not recorded")
+            counts[value] = counts.get(value, 0) + 1
+        if counts:
+            lines.append(
+                f"{label_text}: "
+                + ", ".join(f"{value} ×{count}" for value, count in counts.items())
+            )
+    lines.append("per-sample accession/IR detail: samples.csv")
+    return tuple(lines)
 
 
 def _cmd_package(args: argparse.Namespace) -> int:
-    """The Supplementary package, rebuilt from the run's own stored results."""
+    """The Supplementary package, rebuilt from the run's own stored results.
+
+    A re-package draws figures from the stored tables and copies them, together with the draft
+    report, into one folder; it never re-runs an analysis. A missing plotting extra or a missing
+    R does not throw the tables away — the absence is written into ``index.md`` and the package
+    still exists (M11.18).
+    """
     run_dir = _run_dir_or_error(args.run)
     if run_dir is None:
         return EXIT_ERROR
+    manifest_path = run_dir / "manifest.json"
     try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         results = read_run_results(run_dir)
-        figures = render_run_figures(run_dir)
+        provenance = _manifest_provenance(manifest)
+        outcome = _render_output_figures(
+            run_dir,
+            sets=manifest.get("params", {}),
+            results=results,
+            allow_missing_extra=True,
+            provenance=provenance,
+        )
+        reports = _package_reports(run_dir)
         package = build_package(
-            run_dir, results=results, figures=figures.files, skipped=figures.skipped
+            run_dir,
+            results=results,
+            figure_records=outcome.records,
+            missing_renderers=outcome.missing,
+            reports=reports,
+            label=str(manifest.get("params", {}).get(DATA_LABEL_PARAM, "")),
+            provenance=provenance,
         )
     except ExportDependencyError as error:
         print(str(error), file=sys.stderr)
@@ -1064,26 +1623,162 @@ def _cmd_package(args: argparse.Namespace) -> int:
         return EXIT_ERROR
     for path in package.files:
         print(f"wrote {path.relative_to(run_dir)}")
-    for figure_id, reason in figures.skipped:
+    for figure_id, reason in outcome.skipped:
         print(f"skipped figure {figure_id}: {reason}", file=sys.stderr)
+    for renderer, reason in outcome.missing:
+        print(f"{renderer} figures unavailable: {reason}", file=sys.stderr)
+    # The package just rendered both catalogues; its status is the run's current figure status,
+    # so a later `plastid qc` reports the real reason instead of guessing (M11.18). A figure the
+    # refresh deleted must leave the run's file list, and a rewritten one must carry its new
+    # digest — an old path or an old sha256 would pass a stale result off as current.
+    manifest["figures"] = outcome.as_manifest()
+    refreshed = {
+        path.relative_to(run_dir).as_posix(): {
+            "path": path.relative_to(run_dir).as_posix(),
+            "module": "figures",
+            "sha256": _sha256_file(path),
+            "bytes": path.stat().st_size,
+        }
+        for path in outcome.files
+    }
+    manifest["files"] = [
+        entry
+        for entry in manifest.get("files", [])
+        if entry.get("module") != "figures"
+        or ((run_dir / entry["path"]).is_file() and entry["path"] not in refreshed)
+    ]
+    manifest["files"].extend(refreshed.values())
+    manifest["supplementary"] = {
+        "directory": package.directory.relative_to(run_dir).as_posix(),
+        "files": [
+            {
+                "path": path.relative_to(package.directory).as_posix(),
+                "sha256": _sha256_file(path),
+                "bytes": path.stat().st_size,
+            }
+            for path in package.files
+            if path.name != "MANIFEST.json"
+        ],
+        "figures": [
+            {
+                "figure": record.figure_id,
+                "renderer": record.renderer,
+                "status": record.status,
+                "reason": record.reason,
+            }
+            for record in package.figures
+        ],
+        "skipped_outputs": [
+            {"output": output, "reason": reason} for output, reason in package.skipped_outputs
+        ],
+    }
+    try:
+        write_manifest(manifest_path, manifest)
+    except ManifestError as error:
+        # An old run's manifest is not this build's schema. The package is complete and its own
+        # MANIFEST.json is authoritative; say the run index was not updated instead of failing.
+        print(
+            f"warning: the package is complete, but {manifest_path.name} was not updated: {error}",
+            file=sys.stderr,
+        )
     return EXIT_OK
 
 
+def _package_reports(run_dir: Path) -> tuple[tuple[str, Path], ...]:
+    """The draft report files the run already stored, as (name in the package, source)."""
+    candidates = (
+        ("run_report.docx", run_dir / "report" / "report.docx"),
+        *(
+            (f"{directory.name}.report.md", directory / "report.md")
+            for directory in sorted(run_dir.glob("[0-9][0-9]_*"))
+            if (directory / "report.md").is_file()
+        ),
+    )
+    return tuple((name, path) for name, path in candidates if path.is_file())
+
+
+def _figure_inventory(
+    run_dir: Path, results: Mapping[str, Result], manifest: dict
+) -> tuple[tuple[FigureRecord, ...], tuple[tuple[str, str], ...]]:
+    """Both catalogues as they stand in the run directory, without drawing anything.
+
+    QC is a text report and must not need a plotting library or R. It still lists every figure
+    of both catalogues and says, for each, whether the run holds it or why it does not — the
+    reason recorded by the last render when there is one (M11.18).
+    """
+    target = run_dir / FIGURES_DIRNAME
+    recorded = {
+        entry["figure"]: entry
+        for entry in (manifest.get("figures") or {}).get("skipped", [])
+        if isinstance(entry, dict) and entry.get("figure")
+    }
+    missing_renderers = tuple(
+        (str(entry.get("renderer", "")), str(entry.get("reason", "")))
+        for entry in (manifest.get("figures") or {}).get("missing_renderers", [])
+        if isinstance(entry, dict)
+    )
+    records: list[FigureRecord] = []
+    for spec in all_figures():
+        images = stale_figure_files(target, spec.id, spec.formats)
+        caption = target / f"{spec.id}.caption.txt"
+        if images:
+            files = (*images, caption) if caption.is_file() else images
+            provenance = (
+                tuple(caption.read_text(encoding="utf-8").splitlines())
+                if caption.is_file()
+                else tuple(
+                    f"{module}.{table} — scope: {results[module].tables[table].scope.label}"
+                    for module, table in spec.requires
+                    if module in results and table in results[module].tables
+                )
+            )
+            records.append(FigureRecord(spec.id, "matplotlib", files, provenance=provenance))
+            continue
+        needed = spec.missing(results)
+        reason = (
+            f"needs {', '.join(needed)} — not in this run"
+            if needed
+            else recorded.get(spec.id, {}).get("reason")
+            or "not rendered — run `plastid figures <run>`"
+        )
+        records.append(FigureRecord(spec.id, "matplotlib", reason=reason))
+    for spec in all_r_figures():
+        images = tuple(
+            sorted(
+                path
+                for path in target.glob(f"{spec.id}__*")
+                if path.is_file() and path.suffix.lower() in (".png", ".pdf")
+            )
+            if target.is_dir()
+            else ()
+        )
+        caption = target / f"{spec.id}.caption.txt"
+        if images:
+            files = (*images, caption) if caption.is_file() else images
+            lines = caption.read_text(encoding="utf-8").splitlines() if caption.is_file() else []
+            records.append(FigureRecord(spec.id, "R", tuple(files), provenance=tuple(lines)))
+            continue
+        needed = spec.missing(results)
+        reason = (
+            f"needs {', '.join(needed)} — not in this run"
+            if needed
+            else recorded.get(spec.id, {}).get("reason")
+            or "not rendered — run `plastid figures <run>`"
+        )
+        records.append(FigureRecord(spec.id, "R", reason=reason))
+    return tuple(records), missing_renderers
+
+
 def _cmd_qc(args: argparse.Namespace) -> int:
-    """The technical QC report — manifest plus the queryable-number audit of every report."""
+    """The technical QC report — manifest, figure catalogue, and the number audit of reports."""
     run_dir = _run_dir_or_error(args.run)
     if run_dir is None:
         return EXIT_ERROR
     try:
-        figures = render_run_figures(run_dir, formats=("pdf",))
-    except ExportDependencyError:
-        figures = None  # the QC report is text; it must not need a plotting library
-    except (OSError, ValueError, KeyError):
-        figures = None
-    rendered = tuple(path.name for path in figures.files) if figures else ()
-    skipped = figures.skipped if figures else ()
-    try:
-        _, target = render_qc_for_run(run_dir, figures=rendered, skipped=skipped)
+        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+        results = read_run_results(run_dir)
+        records, missing = _figure_inventory(run_dir, results, manifest)
+        _, target = render_qc_for_run(run_dir, figure_records=records, missing_renderers=missing)
     except (OSError, ValueError, KeyError) as error:
         print(f"cannot write the QC report: {error}", file=sys.stderr)
         return EXIT_ERROR
@@ -1259,64 +1954,292 @@ def _normalised(text: str | None) -> str:
 def _cmd_figures(args: argparse.Namespace) -> int:
     """Re-render a run's figures from the tables it stored — no module runs again.
 
-    Two passes. The first is this toolkit's own drawing (matplotlib, vector only). The second is
-    the manuscript's R scripts, drawn from the same tables — a second source for a figure that
-    already exists, and the only source for the three the toolkit has no drawing for. A failure in
-    the first does not stop the second: they are independent, and a run with no plotting extra
-    installed can still have its R figures.
+    Two catalogues, one pass (M11.18). The matplotlib figures are this toolkit's own drawing
+    (vector only); the R figures are the manuscript's scripts, drawn from the same tables — a
+    second source for a figure that already exists, and the only source for the ones the toolkit
+    has no drawing for. A failure in one does not stop the other: they are independent, and a run
+    with no plotting extra installed can still have its R figures. Every figure the pass did not
+    draw is printed with its reason, and recorded in the manifest or ``batch.json``.
+
+    A batch has no single genome to draw the one-genome catalogue for; its sample figures are the
+    R ones, read from the aggregate table (M11.7).
     """
-    run_dir = _run_dir_or_error(args.run)
+    run_dir = _run_dir_or_error(args.run, allow_batch=True)
     if run_dir is None:
         return EXIT_ERROR
-    manifest_path = run_dir / "manifest.json"
+    batch_path = run_dir / "batch.json"
+    is_batch = batch_path.is_file()
+    manifest_path = batch_path if is_batch else run_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    files: list[Path] = []
-    skipped: list[tuple[str, str]] = []
-    missing_extra: str | None = None
+
+    records: list[FigureRecord] = []
+    batch_results = None
+    if is_batch:
+        from plastid.run.batch import read_batch_results
+
+        batch_results = read_batch_results(run_dir)
+        chosen = None if args.figure is None else set(args.figure)
+        for spec in all_figures():
+            if chosen is not None and spec.id not in chosen:
+                continue
+            reason = (
+                "one-genome figure — a batch's sample figures are the R ones, read from "
+                "aggregate.csv"
+            )
+            records.append(FigureRecord(spec.id, "matplotlib", reason=reason))
+
     try:
-        outcome = render_run_figures(run_dir, figures=args.figure)
-        files.extend(outcome.files)
-        skipped.extend(outcome.skipped)
-    except ExportDependencyError as error:
-        missing_extra = str(error)
-        print(str(error), file=sys.stderr)
+        outcome = _render_output_figures(
+            run_dir,
+            figures=args.figure,
+            sets=args.sets,
+            results=batch_results,
+            include_matplotlib=not is_batch,
+            allow_missing_extra=True,
+            provenance=_batch_provenance(manifest) if is_batch else _manifest_provenance(manifest),
+        )
     except (OSError, ValueError, KeyError) as error:
         print(f"cannot render figures: {error}", file=sys.stderr)
         return EXIT_ERROR
+    records.extend(outcome.records)
 
-    r_outcome, ctx = _render_r_figures(run_dir, args)
-    files.extend(r_outcome.files)
-    skipped.extend(r_outcome.skipped)
+    if is_batch:
+        payload = manifest
+        payload.setdefault("figures", {})["files"] = [
+            {
+                "path": path.relative_to(run_dir).as_posix(),
+                "sha256": _sha256_file(path),
+                "bytes": path.stat().st_size,
+            }
+            for path in outcome.files
+        ]
+        payload["figures"]["skipped"] = [
+            {"figure": figure_id, "renderer": _renderer_of(records, figure_id), "reason": reason}
+            for figure_id, reason in outcome.skipped
+        ]
+        payload["figures"]["missing_renderers"] = [
+            {"renderer": renderer, "reason": reason} for renderer, reason in outcome.missing
+        ]
+        payload["figures"]["status"] = outcome.as_manifest()["status"]
+        payload["figures"]["policy"] = (
+            "a batch has no single genome; the one-genome matplotlib figures are not drawn, "
+            "and the sample figures are the R ones read from aggregate.csv"
+        )
+        payload["figures"]["records"] = [
+            {
+                "figure": record.figure_id,
+                "renderer": record.renderer,
+                "status": record.status,
+                "files": [path.name for path in record.files],
+                "reason": record.reason,
+            }
+            for record in records
+        ]
+        if outcome.tools:
+            payload["figures"]["tools"] = [asdict(record) for record in outcome.tools]
+        manifest_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        for path in outcome.files:
+            print(f"wrote {path.relative_to(run_dir).as_posix()}")
+        for figure_id, reason in outcome.skipped:
+            print(f"skipped {figure_id}: {reason}", file=sys.stderr)
+        for renderer, reason in outcome.missing:
+            print(f"{renderer} figures unavailable: {reason}", file=sys.stderr)
+        return EXIT_OK if outcome.files else EXIT_TOOL
 
-    known = {entry["path"] for entry in manifest.get("files", [])}
-    for path in files:
-        relative = path.relative_to(run_dir).as_posix()
-        if relative not in known:  # a re-render replaces the file; it is not listed twice
-            manifest.setdefault("files", []).append(
-                {
-                    "path": relative,
-                    "module": "figures",
-                    "sha256": _sha256_file(path),
-                    "bytes": path.stat().st_size,
-                }
-            )
+    # A refresh can delete a figure whose table disappeared, and it rewrites the ones it does
+    # draw. Both cases must reach the run's file list: a deleted path and an old digest are stale
+    # results pretending to be current (M11.18).
+    refreshed = {
+        path.relative_to(run_dir).as_posix(): {
+            "path": path.relative_to(run_dir).as_posix(),
+            "module": "figures",
+            "sha256": _sha256_file(path),
+            "bytes": path.stat().st_size,
+        }
+        for path in outcome.files
+    }
+    manifest["files"] = [
+        entry
+        for entry in manifest.get("files", [])
+        if entry.get("module") != "figures"
+        or ((run_dir / entry["path"]).is_file() and entry["path"] not in refreshed)
+    ]
+    manifest["files"].extend(refreshed.values())
+    for relative in refreshed:
         print(f"wrote {relative}")
-    for figure_id, reason in skipped:
+    for figure_id, reason in outcome.skipped:
         print(f"skipped {figure_id}: {reason}", file=sys.stderr)
-    if ctx.tools:
-        # The R figures are the only step here that calls an external tool, so this is where the
-        # run's provenance for them goes — the same record every other tool call leaves.
-        manifest.setdefault("figures", {})["tools"] = [asdict(record) for record in ctx.tools]
-    if not files:
+    for renderer, reason in outcome.missing:
+        print(f"{renderer} figures unavailable: {reason}", file=sys.stderr)
+    # The whole catalogue's status goes into the manifest even when nothing was drawn: a later
+    # QC pass and a package read it back instead of guessing why a figure is absent.
+    manifest["figures"] = {
+        **outcome.as_manifest(),
+        "records": [
+            {
+                "figure": record.figure_id,
+                "renderer": record.renderer,
+                "status": record.status,
+                "files": [path.name for path in record.files],
+                "reason": record.reason,
+            }
+            for record in records
+        ],
+    }
+    try:
+        write_manifest(manifest_path, manifest)
+    except ManifestError as error:
+        print(
+            f"warning: the figures are written, but {manifest_path.name} was not updated: {error}",
+            file=sys.stderr,
+        )
+    if not outcome.files:
         print("no figure could be rendered from this run's tables", file=sys.stderr)
         # Exit 3 is "a tool this run needs is not here" — the plotting extra, or R when the
         # figures asked for are the R ones. A missing *table* stays exit 1: a data problem.
-        return EXIT_TOOL if (missing_extra or r_outcome.blocked) else EXIT_ERROR
-    write_manifest(manifest_path, manifest)
+        return EXIT_TOOL if outcome.missing else EXIT_ERROR
     return EXIT_OK
 
 
-def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureOutcome, RunContext]:
+@dataclass(frozen=True, slots=True)
+class OutputFigures:
+    """One figure pass over both catalogues, with every absence accounted for (M11.18).
+
+    ``run --figures``, ``figures`` and ``package`` all call :func:`_render_output_figures`, so
+    the set of figures is the same whichever command the user reaches for. ``missing`` names a
+    whole renderer that could not run — the plotting extra, or R — and ``records`` always holds
+    one entry per catalogue figure, drawn or not.
+    """
+
+    files: tuple[Path, ...]
+    skipped: tuple[tuple[str, str], ...]
+    records: tuple[FigureRecord, ...]
+    missing: tuple[tuple[str, str], ...]
+    tools: tuple[Any, ...] = ()
+
+    def as_manifest(self) -> dict[str, Any]:
+        return {
+            "policy": (
+                "the toolkit's matplotlib figures and the manuscript's R figures are collected "
+                "in one pass; a missing renderer is a named skip, never a silent absence"
+            ),
+            "rendered": [path.name for path in self.files],
+            "skipped": [
+                {"figure": figure_id, "renderer": renderer, "reason": reason}
+                for figure_id, reason in self.skipped
+                for renderer in [_renderer_of(self.records, figure_id)]
+            ],
+            "missing_renderers": [
+                {"renderer": renderer, "reason": reason} for renderer, reason in self.missing
+            ],
+            "status": (
+                "complete"
+                if not self.skipped and not self.missing
+                else ("partial" if self.files else "unavailable")
+            ),
+            "tools": [asdict(record) for record in self.tools],
+        }
+
+
+def _renderer_of(records: Sequence[FigureRecord], figure_id: str) -> str:
+    for record in records:
+        if record.figure_id == figure_id:
+            return record.renderer
+    return "unknown"
+
+
+def _sets_dict(values: Mapping[str, Any] | Sequence[str] | None) -> dict[str, Any]:
+    """``--set`` pairs as a mapping, whether they arrive parsed or as ``KEY=VALUE`` strings."""
+    if isinstance(values, Mapping):
+        return dict(values)
+    return _parse_sets(list(values or ()))
+
+
+def _render_output_figures(
+    run_dir: str | Path,
+    *,
+    figures: Sequence[str] | None = None,
+    sets: Mapping[str, Any] | Sequence[str] | None = None,
+    results: Mapping[str, Result] | None = None,
+    formats: Sequence[str] = FIGURE_FORMATS,
+    include_matplotlib: bool = True,
+    include_r: bool = True,
+    allow_missing_extra: bool = False,
+    provenance: Sequence[str] = (),
+) -> OutputFigures:
+    """The single figure pass every output command uses.
+
+    The matplotlib catalogue is this toolkit's own drawing; the R catalogue is the manuscript's,
+    drawn from the same tables, and its captions carry the scope labels. A missing plotting extra
+    propagates unless ``allow_missing_extra`` is set, because ``run --figures`` asking for figures
+    and getting none is a tool failure (exit 3); ``package`` and ``qc`` still have their tables
+    and record the absence instead. A missing R is always a recorded skip: the figures it would
+    have drawn are optional, and the run's own figures are not.
+    """
+    root = Path(run_dir)
+    catalogue = read_run_results(root) if results is None else dict(results)
+    chosen = None if figures is None else list(figures)
+    files: list[Path] = []
+    skipped: list[tuple[str, str]] = []
+    records: list[FigureRecord] = []
+    missing: list[tuple[str, str]] = []
+    tools: list[Any] = []
+
+    if include_matplotlib:
+        try:
+            outcome: FigureOutcome = render_run_figures(
+                root,
+                figures=chosen,
+                formats=formats,
+                results=catalogue,
+                provenance=provenance,
+            )
+        except ExportDependencyError as error:
+            if not allow_missing_extra:
+                raise
+            missing.append(("matplotlib", str(error)))
+            for spec in all_figures():
+                if chosen is not None and spec.id not in chosen:
+                    continue
+                needed = spec.missing(catalogue)
+                reason = f"needs {', '.join(needed)} — not in this run" if needed else str(error)
+                skipped.append((spec.id, reason))
+                records.append(FigureRecord(spec.id, "matplotlib", reason=reason))
+        else:
+            files.extend(outcome.files)
+            skipped.extend(outcome.skipped)
+            records.extend(outcome.records)
+
+    if include_r:
+        r_outcome, ctx = _render_r_figures(
+            root, sets=sets, figures=chosen, results=catalogue, provenance=provenance
+        )
+        files.extend(r_outcome.files)
+        skipped.extend(r_outcome.skipped)
+        records.extend(r_outcome.records)
+        tools.extend(ctx.tools)
+        if r_outcome.blocked is not None:
+            missing.append(("R", r_outcome.blocked))
+
+    return OutputFigures(
+        files=tuple(files),
+        skipped=tuple(skipped),
+        records=tuple(records),
+        missing=tuple(missing),
+        tools=tuple(tools),
+    )
+
+
+def _render_r_figures(
+    run_dir: Path,
+    *,
+    sets: Mapping[str, Any] | Sequence[str] | None = None,
+    figures: Sequence[str] | None = None,
+    results: Mapping[str, Result] | None = None,
+    provenance: Sequence[str] = (),
+) -> tuple[RFigureOutcome, RunContext]:
     """The R figure pass, with the tool call wired here — ``run/`` may not import ``external/``."""
     from plastid.external.rscript import missing_packages, rscript_binary, run_figure
 
@@ -1324,7 +2247,7 @@ def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureO
         out_root=run_dir.parent.parent, dataset=run_dir.parent.name, run_id=run_dir.name
     )
     try:
-        params = dict(_parse_sets(args.sets))
+        params = _sets_dict(sets)
     except ValueError as error:
         print(str(error), file=sys.stderr)
         params = {}
@@ -1344,6 +2267,36 @@ def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureO
         return None
 
     def runner(script: str, input_file, input_dir, out_dir: Path) -> Path:
+        # The tree script takes its drawing choices as flags, and the run's `--set` values are
+        # the only place a user gave them. Forwarding them here is what makes
+        # `--set root/outgroup/drop-tips` reach R at all (K-06); the other scripts have no such
+        # options, so they are not given them.
+        extra: list[str] = []
+        # Each script declares the options it reads; forwarding another script's flag would put a
+        # value in an argv nothing reads. F3/F4 order and exclude species themselves (`--set
+        # species-order`/`exclude-species`), F6 takes the drawing size, the tree takes its own
+        # (K-06). Measured 27/10/2026: these were reachable only by calling R by hand.
+        options = {
+            "tree": (
+                "tag",
+                "root",
+                "outgroup",
+                "drop-tips",
+                "outgroup-label",
+                "plot-type",
+                "legend",
+                "width",
+                "height",
+                "dpi",
+                "title",
+            ),
+            "rscu": ("species-order", "exclude-species", "width", "height"),
+            "amino_acid": ("species-order", "exclude-species", "width", "height"),
+            "diversity": ("width", "height", "dpi"),
+        }
+        for key in options.get(script, ()):
+            if key in params:
+                extra += [f"--{key}", str(params[key])]
         return run_figure(
             ctx,
             script,
@@ -1353,6 +2306,7 @@ def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureO
             binary=params.get("rscript"),
             # the preflight above already asked, once for the whole pass
             check_packages=False,
+            extra=extra,
         )
 
     try:
@@ -1360,8 +2314,10 @@ def _render_r_figures(run_dir: Path, args: argparse.Namespace) -> tuple[RFigureO
             run_dir,
             runner=runner,
             preflight=preflight,
-            figures=args.figure,
+            figures=figures,
             params=params,
+            results=results,
+            provenance=provenance,
         )
     except (OSError, ValueError, KeyError) as error:
         print(f"cannot render the R figures: {error}", file=sys.stderr)
@@ -1407,6 +2363,8 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     if args.reference:
         params["reference"] = args.reference
+    if not _accept_params([spec.id], params):
+        return EXIT_USAGE
     planted = params.get("exclude")
     exclusions = [planted] if isinstance(planted, str) else list(planted or ())
     if args.exclude:
@@ -1462,6 +2420,29 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
             print("annotate: nothing was annotated", file=sys.stderr)
             return EXIT_USAGE
 
+    # An external GenBank already carries an annotation; re-annotating it would discard that
+    # annotation without saying so. The pipeline has two input paths — a bare assembly goes
+    # through this command, an annotated record goes straight to analysis or verify — and the
+    # choice is the user's, so it is explicit (M11.16).
+    if not _truthy(params.get("reannotate")):
+        already = [
+            (text, genome)
+            for text, genome in samples
+            if any(gene.kind in ("CDS", "tRNA", "rRNA") for gene in genome.genes)
+        ]
+        if already:
+            for text, genome in already:
+                count = sum(1 for gene in genome.genes if gene.kind in ("CDS", "tRNA", "rRNA"))
+                print(
+                    f"{text} already carries {count} CDS/tRNA/rRNA feature(s) — "
+                    f"re-annotating it would discard them. Analyse it with "
+                    f"`plastid run -m <module> -i {text}`, or pass `--set reannotate=yes` to "
+                    f"replace its annotation from the reference set.",
+                    file=sys.stderr,
+                )
+            print("annotate: nothing was annotated", file=sys.stderr)
+            return EXIT_USAGE
+
     for text, genome in samples:
         codes.append(
             _annotate_sample(text=text, genome=genome, spec=spec, params=params, args=args)
@@ -1488,6 +2469,22 @@ def _annotate_sample(
     args: argparse.Namespace,
 ) -> int:
     """One sample of the batch, through the same body every other run uses (seam 3)."""
+    directory = plastid_reference.resolve_directory(params.get("reference"))
+    reference_sets: list[dict] = []
+    if str(directory) not in ("", "."):
+        planted = params.get("exclude")
+        excluded = (planted,) if isinstance(planted, str) else tuple(planted or ())
+        try:
+            reference_sets.append(
+                describe_reference_set(
+                    directory,
+                    exclude=excluded,
+                    leave_out=genome.accession or genome.name,
+                )
+            )
+        except ContractError as error:
+            print(str(error), file=sys.stderr)
+            return EXIT_USAGE
     return _execute_run(
         genomes=(genome,),
         specs=(spec,),
@@ -1507,6 +2504,7 @@ def _annotate_sample(
             *(["--docx"] if args.docx else []),
         ],
         inputs=[text],
+        reference_sets=reference_sets,
     )
 
 
@@ -1550,6 +2548,8 @@ def _cmd_mito_annotate(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     if args.reference:
         params["reference"] = args.reference
+    if not _accept_params([spec.id], params):
+        return EXIT_USAGE
 
     return _execute_run(
         genomes=(genome,),
@@ -2076,6 +3076,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "qc":
         return _cmd_qc(args)
+
+    if args.command == "batch":
+        return _cmd_batch(args)
 
     if args.command == "annotate":
         return _cmd_annotate(args)

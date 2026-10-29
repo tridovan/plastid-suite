@@ -138,12 +138,39 @@ def test_a_batch_that_mixes_two_organelles_stops_before_annotating_any_of_them(
     assert not _artifacts(out)
 
 
-def test_audit_only_needs_no_sample_and_a_batch_needs_one(tmp_path: Path) -> None:
+def test_audit_only_needs_no_sample_and_a_batch_needs_one(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     """``--audit-only`` is the flag P3B-03 left for this command: fix and re-check the set
     **without annotating anything** (D5-08) — so it must not demand a sample. Without it, a run
-    with no sample is a usage error rather than an empty success."""
-    assert main(["annotate", "--audit-only", "--no-confirm", "-o", str(tmp_path / "runs")]) != 0
+    with no sample is a usage error rather than an empty success.
+
+    The set is named here rather than left to the checkout's default: a tree without the pinned
+    panel must still answer the question this test asks (measured on CI, 27/10/2026: the default
+    path held no record, so the run exited 1 and the assertion read it as a usage refusal).
+    """
+    reference = tmp_path / "reference"
+    reference.mkdir()
+    _write(reference, "SYN_PLASTID.1.gb", PLASTID_RECORD)
+
+    audit = main(
+        [
+            "annotate",
+            "--audit-only",
+            "--no-confirm",
+            "--reference",
+            str(reference),
+            "-o",
+            str(tmp_path / "runs"),
+        ]
+    )
+    message = capsys.readouterr()
+    assert audit == 2  # this synthetic record blocks the audit; the run is not a usage refusal
+    assert "input is required" not in message.err
+    assert "reference audit" in message.out + message.err
+
     assert main(["annotate", "-o", str(tmp_path / "runs2")]) == 2
+    assert "input is required" in capsys.readouterr().err
 
 
 def _stub(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -200,11 +227,26 @@ def test_a_failed_sample_is_marked_and_named_without_killing_the_batch(
     and the broken sample's own run directory records why.
     """
     _stub(monkeypatch)
+    references = tmp_path / "references"
+    references.mkdir()
+    _write(references, "REF.1.gb", PLASTID_RECORD)
     good = _write(tmp_path, "good.fa", ">GOOD.1\nACGTACGTACGTACGTACGT\n")
     broken = _write(tmp_path, "broken.fa", ">BROKEN.1\nACGTACGTACGTACGTACGT\n")
     out = tmp_path / "runs"
 
-    code = main(["annotate", "-i", str(good), "-i", str(broken), "-o", str(out)])
+    code = main(
+        [
+            "annotate",
+            "-i",
+            str(good),
+            "-i",
+            str(broken),
+            "--reference",
+            str(references),
+            "-o",
+            str(out),
+        ]
+    )
 
     assert code != 0, "a batch with a failed sample exited as if it had succeeded"
     assert len(_artifacts(out)) == 1, "the good sample's artifact is missing"
@@ -227,14 +269,152 @@ def test_every_sample_of_a_batch_gets_its_own_run_directory_and_artifact(
     """One artifact per sample: the batch is a batch of *runs* (output split by
     run/dataset, never overwritten in place), so two samples never share a directory."""
     _stub(monkeypatch)
+    references = tmp_path / "references"
+    references.mkdir()
+    _write(references, "REF.1.gb", PLASTID_RECORD)
     first = _write(tmp_path, "one.fa", ">ONE.1\nACGTACGTACGTACGTACGT\n")
     second = _write(tmp_path, "two.fa", ">TWO.1\nACGTACGTACGTACGTACGT\n")
     out = tmp_path / "runs"
 
-    assert main(["annotate", "-i", str(first), "-i", str(second), "-o", str(out)]) == 0
+    assert (
+        main(
+            [
+                "annotate",
+                "-i",
+                str(first),
+                "-i",
+                str(second),
+                "--reference",
+                str(references),
+                "-o",
+                str(out),
+            ]
+        )
+        == 0
+    )
 
     artifacts = _artifacts(out)
     assert len(artifacts) == 2
     assert len({path.parent for path in artifacts}) == 2, "two samples shared one run directory"
     # <out>/<sample>/<run-id>/01_plastid_annotate/<artifact> — the sample is the dataset.
     assert sorted(path.parents[2].name for path in artifacts) == ["one.1", "two.1"]
+
+
+def test_the_run_records_the_artifact_and_the_reference_set_it_searched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """M11.16: a next step must be able to read *what* the file is and *what it came from*.
+
+    The manifest's ``files`` list says where an output went; this contract says it is a GenBank
+    artifact for this sample, circular, in GenBank coordinates, with status ok, transferred from
+    a named reference set whose record count and digest are recorded — not inferred from the
+    module's parameters or the directory's shape.
+    """
+    from plastid.run.contract import sha256_file
+
+    _stub(monkeypatch)
+    sample = _write(tmp_path, "sample.fa", ">SYN.1\nACGTACGTACGTACGTACGT\n")
+    references = tmp_path / "references"
+    references.mkdir()
+    _write(references, "REF.1.gb", PLASTID_RECORD)
+    out = tmp_path / "runs"
+
+    code = main(["annotate", "-i", str(sample), "--reference", str(references), "-o", str(out)])
+
+    assert code == 0
+    manifest = json.loads(next(out.glob("**/manifest.json")).read_text(encoding="utf-8"))
+    reference_set = manifest["reference_sets"][0]
+    assert reference_set["role"] == "annotation_db"
+    assert reference_set["records"] == 1
+    assert reference_set["leave_out"] == "SYN.1"
+    assert reference_set["excluded"] == []
+    artifact = manifest["artifacts"][0]
+    assert artifact["format"] == "genbank"
+    assert artifact["sample_id"] == "SYN.1"
+    assert artifact["topology"] == "circular"
+    assert artifact["frame"] == "genbank"
+    assert artifact["status"] == "ok"
+    assert artifact["reference_sha256"] == reference_set["sha256"]
+    written = next(out.glob("**/plastid_annotation.gb"))
+    assert artifact["sha256"] == sha256_file(written)
+
+
+def test_a_reference_set_that_excludes_everything_is_refused_not_recorded_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An empty reference contract would be a lie a downstream step could trust."""
+    _stub(monkeypatch)
+    sample = _write(tmp_path, "sample.fa", ">SYN.1\nACGTACGTACGTACGTACGT\n")
+    references = tmp_path / "references"
+    references.mkdir()
+    _write(references, "REF.1.gb", PLASTID_RECORD)
+    out = tmp_path / "runs"
+
+    code = main(
+        [
+            "annotate",
+            "-i",
+            str(sample),
+            "--reference",
+            str(references),
+            "--exclude",
+            "REF.1",
+            "-o",
+            str(out),
+        ]
+    )
+
+    assert code == 2
+    assert "no GenBank records" in capsys.readouterr().err
+    assert not list(out.glob("**/manifest.json"))
+
+
+def test_an_already_annotated_genbank_is_refused_before_anything_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """M11.16: an external GenBank goes to analysis or verify, not through the annotator.
+
+    The module discards the input's features by design; doing that to an annotated record
+    without saying so is the failure this guard exists for. The CLI refuses by name and offers
+    the two explicit ways forward.
+    """
+    _stub(monkeypatch)
+    sample = _write(tmp_path, "external.gb", PLASTID_RECORD)
+    out = tmp_path / "runs"
+
+    code = main(["annotate", "-i", str(sample), "-o", str(out)])
+
+    assert code == 2
+    message = capsys.readouterr().err
+    assert "already carries 1 CDS/tRNA/rRNA feature(s)" in message
+    assert "--set reannotate=yes" in message
+    assert "plastid run -m" in message
+    assert not list(out.glob("**/manifest.json")), "a run directory was written before the refusal"
+
+
+def test_reannotate_yes_makes_replacing_an_external_annotation_explicit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stub(monkeypatch)
+    references = tmp_path / "references"
+    references.mkdir()
+    _write(references, "REF.1.gb", PLASTID_RECORD)
+    sample = _write(tmp_path, "external.gb", PLASTID_RECORD)
+    out = tmp_path / "runs"
+
+    code = main(
+        [
+            "annotate",
+            "-i",
+            str(sample),
+            "--reference",
+            str(references),
+            "--set",
+            "reannotate=yes",
+            "-o",
+            str(out),
+        ]
+    )
+
+    assert code == 0
+    assert list(out.glob("**/plastid_annotation.gb"))

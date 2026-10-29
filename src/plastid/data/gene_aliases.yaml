@@ -4,13 +4,13 @@
 # (a naming convention, not a fact about our code), and the next record will bring names this
 # list has not seen.
 #
-# THE RULE (D3-02) — [ĐÃ THAY 07/10/2026: D5-09 reverses the direction — the
+# THE RULE (D3-02) — [CHANGED 07/10/2026: D5-09 reverses the direction — the
 # canonical forms follow the project's naming reference (the ★ record the end user picks), not the
 # group's dialect]. `canonical` is the name this toolkit compares and prints; every other name of
 # that locus is a synonym and is printed beside it: `ycf3 (pafI)`. The direction is not a majority
 # vote and not a preference for either dialect.
 #
-# [ĐÃ THAY 08/10/2026 — P3B-04 flipped five of these entries, and the flip is the rule applied
+# [CHANGED 08/10/2026 — P3B-04 flipped five of these entries, and the flip is the rule applied
 # rather than a change of mind: the naming step is built, the recorded standard is
 # `data/naming_reference.json`, and a standard whose spelling is not the canonical form would make
 # every printed table disagree with the record the project names after. Measured against the

@@ -94,7 +94,7 @@ def frame(results: Mapping[str, Result]) -> SsrFrame:
 
     # The one aggregation in this figure: the paper draws a single IR bar, PTS reports its two
     # copies separately. Asserted by a test rather than left implicit.
-    ir = sum(by_region[name]["total"] for name in ("IRa", "IRb") if name in by_region)
+    ir = sum(int(by_region[name]["total"]) for name in ("IRa", "IRb") if name in by_region)
     values = (
         summary.value("accession"),
         _cell(summary, "total"),

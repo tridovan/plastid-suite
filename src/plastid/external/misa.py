@@ -22,21 +22,28 @@ from __future__ import annotations
 import re
 import shutil
 import tempfile
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
 from plastid.core.model import Genome
 from plastid.core.resources import data_file
 from plastid.run.context import RunContext
+from plastid.run.params import ParamValueError
 from plastid.run.tools import ToolError, tool_version, which
 
 __all__ = [
     "MISA_VERSION",
     "MisaResult",
     "SsrFeature",
+    "format_thresholds",
+    "misa_ini_text",
     "misa_script",
     "misa_version",
+    "parse_unit_repeats",
     "run_misa",
+    "threshold_text",
+    "unit_repeats_from_ini",
 ]
 
 MISA_VERSION = "2.1"
@@ -82,6 +89,87 @@ class MisaResult:
     by_unit: dict[int, int]
     compound: int
     features: tuple[SsrFeature, ...]
+    # The thresholds this run actually used, read back from the ini MISA was handed. Reported
+    # rather than assumed, so a user-supplied value and the summary cannot disagree (M11.20).
+    unit_repeats: dict[int, int]
+
+
+_DEFINITION_PREFIX = "definition(unit_size,min_repeats)"
+
+
+def parse_unit_repeats(text: str) -> dict[int, int]:
+    """``"1-12 2-8 3-7"`` → ``{1: 12, 2: 8, 3: 7}``, refused by name when it is not that shape.
+
+    The value is MISA's own ``definition(unit_size,min_repeats)`` syntax without the key, which
+    is why it is a string rather than six separate parameters: it is one line of MISA's ini and
+    a user copying the published thresholds can paste them as they appear. Units may be a
+    subset — a run that wants only mono/di/tri says so — but a repeated unit, a unit outside
+    1–6, or a non-positive repeat count is a usage error, never a silently dropped token.
+    """
+    values: dict[int, int] = {}
+    tokens = text.split()
+    if not tokens:
+        raise ParamValueError(
+            "unit_repeats: expected at least one '<unit>-<min_repeats>' pair, e.g. "
+            '"1-12 2-8 3-7 4-6 5-5 6-5"'
+        )
+    for token in tokens:
+        unit_text, separator, repeats_text = token.partition("-")
+        if not separator or not unit_text.isdigit() or not repeats_text.isdigit():
+            raise ParamValueError(
+                f"unit_repeats: {token!r} is not '<unit>-<min_repeats>' — expected e.g. "
+                '"1-12 2-8 3-7 4-6 5-5 6-5"'
+            )
+        unit, min_repeats = int(unit_text), int(repeats_text)
+        if not 1 <= unit <= 6:
+            raise ParamValueError(
+                f"unit_repeats: unit {unit} is outside 1–6 (MISA's repeat-unit sizes)"
+            )
+        if min_repeats < 1:
+            raise ParamValueError(
+                f"unit_repeats: unit {unit} has min_repeats={min_repeats}; it must be at least 1"
+            )
+        if unit in values:
+            raise ParamValueError(
+                f"unit_repeats: unit {unit} is named twice — one threshold per unit size"
+            )
+        values[unit] = min_repeats
+    return dict(sorted(values.items()))
+
+
+def unit_repeats_from_ini(path: str | Path | None = None) -> dict[int, int]:
+    """The thresholds in an ini file's ``definition(unit_size,min_repeats)`` line."""
+    ini = Path(path) if path is not None else data_file("misa.ini")
+    for line in ini.read_text(encoding="utf-8").splitlines():
+        if line.startswith(_DEFINITION_PREFIX):
+            return parse_unit_repeats(line.split(":", 1)[1])
+    raise ValueError(f"{ini}: no {_DEFINITION_PREFIX} line")
+
+
+def format_thresholds(values: Mapping[int, int]) -> str:
+    """The summary's threshold string: ``(1/10) (2/6) …`` in unit order."""
+    return " ".join(f"({unit}/{repeats})" for unit, repeats in sorted(values.items()))
+
+
+def misa_ini_text(unit_repeats: Mapping[int, int] | None = None) -> str:
+    """The ini MISA reads: the shipped file, with the definition line replaced when asked.
+
+    Only the definition line changes. ``interruptions``, ``GFF`` and anything else the shipped
+    file declares stay exactly as they are, so a threshold choice cannot quietly change a second
+    MISA setting. ``None`` returns the shipped file unchanged (the default path).
+    """
+    text = data_file("misa.ini").read_text(encoding="utf-8")
+    if unit_repeats is None:
+        return text
+    values = " ".join(f"{unit}-{repeats}" for unit, repeats in sorted(unit_repeats.items()))
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith(_DEFINITION_PREFIX):
+            label, _, rest = line.partition(":")
+            padding = rest[: len(rest) - len(rest.lstrip())]  # keep the shipped column
+            lines[index] = f"{label}:{padding}{values}"
+            return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+    raise ValueError(f"the shipped misa.ini has no {_DEFINITION_PREFIX} line")
 
 
 def misa_script(explicit: str | Path | None = None) -> Path:
@@ -132,8 +220,19 @@ def misa_version(script: Path) -> str:
     return version
 
 
-def run_misa(genome: Genome, ctx: RunContext, script: str | Path | None = None) -> MisaResult:
-    """Run MISA on one genome; returns counts and per-SSR positions."""
+def run_misa(
+    genome: Genome,
+    ctx: RunContext,
+    script: str | Path | None = None,
+    *,
+    unit_repeats: Mapping[int, int] | None = None,
+) -> MisaResult:
+    """Run MISA on one genome; returns counts and per-SSR positions.
+
+    ``unit_repeats`` replaces the shipped ``misa.ini``'s definition line (M11.20); ``None`` uses
+    the shipped defaults. The ini written for this run is the only source of the thresholds the
+    result reports, so a value the module accepted cannot be dropped between here and MISA.
+    """
     perl = which("perl")
     if perl is None:
         raise ToolError(
@@ -144,11 +243,12 @@ def run_misa(genome: Genome, ctx: RunContext, script: str | Path | None = None) 
     version = misa_version(script_path)
     interpreter_version, _ = tool_version("perl", "perl", perl)
     interpreter = f"perl {interpreter_version}" if interpreter_version else "perl"
+    chosen = dict(unit_repeats) if unit_repeats is not None else unit_repeats_from_ini()
 
     with tempfile.TemporaryDirectory(prefix="misa_") as work:
         workdir = Path(work)
         shutil.copy(script_path, workdir / _SCRIPT_NAME)
-        shutil.copy(data_file("misa.ini"), workdir / "misa.ini")
+        (workdir / "misa.ini").write_text(misa_ini_text(chosen), encoding="utf-8")
         fasta = workdir / "input.fasta"
         fasta.write_text(_to_fasta(genome), encoding="utf-8")
 
@@ -168,7 +268,13 @@ def run_misa(genome: Genome, ctx: RunContext, script: str | Path | None = None) 
         total, by_unit, compound = _parse_statistics(statistics.read_text(encoding="utf-8"))
         gff_files = sorted(workdir.glob("*.gff"))
         features = _parse_gff(gff_files[0].read_text(encoding="utf-8")) if gff_files else ()
-        return MisaResult(total=total, by_unit=by_unit, compound=compound, features=features)
+        return MisaResult(
+            total=total,
+            by_unit=by_unit,
+            compound=compound,
+            features=features,
+            unit_repeats=chosen,
+        )
 
 
 def _to_fasta(genome: Genome, width: int = 60) -> str:
@@ -253,3 +359,13 @@ def _int_after(text: str, marker: str) -> int:
         if marker in line:
             return int(line.split(marker, 1)[1].strip())
     raise ToolError(f"misa: expected {marker!r} in the statistics output, found none")
+
+
+def threshold_text(path: str | Path | None = None) -> str:
+    """The unit/repeat thresholds in an ini, as MISA writes them.
+
+    The summary used to carry this string hardcoded beside a run that reads the same values from
+    the ini; the two could drift. Reading the file makes the reported thresholds the ones MISA
+    actually used (M11.17). ``path`` exists for tests and for a caller that supplies the ini.
+    """
+    return format_thresholds(unit_repeats_from_ini(path))

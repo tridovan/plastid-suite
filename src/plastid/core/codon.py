@@ -26,6 +26,8 @@ __all__ = [
     "SENSE_FAMILIES",
     "SINGLE_CODON_AMINO",
     "STANDARD_CODE",
+    "SUPPORTED_TRANSL_TABLES",
+    "UnsupportedTranslationError",
     "cai",
     "cbi",
     "codon_counts",
@@ -33,6 +35,7 @@ __all__ = [
     "fop",
     "optimal_codons",
     "relative_adaptiveness",
+    "require_translatable",
     "rscu",
     "translate",
 ]
@@ -79,6 +82,55 @@ def translation_table_label(genes: Iterable[Gene]) -> str:
     if not declared:
         return TABLE_LABEL
     return f"{TABLE_LABEL}; the record's CDS declare {', '.join(str(table) for table in declared)}"
+
+
+# The compiled code is NCBI table 1. Table 11 (the plastid code) shares every amino-acid
+# assignment and differs only in initiation codons; every other table assigns at least one codon
+# differently, so a codon count or composition under it would be a different measurement wearing
+# this module's name.
+SUPPORTED_TRANSL_TABLES = frozenset({1, 11})
+
+
+class UnsupportedTranslationError(ValueError):
+    """A CDS declares a frame or table this codon reading cannot translate honestly."""
+
+
+def require_translatable(genes: Iterable[Gene], *, module: str) -> None:
+    """Refuse a CDS set whose frame or declared table this module cannot read as compiled.
+
+    The modules behind this guard translate with NCBI table 1 and read from the first base of
+    the feature. A ``/codon_start`` other than 1 shifts the frame, and another table assigns
+    codons differently; in either case silently translating would produce a number that looks
+    like the module's and is not it. The message names the genes, so the fix is a decision about
+    the record rather than a search.
+    """
+    genes = tuple(genes)
+    wrong_frame = [gene for gene in genes if gene.codon_start != 1]
+    wrong_table = [
+        gene
+        for gene in genes
+        if gene.transl_table is not None and gene.transl_table not in SUPPORTED_TRANSL_TABLES
+    ]
+    if wrong_frame:
+        named = ", ".join(
+            f"{gene.name} (/codon_start={gene.codon_start})" for gene in wrong_frame[:8]
+        )
+        more = "" if len(wrong_frame) <= 8 else f" and {len(wrong_frame) - 8} more"
+        raise UnsupportedTranslationError(
+            f"{module}: {len(wrong_frame)} CDS do not start in frame 1 — {named}{more}. "
+            f"This module reads from the feature's first base, so translating them would count "
+            f"the wrong frame; only /codon_start=1 is implemented"
+        )
+    if wrong_table:
+        tables = sorted({gene.transl_table for gene in wrong_table})
+        named = ", ".join(f"{gene.name} (table {gene.transl_table})" for gene in wrong_table[:8])
+        more = "" if len(wrong_table) <= 8 else f" and {len(wrong_table) - 8} more"
+        raise UnsupportedTranslationError(
+            f"{module}: {len(wrong_table)} CDS declare translation table(s) {tables} — "
+            f"{named}{more}. The compiled code is NCBI table 1, which shares its amino-acid "
+            f"assignments with plastid table 11 only; another table would be a different "
+            f"measurement, so it is refused rather than translated"
+        )
 
 
 def translate(sequence: str) -> str:

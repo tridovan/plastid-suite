@@ -73,12 +73,10 @@ def annotated(
                 str(out / "runs"),
                 "--set",
                 f"reference={PANEL}",
-                # The pinned set carries one record the audit blocks (NC_024936.1, ``rps19``
-                # annotated as partial on both copies), and the gate stops a run that would
-                # search it (P3B-09). Dropping it by name is D5-08's own loop — "fix or drop the
-                # bad file → run again" — and the run records the drop rather than making it.
-                "--set",
-                f"exclude={BLOCKED}",
+                # The whole pinned set is searched: H-21 was fixed in M11.10, so NC_024936.1 —
+                # whose rps19 carries an inverted-repeat partial flag over a complete 92 aa
+                # translation — is REPORTed by the audit instead of blocked. The target's own
+                # record is still left out (leave-one-out), which is 33 references.
             ]
         )
         == 0
@@ -149,18 +147,45 @@ def test_ycf1_lands_on_the_published_gene_not_on_a_truncated_reference(annotated
     )
 
 
+def test_the_default_set_is_usable_after_the_h21_fix() -> None:
+    """The pinned set minus the target — 33 records — audits with nothing blocked.
+
+    Measured 26/10/2026: the same set used to block NC_024936.1 three times (two partial
+    coordinates and its annotation-first IR at 99.80 %). M11.10 reports the partial flags (the
+    protein is complete) and reports the annotation-first refusal while naming the sequence path.
+    """
+    from plastid.modules import plastid_annotate
+
+    with plastid_annotate._reference_set({"reference": str(PANEL)}, GOLDEN) as reference:
+        searched = {genome.accession for genome in reference.records}
+        assert BLOCKED in searched, "the fixed record is still being dropped"
+        assert GOLDEN not in searched, "the target's own record was searched — leave-one-out"
+        assert len(searched) == 33
+        assert "audited (0 blocked)" in reference.label
+        assert reference.dropped == ()
+
+
 def test_the_audit_gate_stops_the_run_on_a_record_it_blocks(
     data_dir: Path,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """P3B-09's wiring, measured on the project's own pinned set — and **before any search**.
+    """P3B-09's wiring — and **before any search**. The blocking class is a CDS with no protein.
 
     H-19 named this hole: ``plastid_annotate`` did not call the audit at all, so a record
     the audit BLOCKs was still a candidate in a run. The gate now runs over exactly the records
     the run would search, ahead of the first BLAST — which is why this check needs no BLAST
-    itself, and why "nothing annotated" is literal rather than hopeful.
+    itself, and why "nothing annotated" is literal rather than hopeful. The fixture is the
+    second golden record written without its ``/translation`` qualifiers, so the block is a real
+    one rather than the H-21 shape this milestone stopped blocking.
     """
+    from plastid.core.genbank import to_genbank
+
+    reference_dir = tmp_path / "reference"
+    reference_dir.mkdir()
+    stripped = read_genbank(data_dir / f"{BLOCKED}.gb")
+    (reference_dir / f"{BLOCKED}.gb").write_text(to_genbank(stripped), encoding="utf-8")
+
     out = tmp_path / "runs"
     code = main(
         [
@@ -168,14 +193,16 @@ def test_the_audit_gate_stops_the_run_on_a_record_it_blocks(
             "-i",
             str(data_dir / f"{GOLDEN}.gb"),
             "--reference",
-            str(PANEL),
+            str(reference_dir),
+            "--set",
+            "reannotate=yes",
             "-o",
             str(out),
         ]
     )
     assert code == 2, "a blocked reference record did not stop the run"
     message = capsys.readouterr().err
-    assert f"{BLOCKED}.gb — CDS rps19: partial coordinates" in message
+    assert f"{BLOCKED}.gb — CDS" in message and "no /translation" in message
     assert not list(out.glob("**/plastid_annotation.gb")), "the run annotated from a blocked set"
 
 
@@ -306,8 +333,12 @@ def test_every_copy_the_inverted_repeat_is_given_lands_where_the_record_puts_it(
 #     every record in the corpus (34 of them) and `trnS-UGA` read on the opposite strand. tRNA is
 #     called de novo by ARAGORN (D5-08), so this is a tool's convention next to a submitter's, and
 #     trimming to match would be fitting the number to the answer;
-#   * the eight tRNA names ARAGORN reads differently, `trnI-GAU` as `trnE-UUC` among them: H-04's
-#     family, and the anticodon it reads is the intron's.
+#   * the four tRNA names ARAGORN reads differently (`trnG-GCC` twice, `trnM-CAU` twice): H-04's
+#     family, a vocabulary convention rather than a locus. The intron loci that used to be here
+#     (`trnV-UAC`, `trnI-GAU` twice) are now **named** from the reference set's own annotation
+#     (H-24), so their rows moved from "vocabulary/name" to "conclusion/extent": the envelope and
+#     name now agree with the published record, and what remains is ARAGORN's intron boundary
+#     inside the gene (H-22/H-23, M11.15).
 GOLDEN_DIFFERENCES: tuple[tuple[str, str, str, str, str], ...] = (
     ("boundary", "rRNA", "extent", "rrn23 129981-132790(-1)", "rrn23 129982-132791(-1)"),
     ("boundary", "tRNA", "extent", "trnA-UGC 103034-103915(+1)", "trnA-UGC 103034-103915(+1)"),
@@ -334,15 +365,15 @@ GOLDEN_DIFFERENCES: tuple[tuple[str, str, str, str, str], ...] = (
     ("conclusion", "CDS", "extent", "rps12 68976-139634(-1)", "rps12 68976-139634(-1)"),
     ("conclusion", "CDS", "extent", "rps12 68976-98013(-1)", "rps12 68976-98016(-1)"),
     ("conclusion", "CDS", "extent", "ycf3 42508-44457(-1)", "ycf3 42508-44457(-1)"),
+    ("conclusion", "tRNA", "extent", "trnI-GAU 101952-102969(+1)", "trnI-GAU 101952-102969(+1)"),
+    ("conclusion", "tRNA", "extent", "trnI-GAU 133883-134900(-1)", "trnI-GAU 133883-134900(-1)"),
     ("conclusion", "tRNA", "extent", "trnP-UGG 66042-66115(-1)", "trnP-UGG 66040-66115(-1)"),
     ("conclusion", "tRNA", "extent", "trnS-UGA 35472-35564(+1)", "trnS-UGA 35471-35565(-1)"),
+    ("conclusion", "tRNA", "extent", "trnV-UAC 51598-52275(-1)", "trnV-UAC 51598-52275(-1)"),
     ("vocabulary", "tRNA", "name", "trnG-UCC 36413-36483(+1)", "trnG-GCC 36413-36484(+1)"),
     ("vocabulary", "tRNA", "name", "trnG-UCC 8889-9633(+1)", "trnS-CGA 8889-9634(+1)"),
     ("vocabulary", "tRNA", "name", "trnI-CAU 151155-151228(+1)", "trnM-CAU 151155-151229(+1)"),
     ("vocabulary", "tRNA", "name", "trnI-CAU 85624-85697(-1)", "trnM-CAU 85623-85697(-1)"),
-    ("vocabulary", "tRNA", "name", "trnI-GAU 101952-102969(+1)", "trnE-UUC 101952-102969(+1)"),
-    ("vocabulary", "tRNA", "name", "trnI-GAU 133883-134900(-1)", "trnE-UUC 133883-134900(-1)"),
-    ("vocabulary", "tRNA", "name", "trnV-UAC 51598-52275(-1)", "trnC-ACA 51598-52275(-1)"),
     ("vocabulary", "tRNA", "name", "trnfM-CAU 36714-36787(-1)", "trnM-CAU 36713-36787(-1)"),
 )
 

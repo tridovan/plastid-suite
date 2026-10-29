@@ -30,6 +30,11 @@ vmatch:
 paml:
   text: "Yang Z. PAML 4: phylogenetic analysis by maximum likelihood. Molecular Biology and Evolution 24:1586–1591 (2007)."
   doi: "10.1093/molbev/msm088"
+iqtree:
+  # M11.21: the `phylogeny` module's inference step. Cited from the IQ-TREE 2 paper, which is the
+  # release the module pins; a different IQ-TREE has its own citation and its own release paper.
+  text: "Minh BQ, Schmidt HA, Chernomor O, Schrempf D, Woodhams MD, von Haeseler A, Lanfear R. IQ-TREE 2: new models and efficient methods for phylogenetic inference in the genomic era. Molecular Biology and Evolution 37:1530–1534 (2020)."
+  doi: "10.1093/molbev/msaa015"
 cbol:
   text: "CBOL Plant Working Group. A DNA barcode for land plants. Proceedings of the National Academy of Sciences 106:12794–12797 (2009)."
   doi: "10.1073/pnas.0905845106"

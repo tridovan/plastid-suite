@@ -7,12 +7,14 @@ the series is plain data.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from plastid.result.export import export_json
 from plastid.result.figures import all_figures, circular_map, ir_junction
+from plastid.result.figures.cells import gene_segments
 from plastid.result.figures.frames import Frame
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.figures import render_run_figures
@@ -24,8 +26,8 @@ ROTATION = 0
 def _stats_result(rotation: int = 0) -> tuple[Result, Result]:
     """A small plastome in both frames.
 
-    LSC 1–8000 · IRa 8001–12000 · SSC 12001–16000 · IRb 16001–20000, so a ±3 kb junction
-    window is a window and not the whole genome.
+    LSC 1–8000 · IRa 8001–12000 · SSC 12001–16000 · IRb 16001–20000, so a junction panel is a
+    window and not the whole genome.
     """
     stats = Table(
         id="genome_stats",
@@ -56,6 +58,7 @@ def _stats_result(rotation: int = 0) -> tuple[Result, Result]:
             Column("kind", "Kind"),
             Column("start_1b", "Start", dtype="int", unit="bp"),
             Column("end_1b", "End", dtype="int", unit="bp"),
+            Column("segments", "Segments"),
             Column("strand", "Strand"),
             Column("length_bp", "Length", dtype="int", unit="bp"),
             Column("in_ir", "In IR"),
@@ -67,6 +70,7 @@ def _stats_result(rotation: int = 0) -> tuple[Result, Result]:
                 "kind": "CDS",
                 "start_1b": 1,
                 "end_1b": 1200,
+                "segments": "1-1200",
                 "strand": "+",
                 "length_bp": 1200,
                 "in_ir": "no",
@@ -77,6 +81,7 @@ def _stats_result(rotation: int = 0) -> tuple[Result, Result]:
                 "kind": "CDS",
                 "start_1b": 7800,
                 "end_1b": 8200,
+                "segments": "7800-8200",
                 "strand": "-",
                 "length_bp": 401,
                 "in_ir": "yes",
@@ -87,6 +92,7 @@ def _stats_result(rotation: int = 0) -> tuple[Result, Result]:
                 "kind": "tRNA",
                 "start_1b": 14_000,
                 "end_1b": 14_060,
+                "segments": "14000-14060",
                 "strand": "+",
                 "length_bp": 61,
                 "in_ir": "no",
@@ -97,6 +103,7 @@ def _stats_result(rotation: int = 0) -> tuple[Result, Result]:
                 "kind": "rRNA",
                 "start_1b": 16_200,
                 "end_1b": 16_300,
+                "segments": "16200-16300",
                 "strand": "-",
                 "length_bp": 101,
                 "in_ir": "yes",
@@ -108,6 +115,7 @@ def _stats_result(rotation: int = 0) -> tuple[Result, Result]:
                 "kind": "gene",
                 "start_1b": 16_200,
                 "end_1b": 16_300,
+                "segments": "16200-16300",
                 "strand": "-",
                 "length_bp": 101,
                 "in_ir": "yes",
@@ -266,6 +274,9 @@ def test_a_span_that_crosses_the_origin_becomes_two_spans() -> None:
     assert frame.span_to_genbank(1, 8000) == ((251, 8250),)
     # The GenBank origin (position 1) sits inside this span, so it splits into two arcs.
     assert frame.span_to_genbank(19_700, 19_800) == ((19_950, 20_000), (1, 50))
+    # The mirror: a span crossing the *normalized* origin splits the same way.
+    assert frame.span_to_normalized(19_950, 50) == ((19_700, 19_800),)
+    assert frame.span_to_normalized(200, 300) == ((19_950, 20_000), (1, 50))
 
 
 def test_the_map_series_equals_the_cells_of_the_tables_it_read() -> None:
@@ -274,7 +285,9 @@ def test_the_map_series_equals_the_cells_of_the_tables_it_read() -> None:
     data = circular_map.series(results)
     genes = [row for row in results["genome_stats"].tables["genes"].rows if row["kind"] != "gene"]
     assert [(g.name, g.kind, g.start_1b, g.end_1b, g.strand) for g in data.genes] == [
-        (row["name"], row["kind"], row["start_1b"], row["end_1b"], row["strand"]) for row in genes
+        (row["name"], row["kind"], start, end, row["strand"])
+        for row in genes
+        for start, end in gene_segments(row)
     ]
     assert data.n_gene_features_skipped == 1
     assert data.length_bp == results["genome_stats"].tables["genome_stats"].value("length_bp")
@@ -314,7 +327,7 @@ def test_the_junction_series_holds_the_genes_of_each_window() -> None:
     assert first.boundary_1b == 8001 and second.boundary_1b == 16_001
     assert (first.window_start_1b, first.window_end_1b) == (5001, 12_000)
     assert "rps3" in {gene.name for gene in first.genes}
-    assert "psbA" not in {gene.name for gene in first.genes}  # 1–1200 is outside the ±3 kb window
+    assert "psbA" not in {gene.name for gene in first.genes}  # 1–1200 is before the window
     assert {gene.name for gene in second.genes} == {"trnH-GUG", "rrn16"}
     assert data.n_genes == 3
 
@@ -324,6 +337,86 @@ def test_a_gene_that_straddles_the_boundary_is_kept_whole() -> None:
     data = ir_junction.series(_results())
     rps3 = next(gene for gene in data.junctions[0].genes if gene.name == "rps3")
     assert (rps3.start_1b, rps3.end_1b) == (7800, 8200)
+
+
+def _with_wrapped_gene(results: dict[str, Result]) -> dict[str, Result]:
+    """The same tables plus one CDS annotated across the record origin (``rps2``'s real shape).
+
+    Its outer bounds are 1..L — the whole genome — while its parts are a 50 bp piece at each end.
+    The genes table states both: ``start_1b``/``end_1b`` are the outer bounds, ``segments`` the
+    parts. A figure that drew the outer bounds would fill the panel.
+    """
+    stats = results["genome_stats"]
+    genes = stats.tables["genes"]
+    wrapped = {
+        "name": "rps2",
+        "kind": "CDS",
+        "start_1b": 1,
+        "end_1b": LENGTH,
+        "segments": "19951-20000;1-50",
+        "strand": "+",
+        "length_bp": 100,
+        "in_ir": "no",
+        "pseudo": "no",
+    }
+    new_genes = replace(genes, rows=genes.rows + (wrapped,))
+    return {
+        **results,
+        "genome_stats": replace(stats, tables={**stats.tables, "genes": new_genes}),
+    }
+
+
+def test_a_gene_across_the_record_origin_is_drawn_as_its_parts() -> None:
+    """M11.7: the parts, not the outer bounds — the bounds are the long way round the circle."""
+    results = _with_wrapped_gene(_results())
+
+    # The SSC/IRb window is 13001–20000, so only the far part is in it — 50 bp, not 20 kb.
+    second = ir_junction.series(results).junctions[1]
+    assert [(gene.start_1b, gene.end_1b) for gene in second.genes if gene.name == "rps2"] == [
+        (19_951, 20_000)
+    ]
+
+    # The circular map draws both parts, and neither is the genome-wide arc.
+    arcs = [
+        (gene.start_1b, gene.end_1b)
+        for gene in circular_map.series(results).genes
+        if gene.name == "rps2"
+    ]
+    assert arcs == [(19_951, 20_000), (1, 50)]
+
+
+def test_a_part_crossing_the_normalized_origin_is_split_again() -> None:
+    """A part that itself crosses the rotation point becomes two pieces in the normalized frame."""
+    rotation = 250  # normalized position 1 is GenBank 251
+    results = _with_wrapped_gene(_results(rotation))
+    stats = results["genome_stats"]
+    genes = stats.tables["genes"]
+    crossing = {**genes.rows[-1], "segments": "19951-20000;201-300"}  # the second part crosses 251
+    new_genes = replace(genes, rows=genes.rows[:-1] + (crossing,))
+    results["genome_stats"] = replace(stats, tables={**stats.tables, "genes": new_genes})
+
+    arcs = [
+        (gene.start_1b, gene.end_1b)
+        for gene in ir_junction.series(results).junctions[1].genes
+        if gene.name == "rps2"
+    ]
+    # 19951-20000 → 19701-19750; 201-300 → 19951-20000 and 1-50. Only the two pieces inside
+    # the SSC/IRb window (13001-20000) are placed; the (1, 50) piece belongs to no panel.
+    assert arcs == [(19_701, 19_750), (19_951, 20_000)]
+
+
+def test_the_caption_states_the_window_rule_and_each_panel_width() -> None:
+    """Measured 28/10/2026: the caption said ±3000 bp while the panels showed the whole IR."""
+    text = ir_junction.caption(ir_junction.series(_results()))
+    assert "3,000 bp of the single-copy region + the whole IR copy" in text
+    assert "windows 7,000 / 7,000 bp" in text  # 3000 before the boundary + the 4000 bp IRa/IRb
+
+
+def test_the_figure_widens_for_a_large_ir_and_stops_at_the_cap() -> None:
+    """A 46 kb window at a fixed 7.4 in would draw 6.3 kb per inch and collide its labels."""
+    assert ir_junction._figure_width(29_214) == 7.4  # golden: below the base window
+    assert ir_junction._figure_width(46_573) == pytest.approx(9.0573, abs=1e-4)
+    assert ir_junction._figure_width(100_000) == 10.0  # the cap
 
 
 def test_a_figure_that_cannot_find_its_module_says_which_one() -> None:
@@ -359,6 +452,39 @@ def test_the_catalogue_holds_every_figure_and_no_untyped_source() -> None:
             assert "." not in module and "." not in table, f"{spec.id}: {module}.{table}"
 
 
+def test_a_refresh_removes_a_figure_whose_source_table_disappeared(tmp_path: Path) -> None:
+    """A re-render replaces the folder's figure set; an old image must not pass as current.
+
+    M11.18: after a run directory loses the table a figure read, the figure is skipped by name
+    *and* its previous files are gone — otherwise ``figures/circular_map.svg`` would keep
+    claiming a result the run no longer holds.
+    """
+    pytest.importorskip("matplotlib", reason="the 'figures' extra is not installed")
+    run = tmp_path / "run"
+    for order, result in enumerate(_results().values(), start=1):
+        module_dir = run / f"{order:02d}_{result.module}"
+        module_dir.mkdir(parents=True)
+        (module_dir / "result.json").write_text(export_json(result), encoding="utf-8")
+
+    first = render_run_figures(run, formats=("svg",))
+    drawn = sorted(path.name for path in first.files)
+    assert "circular_map.svg" in drawn
+    assert (run / "figures" / "circular_map.svg").is_file()
+
+    # The structure result is gone, so both figures that read it can no longer be drawn.
+    (run / "02_structure" / "result.json").unlink()
+    second = render_run_figures(run, formats=("svg",))
+    assert "circular_map.svg" not in {path.name for path in second.files}
+    assert not (run / "figures" / "circular_map.svg").exists()
+    assert not (run / "figures" / "circular_map.caption.txt").exists()
+    assert not (run / "figures" / "ir_junction.svg").exists()
+    skipped = dict(second.skipped)
+    assert "structure.regions" in skipped["circular_map"]
+    records = {record.figure_id: record for record in second.records}
+    assert records["circular_map"].status == "skipped"
+    assert records["circular_map"].reason == skipped["circular_map"]
+
+
 def test_the_run_level_pass_renders_every_figure_the_tables_feed(tmp_path: Path) -> None:
     """Seven figure types are catalogued; this run's tables feed three of them."""
     pytest.importorskip("matplotlib", reason="the 'figures' extra is not installed")
@@ -369,11 +495,17 @@ def test_the_run_level_pass_renders_every_figure_the_tables_feed(tmp_path: Path)
         (module_dir / "result.json").write_text(export_json(result), encoding="utf-8")
 
     outcome = render_run_figures(run, formats=("svg",))
-    assert sorted(path.name for path in outcome.files) == [
+    assert sorted(
+        path.name for path in outcome.files if not path.name.endswith(".caption.txt")
+    ) == [
         "circular_map.svg",
         "ir_junction.svg",
     ]
+    for figure_id in ("circular_map", "ir_junction"):
+        caption = (run / "figures" / f"{figure_id}.caption.txt").read_text(encoding="utf-8")
+        assert "scope: " in caption
     skipped = dict(outcome.skipped)
     assert "pi_window" in skipped and "diversity" in skipped["pi_window"]
     for path in outcome.files:
-        assert path.stat().st_size > 1000
+        if not path.name.endswith(".caption.txt"):
+            assert path.stat().st_size > 1000

@@ -54,7 +54,25 @@ _YN_SECTION = "(B) Yang & Nielsen (2000) method"
 # yn00.ctl — written by this adapter, so it is part of the provenance. icode 0 is the standard
 # genetic code: yn00 uses the code for its codon table, and NCBI table 11 differs from table 1
 # only in initiation codons, which are not part of an alignment's interior.
-CTL = "seqfile = input.dat\noutfile = yn00.out\nverbose = 0\nicode = 0\nweighting = 0\n"
+DEFAULT_ICODE = 0
+DEFAULT_WEIGHTING = 0
+# yn00's own control file. ``icode`` is PAML's genetic-code number (0 = universal; table 11
+# differs from it only in initiation codons, which are not interior alignment columns) and
+# ``weighting`` selects the pathway weighting (0 = equal weighting, PAML's default).
+ICODES = tuple(range(0, 11))
+WEIGHTINGS = (0, 1)
+
+
+def ctl_text(icode: int = DEFAULT_ICODE, weighting: int = DEFAULT_WEIGHTING) -> str:
+    """The yn00.ctl written for one run, with the values this run actually asked for."""
+    if icode not in ICODES:
+        raise ValueError(f"yn00: icode must be one of {ICODES}, got {icode}")
+    if weighting not in WEIGHTINGS:
+        raise ValueError(f"yn00: weighting must be one of {WEIGHTINGS}, got {weighting}")
+    return (
+        f"seqfile = input.dat\noutfile = yn00.out\nverbose = 0\n"
+        f"icode = {icode}\nweighting = {weighting}\n"
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +143,8 @@ def run_yn00(
     binary: str | None = None,
     directory: str | Path | None = None,
     timeout: int | None = None,
+    icode: int = DEFAULT_ICODE,
+    weighting: int = DEFAULT_WEIGHTING,
 ) -> Yn00Result:
     """One pairwise Ka/Ks estimate for two codon-aligned, stop-free, equal-length sequences."""
     for name in (name_a, name_b):
@@ -152,7 +172,9 @@ def run_yn00(
             f"  2  {len(sequence_a)}\n{name_a}\n{sequence_a}\n{name_b}\n{sequence_b}\n",
             encoding="utf-8",
         )
-        (workdir / "yn00.ctl").write_text(CTL, encoding="utf-8")
+        (workdir / "yn00.ctl").write_text(
+            ctl_text(icode=icode, weighting=weighting), encoding="utf-8"
+        )
         ctx.tool(
             "yn00",
             [resolved],

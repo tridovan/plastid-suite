@@ -125,6 +125,16 @@ class Gene:
         """Sum of part lengths — exons only for spliced features."""
         return sum(part.length for part in self.parts)
 
+    @property
+    def partial(self) -> bool:
+        """Any part carries a partial coordinate — a truncated 5' or 3' end.
+
+        The flag is on the part, not the gene, so any part order gives the same answer. Every CDS
+        analysis states whether such genes are included, and counts them (M11.17); silently
+        merging a truncated gene into a measured value is what this property exists to stop.
+        """
+        return any(part.partial_start or part.partial_end for part in self.parts)
+
 
 def gene_qualifiers(gene: Gene) -> dict[str, str | None]:
     """The qualifiers this toolkit writes for a feature, in a stable order.

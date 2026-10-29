@@ -305,7 +305,38 @@ def test_the_module_writes_both_files_from_the_normalized_set(data_dir: Path) ->
     summary = result.tables["submission_summary"].rows[0]
     assert summary["n_problems"] == 0
     assert summary["sqn"] == "not requested"
+    assert summary["validator_status"] == "not requested"
+    # an unrun validator is not zero errors: the count is absent, and the status says why
+    assert summary["n_validator_errors"] is None
+    assert summary["n_validator_warnings"] is None
     assert summary["n_features"] == 265  # 133 gene + 86 CDS + 38 tRNA + 8 rRNA
+
+
+def test_a_record_without_features_is_refused_not_written_as_an_empty_table() -> None:
+    """A submission is built from a checked GenBank, not from a bare sequence (M11.18).
+
+    Writing an empty feature table from a FASTA would turn "this sequence was never annotated"
+    into "this sequence has no genes" — a different claim, and one NCBI would receive.
+    """
+    from plastid.core.submission import SubmissionInputError
+    from plastid.modules import submission
+
+    with pytest.raises(SubmissionInputError, match="no gene, CDS, tRNA or rRNA"):
+        submission.run(_genome(), {}, _ctx())
+
+
+def test_the_fsa_and_tbl_carry_the_same_sequence_id(data_dir: Path) -> None:
+    """table2asn pairs the two files by id; a mismatch would attach one sample's table to
+    another sample's sequence (M11.18)."""
+    from plastid.modules import submission
+
+    golden = read_genbank(data_dir / "NC_050833.1.gb")
+    result = submission.run(golden, {}, _ctx())
+    header = result.artifacts["submission.fsa"].splitlines()[0]
+    assert header.startswith(">")
+    (record,) = parse_tbl(result.artifacts["submission.tbl"])
+    assert record.seq_id == header[1:]
+    assert result.tables["submission_summary"].rows[0]["sequence_id"] == record.seq_id
 
 
 def test_the_sqn_step_is_a_named_error_when_table2asn_is_absent(

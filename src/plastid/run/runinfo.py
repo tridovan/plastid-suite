@@ -2,6 +2,13 @@
 
 Requirement 02/10: every run states its tools, versions, parameters, inputs
 and the IR verdict, so the methods section can be written from the output folder alone.
+
+**The tool table comes from the manifest, not from one context.** Each module runs with its own
+`RunContext`, so a page rendered from a single context named only the tools of whichever module ran
+last — a run of `… ssr` said "no external tools ran" while MISA had run (K-08, M11.8). The
+manifest already records each module's calls; this page reads those records, so no ordering can
+hide a tool. A tool called by several modules appears once, because the question the table answers
+is "what ran", not "how many times".
 """
 
 from __future__ import annotations
@@ -13,6 +20,54 @@ from typing import Any
 from plastid.run.tools import ToolRecord
 
 __all__ = ["render_run_info"]
+
+
+def _tools_from_manifest(
+    manifest: dict[str, Any], current: Sequence[ToolRecord] = ()
+) -> list[ToolRecord]:
+    """Every tool call the run recorded, one row per distinct tool, in call order.
+
+    The manifest's per-module ``tools`` are plain dicts (it is written as JSON); the caller may
+    also pass the live records. Both are read, so a page rendered before the manifest is final
+    and one rendered from a finished manifest agree. Identity is ``(name, version, path)``: the
+    same tool at two versions is two rows, because that is two measurements.
+    """
+    rows: list[ToolRecord] = []
+    seen: set[tuple[str, str | None, str | None]] = set()
+
+    def add(record: ToolRecord) -> None:
+        key = (record.name, record.version, record.path)
+        if key in seen:
+            return
+        seen.add(key)
+        rows.append(record)
+
+    for record in current:
+        add(record)
+    for module in manifest.get("modules") or []:
+        for entry in module.get("tools") or []:
+            if isinstance(entry, ToolRecord):
+                add(entry)
+                continue
+            add(
+                ToolRecord(
+                    name=str(entry.get("name", "?")),
+                    kind=str(entry.get("kind", "binary")),
+                    version=entry.get("version"),
+                    version_source=str(entry.get("version_source", "unknown")),
+                    path=entry.get("path"),
+                    argv=tuple(entry.get("argv") or ()),
+                    cwd=str(entry.get("cwd", "")),
+                    rc=int(entry.get("rc", 0)),
+                    started_at=str(entry.get("started_at", "")),
+                    duration_s=float(entry.get("duration_s", 0.0)),
+                    stdout_file=str(entry.get("stdout_file", "")),
+                    stderr_file=str(entry.get("stderr_file", "")),
+                    stdout_tail=str(entry.get("stdout_tail", "")),
+                    interpreter=entry.get("interpreter"),
+                )
+            )
+    return rows
 
 
 def render_run_info(manifest: dict[str, Any], tools: Sequence[ToolRecord] = ()) -> str:
@@ -44,10 +99,11 @@ def render_run_info(manifest: dict[str, Any], tools: Sequence[ToolRecord] = ()) 
         lines.append("- (none)")
 
     lines.extend(["", "## Tools", ""])
-    if tools:
+    recorded = _tools_from_manifest(manifest, tools)
+    if recorded:
         lines.append("| tool | version | version source | path | exit | seconds |")
         lines.append("|---|---|---|---|---|---|")
-        for record in tools:
+        for record in recorded:
             lines.append(
                 f"| {record.name} | {record.version or '—'} | {record.version_source} | "
                 f"{record.path or '—'} | {record.rc} | {record.duration_s} |"

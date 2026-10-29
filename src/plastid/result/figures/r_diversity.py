@@ -2,7 +2,7 @@
 
 The script reads **two** files, each ``Region<TAB>Value``: panel A is the coding/RNA features,
 panel B the non-coding ones (introns and intergenic spacers). It is therefore the one R figure
-that must be given ``--inputdir`` rather than ``--input``: ``duong_dan_vao()`` returns the
+that must be given ``--inputdir`` rather than ``--input``: ``input_path()`` returns the
 ``--input`` file for *every* read, so passing one file would make both panels read panel A.
 
 Unlike the other five, this figure comes from an **arity-2** module: ``diversity`` compares a

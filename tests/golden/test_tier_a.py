@@ -143,39 +143,66 @@ def test_amino_acid_totals_reconcile_with_codon_usage(golden_genome: Genome) -> 
 
 
 def test_introns_cross_check_the_annotation_part_boundaries(golden_genome: Genome) -> None:
-    """P2-05's Done-when: the intron list reconciles with the CDS part boundaries."""
+    """P2-05's Done-when: the intron list reconciles with the record's own part boundaries.
+
+    M11.15 adds the tRNA introns (H-23). Their expected count is **not** ARAGORN's log line: the
+    published record itself writes eight tRNAs as two-part joins, and those eight are the set
+    below. Measured 26/10/2026 — CDS 17 + tRNA 8; genes with an intron 12 + 6 (two gene names
+    carry one intron in each IR copy); total 20,347 bp; the longest is `trnK-UUU`'s 2,618 bp.
+    """
     result = introns.run(golden_genome, {}, _ctx(golden_genome, "introns"))
     summary = result.tables["intron_summary"].rows[0]
 
-    assert summary["n_introns"] == 17
-    assert summary["n_genes_with_introns"] == 12
-    assert summary["total_length_bp"] == 12_547
-    assert summary["longest_bp"] == 1_055
+    assert summary["n_cds_introns"] == 17
+    assert summary["n_trna_introns"] == 8
+    assert summary["n_introns"] == 25
+    assert summary["n_genes_with_introns"] == 18
+    assert summary["total_length_bp"] == 20_347
+    assert summary["longest_bp"] == 2_618  # trnK-UUU's intron, which carries matK
+    cds_lengths = [
+        row["length_bp"] for row in result.tables["introns"].rows if row["kind"] == "CDS"
+    ]
+    assert max(cds_lengths) == 1_055
     # the two rps12 junctions cross a region boundary: trans-splicing, not introns
     assert summary["n_trans_splicing"] == 2
+    assert summary["assessment"] == "CDS and tRNA introns measured"
     assert summary["annotation_check"].startswith("agrees")
 
     rows = result.tables["introns"].rows
-    assert len(rows) == 17
-    assert len({row["intron_id"] for row in rows}) == 17  # both IR copies named apart
+    assert len(rows) == 25
+    assert len({row["intron_id"] for row in rows}) == 25  # both IR copies named apart
+    assert {row["kind"] for row in rows} == {"CDS", "tRNA"}
     assert all(0 <= row["phase"] <= 2 for row in rows)
     ndh_a = next(row for row in rows if row["gene"] == "ndhA")
     assert (ndh_a["start_1b"], ndh_a["end_1b"]) == (119_328, 120_382)  # from the CDS parts
     assert ndh_a["phase"] == 1
 
+    # The eight tRNA introns are the record's own multi-part tRNAs, name for name, and their
+    # lengths are the gaps between the parts the record itself writes — an independent count.
+    published = {
+        gene.name for gene in golden_genome.genes if gene.kind == "tRNA" and len(gene.parts) > 1
+    }
+    assert {row["gene"] for row in rows if row["kind"] == "tRNA"} == published
+    trn_k = next(row for row in rows if row["intron_id"] == "trnK-UUU.1.1")
+    assert (trn_k["start_1b"], trn_k["end_1b"]) == (1_403, 4_020)
+    assert trn_k["length_bp"] == 2_618  # the record's matK-bearing intron
+
 
 def test_the_shared_span_derivation_reproduces_the_introns_module(golden_genome: Genome) -> None:
-    """P2B-01's cross-check: one derivation, two modules, the same 17 spans.
+    """P2B-01's cross-check: one derivation, two modules, the same spans.
 
     The spans moved to ``core/spans.py`` because ``diversity`` measures π over them; the check
     the board asks for is that the move changed nothing — every id, coordinate and phase the
-    ``introns`` table publishes is the one the derivation produces.
+    ``introns`` table publishes is the one the derivation produces. M11.15 adds the tRNA set as a
+    second derivation: the CDS set is still the one ``diversity`` reads, and the published table
+    is the union with each row's ``kind`` stated.
     """
     ir = detect_ir(golden_genome)
     derived = introns_of(golden_genome, ir)
     result = introns.run(golden_genome, {}, _ctx(golden_genome, "introns"))
     published = {
         row["intron_id"]: (
+            row["kind"],
             row["gene"],
             row["start_1b"],
             row["end_1b"],
@@ -185,8 +212,8 @@ def test_the_shared_span_derivation_reproduces_the_introns_module(golden_genome:
         for row in result.tables["introns"].rows
     }
     assert {
-        span.intron_id: (span.gene, span.start + 1, span.end, span.length, span.phase)
-        for span in derived.introns
+        span.intron_id: (span.kind, span.gene, span.start + 1, span.end, span.length, span.phase)
+        for span in (*derived.introns, *derived.trna_introns)
     } == published
     assert [span.junction_id for span in derived.junctions] == ["rps12.1.1", "rps12.2.1"]
 
@@ -371,3 +398,39 @@ def test_gene_table_flags_a_gene_no_group_claims() -> None:
     assert rows["CDS"]["agreement"] == "agrees"
     assert result.tables["gene_table_summary"].rows[0]["n_unclassified"] == 1
     assert any("mystery9" in note for note in result.notes)
+
+
+def test_a_gene_no_group_claims_gets_its_own_row_and_counts_copies() -> None:
+    """`gene_groups.yaml` promises an "Unclassified" row; the table must carry it.
+
+    Measured 29/10/2026 on `NC_016068.1` (Solanaceae): 24 copies of `hypothetical protein` had no
+    group, the notes named the label once, and the summary read "Unclassified: 1" — a **name**
+    count in a summary whose every other cell counts copies. A reader comparing it with
+    `n_genes_total` cannot make the two add up.
+    """
+    from plastid.core.model import Gene as Feature
+    from plastid.core.model import Genome, Interval
+    from plastid.modules import gene_table
+
+    genome = Genome(
+        name="synthetic",
+        sequence="ATGC" * 400,
+        genes=(
+            Feature("rbcL", "CDS", (Interval(0, 120),)),
+            Feature("mystery9", "CDS", (Interval(200, 300),)),
+            Feature("mystery9", "CDS", (Interval(400, 500),)),
+            Feature("mystery9", "CDS", (Interval(600, 700),)),
+        ),
+    )
+    ctx = RunContext(layout=None, params={}, module_id="gene_table", module_order=1)  # type: ignore[arg-type]
+    result = gene_table.run(genome, {}, ctx)
+
+    rows = {row["group"]: row for row in result.tables["gene_groups"].rows}
+    assert "Unclassified" in rows, "the catalogue's promised row is missing"
+    assert rows["Unclassified"]["copies"] == 3
+    assert "mystery9" in rows["Unclassified"]["genes"]
+
+    summary = result.tables["gene_table_summary"].rows[0]
+    assert summary["n_unclassified"] == 3  # copies, like every other count in the summary
+    assert rows["Total"]["copies"] == summary["n_genes_total"] == 4
+    assert sum(row["copies"] for name, row in rows.items() if name != "Total") == 4

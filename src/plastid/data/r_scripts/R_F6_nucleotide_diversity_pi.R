@@ -1,18 +1,18 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# R_F6_nucleotide_diversity_pi.R — Nucleotide diversity (pi): (A) gene mã hoá + RNA, (B) vùng gian gene + intron
-# Hình trong bài: Figure 6
-# Gọi:
-#   Rscript R_F6_nucleotide_diversity_pi.R --input <file dữ liệu> --outdir <thư mục kết quả>
-# Mặc định: đọc data_mau/genes_for_R_plot.txt / noncoding_for_R_plot.txt, ghi <thư mục>/Figures/*.png + *.pdf
+# R_F6_nucleotide_diversity_pi.R — Nucleotide diversity (pi): (A) coding genes + RNA, (B) intergenic regions + introns
+# Figure in the paper: Figure 6
+# Usage:
+#   Rscript R_F6_nucleotide_diversity_pi.R --input <data file> --outdir <output directory>
+# Default: reads sample_data/genes_for_R_plot.txt / noncoding_for_R_plot.txt, writes <directory>/Figures/*.png + *.pdf
 # =============================================================================
 .local_dir <- local({
   a <- commandArgs(FALSE)
   f <- sub("^--file=", "", a[grep("^--file=", a)])
   if (length(f) > 0) dirname(normalizePath(f[1])) else "."
 })
-source(file.path(.local_dir, "00_ham_chung.R"))
-khoi_tao()
+source(file.path(.local_dir, "00_common.R"))
+init_script()
 cat("\n=== R_F6_nucleotide_diversity_pi.R ===\n")
 
 # CGAS Module 13: Nucleotide Diversity Visualization
@@ -29,8 +29,8 @@ cat("========================================\n\n")
 
 # Read data
 cat("Reading nucleotide diversity data...\n")
-df_A <- read.delim(duong_dan_vao("genes_for_R_plot.txt"), sep = "\t", check.names = FALSE)
-df_B <- read.delim(duong_dan_vao("noncoding_for_R_plot.txt"), sep = "\t", check.names = FALSE)
+df_A <- read.delim(input_path("genes_for_R_plot.txt"), sep = "\t", check.names = FALSE)
+df_B <- read.delim(input_path("noncoding_for_R_plot.txt"), sep = "\t", check.names = FALSE)
 
 cat(paste("  ✓ Loaded genes:", nrow(df_A), "regions\n"))
 cat(paste("  ✓ Loaded non-coding:", nrow(df_B), "regions\n\n"))
@@ -151,11 +151,11 @@ plot_B <- ggplot(df_B, aes(x = factor(Region, levels = Region), y = Value, group
 
 cat("Combining panels and saving...\n")
 
-ghep_doc(list(plot_A, plot_B),
+combine_figures(list(plot_A, plot_B),
          file.path("Figures", "nucleotide_diversity_plot"),
-         rong = as.numeric(tham_so("--rong", "20")),
-         cao  = as.numeric(tham_so("--cao",  "10")),
-         ti_le_cao = c(1, 1),
-         dpi  = as.numeric(tham_so("--dpi", "600")))
+         width = as.numeric(get_param("--width", "20")),
+         height = as.numeric(get_param("--height",  "10")),
+         height_ratios = c(1, 1),
+         dpi  = as.numeric(get_param("--dpi", "600")))
 
-cat("\nXong: Figures/nucleotide_diversity_plot.png + .pdf\n")
+cat("\nDone: Figures/nucleotide_diversity_plot.png + .pdf\n")

@@ -17,7 +17,7 @@ from plastid.core.model import Genome
 from plastid.core.normalize import Region, normalize
 from plastid.core.organelle import GROUP_PLASTID
 from plastid.core.sequence import gc_percent, gc_skew
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -35,6 +35,10 @@ DEFAULT_STEP_BP = 1000
     title="Genome structure",
     requires_ir=True,
     citations=("biopython",),
+    params=(
+        ParamSpec("window", "int", "GC-skew window length in bp"),
+        ParamSpec("step", "int", "GC-skew window step in bp"),
+    ),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()

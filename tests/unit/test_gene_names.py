@@ -51,13 +51,33 @@ def test_the_bracket_dialect_normalizes_to_the_hyphen_form() -> None:
     assert normalized.rule == SYNTAX_RULE
     assert normalized.synonyms == ()  # a spelling difference is not a second name
     assert normalized.label == "trnL-UAA"
+    # NC_020098.1 writes the bracket with a space; measured 29/10/2026, the older pattern left
+    # `trnN (GUU)` unfolded while `trnN(GUU)` folded, so one locus entered a comparison as two
+    # names. The space is not part of the name.
+    assert normalize_name("trnN (GUU)", ALIASES).canonical == "trnN-GUU"
+    assert normalize_name("trnI (CAU)", ALIASES).canonical == "trnI-CAU"
 
 
 def test_the_lowercase_anticodon_letter_is_part_of_the_name() -> None:
     """trnfM-CAU: the f is the gene's name, not a case slip — only the trn/rrn prefix moves."""
     assert normalize_name("trnfM-CAU", ALIASES).canonical == "trnfM-CAU"
     assert normalize_name("TrnfM-CAU", ALIASES).canonical == "trnfM-CAU"
-    assert normalize_name("TRNA-LEU", ALIASES).canonical == "trnA-LEU"
+
+
+def test_a_spelled_out_amino_acid_is_a_bare_trna_not_alanine() -> None:
+    """`tRNA-Ile` / `TRNA-LEU` name the amino acid, not a `trnA-…` gene.
+
+    Measured 29/10/2026 while auditing the IR gene mirror on the panel: `NC_008641.1` names a tRNA
+    `tRNA-Ile`. The case fold that lowercases a `trn`/`rrn` prefix read the fourth character `A`
+    as the gene letter and turned it into `trnA-Ile` — an **alanine** name for an isoleucine tRNA.
+    The spelled-out form maps to the bare `trn<letter>`; `normalize_genome` resolves a bare name
+    to a named tRNA by sequence, so no anticodon is guessed here.
+    """
+    assert normalize_name("tRNA-Ile", ALIASES).canonical == "trnI"
+    assert normalize_name("TRNA-LEU", ALIASES).canonical == "trnL"
+    assert normalize_name("tRNA-Gly", ALIASES).canonical == "trnG"
+    # An unknown spelled-out amino acid keeps its spelling rather than being corrupted to trnA-…
+    assert normalize_name("tRNA-Xyz", ALIASES).canonical == "tRNA-Xyz"
 
 
 def test_the_rrna_size_suffix_is_dropped_but_the_mito_dialect_is_not() -> None:
@@ -65,6 +85,9 @@ def test_the_rrna_size_suffix_is_dropped_but_the_mito_dialect_is_not() -> None:
     assert normalize_name("rrn23S", ALIASES).canonical == "rrn23"
     assert normalize_name("rrn4.5S", ALIASES).canonical == "rrn4.5"
     assert normalize_name("rrn5S", ALIASES).canonical == "rrn5"
+    # Measured 29/10/2026 on NC_028733.1: the suffix is written lowercase there.
+    assert normalize_name("rrn23s", ALIASES).canonical == "rrn23"
+    assert normalize_name("rrn4.5s", ALIASES).canonical == "rrn4.5"
     # rrnS / rrnL are mitochondrial names where the letter is the name, not a size class
     assert normalize_name("rrnS", ALIASES).canonical == "rrnS"
     assert normalize_name("rrnL", ALIASES).canonical == "rrnL"
@@ -627,3 +650,21 @@ def test_the_records_own_organelle_picks_the_vocabulary() -> None:
     # the same sentence: one record is a mitogenome and gets the symbol, the other is not
     assert set(cds_by_canonical_name(mito)) == {"nad1"}
     assert set(cds_by_canonical_name(plastid)) == {"NADH dehydrogenase subunit 1"}
+
+
+def test_a_spelled_out_trna_with_an_anticodon_keeps_the_anticodon() -> None:
+    """`tRNA-H (GUG)` and `tRNA-fM (CAU)` are named genes, not unknown text.
+
+    Measured 29/10/2026 on `NC_020098.1` (Lamiaceae), where the gene table reported both as
+    unclassified. Neither rule covered the shape: `_BRACKET_TRNA` requires the `trn` prefix and
+    `_SPELLED_TRNA` requires a bare three-letter amino acid with no anticodon, so the name fell
+    through both and never reached the catalogue.
+    """
+    assert normalize_name("tRNA-H (GUG)", ALIASES).canonical == "trnH-GUG"
+    assert normalize_name("tRNA-H(GUG)", ALIASES).canonical == "trnH-GUG"
+    assert normalize_name("tRNA-Trp (CCA)", ALIASES).canonical == "trnW-CCA"
+    # Formyl-methionine is its own locus (`trnfM`), not a methionine tRNA.
+    assert normalize_name("tRNA-fM (CAU)", ALIASES).canonical == "trnfM-CAU"
+    assert normalize_name("tRNA-fM(CAU)", ALIASES).canonical == "trnfM-CAU"
+    # An amino acid the map does not know keeps its spelling: no letter is guessed.
+    assert normalize_name("tRNA-Xyz (AAA)", ALIASES).canonical == "tRNA-Xyz (AAA)"

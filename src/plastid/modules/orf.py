@@ -140,6 +140,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 Column("internal_stop_codons", "Internal stop positions (codon)"),
                 Column("status", "Status"),
                 Column("pseudo", "Pseudogene"),
+                Column("partial", "Partial CDS"),
             ),
             rows=tuple(
                 _check_row(check, cds_id) for check, cds_id in zip(checks, cds_ids, strict=True)
@@ -252,6 +253,7 @@ def _check_row(check: OrfCheck, cds_id: str) -> dict[str, Any]:
         ),
         "status": check.status,
         "pseudo": "yes" if check.gene.pseudo else "no",
+        "partial": "yes" if check.gene.partial else "no",
     }
 
 

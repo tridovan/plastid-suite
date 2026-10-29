@@ -28,6 +28,18 @@ class Frame:
     def to_genbank(self, position_1b: int) -> int:
         return (position_1b - 1 + self.rotation_offset) % self.length_bp + 1
 
+    def span_to_normalized(self, start_1b: int, end_1b: int) -> tuple[tuple[int, int], ...]:
+        """A GenBank-frame span in the normalized frame — two spans when it crosses the origin.
+
+        The mirror of :meth:`span_to_genbank`; a feature whose endpoints map to a decreasing pair
+        is two pieces of one gene on the circle, not a malformed interval.
+        """
+        start = self.to_normalized(start_1b)
+        end = self.to_normalized(end_1b)
+        if start <= end:
+            return ((start, end),)
+        return ((start, self.length_bp), (1, end))
+
     def span_to_genbank(self, start_1b: int, end_1b: int) -> tuple[tuple[int, int], ...]:
         """A normalized span in the GenBank frame — two spans when it crosses the origin."""
         start = self.to_genbank(start_1b)

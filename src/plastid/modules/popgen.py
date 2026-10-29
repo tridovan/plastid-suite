@@ -32,7 +32,7 @@ from plastid.core.model import Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
 from plastid.core.popgen import fst_gst, summarise
 from plastid.external.mafft import align
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -48,6 +48,14 @@ MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs
     requires_ir=False,  # gene-based; the mito half of the phase has no IR to gate on
     arity=2,
     citations=("mafft",),
+    params=(
+        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+        ParamSpec(
+            "mafft_strategy",
+            "str",
+            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
+        ),
+    ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     labels: dict[str, str] = dict(params.get("groups") or {})
@@ -75,6 +83,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     group_rows: list[dict[str, Any]] = []
     fst_rows: list[dict[str, Any]] = []
     aligned_genes = 0
+    analysed: set[str] = set()
     skipped: list[str] = []
     for name in names:
         carriers = [
@@ -86,9 +95,12 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             skipped.append(name)
             continue
         alignment = align(
-            [(key, coding_sequence(genome, gene)) for key, genome, gene in carriers], ctx
+            [(key, coding_sequence(genome, gene)) for key, genome, gene in carriers],
+            ctx,
+            strategy=str(params.get("mafft_strategy", "auto")),
         )
         aligned_genes += 1
+        analysed.add(name)
         subsets: dict[str, Alignment] = {}
         for group in groups:
             indices = [
@@ -133,6 +145,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                     "n_a": subsets[first].n_rows,
                     "n_b": subsets[second].n_rows,
                     "fst": value,
+                    "estimator": "Nei's Gst",
                     "note": (
                         ""
                         if value is not None
@@ -177,6 +190,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("n_groups", "Groups", dtype="int"),
             Column("group_sizes", "Group sizes"),
             Column("n_genes", "Genes analysed", dtype="int"),
+            Column("n_partial_genes", "Analysed genes partial in the reference", dtype="int"),
             Column("tool", "Aligner"),
         ),
         rows=(
@@ -187,6 +201,11 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
                 "n_groups": len(groups),
                 "group_sizes": sizes,
                 "n_genes": aligned_genes,
+                "n_partial_genes": sum(
+                    1
+                    for name in analysed
+                    if name in by_genome[keys[0]] and by_genome[keys[0]][name].partial
+                ),
                 "tool": "MAFFT",
             },
         ),
@@ -229,6 +248,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("n_a", "n (A)", dtype="int"),
             Column("n_b", "n (B)", dtype="int"),
             Column("fst", "Fst", dtype="float", precision=4),
+            Column("estimator", "Estimator"),
             Column("note", "Note"),
         ),
         rows=tuple(fst_rows),

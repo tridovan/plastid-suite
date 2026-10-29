@@ -12,10 +12,13 @@ from plastid.external.misa import (
     SsrFeature,
     _parse_gff,
     _parse_statistics,
+    misa_ini_text,
     misa_script,
     misa_version,
+    parse_unit_repeats,
     run_misa,
 )
+from plastid.run.params import ParamValueError
 from plastid.run.tools import ToolError
 
 STATISTICS = """\
@@ -111,7 +114,7 @@ def test_missing_perl_raises_a_named_tool_error(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_misa_result_shape() -> None:
-    result = MisaResult(total=37, by_unit={1: 31}, compound=3, features=())
+    result = MisaResult(total=37, by_unit={1: 31}, compound=3, features=(), unit_repeats={1: 10})
     assert result.total == 37
 
 
@@ -173,3 +176,76 @@ def test_misa_version_refuses_a_script_that_never_says(tmp_path: Path) -> None:
     script.write_text("#!/usr/bin/perl -w\nprint 'hello';\n", encoding="utf-8")
     with pytest.raises(ToolError, match="cannot be read"):
         misa_version(script)
+
+
+def test_the_reported_thresholds_are_the_ones_in_the_shipped_ini() -> None:
+    """The summary's threshold string and the file MISA actually reads must not drift (M11.17)."""
+    from plastid.core.resources import data_file
+
+    line = next(
+        line
+        for line in data_file("misa.ini").read_text(encoding="utf-8").splitlines()
+        if line.startswith("definition(unit_size,min_repeats)")
+    )
+    expected = " ".join(f"({value.replace('-', '/')})" for value in line.split(":", 1)[1].split())
+    from plastid.external.misa import threshold_text
+
+    assert threshold_text() == expected
+    assert expected == "(1/10) (2/6) (3/5) (4/5) (5/5) (6/5)"
+
+
+# --- the user's thresholds reach the ini (M11.20) -------------------------------------------
+#
+# Before this, `--set unit_repeats=…` was recorded in the manifest and MISA still ran the packaged
+# ini: the summary read the shipped numbers, so the manifest stated something false. The fix is
+# not a looser parser — it is that the ini handed to MISA is built from the value, and the result
+# reports the thresholds read back out of that ini.
+
+
+def test_unit_repeats_are_parsed_in_unit_order() -> None:
+    assert parse_unit_repeats(" 2-8  1-12 3-7 ") == {1: 12, 2: 8, 3: 7}
+
+
+@pytest.mark.parametrize(
+    ("text", "reason"),
+    [
+        ("", "at least one"),
+        ("1-12 nope", "not '<unit>-<min_repeats>'"),
+        ("7-5", "outside 1–6"),
+        ("0-5", "outside 1–6"),
+        ("1-0", "at least 1"),
+        ("1-12 1-8", "named twice"),
+    ],
+)
+def test_a_malformed_unit_repeats_value_is_refused_by_name(text: str, reason: str) -> None:
+    """A bad value is a usage error with the accepted shape, never a silently dropped token."""
+    with pytest.raises(ParamValueError, match=reason):
+        parse_unit_repeats(text)
+
+
+def test_the_generated_ini_changes_only_the_definition_line() -> None:
+    """The threshold choice must not move MISA's other settings."""
+    from plastid.core.resources import data_file
+
+    shipped = data_file("misa.ini").read_text(encoding="utf-8")
+    generated = misa_ini_text({1: 12, 2: 8, 3: 7, 4: 6, 5: 5, 6: 5})
+
+    shipped_lines = shipped.splitlines()
+    generated_lines = generated.splitlines()
+    assert generated_lines[0].startswith("definition(unit_size,min_repeats):")
+    assert generated_lines[0].split(":", 1)[1].split() == [
+        "1-12",
+        "2-8",
+        "3-7",
+        "4-6",
+        "5-5",
+        "6-5",
+    ]
+    assert generated_lines[1:] == shipped_lines[1:]
+    assert generated.endswith("\n") is shipped.endswith("\n")
+
+
+def test_no_choice_returns_the_shipped_ini_unchanged() -> None:
+    from plastid.core.resources import data_file
+
+    assert misa_ini_text() == data_file("misa.ini").read_text(encoding="utf-8")

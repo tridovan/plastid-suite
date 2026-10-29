@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from plastid.core import reference_audit as audit
+from plastid.core.genbank import read_genbank, to_genbank
 from plastid.core.reference_audit import (
     BLOCK,
     REPORT,
@@ -104,8 +105,16 @@ def test_a_cds_without_translation_blocks(tmp_path: Path) -> None:
     assert not report.ok
 
 
-def test_a_partial_coordinate_blocks(tmp_path: Path) -> None:
-    """The class the corpus count caught: one published record, and PGA returned no genes."""
+def test_a_partial_coordinate_over_a_complete_protein_is_reported_not_blocked(
+    tmp_path: Path,
+) -> None:
+    """H-21 reproduced: rbcL is 1,461 bp and its own /translation is 486 aa (+ stop).
+
+    The old rule blocked every partial coordinate. That refuses ``NC_024936.1``'s complete 92 aa
+    ``rps19`` because its coordinate carries an inverted-repeat boundary flag — and that record
+    is the one that produced a base-perfect ``rps19`` call. The question the block exists for is
+    whether the model is truncated, so the rule now asks it.
+    """
     record = _edited_golden(
         tmp_path,
         "partial.gb",
@@ -115,9 +124,39 @@ def test_a_partial_coordinate_blocks(tmp_path: Path) -> None:
 
     report = audit_files([record], confirm=None)
 
-    assert [finding.line for finding in report.blocked] == [
-        f"{record} — CDS rbcL: partial coordinates (<55212)"
+    assert report.ok
+    partial = [finding for finding in report.reported if finding.check == "partial"]
+    assert [finding.verdict for finding in partial] == [audit.REPORT]
+    assert "the flag is about the coordinate, not a truncated protein" in partial[0].line
+
+
+def test_a_partial_coordinate_that_cuts_its_own_translation_still_blocks(tmp_path: Path) -> None:
+    """The class the corpus count caught: a model that really is cut, and PGA returned no genes."""
+
+    def shortened(genome):
+        genes = tuple(
+            replace(gene, translation=gene.translation[:50])
+            if gene.kind == "CDS" and gene.name == "rbcL"
+            else gene
+            for gene in genome.genes
+        )
+        return replace(genome, genes=genes)
+
+    record = _edited_golden(
+        tmp_path,
+        "partial.gb",
+        drop="     CDS             55212..56672",
+        add="     CDS             <55212..56672",
+    )
+    genome = shortened(read_genbank(record))
+    record.write_text(to_genbank(genome, translations=True), encoding="utf-8")
+
+    report = audit_files([record], confirm=None)
+
+    assert [finding.verdict for finding in report.blocked if finding.check == "partial"] == [
+        audit.BLOCK
     ]
+    assert "a truncated model, not a coordinate flag" in report.blocked[0].line
 
 
 def test_a_record_with_no_gene_features_blocks(tmp_path: Path) -> None:
@@ -194,6 +233,97 @@ def test_the_golden_record_blocks_nothing() -> None:
     assert report.records[0].cds == 86
 
 
+# ---------------------------------------------------------------- the IR gene mirror rule
+
+
+def _golden_ir():
+    from plastid.core.ir import detect_ir
+
+    genome = read_genbank(GOLDEN)
+    return genome, detect_ir(genome, source="annotation")
+
+
+def test_the_golden_ir_copies_mirror_their_genes() -> None:
+    """The rule the QA now checks: same genes in both copies, on opposite strands.
+
+    Measured 29/10/2026 on the contract genome: 18 loci inside each IR copy, no violation. This is
+    the positive control for the check below.
+    """
+    genome, ir = _golden_ir()
+
+    assert audit._mirror_findings(GOLDEN, genome, ir) == []
+
+
+def test_a_gene_on_the_same_strand_in_both_ir_copies_is_reported() -> None:
+    """`NC_016736.1`'s measured shape: `trnI-CAU`/`trnL-CAA` written `+` in both IR copies.
+
+    The two loci sit at mirrored offsets and their sequences are reverse complements, so one of
+    the two strand annotations contradicts the record's own sequence. The audit reports the gene;
+    it does not block, because a person decides whether to fix the record or pin an exception.
+    """
+    genome, ir = _golden_ir()
+    second_copy = max(
+        min(part.start for part in gene.parts) for gene in genome.genes if gene.name == "rpl23"
+    )
+
+    def flip_second_copy(gene):
+        if gene.name != "rpl23" or min(part.start for part in gene.parts) != second_copy:
+            return gene
+        return replace(gene, parts=tuple(replace(part, strand=-part.strand) for part in gene.parts))
+
+    broken = replace(genome, genes=tuple(flip_second_copy(gene) for gene in genome.genes))
+    findings = audit._mirror_findings(GOLDEN, broken, ir)
+
+    assert [finding.check for finding in findings] == ["mirror"]
+    assert findings[0].verdict == REPORT
+    assert "same strand in both copies: rpl23" in findings[0].reason
+    assert "opposite strand" in findings[0].reason
+
+
+def test_a_gene_annotated_in_only_one_ir_copy_is_reported() -> None:
+    """`NC_033499.1`'s measured shape: `rrn5` annotated in IRb only; the sequence carries both."""
+    genome, ir = _golden_ir()
+    second_copy = max(
+        min(part.start for part in gene.parts) for gene in genome.genes if gene.name == "rpl23"
+    )
+    kept = tuple(
+        gene
+        for gene in genome.genes
+        if not (gene.name == "rpl23" and min(part.start for part in gene.parts) == second_copy)
+    )
+
+    findings = audit._mirror_findings(GOLDEN, replace(genome, genes=kept), ir)
+
+    assert [finding.check for finding in findings] == ["mirror"]
+    assert "only in IR" in findings[0].reason
+    assert "rpl23" in findings[0].reason
+
+
+def test_a_boundary_cut_copy_is_not_a_mirror_violation() -> None:
+    """`rps19` is 279 bp in one copy and 59–60 bp at the other junction: a boundary gene.
+
+    Measured on the panel (`NC_068894.1`, `NC_053322.1`). The rule excludes a locus less than half
+    its other copy, so the truncated copy does not make a reference unusable.
+    """
+    genome, ir = _golden_ir()
+    middle = len(genome) // 2
+    # Truncate the second rps19 copy to 59 bp, the measured boundary shape.
+    genes = []
+    for gene in genome.genes:
+        if gene.name == "rps19" and min(part.start for part in gene.parts) > middle:
+            part = gene.parts[0]
+            gene = replace(gene, parts=(replace(part, end=part.start + 59),))
+        genes.append(gene)
+
+    assert audit._mirror_findings(GOLDEN, replace(genome, genes=tuple(genes)), ir) == []
+
+
+def test_a_mirror_finding_can_be_pinned_but_is_a_report() -> None:
+    """The check is in the reportable set, so the exception door can confirm it by digest."""
+    assert "mirror" in audit.REPORT_CHECKS
+    assert "mirror" not in audit.BLOCK_CHECKS
+
+
 def test_the_message_is_the_file_and_the_reason_and_nothing_else(tmp_path: Path) -> None:
     """``file — reason``, and no advice: what to do about a bad reference is not our call."""
     record = _edited_golden(
@@ -247,6 +377,45 @@ def test_an_inverted_ssc_is_reported_and_never_blocks() -> None:
     assert [finding.verdict for finding in findings] == [REPORT]
     assert findings[0].file.endswith("r2")
     assert "2 of 3 records read the other way" in findings[0].reason
+
+
+def test_the_second_reading_reads_each_record_on_its_own_ir_path(tmp_path: Path) -> None:
+    """H-21: a record the audit reported on the sequence path still has an SSC to align.
+
+    ``_ssc_rows`` read every record annotation-first, so the audit reported ``NC_024936.1`` as
+    usable and then raised the gate inside the second reading — a crash after the verdict, on the
+    record the report had just called fine. This fixture's annotated IRb is 1,000 bp too long for
+    the repeat (24.26 % identity), while the sequence's own repeat is 100 %; the facts say the
+    sequence path is the one its orientation was read from, so that is the path to use.
+    """
+    record = _edited_golden(
+        tmp_path,
+        "annotation_fails.gb",
+        drop="repeat_region   83128..109341",
+        add="repeat_region   82128..109341",
+    )
+    genome = read_genbank(record)
+    facts = [
+        RecordFacts(
+            file=str(record),
+            sha256=hashlib.sha256(record.read_bytes()).hexdigest(),
+            accession=genome.accession,
+            length_bp=len(genome),
+            cds=86,
+            trna=38,
+            rrna=8,
+            gene_names=tuple(gene.name for gene in genome.genes),
+            ssc_orientation="same",
+            blocked=False,
+            ir_source="sequence",
+        )
+    ]
+
+    rows, exemplar = audit._ssc_rows(facts, [])
+
+    assert exemplar == record.name
+    assert [name for name, _ in rows] == [record.name]
+    assert rows[0][1], "the record's SSC region is empty"
 
 
 def test_two_references_that_disagree_say_so_rather_than_calling_a_majority() -> None:
@@ -465,24 +634,31 @@ def test_dotplot_runs_finds_the_anti_diagonal_of_an_inverted_sequence() -> None:
 
 
 @pytest.mark.skipif(not PANEL.is_dir(), reason="the pinned reference set lives outside the repo")
-def test_the_pinned_set_blocks_on_the_partial_record_and_reports_the_two_inversions() -> None:
-    """The Done-when, measured 08/10/2026: 32/34 one SSC orientation, 2/34 inverted, reported.
+def test_the_pinned_set_audits_clean_and_reports_the_two_inversions() -> None:
+    """H-21 fixed: the set blocks nothing, and every special case is a named REPORT.
 
-    Blocking the two inverted records would refuse two published plastomes, one of them an
-    *Iris*; blocking the partial record is the price of a search that needs coordinates, and
-    The corpus count predicted exactly this one.
+    Measured 26/10/2026. Before M11.10 the same 34 records blocked NC_024936.1 three times — two
+    partial coordinates over a complete 92 aa protein, and its annotation-first IR at 99.80 %
+    against 100 % from the sequence's own repeat. Blocking the two inverted records would refuse
+    two published plastomes, one of them an *Iris*; they remain reported. The orientation of
+    NC_024936.1 is now measured (from the sequence path) instead of "unknown".
     """
     paths = sorted(PANEL.glob("*.gb"))
     report = audit_files(paths, confirm=None)
 
-    # Two partial coordinates plus its IR (26,220/26,186 bp, 99.80 % end-to-end): annotation-first
-    # refuses the record rather than silently substituting the sequence's shorter repeat (D11-2).
-    assert [Path(finding.file).name for finding in report.blocked] == ["NC_024936.1.gb"] * 3
-    assert {finding.check for finding in report.blocked} == {"partial", "ir"}
+    assert report.blocked == ()
+    special = [
+        finding for finding in report.findings if Path(finding.file).name == "NC_024936.1.gb"
+    ]
+    assert {finding.check for finding in special} == {"partial", "ir", "gene_set"}
+    assert all(finding.verdict == REPORT for finding in special)
+    assert any("--set ir_source=sequence" in finding.reason for finding in special)
+    facts = next(record for record in report.records if Path(record.file).name == "NC_024936.1.gb")
+    assert facts.ir_source == "sequence"
 
     orientations = {Path(record.file).name: record.ssc_orientation for record in report.records}
-    assert sum(1 for value in orientations.values() if value == "same") == 31
-    assert sum(1 for value in orientations.values() if value == "unknown") == 1
+    assert sum(1 for value in orientations.values() if value == "same") == 32
+    assert sum(1 for value in orientations.values() if value == "unknown") == 0
     assert {name for name, value in orientations.items() if value == "opposite"} == {
         "NC_042827.1.gb",
         "NC_062351.1.gb",

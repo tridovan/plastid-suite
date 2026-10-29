@@ -1,0 +1,23 @@
+# Cross-check engines — installed only by someone verifying a number (M11.19, G-04).
+#
+# The rule this file states: **no module of this toolkit calls any tool in it.** They exist so a
+# published count can be compared with a second program that uses the same definition, and the
+# comparison is recorded in `docs/tools/*.md`. Installing this file does not add a feature; the
+# runtime environment is `environment.yml`, and `tests/unit/test_tool_inventory.py` keeps the
+# split honest in both directions.
+#
+# Installing:  conda env create -f environment-check.yml
+name: plastid-suite-check
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.10
+
+  - vmatch=2.3.1 # academic-only licence (docs/tools/vmatch.md). The second engine the repeats
+                 # count is checked against; `repeat-match` from mummer4 is what the module runs.
+                 # The tier-B golden compares the two, and skips by name where Vmatch is absent
+  - cpstools=3.0 # bioconda only — NOT on conda-forge. Its IR · π · RSCU · SSR · KaKs numbers are
+                 # compared with ours by hand; no module and no test calls it (docs/tools/cpstools.md)
+  - kakscalculator2=2.0.1 # the KaKs_Calculator binary cpstools' KaKs sub-command shells out to;
+                 # cross-check only. Our own Ka/Ks module uses PAML's yn00 (environment.yml)

@@ -120,7 +120,9 @@ def test_cli_comparison_output_carries_the_group_label(
     """
     from plastid.core.align import Alignment
 
-    def fake_align(rows: list[tuple[str, str]], ctx: object) -> Alignment:
+    def fake_align(
+        rows: list[tuple[str, str]], ctx: object, *, strategy: str = "auto"
+    ) -> Alignment:
         names = tuple(name for name, _ in rows)
         sequences = ("ACGT" * 10, "ACGT" * 9 + "ACGA")
         return Alignment(names=names, sequences=sequences)
