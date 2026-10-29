@@ -1,6 +1,7 @@
 # Development handoff
 
-**State:** 29/10/2026, branch `feat/m11-ir-rework`. Product documentation, requirements and shared
+**State:** 29/10/2026, `main` — phase M11 is merged and acceptance-tested on this tree (host run
+set and the full golden). Product documentation, requirements and shared
 method live in this repository. Maintainer planning — the active task, the milestones and their
 Definition of Done, and the dated evidence records — lives in `.dev/`, which is not part of the
 product repository.
