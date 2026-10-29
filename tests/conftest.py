@@ -150,6 +150,38 @@ def require_tools(tools: dict[str, str | None], *names: str) -> None:
     pytest.skip(reason)
 
 
+def _has_iqtree(directory: Path) -> bool:
+    try:
+        return any((directory / name).is_file() for name in ("iqtree2", "iqtree"))
+    except OSError:
+        # An unreadable parent (a non-root CI runner and /root) raises PermissionError from
+        # pathlib instead of returning False; that is "not here", not a failure.
+        return False
+
+
+def iqtree_directory() -> Path:
+    """IQ-TREE's directory: `PTS_IQTREE_DIR`, then PATH, then the dev toolbox layout.
+
+    CI installs iqtree2 into the pinned environment and puts it on PATH; the host keeps it
+    outside PATH in `/root/toolbox`, which only root can read. Probing that path as another user
+    raised PermissionError in CI, so every candidate probe is guarded and PATH comes first.
+    """
+    configured = os.environ.get("PTS_IQTREE_DIR")
+    if configured and _has_iqtree(Path(configured)):
+        return Path(configured)
+    for name in ("iqtree2", "iqtree"):
+        found = which(name)
+        if found:
+            return Path(found).parent
+    fallback = Path("/root/toolbox/env/iqtree/bin")
+    if _has_iqtree(fallback):
+        return fallback
+    reason = "iqtree2 is not installed; set PTS_IQTREE_DIR to the directory holding it"
+    if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
+        pytest.fail(reason)
+    pytest.skip(reason)
+
+
 @pytest.fixture(scope="session")
 def edge_genomes() -> dict[str, Genome]:
     """Known-hard genomes: two silently-wrong IR cases, one that

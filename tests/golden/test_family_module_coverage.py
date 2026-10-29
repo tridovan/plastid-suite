@@ -24,14 +24,13 @@ reference's **normalized** frame; `phylogeny` puts every input family in one sup
 from __future__ import annotations
 
 import io
-import os
 from collections import Counter
 from pathlib import Path
 
 import pytest
 from Bio import Phylo, SeqIO
 
-from conftest import require_tools
+from conftest import iqtree_directory, require_tools
 from plastid.core.genbank import read_genbank
 from plastid.core.gene_names import cds_by_canonical_name
 from plastid.core.ir import detect_ir, enforce_ir_gate
@@ -117,16 +116,7 @@ def _ctx(root: Path, module: str, genome: Genome | None = None) -> RunContext:
 
 def _iqtree_dir() -> Path:
     """IQ-TREE's directory, from `PTS_IQTREE_DIR` or the shared toolbox layout."""
-    directory = os.environ.get("PTS_IQTREE_DIR")
-    candidates = [Path(directory)] if directory else []
-    candidates.append(Path("/root/toolbox/env/iqtree/bin"))
-    for candidate in candidates:
-        if (candidate / "iqtree2").is_file() or (candidate / "iqtree").is_file():
-            return candidate
-    reason = "iqtree2 is not installed; set PTS_IQTREE_DIR to the directory holding it"
-    if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
+    return iqtree_directory()
 
 
 def _group_of(family: str) -> str:

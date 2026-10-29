@@ -24,12 +24,11 @@ not counted as a pass; the evidence record names it.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
 
-from conftest import require_tools
+from conftest import iqtree_directory, require_tools
 from plastid.core.codon import codon_counts, translate
 from plastid.core.genbank import read_genbank
 from plastid.core.gene_names import (
@@ -647,16 +646,7 @@ def test_popgen_keeps_a_gene_statistic_when_both_annotations_place_it_identicall
 
 
 def _iqtree_dir() -> Path:
-    directory = os.environ.get("PTS_IQTREE_DIR")
-    candidates = [Path(directory)] if directory else []
-    candidates.append(Path("/root/toolbox/env/iqtree/bin"))
-    for candidate in candidates:
-        if (candidate / "iqtree2").is_file() or (candidate / "iqtree").is_file():
-            return candidate
-    reason = "iqtree2 is not installed; set PTS_IQTREE_DIR to the directory holding it"
-    if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
+    return iqtree_directory()
 
 
 @pytest.mark.parametrize("family", WHOLE_GENOME_FAMILIES)

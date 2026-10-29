@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import iqtree_directory
 from plastid.core.genbank import read_genbank
 
 pytestmark = pytest.mark.tier_b
@@ -36,16 +37,7 @@ def _require_mafft() -> None:
 
 
 def _iqtree_dir() -> Path:
-    directory = os.environ.get("PTS_IQTREE_DIR")
-    candidates = [Path(directory)] if directory else []
-    candidates.append(Path("/root/toolbox/env/iqtree/bin"))
-    for candidate in candidates:
-        if (candidate / "iqtree2").is_file() or (candidate / "iqtree").is_file():
-            return candidate
-    reason = "iqtree2 is not installed; set PTS_IQTREE_DIR to the directory holding it"
-    if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
+    return iqtree_directory()
 
 
 def _panel_records() -> list[Path]:

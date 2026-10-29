@@ -29,12 +29,11 @@ with a named reason when the tool is absent (`PTS_REQUIRE_TOOLS=1` turns that in
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
 
-from conftest import require_tools
+from conftest import iqtree_directory, require_tools
 from plastid.core.genbank import read_genbank
 from plastid.core.ir import detect_ir, enforce_ir_gate
 from plastid.core.normalize import rotate_genome
@@ -90,16 +89,7 @@ def _golden_pair():
 
 def _iqtree_dir() -> Path:
     """IQ-TREE's directory, from `PTS_IQTREE_DIR` or the shared toolbox layout."""
-    directory = os.environ.get("PTS_IQTREE_DIR")
-    candidates = [Path(directory)] if directory else []
-    candidates.append(Path("/root/toolbox/env/iqtree/bin"))
-    for candidate in candidates:
-        if (candidate / "iqtree2").is_file() or (candidate / "iqtree").is_file():
-            return candidate
-    reason = "iqtree2 is not installed; set PTS_IQTREE_DIR to the directory holding it"
-    if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
-        pytest.fail(reason)
-    pytest.skip(reason)
+    return iqtree_directory()
 
 
 def _panel_genomes():
