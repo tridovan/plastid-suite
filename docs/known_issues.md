@@ -187,13 +187,13 @@ disagreements). The table states the evidence for each group.
 
 | Record(s) | Difference | Why it is not K-07 |
 |---|---|---|
-| 20 boundary-only records | ±3…±25 bp at a boundary | both pairs pass the gate and the gene content is identical; the annotation and the maximal exact pair define the start differently, and neither side has independent evidence — unexplained |
+| 20 boundary-only records | ±3…±25 bp at a boundary | both pairs pass the gate and the gene content is identical; the annotation and the maximal exact pair define the start differently, and neither side has independent evidence — unexplained. The record's **sequence** is not in question here (both its copies agree above 99.9 %); what differs is where the deposited `repeat_region` draws the boundary, and nothing outside the record decides which line is right |
 | `NC_051501.1`, `NC_057284.1` | ±4 / +16 bp | **both** pairs fail the gate: the record's own copies are below 99.9 % identical, so the boundary difference is not the finding |
-| `NC_068894.1` | +3,065 bp | **annotation short**: the extra 3,068 bp match at 99.61 % (9 mismatches) and carry `rpl2`, `rpl23`, `trnM-CAU`, `ycf2`, each already duplicated. User review of this data-side conclusion is still pending |
-| `NC_053322.1` | +5,665 bp | **annotation short**: the extra region carries `rrn23`, `rrn4.5`, `rrn5`, `trnN-GUU`, `trnR-ACG`, and each is annotated **twice**, once just outside each annotated copy; the 25,032 bp pair passes the gate. This corrects the earlier "annotation is right" reading |
+| `NC_068894.1` | +3,065 bp | **annotation short, confirmed 29/10/2026**: the extra 3,068 bp match at 99.61 % (9 mismatches) and carry `rpl2`, `rpl23`, `trnM-CAU`, `ycf2`, each already duplicated. The IR gene-mirror rule decides it from the record's own annotation: `rpl2` (1,491 bp) and `rpl23` (282 bp) are each annotated **twice**, at equal length, on **opposite strands**, both outside the record's `repeat_region` and both inside the de-novo pair — an annotation that stops where a gene is copied twice is short |
+| `NC_053322.1` | +5,665 bp | **annotation short, confirmed 29/10/2026**: the extra region carries `rrn23`, `rrn4.5`, `rrn5`, `trnN-GUU`, `trnR-ACG`, and each is annotated **twice**, once just outside each annotated copy; the 25,032 bp pair passes the gate. This corrects the earlier "annotation is right" reading |
 | `NC_047284.1`, `NC_057488.1`, `NC_068463.1` | +368 / +137 / +44 bp | the longer de-novo pair **fails the gate** — the detector is rejected by its own identity/evidence floor; the annotation stands |
 | `NC_058334.1` | +553 bp | the de-novo pair fails the gate **and** swallows `trnN-GUU`, a single-copy gene; annotation stands |
-| `NC_045310.1` | +90 bp | both pairs pass the gate, no gene-content change, no independent evidence — unexplained |
+| `NC_045310.1` | +90 bp | both pairs pass the gate, no gene-content change, no independent evidence — unexplained. Its annotation is perfectly mirrored on both pairs (16 vs 16 loci, no duplication outside), so the gene-mirror rule gives no verdict either |
 | `NC_026134.2`, `NC_062826.1` | de-novo refuses (None) | their IRs are 38.2 kb and 43.6 kb, outside the 10–35 kb validity window — a named refusal, not a wrong answer; whether the window should widen for large-IR families is a separate design decision |
 | `NC_084414.1` | 94.36 % identity | the deposited pair is genuinely divergent; the gate refuses it correctly |
 
