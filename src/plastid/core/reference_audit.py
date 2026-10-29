@@ -23,6 +23,11 @@ Two verdicts, and the difference is measured rather than stylistic (D5-08, 05/10
   reported for the same
   reason: presence genuinely varies between annotations (``ycf1`` in 24/34). A majority is
   only called with **N ≥ 3**; with N = 2 the report says the two references disagree.
+  The **IR gene-mirror rule** is a REPORT too: a gene inside one IR copy must have its copy inside
+  the other on the opposite strand, and a same-strand copy or a one-sided gene is the record's
+  inconsistency, which a person confirms (pinned to the file's sha256) or fixes. Measured
+  29/10/2026: 23 of the 80 validation-panel records break it (third-party annotations), and
+  **0 of the 34 reference records** do.
 
 **A confirmed exception is pinned to bytes.** The REPORT classes are the ones no rule settles
 alone, so a person confirms them once: the confirmation is written into
@@ -48,6 +53,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from plastid.core.genbank import read_genbank
+from plastid.core.gene_names import normalize_genome
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
 from plastid.core.model import GENE_KINDS, Gene, Genome
 from plastid.core.normalize import normalize, regions_from_ir
@@ -86,7 +92,7 @@ REPORT = "REPORT"
 # The checks this audit knows, in report order. A pin names one of them, and the split is data so
 # "a pin may not waive a block" is a lookup rather than a second rule.
 BLOCK_CHECKS: tuple[str, ...] = ("readable", "genes", "translation", "partial", "ir", "orf")
-REPORT_CHECKS: tuple[str, ...] = ("orientation", "gene_set", "confirmation")
+REPORT_CHECKS: tuple[str, ...] = ("orientation", "gene_set", "mirror", "confirmation")
 CHECKS: tuple[str, ...] = BLOCK_CHECKS + REPORT_CHECKS
 
 # The file a confirmed exception is pinned in, beside the reference set it is about.
@@ -347,6 +353,7 @@ def _audit_one(path: Path) -> tuple[list[Finding], RecordFacts | None]:
     ir, ir_finding, ir_source = _ir_for(path, genome)
     if ir_finding is not None:
         findings.append(ir_finding)
+    findings.extend(_mirror_findings(path, genome, ir))
     findings.extend(_orf_findings(path, genome))
 
     orientation = ssc_orientation(genome, ir) if ir is not None else "unknown"
@@ -483,6 +490,129 @@ def _ir_for(path: Path, genome: Genome) -> tuple[IRResult | None, Finding | None
 
 def _report(path: Path, check: str, reason: str) -> Finding:
     return Finding(file=str(path), check=check, verdict=REPORT, reason=reason)
+
+
+@dataclass(frozen=True, slots=True)
+class _GeneLocus:
+    """One annotated locus: canonical name, outer 0-based span, strand its features agree on."""
+
+    name: str
+    start: int
+    end: int
+    strand: int
+
+
+def _gene_loci(genome: Genome) -> list[_GeneLocus]:
+    """One entry per locus: counted genes only, canonical names, one locus's features merged.
+
+    A record prints a locus twice — a ``gene`` feature and its ``CDS``/``tRNA``/``rRNA`` feature,
+    the latter split into exons for an intron-bearing gene — so overlapping features of one
+    canonical name are one locus; counting features would double every locus. A bare tRNA name the
+    sequence could not resolve is left out: without knowing it is the same locus, flagging it would
+    be a naming complaint dressed as a structural one.
+    """
+    names = normalize_genome(genome)
+    # Keyed by name, not by feature: a bare tRNA name is resolved once per genome, so one copy
+    # can be marked unresolved and its twin silently kept — which made a pair of unresolved
+    # tRNAs look like a one-sided annotation (measured 29/10/2026 on NC_008641.1's trnA/trnN).
+    unresolved = {names.canonical(entry.gene) for entry in names.unresolved}
+    by_name: dict[str, list[tuple[int, int, int]]] = {}
+    for gene in genome.genes:
+        if gene.kind not in GENE_KINDS:
+            continue
+        canonical = names.canonical(gene)
+        if canonical in unresolved:
+            continue
+        start = min(part.start for part in gene.parts)
+        end = max(part.end for part in gene.parts)
+        by_name.setdefault(canonical, []).append((start, end, gene.strand))
+
+    loci: list[_GeneLocus] = []
+    for name, features in by_name.items():
+        features.sort()
+        clusters: list[list] = []  # [start, end, strands]
+        for start, end, strand in features:
+            if clusters and start <= clusters[-1][1]:
+                clusters[-1][1] = max(clusters[-1][1], end)
+                clusters[-1][2].add(strand)
+            else:
+                clusters.append([start, end, {strand}])
+        for start, end, strands in clusters:
+            called = {strand for strand in strands if strand != 0}
+            loci.append(_GeneLocus(name, start, end, called.pop() if len(called) == 1 else 0))
+    return loci
+
+
+def _mirror_findings(path: Path, genome: Genome, ir: IRResult | None) -> list[Finding]:
+    """A gene on one IR copy must have its copy on the other, on the opposite strand.
+
+    This is the structural invariant of an inverted repeat, checked on the reference's own
+    annotation. A locus cut by a repeat boundary — shorter than half its other annotated copy
+    (a truncated ``rps19``) or ending exactly at a copy's edge — is excluded: a boundary cuts
+    genes, and no choice of boundary makes those symmetric. The finding names the genes and is a
+    REPORT, not a BLOCK: a one-sided ORF or pseudogene is a common annotation habit and does not
+    by itself make the record unusable, so a person confirms it (pinned to the file's sha256) or
+    fixes the record.
+    """
+    if ir is None:
+        return []
+    length = len(genome)
+    copies = (
+        ((ir.ira.start + ir.frame_offset) % length, ir.ira.length),
+        ((ir.irb.start + ir.frame_offset) % length, ir.irb.length),
+    )
+    loci = _gene_loci(genome)
+    lengths: dict[str, list[int]] = {}
+    for locus in loci:
+        lengths.setdefault(locus.name, []).append(locus.end - locus.start)
+    truncated = {
+        name for name, sizes in lengths.items() if len(sizes) > 1 and max(sizes) >= 2 * min(sizes)
+    }
+
+    def inside(copy: tuple[int, int]) -> list[_GeneLocus]:
+        start, size = copy
+        held: list[_GeneLocus] = []
+        for locus in loci:
+            if locus.name in truncated:
+                continue
+            position = (locus.start - start) % length
+            span = locus.end - locus.start
+            if position + span > size:
+                continue
+            if position == 0 or position + span == size:
+                continue  # cut by the repeat edge
+            held.append(locus)
+        return held
+
+    first, second = inside(copies[0]), inside(copies[1])
+    names_first = {locus.name for locus in first}
+    names_second = {locus.name for locus in second}
+    only_first = sorted(names_first - names_second)
+    only_second = sorted(names_second - names_first)
+
+    strands_first: dict[str, set[int]] = {}
+    strands_second: dict[str, set[int]] = {}
+    for locus in first:
+        strands_first.setdefault(locus.name, set()).add(locus.strand)
+    for locus in second:
+        strands_second.setdefault(locus.name, set()).add(locus.strand)
+    same_strand = sorted(
+        name
+        for name in names_first & names_second
+        if strands_first[name] == strands_second[name] and strands_first[name] != {0}
+    )
+    if not (only_first or only_second or same_strand):
+        return []
+
+    parts = [f"IR copies {ir.ira.length:,} / {ir.irb.length:,} bp are not mirrored"]
+    if only_first:
+        parts.append(f"only in IRa: {', '.join(only_first)}")
+    if only_second:
+        parts.append(f"only in IRb: {', '.join(only_second)}")
+    if same_strand:
+        parts.append(f"same strand in both copies: {', '.join(same_strand)}")
+    parts.append("a gene on one copy must have its copy on the other, on the opposite strand")
+    return [_report(path, "mirror", "; ".join(parts))]
 
 
 def _orf_findings(path: Path, genome: Genome) -> list[Finding]:

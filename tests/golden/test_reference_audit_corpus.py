@@ -51,6 +51,9 @@ def test_the_audit_reproduces_the_measured_corpus() -> None:
     assert len(report.records) == 34
     assert report.blocked == ()
     assert report.ok  # the default set is usable; its special cases are reports
+    # The reference set used for annotation passes the IR gene-mirror rule (measured 29/10/2026):
+    # a gene inside one IR copy has its copy inside the other, on the opposite strand.
+    assert not [finding for finding in report.findings if finding.check == "mirror"]
 
     orientations = {Path(record.file).name: record.ssc_orientation for record in report.records}
     assert sum(1 for value in orientations.values() if value == "same") == 32

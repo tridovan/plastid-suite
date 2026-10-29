@@ -95,11 +95,40 @@ SEQUENCE_RULE = "sequence"
 _ALIAS_KEYS = frozenset({"canonical", "synonyms", "evidence"})
 
 # trnL(UAA) → trnL-UAA. Measured 2026-10-03: 30 of the dataset's names use the bracket form,
-# all of them in one record (NC_058328.1).
-_BRACKET_TRNA = re.compile(r"^(trn\w+)\(([A-Za-z]{3})\)$")
+# all of them in one record (NC_058328.1). The space before the bracket is optional: measured
+# 29/10/2026, NC_020098.1 writes `trnN (GUU)`, which the older pattern left unfolded.
+_BRACKET_TRNA = re.compile(r"^(trn\w+)\s*\(([A-Za-z]{3})\)$")
+# A spelled-out amino-acid tRNA name: "tRNA-Ile", "TRNA-LEU". The word after the hyphen is the
+# amino acid, so the name maps to the bare `trn<letter>` form, which `normalize_genome` resolves
+# to a named tRNA by sequence. Without this rule the prefix fold below reads "tRNA-Ile" as a case
+# slip of "trnA-Ile" and silently relabels an isoleucine tRNA as alanine (measured 29/10/2026 on
+# NC_008641.1, one of the panel's own records).
+_SPELLED_TRNA = re.compile(r"^tRNA-([A-Za-z]{3})$", re.IGNORECASE)
+_AMINO_ACID_LETTER = {
+    "Ala": "A",
+    "Arg": "R",
+    "Asn": "N",
+    "Asp": "D",
+    "Cys": "C",
+    "Gln": "Q",
+    "Glu": "E",
+    "Gly": "G",
+    "His": "H",
+    "Ile": "I",
+    "Leu": "L",
+    "Lys": "K",
+    "Met": "M",
+    "Phe": "F",
+    "Pro": "P",
+    "Ser": "S",
+    "Thr": "T",
+    "Trp": "W",
+    "Tyr": "Y",
+    "Val": "V",
+}
 # rrn16S → rrn16. The mitochondrial rrnS/rrnL dialect is deliberately NOT touched: there the
 # trailing letter is the name, not a size class.
-_RRNA_SIZE_SUFFIX = re.compile(r"^(rrn\d+(?:\.\d+)?)S$")
+_RRNA_SIZE_SUFFIX = re.compile(r"^(rrn\d+(?:\.\d+)?)[Ss]$")
 # "16S ribosomal RNA" → rrn16 — the same rule as the line above, for the record that carries no
 # /gene at all and reaches us through the reader's /product fallback. Measured 08/10/2026 on the
 # pinned plastid reference set while P3B-07 built its vocabulary: NC_042827.1 names all four rRNA
@@ -313,20 +342,29 @@ def _normalize_syntax(name: str) -> tuple[str, bool]:
     if bracket is not None:
         canonical = f"{bracket.group(1)}-{bracket.group(2).upper()}"
 
+    spelled = _SPELLED_TRNA.match(canonical)
+    if spelled is not None:
+        letter = _AMINO_ACID_LETTER.get(spelled.group(1).capitalize())
+        if letter is not None:
+            canonical = f"trn{letter}"
+
     sized = _RRNA_SIZE_SUFFIX.match(canonical)
     if sized is not None:
         canonical = sized.group(1)
 
-    spelled = _RRNA_PRODUCT.match(canonical)
-    if spelled is not None:
-        canonical = f"rrn{spelled.group(1)}"
+    spelled_rrna = _RRNA_PRODUCT.match(canonical)
+    if spelled_rrna is not None:
+        canonical = f"rrn{spelled_rrna.group(1)}"
 
     # The trn/rrn prefix is lowercase in every measured record; only that prefix is touched, so
-    # trnfM-CAU keeps its lowercase f (which is part of the name, not a case slip).
-    for prefix in ("trn", "rrn"):
-        if canonical[:3].lower() == prefix and canonical[:3] != prefix:
-            canonical = prefix + canonical[3:]
-            break
+    # trnfM-CAU keeps its lowercase f (which is part of the name, not a case slip). A spelled-out
+    # "tRNA-…"/"rRNA-…" is not a case slip of "trnA-…": without the guard, "tRNA-Ile" would become
+    # "trnA-Ile" (alanine). The rule is skipped for that shape even when the amino acid is unknown.
+    if not canonical.lower().startswith(("trna-", "rrna-")):
+        for prefix in ("trn", "rrn"):
+            if canonical[:3].lower() == prefix and canonical[:3] != prefix:
+                canonical = prefix + canonical[3:]
+                break
 
     # The amino-acid letter of trnX-YYY: `trnk-UUU` and `trnK-UUU` are one name written two ways,
     # and a comparison that keeps them apart loses the locus in silence (measured 2026-10-04 on

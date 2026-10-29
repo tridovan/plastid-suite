@@ -300,6 +300,41 @@ The table now stores **argv fragments**, not single flags — `einsi` → `--gen
 map it to. Held by `tests/golden/test_mafft_tool.py`, which runs every documented name against the
 pinned build on a four-sequence input; no in-suite check can see an option the tool rejects.
 
+## K-12 — `phylogeny` accepted three genomes and then died inside IQ-TREE — **fixed (29/10/2026)**
+
+`phylogeny` checked `len(genomes) < 3`, and the docs said "at least 3 genomes". IQ-TREE 2.3.6,
+given `-bb 1000`, exits 2 with `It makes no sense to perform bootstrap with less than 4 sequences`
+(measured 29/10/2026 while writing the M11.17 rotation case: a three-genome panel aligned every
+gene, ~30 s, then failed). The adapter cannot drop `-bb` — the toolkit publishes a supported tree
+— so the minimum was wrong, not the tool.
+
+The guard is now `< 4` and quotes the tool's own rule; it runs before the first alignment. Held by
+`tests/unit/test_phylogeny_module.py::test_a_three_genome_input_is_refused_because_iqtree_cannot_bootstrap_it`;
+the M11.17 rotation case runs on four panel genomes, and `docs/platforms.md` states four.
+
+## K-13 — Name normalization relabelled a spelled-out tRNA and missed two measured spellings — **fixed (29/10/2026)**
+
+Found while checking the IR gene-mirror rule on the 80-record panel (a gene on IRa must have a copy
+on IRb on the opposite strand). Three spelling defects made the same locus enter a comparison under
+two names, or under the wrong one:
+
+* **`tRNA-Ile` became `trnA-Ile`** — the rule that lowercases a `trn`/`rrn` prefix read the fourth
+  character `A` as the gene letter and prepended `trn` to `A-Ile`. Every spelled-out `tRNA-<aa>`
+  was silently relabelled as **alanine**; `NC_008641.1` (one of the panel's own records) names a
+  tRNA `tRNA-Ile`. The old unit test asserted `TRNA-LEU → trnA-LEU`, which held the mistake in
+  place — the same shape as K-11. The name now maps to the bare `trn<letter>` (`tRNA-Ile` →
+  `trnI`), which `normalize_genome` resolves to a named tRNA by sequence; an unknown amino acid
+  keeps its spelling rather than being corrupted.
+* **`trnN (GUU)` did not fold** — the bracket rule required no space, while `trnN(GUU)` folded.
+  `NC_020098.1` writes the space form. The space is now optional.
+* **`rrn23s` did not fold** — the rRNA size-suffix rule accepted only an uppercase `S`;
+  `NC_028733.1` writes the lowercase form. Both cases now fold to `rrn23`; the mitochondrial
+  `rrnS`/`rrnL` dialect (no digits) is still untouched.
+
+Held by `tests/unit/test_gene_names.py` (the corrected `TRNA-LEU` expectation, a new spelled-out
+case, the spaced bracket, and the lowercase rRNA suffix). No golden record uses these spellings in
+a gene name (their `tRNA-…` strings are `/product` text), so no golden number moves.
+
 ## Other current limitations
 
 The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's

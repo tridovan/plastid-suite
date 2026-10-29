@@ -233,6 +233,97 @@ def test_the_golden_record_blocks_nothing() -> None:
     assert report.records[0].cds == 86
 
 
+# ---------------------------------------------------------------- the IR gene mirror rule
+
+
+def _golden_ir():
+    from plastid.core.ir import detect_ir
+
+    genome = read_genbank(GOLDEN)
+    return genome, detect_ir(genome, source="annotation")
+
+
+def test_the_golden_ir_copies_mirror_their_genes() -> None:
+    """The rule the QA now checks: same genes in both copies, on opposite strands.
+
+    Measured 29/10/2026 on the contract genome: 18 loci inside each IR copy, no violation. This is
+    the positive control for the check below.
+    """
+    genome, ir = _golden_ir()
+
+    assert audit._mirror_findings(GOLDEN, genome, ir) == []
+
+
+def test_a_gene_on_the_same_strand_in_both_ir_copies_is_reported() -> None:
+    """`NC_016736.1`'s measured shape: `trnI-CAU`/`trnL-CAA` written `+` in both IR copies.
+
+    The two loci sit at mirrored offsets and their sequences are reverse complements, so one of
+    the two strand annotations contradicts the record's own sequence. The audit reports the gene;
+    it does not block, because a person decides whether to fix the record or pin an exception.
+    """
+    genome, ir = _golden_ir()
+    second_copy = max(
+        min(part.start for part in gene.parts) for gene in genome.genes if gene.name == "rpl23"
+    )
+
+    def flip_second_copy(gene):
+        if gene.name != "rpl23" or min(part.start for part in gene.parts) != second_copy:
+            return gene
+        return replace(gene, parts=tuple(replace(part, strand=-part.strand) for part in gene.parts))
+
+    broken = replace(genome, genes=tuple(flip_second_copy(gene) for gene in genome.genes))
+    findings = audit._mirror_findings(GOLDEN, broken, ir)
+
+    assert [finding.check for finding in findings] == ["mirror"]
+    assert findings[0].verdict == REPORT
+    assert "same strand in both copies: rpl23" in findings[0].reason
+    assert "opposite strand" in findings[0].reason
+
+
+def test_a_gene_annotated_in_only_one_ir_copy_is_reported() -> None:
+    """`NC_033499.1`'s measured shape: `rrn5` annotated in IRb only; the sequence carries both."""
+    genome, ir = _golden_ir()
+    second_copy = max(
+        min(part.start for part in gene.parts) for gene in genome.genes if gene.name == "rpl23"
+    )
+    kept = tuple(
+        gene
+        for gene in genome.genes
+        if not (gene.name == "rpl23" and min(part.start for part in gene.parts) == second_copy)
+    )
+
+    findings = audit._mirror_findings(GOLDEN, replace(genome, genes=kept), ir)
+
+    assert [finding.check for finding in findings] == ["mirror"]
+    assert "only in IR" in findings[0].reason
+    assert "rpl23" in findings[0].reason
+
+
+def test_a_boundary_cut_copy_is_not_a_mirror_violation() -> None:
+    """`rps19` is 279 bp in one copy and 59–60 bp at the other junction: a boundary gene.
+
+    Measured on the panel (`NC_068894.1`, `NC_053322.1`). The rule excludes a locus less than half
+    its other copy, so the truncated copy does not make a reference unusable.
+    """
+    genome, ir = _golden_ir()
+    middle = len(genome) // 2
+    # Truncate the second rps19 copy to 59 bp, the measured boundary shape.
+    genes = []
+    for gene in genome.genes:
+        if gene.name == "rps19" and min(part.start for part in gene.parts) > middle:
+            part = gene.parts[0]
+            gene = replace(gene, parts=(replace(part, end=part.start + 59),))
+        genes.append(gene)
+
+    assert audit._mirror_findings(GOLDEN, replace(genome, genes=tuple(genes)), ir) == []
+
+
+def test_a_mirror_finding_can_be_pinned_but_is_a_report() -> None:
+    """The check is in the reportable set, so the exception door can confirm it by digest."""
+    assert "mirror" in audit.REPORT_CHECKS
+    assert "mirror" not in audit.BLOCK_CHECKS
+
+
 def test_the_message_is_the_file_and_the_reason_and_nothing_else(tmp_path: Path) -> None:
     """``file — reason``, and no advice: what to do about a bad reference is not our call."""
     record = _edited_golden(

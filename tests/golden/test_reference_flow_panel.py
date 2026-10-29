@@ -25,7 +25,7 @@ import pytest
 from conftest import require_tools
 from plastid.cli import main
 from plastid.core.genbank import read_genbank
-from plastid.core.reference_audit import audit_files
+from plastid.core.reference_audit import REPORT, audit_files
 
 ROOT = Path(__file__).resolve().parents[2]
 PANEL = ROOT / ".panel" / "ir-validation" / "source"
@@ -67,6 +67,23 @@ def test_every_panel_record_is_classified_with_its_reason(panel_report) -> None:
     assert {Path(record.file).name for record in panel_report.records} == {
         path.name for path in PANEL.glob("*.gb")
     }
+
+
+def test_records_whose_ir_genes_do_not_mirror_are_reported_not_blocked(panel_report) -> None:
+    """Measured 29/10/2026: 23/80 panel records break the IR gene-mirror rule.
+
+    The rule: a gene inside one IR copy must have its copy inside the other, on the **opposite
+    strand**. These are third-party annotation inconsistencies — a same-strand copy
+    (`NC_016736.1`'s `trnI-CAU`/`trnL-CAA`) or a gene annotated on one side only (`NC_033499.1`'s
+    `rrn5`) — checked against the record's own sequence. They are REPORT findings, never blocks: a
+    one-sided ORF or pseudogene does not by itself make the record unusable, and a person confirms
+    it (pinned to the file's sha256) or fixes the record.
+    """
+    mirror = [finding for finding in panel_report.findings if finding.check == "mirror"]
+
+    assert len({finding.file for finding in mirror}) == 23
+    assert all(finding.verdict == REPORT for finding in mirror)
+    assert not any(finding.blocks for finding in mirror)
 
 
 def test_the_pga_variants_are_annotations_not_a_reference_set(
