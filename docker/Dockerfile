@@ -50,6 +50,8 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
         blast=2.17.0 \
         aragorn=1.2.41 \
         iqtree=2.3.6 \
+        macse=2.07 \
+        openjdk=17 \
         vmatch=2.3.1 \
         r-base=4.3 \
         r-ggplot2 \

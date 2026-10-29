@@ -351,6 +351,19 @@ that `data/gene_groups.yaml` promises — so a gene no group claims was only cou
 polymerase group, the row is emitted with its copies, and `n_unclassified` counts copies. The
 golden pair has no unclassified gene, so its numbers do not move.
 
+## K-14 — The Docker image omitted MACSE and Java, so the official Windows path could not run the full golden — **fixed (29/10/2026)**
+
+Found while re-running the acceptance on the image (M11.8, 29/10). `environment.yml` lists
+`macse=2.07` and the CI tier-B job installs `macse=2.07` with `openjdk=17`, but the micromamba list
+in `docker/Dockerfile` stopped at `iqtree`/`vmatch`. Under `PTS_REQUIRE_TOOLS=1` the image's
+build-time golden therefore failed at `tests/golden/test_macse_tool.py` with
+`macse: not found` (**1 failed, 84 passed, 192 skipped, 1 deselected**; the skips are `.panel/`,
+absent from the build context by design), so the image could not be built at all — and
+`phylogeny` with `aligner=macse` would have refused inside the image, the one path Windows users
+are told to use. Fixed by adding `macse=2.07` and `openjdk=17` to the image's tool list. Held by
+`tests/golden/test_macse_tool.py` (it fails by name, not skips, under `PTS_REQUIRE_TOOLS=1` when
+the jar is absent) and by the build-time golden in `docker/Dockerfile`.
+
 ## Other current limitations
 
 The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's
