@@ -28,7 +28,7 @@ does not claim the tree is right. A topology is not a verifiable number, so the 
 was built (taxa, blocks, sites, tool, argv, support present) and leave interpretation to the
 reader. `plastid figures` draws the `.treefile` it writes.
 
-**Three matrices, one tree at a time.** `matrix=cds` (the default) builds the CDS supermatrix
+**Four matrix modes, one tree per run.** `matrix=cds` (the default) builds the CDS supermatrix
 described above. `matrix=introns` and `matrix=igs` build a matrix from the intron and intergenic-
 spacer loci `core.spans` derives, keyed by canonical gene name so two records that spell a locus
 two ways still meet. Both are **position-based**, so each genome passes the IR gate before its
@@ -37,6 +37,15 @@ The IR's second copy is one locus and is kept once. A locus needs at least two c
 as a gene does. `aligner=macse` and `partition=codon` are refused for these matrices: MACSE
 aligns codons through a translation and a codon partition splits codons, while a spacer has no
 reading frame; `partition=gene` works and names each locus.
+
+**`matrix=all` is the complete matrix**, the one CGAS module 14 calls "all regions" and recommends
+for phylogeny: the CDS, intron and intergenic-spacer blocks above concatenated into **one**
+alignment and **one** tree, not three runs whose trees a reader would then have to compare. Every
+block carries its kind in its name (`cds:rbcL`, `intron:petB.1`, `igs:atpB-rbcL`) because a mixed
+matrix must say which locus a column belongs to, and because two kinds must never be able to
+collide on one block id. Each genome still passes the IR gate once, before any span is read.
+`aligner=macse` is refused for it (MACSE has a reading frame only for the CDS blocks, and a run
+uses one aligner) and so is `partition=codon`; `partition=gene` names every block of every kind.
 
 **Partitions are opt-in, and the aligner decides what a codon is.** `partition=none` (the
 default) is the unpartitioned supermatrix. `partition=gene` gives IQ-TREE one partition per gene
@@ -73,15 +82,16 @@ from plastid.run.context import RunContext
 from plastid.run.params import ParamValueError
 
 MODULE_ID = "phylogeny"
-# 0.5.0 (28/10/2026): `macse_timeout` — the 34-genome measurement found one gene over the old
-# fixed 600 s. 0.4.0 added `matrix=cds|introns|igs`; the default is the CDS supermatrix and every
-# earlier number is unchanged.
-MODULE_VERSION = "0.5.0"
+# 0.6.0 (29/10/2026): `matrix=all` — the complete matrix CGAS module 14 recommends, one tree from
+# CDS + intron + intergenic-spacer blocks. 0.5.0 added `macse_timeout` (the 34-genome measurement
+# found one gene over the old fixed 600 s). 0.4.0 added `matrix=cds|introns|igs`; the default is
+# the CDS supermatrix and every earlier number is unchanged.
+MODULE_VERSION = "0.6.0"
 
 DEFAULT_THREADS = "1"
 DEFAULT_SEED = 1
 PARTITION_MODES = ("none", "gene", "codon")
-MATRIX_MODES = ("cds", "introns", "igs")
+MATRIX_MODES = ("cds", "introns", "igs", "all")
 DEFAULT_MATRIX = "cds"
 # Seconds allowed for one MACSE call. Measured 28/10/2026 on 34 genomes: 62 genes finished at
 # ~63 s each, then one gene exceeded 600 s and the run failed — the default is enough for a panel
@@ -121,7 +131,8 @@ ALIGNERS = ("mafft", "macse")
         ParamSpec(
             "matrix",
             "str",
-            "which loci the supermatrix holds: cds (default), introns, or igs (intergenic spacers)",
+            "which loci the supermatrix holds: cds (default), introns, igs, or all (the three "
+            "concatenated into one complete matrix)",
         ),
         ParamSpec(
             "partition",
@@ -142,16 +153,18 @@ ALIGNERS = ("mafft", "macse")
         ParamSpec(
             "ir_source",
             "str",
-            "annotation or sequence: which IR path matrix=introns/igs reads (M11.17)",
+            "annotation or sequence: which IR path matrix=introns/igs/all reads (M11.17)",
         ),
         ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
     ),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
-    if len(genomes) < 3:
+    if len(genomes) < 4:
         raise ValueError(
-            f"phylogeny takes at least 3 genomes, got {len(genomes)} — a tree of two sequences "
-            f"is one comparison, not a topology; use `substitutions` or `diversity` for that"
+            f"phylogeny takes at least 4 genomes, got {len(genomes)} — IQ-TREE 2.3.6 refuses "
+            f'ultrafast bootstrap with fewer than 4 sequences ("It makes no sense to perform '
+            f'bootstrap with less than 4 sequences"), and this module publishes a supported '
+            f"tree; use `substitutions` or `diversity` for a pairwise comparison"
         )
     keys = [genome.accession or genome.name for genome in genomes]
     labels: dict[str, str] = params.get("groups", {}) or {}
@@ -160,11 +173,23 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     matrix_mode = _matrix_mode(params.get("matrix", DEFAULT_MATRIX))
     aligner = _aligner(params.get("aligner", "mafft"))
     if matrix_mode != "cds" and partition_mode == "codon":
+        mixed = (
+            "matrix=all also holds introns and spacers, which have no reading frame"
+            if (matrix_mode == "all")
+            else f"matrix={matrix_mode} has no reading frame"
+        )
         raise ParamValueError(
-            f"phylogeny: partition=codon splits codons; matrix={matrix_mode} has no reading "
-            f"frame — use partition=gene or partition=none"
+            f"phylogeny: partition=codon splits codons; {mixed} — use partition=gene or "
+            f"partition=none"
         )
     if matrix_mode != "cds" and aligner == "macse":
+        if matrix_mode == "all":
+            raise ParamValueError(
+                "phylogeny: aligner=macse aligns a CDS through its translation and matrix=all "
+                "also holds introns and spacers, which have no reading frame — run "
+                "matrix=cds aligner=macse and the other matrices separately, or use "
+                "aligner=mafft for matrix=all"
+            )
         raise ParamValueError(
             "phylogeny: aligner=macse aligns a CDS through its translation; an intron or an "
             "intergenic spacer has no reading frame — drop aligner=macse for matrix="
@@ -197,19 +222,21 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
     units: dict[str, dict[str, str]] = {}
     partial_by: dict[str, set[str]] = {}
-    if matrix_mode == "cds":
+    if matrix_mode in ("cds", "all"):
         by_genome = {
             key: cds_by_canonical_name(genome) for key, genome in zip(keys, genomes, strict=True)
         }
         for key, genome in zip(keys, genomes, strict=True):
             for name, gene in by_genome[key].items():
-                units.setdefault(name, {})[key] = coding_sequence(genome, gene)
+                block = _block_id("cds", name, matrix_mode)
+                units.setdefault(block, {})[key] = coding_sequence(genome, gene)
                 if gene.partial:
-                    partial_by.setdefault(name, set()).add(key)
-    else:
+                    partial_by.setdefault(block, set()).add(key)
+    if matrix_mode != "cds":
+        modes = ("introns", "igs") if matrix_mode == "all" else (matrix_mode,)
         for key, genome in zip(keys, genomes, strict=True):
-            for locus, sequence in _span_loci(genome, matrix_mode, params).items():
-                units.setdefault(locus, {})[key] = sequence
+            for (kind, locus), sequence in _span_loci(genome, modes, params).items():
+                units.setdefault(_block_id(kind, locus, matrix_mode), {})[key] = sequence
     names = sorted(units)
 
     gene_rows: list[dict[str, Any]] = []
@@ -220,11 +247,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         reason = None
         if len(carriers) < 2:
             reason = f"present in {len(carriers)} genome(s); a block needs at least 2"
-        elif (
-            matrix_mode == "cds"
-            and not include_partial
-            and partial_by.get(name, set()) & {key for key, _ in carriers}
-        ):
+        elif not include_partial and partial_by.get(name, set()) & {key for key, _ in carriers}:
             reason = "partial CDS in at least one genome (set include_partial=yes to admit)"
         if reason is not None:
             gene_rows.append(
@@ -310,6 +333,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
         "cds": "CDS blocks",
         "introns": "intron blocks (forward strand)",
         "igs": "intergenic-spacer blocks (forward strand)",
+        "all": "CDS, intron and intergenic-spacer blocks",
     }[matrix_mode]
     scope = Scope(
         label=(
@@ -363,10 +387,10 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     )
     genes = Table(
         id="matrix_genes",
-        title="Genes in the supermatrix",
+        title="Genes in the supermatrix" if matrix_mode == "cds" else "Loci in the supermatrix",
         scope=scope,
         columns=(
-            Column("gene", "Gene"),
+            Column("gene", "Gene" if matrix_mode == "cds" else "Locus"),
             Column("included", "Included"),
             Column("carriers", "Genomes carrying it", dtype="int"),
             Column("sites", "Alignment sites", dtype="int", unit="bp"),
@@ -408,7 +432,8 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
 
 def _matrix_mode(value: object) -> str:
-    """``cds`` · ``introns`` · ``igs``, refused by name otherwise (a typo is not a default)."""
+    """``cds`` · ``introns`` · ``igs`` · ``all``, refused by name otherwise (a typo is not a
+    default)."""
     mode = str(value).strip().lower()
     if mode not in MATRIX_MODES:
         raise ParamValueError(
@@ -419,11 +444,27 @@ def _matrix_mode(value: object) -> str:
 
 
 def _unit_word(mode: str) -> str:
-    return {"cds": "gene", "introns": "intron", "igs": "spacer"}[mode]
+    return {"cds": "gene", "introns": "intron", "igs": "spacer", "all": "locus"}[mode]
 
 
-def _span_loci(genome: Genome, mode: str, params: dict[str, Any]) -> dict[str, str]:
-    """The intron or intergenic-spacer sequences of one genome, keyed by a comparable locus id.
+_KIND_PREFIX = {"cds": "cds", "introns": "intron", "igs": "igs"}
+
+
+def _block_id(kind: str, locus: str, mode: str) -> str:
+    """A block's name: the locus, or ``<kind>:<locus>`` when the matrix mixes the three kinds.
+
+    `matrix=all` concatenates CDS, intron and spacer blocks, so a name has to say which kind of
+    locus a column belongs to; the prefix also makes a collision between two kinds impossible.
+    """
+    if mode != "all":
+        return locus
+    return f"{_KIND_PREFIX[kind]}:{locus}"
+
+
+def _span_loci(
+    genome: Genome, modes: Sequence[str], params: dict[str, Any]
+) -> dict[tuple[str, str], str]:
+    """The intron and/or intergenic-spacer sequences of one genome, keyed by ``(kind, locus)``.
 
     The ids come from `core.spans`, the one derivation the `introns`/`diversity` tables use, so a
     locus here is the locus those tables name. Gene names are canonicalised before they enter an
@@ -433,7 +474,8 @@ def _span_loci(genome: Genome, mode: str, params: dict[str, Any]) -> dict[str, s
 
     **Position-based, so the IR gate runs**: an intron boundary is a coordinate, and a record whose
     two copies disagree past the threshold cannot supply one. Each genome is checked on its own —
-    `ctx.ir` is the reference's, and a query genome's IR is its own.
+    `ctx.ir` is the reference's, and a query genome's IR is its own. The gate runs **once per
+    genome** even when both kinds are requested, because it detects the same IR either way.
 
     The sequence is the **forward strand**. An intron is not transcribed, so there is no reading
     strand to follow; taking the record's own strand would make the same locus align in two
@@ -441,23 +483,26 @@ def _span_loci(genome: Genome, mode: str, params: dict[str, Any]) -> dict[str, s
     """
     source = str(params.get("ir_source", "annotation"))
     label = genome.accession or genome.name
+    matrix_label = "all" if len(modes) == 2 else modes[0]
     try:
         ir = enforce_ir_gate(detect_ir(genome, source=source))
     except IRGateError as error:
-        raise IRGateError(f"phylogeny: matrix={mode} needs an IR on {label}: {error}") from error
+        raise IRGateError(
+            f"phylogeny: matrix={matrix_label} needs an IR on {label}: {error}"
+        ) from error
     aliases = aliases_for(genome)
-    sequences: dict[str, str] = {}
-    if mode == "introns":
+    sequences: dict[tuple[str, str], str] = {}
+    if "introns" in modes:
         for span in introns_of(genome, ir).introns:
             gene, _copy, number = span.intron_id.rsplit(".", 2)
             locus = f"{normalize_name(gene, aliases).canonical}.{number}"
-            sequences.setdefault(locus, genome.subseq(Interval(span.start, span.end)))
-    else:
+            sequences.setdefault(("introns", locus), genome.subseq(Interval(span.start, span.end)))
+    if "igs" in modes:
         for spacer in spacers_of(genome, ir).igs:
             left = normalize_name(spacer.left, aliases).canonical
             right = normalize_name(spacer.right, aliases).canonical
             locus = f"{left}-{right}"
-            sequences.setdefault(locus, genome.subseq(Interval(spacer.start, spacer.end)))
+            sequences.setdefault(("igs", locus), genome.subseq(Interval(spacer.start, spacer.end)))
     return sequences
 
 

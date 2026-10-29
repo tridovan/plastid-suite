@@ -178,6 +178,31 @@ def test_a_bootstrap_below_one_thousand_is_refused(tmp_path: Path) -> None:
     assert main(argv) == 3
 
 
+def test_the_complete_matrix_is_one_tree_over_all_three_region_kinds(tmp_path: Path) -> None:
+    """`matrix=all` is CGAS module 14's recommended "all regions" matrix: one alignment, one tree.
+
+    The arithmetic is the check: the supermatrix's site count is exactly the sum of the included
+    blocks, and the blocks carry all three kinds of locus. A block counted twice, a locus dropped
+    between the table and the matrix, or a second IQ-TREE run would break one of these.
+    """
+    run_dir, manifest = _run_tree(tmp_path, ["matrix=all"])
+
+    summary = next(run_dir.rglob("phylogeny_summary.csv")).read_text(encoding="utf-8")
+    assert ",all," in summary
+
+    loci = next(run_dir.rglob("matrix_genes.csv")).read_text(encoding="utf-8")
+    included = [line for line in loci.splitlines()[1:] if ",yes," in line]
+    for prefix in ("cds:", "intron:", "igs:"):
+        assert any(line.startswith(prefix) for line in included), prefix
+    sites = sum(int(line.split(",")[3]) for line in included)
+    assert f",{sites}," in summary
+
+    tree = next(run_dir.rglob("tree.treefile")).read_text(encoding="utf-8")
+    assert tree.strip().endswith(";")
+    assert len(list(run_dir.rglob("tree.treefile"))) == 1
+    assert manifest["status"] == "ok"
+
+
 def test_an_intron_matrix_is_built_and_treed_by_the_real_tools(tmp_path: Path) -> None:
     """`matrix=introns` is CGAS module 14's separate-matrix route, on this toolkit's spans.
 

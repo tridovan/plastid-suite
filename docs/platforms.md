@@ -39,7 +39,7 @@ is named, because a 34-genome number and a 1-genome number are different numbers
 | `barcodes` | Barcode loci and hypervariable regions | plastid | 2 | yes | MAFFT | 34 genomes: **12 min 27 s · 138 MB** |
 | `popgen` | Fst, gene flow, diversity per gene | shared | 2 | no | MAFFT | 34 genomes: **6 min 13 s · 179 MB** (80 alignments) |
 | `kaks` | Ka/Ks per shared gene (PAML's `yn00`) | shared | 2 | no | MAFFT + PAML | 34 genomes: **8 min 26 s · 98 MB** (9,968 tool calls — call count is not what costs) |
-| `phylogeny` | ML tree from a per-locus supermatrix — CDS (default), intron or IGS blocks (`matrix=`) | shared | 2 (at least 3 genomes) | no | MAFFT + IQ-TREE | 4 genomes: **~50 s · 179 MB** (78 blocks, 70,079 sites) · 34 genomes: **10 min · 179 MB** (78 blocks, 70,091 sites, IQ-TREE `-bb 1000 -alrt 1000`) |
+| `phylogeny` | ML tree from a per-locus supermatrix — CDS (default), intron, IGS, or all three in one complete matrix (`matrix=`) | shared | 2 (at least 4 genomes: IQ-TREE's ultrafast bootstrap needs 4 sequences) | no | MAFFT + IQ-TREE | 4 genomes: **~50 s · 179 MB** (78 blocks, 70,079 sites) · 34 genomes: **10 min · 179 MB** (78 blocks, 70,091 sites, IQ-TREE `-bb 1000 -alrt 1000`) · 4 genomes, `matrix=all`: **61 s** (197 blocks, 134,962 sites) |
 | `synteny` | Whole-genome alignment blocks and identity | shared | 2 | yes | MUMmer (`nucmer` → `delta-filter` → `show-coords`) | 34 genomes: **19.6 s · 145 MB** (99 calls) |
 | `plastid_annotate` | Plastid annotation by reference transfer | plastid | 1 | yes | BLAST+ and ARAGORN | **not measured** — M8.3 names the annotation path as having no scale row, and this table does not invent one |
 | `gene_names` | Gene-name check and normalization | shared | 2 | no | — | **not measured** |

@@ -72,6 +72,19 @@ def test_a_two_genome_input_is_refused_by_name(tmp_path: Path) -> None:
     assert code == 1
 
 
+def test_a_three_genome_input_is_refused_because_iqtree_cannot_bootstrap_it(tmp_path: Path) -> None:
+    """IQ-TREE 2.3.6 refuses `-bb` with fewer than 4 sequences, so 3 genomes cannot get a tree.
+
+    Measured 29/10/2026: a three-genome run aligned every gene and then died inside IQ-TREE with
+    "It makes no sense to perform bootstrap with less than 4 sequences". The minimum is the pinned
+    tool's own rule, so it is enforced before the first alignment rather than after the work.
+    """
+    import plastid.modules.phylogeny as phylo
+
+    with pytest.raises(ValueError, match="at least 4 genomes"):
+        phylo.run(_synthetic_genomes()[:3], {}, _phylogeny_ctx(tmp_path))
+
+
 def test_an_unknown_parameter_is_refused() -> None:
     """The M11.20 rule reaches the new module without any extra wiring."""
     problems = registry.unknown_params(["phylogeny"], {"bootstrap": 1000})
@@ -95,13 +108,17 @@ def _fake_tree():
 
 
 def _synthetic_genomes() -> tuple[Genome, ...]:
-    """Three genomes carrying the same two genes, so a matrix can be built without tools."""
+    """Four genomes carrying the same two genes, so a matrix can be built without tools.
+
+    Four is the module's minimum: IQ-TREE 2.3.6 refuses ultrafast bootstrap below four
+    sequences, so a three-genome stub never reaches the code these tests exercise.
+    """
     sequences = {
-        "rbcL": ("ATGGCCAAACCC", "ATGGCCAAACCT", "ATGGCCAAACCA"),
-        "atpA": ("ATGTTTGGGCCC", "ATGTTTGGGCCA", "ATGTTTGGGCCT"),
+        "rbcL": ("ATGGCCAAACCC", "ATGGCCAAACCT", "ATGGCCAAACCA", "ATGGCCAAACCG"),
+        "atpA": ("ATGTTTGGGCCC", "ATGTTTGGGCCA", "ATGTTTGGGCCT", "ATGTTTGGGCGA"),
     }
     genomes = []
-    for index in range(3):
+    for index in range(4):
         chunks, genes, offset = [], [], 0
         for name, variants in sequences.items():
             sequence = variants[index]
@@ -259,7 +276,7 @@ def test_macse_is_opt_in_and_replaces_the_mafft_call(tmp_path: Path, monkeypatch
 
     result = phylo.run(_synthetic_genomes(), {"aligner": "macse"}, _phylogeny_ctx(tmp_path))
 
-    assert used["macse_rows"] == 3
+    assert used["macse_rows"] == 4
     assert used["timeout"] == 600  # the adapter's default when the user asks for nothing
 
     # The 34-genome measurement (28/10/2026) failed on a gene over 600 s; the door exists.
@@ -361,21 +378,31 @@ def _lsc_span(kind: str):
 
 
 def _lsc_variants(kind: str) -> tuple[Genome, ...]:
-    """Three genomes that differ only inside one LSC intron (or spacer)."""
+    """Four genomes that differ only inside one LSC intron (or spacer).
+
+    Four is the module's minimum (IQ-TREE's bootstrap needs four sequences). Two sites inside the
+    one locus are changed independently, so no genome is a re-label of another.
+    """
     genome, span = _lsc_span(kind)
-    position = span.start + 10
-    original = genome.sequence[position]
+    positions = (span.start + 10, span.start + 20)
     changes = {"A": "G", "G": "A", "C": "T", "T": "C"}
 
-    def variant(replacement: str) -> Genome:
-        sequence = genome.sequence[:position] + replacement + genome.sequence[position + 1 :]
+    def variant(index: int, first: str, second: str) -> Genome:
+        sequence = list(genome.sequence)
+        sequence[positions[0]] = first
+        sequence[positions[1]] = second
         from dataclasses import replace
 
-        return replace(genome, sequence=sequence, accession=f"{genome.accession}_{replacement}")
+        return replace(genome, sequence="".join(sequence), accession=f"{genome.accession}_{index}")
 
-    first = changes[original]
-    second = changes[first]
-    return (genome, variant(first), variant(second))
+    at_first = genome.sequence[positions[0]]
+    at_second = genome.sequence[positions[1]]
+    return (
+        genome,
+        variant(1, changes[at_first], at_second),
+        variant(2, at_first, changes[at_second]),
+        variant(3, changes[at_first], changes[at_second]),
+    )
 
 
 def _stub_matrix_tools(monkeypatch, captured: dict) -> None:
@@ -390,6 +417,7 @@ def _stub_matrix_tools(monkeypatch, captured: dict) -> None:
 
     def fake_iqtree(path, ctx, **kwargs):
         captured["matrix"] = path.read_text(encoding="utf-8")
+        captured["iqtree"] = kwargs
         return _fake_tree()
 
     monkeypatch.setattr(phylo, "align", fake_align)
@@ -458,5 +486,85 @@ def test_macse_is_refused_for_a_matrix_without_a_reading_frame(tmp_path: Path) -
         phylo.run(
             _lsc_variants("introns"),
             {"matrix": "introns", "aligner": "macse"},
+            _phylogeny_ctx(tmp_path),
+        )
+
+
+# ------------------------------------------------------------------ matrix=all (complete matrix)
+
+
+def test_the_complete_matrix_concatenates_all_three_kinds_of_locus(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """`matrix=all` is CGAS module 14's "all regions": one matrix, one tree, three kinds of block.
+
+    The independent check is arithmetic: every block the table marks included contributes exactly
+    its own sites to the supermatrix, and no block is counted twice. The three kinds are named in
+    the block id, so a mixed matrix cannot hide a collision behind a bare locus name.
+    """
+    import plastid.modules.phylogeny as phylo
+
+    captured: dict = {}
+    _stub_matrix_tools(monkeypatch, captured)
+
+    result = phylo.run(_lsc_variants("introns"), {"matrix": "all"}, _phylogeny_ctx(tmp_path))
+
+    summary = result.tables["phylogeny_summary"]
+    assert summary.value("matrix") == "all"
+    assert "CDS, intron and intergenic-spacer blocks" in summary.scope.label
+
+    rows = result.tables["matrix_genes"].rows
+    included = [row for row in rows if row["included"] == "yes"]
+    for prefix in ("cds:", "intron:", "igs:"):
+        assert any(row["gene"].startswith(prefix) for row in included), prefix
+    assert summary.value("alignment_sites") == sum(row["sites"] for row in included)
+
+    # One matrix was written to one tool call: `all` is not three runs whose trees are compared.
+    assert len(captured["blocks"]) == len(included)
+    text = captured["matrix"]
+    assert sum(line.startswith(">") for line in text.splitlines()) == 4  # four taxa, one row each
+
+
+def test_a_gene_partition_on_the_complete_matrix_names_every_kind(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """`partition=gene` works on the mixed matrix and names blocks by their kind and locus."""
+    import plastid.modules.phylogeny as phylo
+
+    captured: dict = {}
+    _stub_matrix_tools(monkeypatch, captured)
+
+    phylo.run(
+        _lsc_variants("introns"),
+        {"matrix": "all", "partition": "gene"},
+        _phylogeny_ctx(tmp_path),
+    )
+
+    partition = captured["iqtree"]["partition"]
+    assert "#nexus\nbegin sets;" in partition
+    for prefix in ("charset cds_", "charset intron_", "charset igs_"):
+        assert prefix in partition, prefix
+
+
+def test_a_codon_partition_is_refused_for_the_complete_matrix(tmp_path: Path) -> None:
+    """Only the CDS blocks have a reading frame; a codon split would mislabel the rest."""
+    import plastid.modules.phylogeny as phylo
+
+    with pytest.raises(ValueError, match="no reading frame"):
+        phylo.run(
+            _lsc_variants("introns"),
+            {"matrix": "all", "partition": "codon"},
+            _phylogeny_ctx(tmp_path),
+        )
+
+
+def test_macse_is_refused_for_the_complete_matrix(tmp_path: Path) -> None:
+    """One aligner per run; MACSE cannot honour the intron and spacer blocks of `all`."""
+    import plastid.modules.phylogeny as phylo
+
+    with pytest.raises(ValueError, match="matrix=all"):
+        phylo.run(
+            _lsc_variants("introns"),
+            {"matrix": "all", "aligner": "macse"},
             _phylogeny_ctx(tmp_path),
         )
