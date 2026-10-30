@@ -59,6 +59,10 @@ tables. Convert only with `Interval.to_1based` / `Interval.from_1based`.
   · argv · exit code. A tool a module uses is declared in the repo: in `environment.yml` with a
   pinned version, or in `docs/tools/<tool>.md`. A tool that exists on only one machine is not part
   of the toolkit.
+- **Heavy tools.** Local first. When the tool is missing or the machine cannot run the input, the
+  run stops with a named error and offers the prepare → run elsewhere → import route; it never
+  falls back silently. An imported result enters only through `validate_external_result`, with
+  where it ran in its provenance. The toolkit never uploads a user's data by itself.
 - **Scope labels.** Every exported number carries a scope label. A value that was not measured is
   written "not measured". Every output made from third-party data carries its provenance label
   (`--label`).
