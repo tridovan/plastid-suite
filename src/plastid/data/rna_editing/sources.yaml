@@ -1,0 +1,127 @@
+# Where every edit site of reference B′ comes from (`edit_sites.tsv` names one of these per site).
+#
+# Each site was placed on its pinned record and checked there before it was written: the base is
+# a C on the transcript strand, the codon and both amino acids are the ones the source states. A
+# site whose own fields disagree is kept only when the record settles it, and the row's locator
+# says how (a coordinate one base off its own codon, a CDS model that starts elsewhere, an
+# amino acid the stated codon cannot give). Sites outside the 35 genes, non-coding sites and
+# silent edits are not part of B′: the method scores amino acids in 35 proteins.
+
+sources:
+  sasaki-2003:
+    citation: >-
+      Sasaki T, Yukawa Y, Miyamoto T, Obokata J, Sugiura M. Identification of RNA editing sites in
+      chloroplast transcripts from the maternal and paternal progenitors of tobacco (Nicotiana
+      tabacum): comparative analysis shows the involvement of distinct trans-factors for ndhB
+      editing. Molecular Biology and Evolution 20:1028–1035 (2003).
+    doi: 10.1093/molbev/msg098
+    read: >-
+      Table 2, the N. tabacum column ('+' editing, Δ partial); the article PDF, supplied by the dev
+      on 30/10/2026. Its sites other than ndhD-3, ndhD-4 and rps2-1 are those of Hirose et al.
+      1999 (Mol Gen Genet 262:462), footnote b
+    coordinates: >-
+      codon numbers from the initiation codon (the column is headed "Position"; every row's codon
+      is found at that codon number of the record's CDS)
+    taxa: [NC_001879.2]
+
+  schmitz-linneweber-2002:
+    citation: >-
+      Schmitz-Linneweber C, Regel R, Du TG, Hupfer H, Herrmann RG, Maier RM. The plastid
+      chromosome of Atropa belladonna and its comparison with that of Nicotiana tabacum: the role
+      of RNA editing in generating divergence in the process of plant speciation. Molecular
+      Biology and Evolution 19:1602–1612 (2002).
+    doi: 10.1093/oxfordjournals.molbev.a004222
+    read: >-
+      section "Introns and Editing Sites": of tobacco's 31 sites (Hirose et al. 1999) 28 are edited
+      in Atropa, atpA site 1, psbE and rps14 site 2 are absent (T in Atropa DNA); "Atropa-Specific
+      Editing Sites": ndhA codon 189, ndhD codon 293, rpoB codon 809, each Ser to Leu. The article
+      PDF, supplied by the dev on 30/10/2026
+    coordinates: >-
+      tobacco site designations, placed through sasaki-2003's codon numbers and a MAFFT 7.526
+      L-INS-i alignment of the tobacco and Atropa proteins; the Atropa-only sites at the stated
+      codon of the Atropa record
+    taxa: [NC_004561.1]
+
+  wakasugi-1996:
+    citation: >-
+      Wakasugi T, Hirose T, Horihata M, Tsudzuki T, Kössel H, Sugiura M. Creation of a novel
+      protein-coding region at the RNA level in black pine chloroplasts: the pattern of RNA
+      editing in the gymnosperm chloroplast is different from that in angiosperms. Proceedings of
+      the National Academy of Sciences USA 93:8766–8770 (1996).
+    doi: 10.1073/pnas.93.16.8766
+    read: >-
+      Table 1, the "Edited sites" rows (26 sites, read from the rendered page of the article PDF
+      supplied by the dev on 30/10/2026). ORF320 is ccsA (ten of its eleven listed codons are the
+      record's ccsA codons); ycf7 (ORF62b) is petL, its codon c being petL codon c − 13 from the
+      edited ACG start
+    coordinates: "codon numbers of the 1996 gene models"
+    taxa: [NC_001631.1]
+
+  chateigner-boutin-2007:
+    citation: >-
+      Chateigner-Boutin A-L, Small I. A rapid high-throughput method for the detection and
+      quantification of RNA editing based on high-resolution melting of amplicons. Nucleic Acids
+      Research 35:e114 (2007).
+    doi: 10.1093/nar/gkm640
+    read: "Table 1 — the 34 Arabidopsis plastid sites; Europe PMC full text PMC2034463, 30/10/2026"
+    coordinates: >-
+      genome positions on AP000423.1, the sequence of NC_000932.1 (1-based); codon numbers of
+      the source's CDS models
+    taxa: [NC_000932.1]
+
+  chen-2017-zeng-2007:
+    citation: >-
+      Chen T-C, Liu Y-C, Wang X, Wu C-H, Huang C-H, Chang C-C. Whole plastid transcriptomes
+      reveal abundant RNA editing sites and differential editing status in Phalaenopsis aphrodite
+      subsp. formosana. Botanical Studies 58:38 (2017). Rows marked as previously reported by Zeng
+      W-H, Liao S-C, Chang C-C, Plant and Cell Physiology 48:362–368 (2007).
+    doi: 10.1186/s40529-017-0193-7
+    read: >-
+      Supplementary Table 2 (40529_2017_193_MOESM1_ESM.pdf), the rows whose gene position carries
+      footnote a ("Previously reported in Zeng et al., 2007"); Springer static content, 30/10/2026
+    coordinates: >-
+      genome positions on AY916449.1, the sequence of NC_007499.1 (1-based); gene positions of
+      the source's CDS models, which start elsewhere than the record's for matK, rpoB, rpoC1 and
+      rpoC2 (the codon is the same)
+    taxa: [NC_007499.1]
+
+  chen-2017-s4:
+    citation: >-
+      Chen T-C, Liu Y-C, Wang X, Wu C-H, Huang C-H, Chang C-C. Botanical Studies 58:38 (2017),
+      Supplementary Table 4: plastid RNA edits in rpo transcripts among 18 species.
+    doi: 10.1186/s40529-017-0193-7
+    read: >-
+      Supplementary Table 4 ('+' edited, '-' not edited, 'T' encoded T); the column order was
+      read from the rendered page. Rows are Phalaenopsis rpo positions; a '+' was placed on a
+      record by a MAFFT 7.526 L-INS-i protein alignment with the Phalaenopsis protein, and kept
+      only where the homologous codon has a C at the same codon position. Used for the one maize
+      rpoC2 site wang-2017 has no row for; its tobacco and Atropa rows agree with the primary
+      lists, which replace them
+    coordinates: "Phalaenopsis gene positions in the source's numbering"
+    taxa: [NC_001666.2]
+
+  wang-2017:
+    citation: >-
+      Wang M, Liu H, Ge L, Xing G, Wang M, Song W, Nie X. Identification and analysis of RNA
+      editing sites in the chloroplast transcripts of Aegilops tauschii L. Genes 8:13 (2017).
+    doi: 10.3390/genes8010013
+    read: >-
+      Table 4 (six Poaceae), the O. sativa and Z. mays columns: '+' complete and '+ a' partial
+      editing; Europe PMC full text PMC5295008, 30/10/2026. This is also the acceptance paper:
+      only its literature columns for rice and maize are used here, never its Ae. tauschii data
+    coordinates: "codon numbers as the table prints them; the record's codon must have the C"
+    taxa: [NC_001666.2, NC_001320.1]
+
+  uniprot-2026:
+    citation: >-
+      The UniProt Consortium. UniProtKB/Swiss-Prot entries, RNA EDITING annotations with
+      experimental evidence (ECO:0000269), each citing its PubMed source.
+    url: https://www.ebi.ac.uk/proteins/api/proteins
+    read: >-
+      EBI Proteins API, reviewed entries per gene and taxon, 30/10/2026; an entry is used only
+      when its canonical sequence is the record's translation apart from the edited residues (at
+      most two other differences, named in the row); annotations inferred by similarity
+      (ECO:0000250) are not used. Used for Pinus accD P88L (PubMed 11078738, Sasaki Y. et al.
+      2001, J Biol Chem), a site the 1996 survey did not assess
+    coordinates: "amino-acid positions of the canonical (edited) sequence"
+    taxa: [NC_001631.1]

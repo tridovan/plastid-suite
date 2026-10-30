@@ -1,0 +1,34 @@
+gene	cds_position	aa_position	codon	aa_change	status	locator
+atpA	791	264	CCC	P→L	edited	Table 2, atpA-1, N. sylvestris
+atpF	92	31	CCA	P→L	edited	Table 2, atpF, N. sylvestris
+ndhA	341	114	TCA	S→L	edited	Table 2, ndhA-1, N. sylvestris
+ndhA	1073	358	TCC	S→F	edited	Table 2, ndhA-3, N. sylvestris
+ndhB	149	50	TCA	S→L	edited	Table 2, ndhB-1, N. sylvestris
+ndhB	467	156	CCA	P→L	edited	Table 2, ndhB-2, N. sylvestris
+ndhB	586	196	CAT	H→Y	partial	Table 2, ndhB-3, N. sylvestris
+ndhB	611	204	TCA	S→L	partial	Table 2, ndhB-4, N. sylvestris
+ndhB	737	246	CCA	P→L	edited	Table 2, ndhB-5, N. sylvestris
+ndhB	746	249	TCT	S→F	edited	Table 2, ndhB-6, N. sylvestris
+ndhB	830	277	TCA	S→L	partial	Table 2, ndhB-7, N. sylvestris
+ndhB	836	279	TCA	S→L	edited	Table 2, ndhB-8, N. sylvestris
+ndhB	1481	494	CCA	P→L	edited	Table 2, ndhB-9, N. sylvestris
+ndhD	2	1	ACG	T→M	partial	Table 2, ndhD-1, N. sylvestris
+ndhD	383	128	TCA	S→L	edited	Table 2, ndhD-2, N. sylvestris
+ndhD	599	200	TCA	S→L	partial	Table 2, ndhD-3, N. sylvestris
+ndhD	674	225	TCG	S→L	edited	Table 2, ndhD-4, N. sylvestris
+ndhF	290	97	TCA	S→L	edited	Table 2, ndhF, N. sylvestris
+petB	611	204	CCA	P→L	edited	Table 2, petB, N. sylvestris
+psbE	214	72	CCT	P→S	edited	Table 2, psbE, N. sylvestris; the table prints Cca, the record's codon is CCT
+psbL	2	1	ACG	T→M	edited	Table 2, psbL, N. sylvestris
+rpl20	308	103	TCA	S→L	edited	Table 2, rpl20, N. sylvestris
+rpoA	830	277	TCA	S→L	edited	Table 2, rpoA, N. sylvestris
+rpoC1	62	21	TCA	S→L	partial	Table 2, rpoC1, N. sylvestris
+rpoC2	3731	1244	TCA	S→L	edited	Table 2, rpoC2, N. sylvestris; Table 2 codon 1248 is this record's codon 1244 (1986 model)
+rpoB	338	113	TCT	S→F	edited	Table 2, rpoB-1, N. sylvestris
+rpoB	473	158	TCA	S→L	edited	Table 2, rpoB-2, N. sylvestris
+rpoB	551	184	TCA	S→L	edited	Table 2, rpoB-3, N. sylvestris
+rpoB	2000	667	TCT	S→F	edited	Table 2, rpoB-4, N. sylvestris
+rps2	134	45	ACA	T→I	edited	Table 2, rps2-1, N. sylvestris
+rps2	248	83	TCA	S→L	edited	Table 2, rps2-2, N. sylvestris
+rps14	80	27	TCA	S→L	edited	Table 2, rps14-1, N. sylvestris
+rps14	149	50	CCA	P→L	edited	Table 2, rps14-2, N. sylvestris

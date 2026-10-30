@@ -1,0 +1,210 @@
+accession	gene	cds_position	codon_position	aa_position	codon_before	codon_after	aa_before	aa_after	source	locator	source_coordinate
+NC_000932.1	accD	794	2	265	TCG	TTG	S	L	chateigner-boutin-2007	Table 1, AtCg00500 (accD), genome 57868	genome position 57868 (1-based, AP000423.1 = NC_000932.1); codon 265 uCg
+NC_000932.1	atpF	92	2	31	CCA	CTA	P	L	chateigner-boutin-2007	Table 1, AtCg00130 (atpF), genome 12707	genome position 12707 (1-based, AP000423.1 = NC_000932.1); codon 31 cCa
+NC_000932.1	clpP	559	1	187	CAT	TAT	H	Y	chateigner-boutin-2007	Table 1, AtCg00670 (clpP), genome 69942	genome position 69942 (1-based, AP000423.1 = NC_000932.1); codon 187 Cau
+NC_000932.1	matK	640	1	214	CAT	TAT	H	Y	chateigner-boutin-2007	Table 1, AtCg00040 (matK), genome 2931 — source codon 236 is record codon 214 (the source's CDS model starts 22 codons upstream of the record's)	genome position 2931 (1-based, AP000423.1 = NC_000932.1); codon 236 Cau
+NC_000932.1	ndhB	149	2	50	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg00890 (ndhB), genome 97016	genome position 97016 (1-based, AP000423.1 = NC_000932.1); codon 50 uCa
+NC_000932.1	ndhB	467	2	156	CCA	CTA	P	L	chateigner-boutin-2007	Table 1, AtCg00890 (ndhB), genome 96698	genome position 96698 (1-based, AP000423.1 = NC_000932.1); codon 156 cCa
+NC_000932.1	ndhB	586	1	196	CAT	TAT	H	Y	chateigner-boutin-2007	Table 1, AtCg00890 (ndhB), genome 96579	genome position 96579 (1-based, AP000423.1 = NC_000932.1); codon 196 Cau
+NC_000932.1	ndhB	746	2	249	TCT	TTT	S	F	chateigner-boutin-2007	Table 1, AtCg00890 (ndhB), genome 96419	genome position 96419 (1-based, AP000423.1 = NC_000932.1); codon 249 uCu
+NC_000932.1	ndhB	830	2	277	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg00890 (ndhB), genome 95650	genome position 95650 (1-based, AP000423.1 = NC_000932.1); codon 277 uCa
+NC_000932.1	ndhB	836	2	279	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg00890 (ndhB), genome 95644	genome position 95644 (1-based, AP000423.1 = NC_000932.1); codon 279 uCa
+NC_000932.1	ndhB	872	2	291	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg00890 (ndhB), genome 95608	genome position 95608 (1-based, AP000423.1 = NC_000932.1); codon 291 uCa
+NC_000932.1	ndhB	1255	1	419	CAT	TAT	H	Y	chateigner-boutin-2007	Table 1, AtCg00890 (ndhB), genome 95225	genome position 95225 (1-based, AP000423.1 = NC_000932.1); codon 419 Cau
+NC_000932.1	ndhB	1481	2	494	CCA	CTA	P	L	chateigner-boutin-2007	Table 1, AtCg00890 (ndhB), genome 94999	genome position 94999 (1-based, AP000423.1 = NC_000932.1); codon 494 cCa
+NC_000932.1	ndhD	2	2	1	ACG	ATG	T	M	chateigner-boutin-2007	Table 1, AtCg01050 (ndhD), genome 117166	genome position 117166 (1-based, AP000423.1 = NC_000932.1); codon 1 aCg
+NC_000932.1	ndhD	383	2	128	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg01050 (ndhD), genome 116785	genome position 116785 (1-based, AP000423.1 = NC_000932.1); codon 128 uCa
+NC_000932.1	ndhD	674	2	225	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg01050 (ndhD), genome 116494	genome position 116494 (1-based, AP000423.1 = NC_000932.1); codon 225 uCa
+NC_000932.1	ndhD	878	2	293	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg01050 (ndhD), genome 116290	genome position 116290 (1-based, AP000423.1 = NC_000932.1); codon 293 uCa
+NC_000932.1	ndhD	887	2	296	CCC	CTC	P	L	chateigner-boutin-2007	Table 1, AtCg01050 (ndhD), genome 116281	genome position 116281 (1-based, AP000423.1 = NC_000932.1); codon 296 cCc
+NC_000932.1	ndhF	290	2	97	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg01010 (ndhF), genome 112349	genome position 112349 (1-based, AP000423.1 = NC_000932.1); codon 97 uCa
+NC_000932.1	ndhG	50	2	17	TCC	TTC	S	F	chateigner-boutin-2007	Table 1, AtCg01080 (ndhG), genome 118858	genome position 118858 (1-based, AP000423.1 = NC_000932.1); codon 17 uCc
+NC_000932.1	petL	5	2	2	CCT	CTT	P	L	chateigner-boutin-2007	Table 1, AtCg00590) petL, genome 65716	genome position 65716 (1-based, AP000423.1 = NC_000932.1); codon 2 cCu
+NC_000932.1	psbE	214	1	72	CCT	TCT	P	S	chateigner-boutin-2007	Table 1, AtCg00580 (psbE), genome 64109	genome position 64109 (1-based, AP000423.1 = NC_000932.1); codon 72 Ccu
+NC_000932.1	psbF	77	2	26	TCT	TTT	S	F	chateigner-boutin-2007	Table 1, AtCg00570 (psbF), genome 63985	genome position 63985 (1-based, AP000423.1 = NC_000932.1); codon 26 uCu
+NC_000932.1	rpl23	89	2	30	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg00840 (rpl23), genome 86056 — the source's genome position 86056 is 1 base off its own codon fields (30 uCa); the C those fields name is CDS 89	genome position 86056 (1-based, AP000423.1 = NC_000932.1); codon 30 uCa
+NC_000932.1	rpoA	200	2	67	TCT	TTT	S	F	chateigner-boutin-2007	Table 1, AtCg00740 (rpoA), genome 78691*	genome position 78691 (1-based, AP000423.1 = NC_000932.1); codon 67 uCu
+NC_000932.1	rpoB	338	2	113	TCT	TTT	S	F	chateigner-boutin-2007	Table 1, AtCg00170 (rpoB), genome 25992 — the source writes S>L; its own codon uCu edited at position 2 reads F	genome position 25992 (1-based, AP000423.1 = NC_000932.1); codon 113 uCu
+NC_000932.1	rpoB	551	2	184	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg00170 (rpoB), genome 25779	genome position 25779 (1-based, AP000423.1 = NC_000932.1); codon 184 uCa
+NC_000932.1	rpoB	2432	2	811	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg00170 (rpoB), genome 23898	genome position 23898 (1-based, AP000423.1 = NC_000932.1); codon 811 uCa
+NC_000932.1	rpoC1	488	2	163	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg00180 (rpoC1), genome 21806* — source codon 170 is record codon 163 (the source's CDS model starts 7 codons upstream of the record's)	genome position 21806 (1-based, AP000423.1 = NC_000932.1); codon 170 uCA
+NC_000932.1	rps14	80	2	27	TCA	TTA	S	L	chateigner-boutin-2007	Table 1, AtCg00330 (rps14), genome 37161	genome position 37161 (1-based, AP000423.1 = NC_000932.1); codon 27 uCa
+NC_000932.1	rps14	149	2	50	CCA	CTA	P	L	chateigner-boutin-2007	Table 1, AtCg00330 (rps14), genome 37092	genome position 37092 (1-based, AP000423.1 = NC_000932.1); codon 50 cCa
+NC_001320.1	atpA	1148	2	383	TCA	TTA	S	L	wang-2017	Table 4, atpA site 1, codon 383, O. sativa '+'	codon 383 position 2 (tCa S→L)
+NC_001320.1	matK	1258	1	420	CAC	TAC	H	Y	wang-2017	Table 4, matK site 1, codon 420 (421), O. sativa '+'	codon 420 position 1 (Cat H→Y)
+NC_001320.1	ndhA	473	2	158	TCA	TTA	S	L	wang-2017	Table 4, ndhA site 2, codon 158, O. sativa '+'	codon 158 position 2 (tCa S→L)
+NC_001320.1	ndhA	563	2	188	TCA	TTA	S	L	wang-2017	Table 4, ndhA site 3, codon 188, O. sativa '+'	codon 188 position 2 (tCa S→L)
+NC_001320.1	ndhA	1070	2	357	TCC	TTC	S	F	wang-2017	Table 4, ndhA site 4, codon 357, O. sativa '+'	codon 357 position 2 (tCc S→F)
+NC_001320.1	ndhB	467	2	156	CCA	CTA	P	L	wang-2017	Table 4, ndhB site 2, codon 156, O. sativa '+'	codon 156 position 2 (cCa P→L)
+NC_001320.1	ndhB	586	1	196	CAT	TAT	H	Y	wang-2017	Table 4, ndhB site 3, codon 196, O. sativa '+'	codon 196 position 1 (Cat H→Y)
+NC_001320.1	ndhB	611	2	204	TCA	TTA	S	L	wang-2017	Table 4, ndhB site 4, codon 204, O. sativa '+ a' (partial editing)	codon 204 position 2 (tCa S→L)
+NC_001320.1	ndhB	704	2	235	TCC	TTC	S	F	wang-2017	Table 4, ndhB site 5, codon 235, O. sativa '+'	codon 235 position 2 (tCc S→F)
+NC_001320.1	ndhB	737	2	246	CCA	CTA	P	L	wang-2017	Table 4, ndhB site 6, codon 246, O. sativa '+'	codon 246 position 2 (cCa P→L)
+NC_001320.1	ndhB	830	2	277	TCA	TTA	S	L	wang-2017	Table 4, ndhB site 7, codon 277, O. sativa '+'	codon 277 position 2 (tCa S→L)
+NC_001320.1	ndhB	836	2	279	TCA	TTA	S	L	wang-2017	Table 4, ndhB site 8, codon 279, O. sativa '+'	codon 279 position 2 (tCa S→L)
+NC_001320.1	ndhB	1481	2	494	CCA	CTA	P	L	wang-2017	Table 4, ndhB site 9, codon 494, O. sativa '+ a' (partial editing)	codon 494 position 2 (cCa P→L)
+NC_001320.1	ndhD	878	2	293	TCA	TTA	S	L	wang-2017	Table 4, ndhD site 1, codon 295 (293), O. sativa '+'	codon 293 position 2 (tCa S→L)
+NC_001320.1	ndhF	62	2	21	TCA	TTA	S	L	wang-2017	Table 4, ndhF site 1, codon 21, O. sativa '+'	codon 21 position 2 (tCa S→L)
+NC_001320.1	ndhG	347	2	116	CCA	CTA	P	L	wang-2017	Table 4, ndhG site 1, codon 116, O. sativa '+'	codon 116 position 2 (cCa P→L)
+NC_001320.1	rpl2	2	2	1	ACG	ATG	T	M	wang-2017	Table 4, rpl2 site 1, codon 1, O. sativa '+ a' (partial editing)	codon 1 position 2 (aCg T→M)
+NC_001320.1	rpoB	467	2	156	TCG	TTG	S	L	wang-2017	Table 4, rpoB site 1, codon 156, O. sativa '+ a' (partial editing)	codon 156 position 2 (tCa S→L)
+NC_001320.1	rpoB	545	2	182	TCA	TTA	S	L	wang-2017	Table 4, rpoB site 2, codon 182, O. sativa '+ a' (partial editing)	codon 182 position 2 (tCa S→L)
+NC_001320.1	rpoB	560	2	187	TCA	TTA	S	L	wang-2017	Table 4, rpoB site 3, codon 187, O. sativa '+ a uCa' (partial editing)	codon 187 position 2 (tCg S→L)
+NC_001320.1	rps14	80	2	27	TCA	TTA	S	L	wang-2017	Table 4, rps14 site 1, codon 27, O. sativa '+'	codon 27 position 2 (tCa S→L)
+NC_001320.1	rps8	182	2	61	TCA	TTA	S	L	wang-2017	Table 4, rps8 site 1, codon 61, O. sativa '+'	codon 61 position 2 (tCa S→L)
+NC_001320.1	ycf3	185	2	62	ACG	ATG	T	M	wang-2017	Table 4, ycf3 site 2, codon 62 (64), O. sativa '+ a' (partial editing)	codon 62 position 2 (aCg T→M)
+NC_001631.1	accD	263	2	88	CCA	CTA	P	L	uniprot-2026	UniProtKB P52769 (ACCD_PINTH) entry v98, RNA EDITING position 88, ECO:0000269 PubMed:11078738	protein position 88 of the canonical sequence
+NC_001631.1	atpA	773	2	258	TCA	TTA	S	L	wakasugi-1996	Table 1, atpA codon 258 UcA → L	codon 258 UcA
+NC_001631.1	atpA	1004	2	335	GCA	GTA	A	V	wakasugi-1996	Table 1, atpA codon 335 GcA → V	codon 335 GcA
+NC_001631.1	atpA	1034	2	345	TCA	TTA	S	L	wakasugi-1996	Table 1, atpA codon 345 UcA → L	codon 345 UcA
+NC_001631.1	atpF	65	2	22	TCA	TTA	S	L	wakasugi-1996	Table 1, atpF codon 22 UcA → L	codon 22 UcA
+NC_001631.1	atpF	101	2	34	TCA	TTA	S	L	wakasugi-1996	Table 1, atpF codon 34 UcA → L	codon 34 UcA
+NC_001631.1	atpF	370	1	124	CCC	TCC	P	S	wakasugi-1996	Table 1, atpF codon 124 cCC → S	codon 124 cCC
+NC_001631.1	ccsA	704	2	235	TCA	TTA	S	L	wakasugi-1996	Table 1, ORF320 codon 235 UcA → L	codon 235 UcA
+NC_001631.1	ccsA	716	2	239	ACT	ATT	T	I	wakasugi-1996	Table 1, ORF320 codon 239 AcU → I	codon 239 AcU
+NC_001631.1	ccsA	901	1	301	CGT	TGT	R	C	wakasugi-1996	Table 1, ORF320 codon 302 cGU → C; the table prints 302, the record's codon 301 is the cGU (codon 302 is TAT)	codon 302 cGU
+NC_001631.1	petB	19	1	7	CGG	TGG	R	W	wakasugi-1996	Table 1, petB codon 7 cGG → W	codon 7 cGG
+NC_001631.1	petB	599	2	200	CCA	CTA	P	L	wakasugi-1996	Table 1, petB codon 200 CcA → L	codon 200 CcA
+NC_001631.1	petB	634	1	212	CCA	TCA	P	S	wakasugi-1996	Table 1, petB codon 212 cCA → S	codon 212 cCA
+NC_001631.1	petD	110	2	37	TCA	TTA	S	L	wakasugi-1996	Table 1, petD codon 37 UcA → L	codon 37 UcA
+NC_001631.1	petD	323	2	108	TCA	TTA	S	L	wakasugi-1996	Table 1, petD codon 108 UcA → L	codon 108 UcA
+NC_001631.1	petD	398	2	133	TCC	TTC	S	F	wakasugi-1996	Table 1, petD codon 133 UcC → F	codon 133 UcC
+NC_001631.1	petD	481	1	161	CAA	TAA	Q	*	wakasugi-1996	Table 1, petD codon 160 cAA → stop; the table prints 160, the record's codon 161 is the cAA (codon 160 is TTC)	codon 160 cAA
+NC_001631.1	petG	17	2	6	CCA	CTA	P	L	wakasugi-1996	Table 1, petG codon 6 CcA → L	codon 6 CcA
+NC_001631.1	petG	80	2	27	TCA	TTA	S	L	wakasugi-1996	Table 1, petG codon 27 UcA → L	codon 27 UcA
+NC_001631.1	petL	2	2	1	ACG	ATG	T	M	wakasugi-1996	Table 1, ycf7 codon 14 AcG → M; ycf7 (ORF62b) codon 14 is petL codon 1 of the ACG-started ORF33	codon 14 AcG
+NC_001631.1	petL	80	2	27	TCG	TTG	S	L	wakasugi-1996	Table 1, ycf7 codon 40 UcG → L; ycf7 (ORF62b) codon 40 is petL codon 27 of the ACG-started ORF33	codon 40 UcG
+NC_001631.1	petL	100	1	34	CAA	TAA	Q	*	wakasugi-1996	Table 1, ycf7 codon 47 cAA → stop; ycf7 (ORF62b) codon 47 is petL codon 34 of the ACG-started ORF33	codon 47 cAA
+NC_001631.1	psaB	1859	2	620	TCA	TTA	S	L	wakasugi-1996	Table 1, psaB codon 620 UcA → L	codon 620 UcA
+NC_001631.1	psbB	1391	2	464	TCT	TTT	S	F	wakasugi-1996	Table 1, psbB codon 464 UcU → F	codon 464 UcU
+NC_001631.1	psbE	214	1	72	CCG	TCG	P	S	wakasugi-1996	Table 1, psbE codon 72 cCG → S	codon 72 cCG
+NC_001631.1	psbL	92	2	31	CCA	CTA	P	L	wakasugi-1996	Table 1, psbL codon 31 CcA → L	codon 31 CcA
+NC_001631.1	rps14	146	2	49	TCA	TTA	S	L	wakasugi-1996	Table 1, rps14 codon 49 UcA → L	codon 49 UcA
+NC_001666.2	atpA	1148	2	383	TCA	TTA	S	L	wang-2017	Table 4, atpA site 1, codon 383, Z. mays '+'	codon 383 position 2 (tCa S→L)
+NC_001666.2	ndhA	50	2	17	TCG	TTG	S	L	wang-2017	Table 4, ndhA site 1, codon 17, Z. mays '+'	codon 17 position 2 (tCa S→L)
+NC_001666.2	ndhA	473	2	158	TCA	TTA	S	L	wang-2017	Table 4, ndhA site 2, codon 158, Z. mays '+'	codon 158 position 2 (tCa S→L)
+NC_001666.2	ndhA	563	2	188	TCA	TTA	S	L	wang-2017	Table 4, ndhA site 3, codon 188, Z. mays '+'	codon 188 position 2 (tCa S→L)
+NC_001666.2	ndhA	1070	2	357	TCC	TTC	S	F	wang-2017	Table 4, ndhA site 4, codon 357, Z. mays '+'	codon 357 position 2 (tCc S→F)
+NC_001666.2	ndhB	467	2	156	CCA	CTA	P	L	wang-2017	Table 4, ndhB site 2, codon 156, Z. mays '+'	codon 156 position 2 (cCa P→L)
+NC_001666.2	ndhB	586	1	196	CAT	TAT	H	Y	wang-2017	Table 4, ndhB site 3, codon 196, Z. mays '+'	codon 196 position 1 (Cat H→Y)
+NC_001666.2	ndhB	611	2	204	TCA	TTA	S	L	wang-2017	Table 4, ndhB site 4, codon 204, Z. mays '+'	codon 204 position 2 (tCa S→L)
+NC_001666.2	ndhB	737	2	246	CCA	CTA	P	L	wang-2017	Table 4, ndhB site 6, codon 246, Z. mays '+'	codon 246 position 2 (cCa P→L)
+NC_001666.2	ndhB	830	2	277	TCA	TTA	S	L	wang-2017	Table 4, ndhB site 7, codon 277, Z. mays '+'	codon 277 position 2 (tCa S→L)
+NC_001666.2	ndhB	1481	2	494	CCA	CTA	P	L	wang-2017	Table 4, ndhB site 9, codon 494, Z. mays '+'	codon 494 position 2 (cCa P→L)
+NC_001666.2	ndhD	878	2	293	TCA	TTA	S	L	wang-2017	Table 4, ndhD site 1, codon 295 (293), Z. mays '+'	codon 293 position 2 (tCa S→L)
+NC_001666.2	ndhF	62	2	21	TCA	TTA	S	L	wang-2017	Table 4, ndhF site 1, codon 21, Z. mays '+'	codon 21 position 2 (tCa S→L)
+NC_001666.2	rpl2	2	2	1	ACG	ATG	T	M	wang-2017	Table 4, rpl2 site 1, codon 1, Z. mays '+'	codon 1 position 2 (aCg T→M)
+NC_001666.2	rpl20	308	2	103	TCA	TTA	S	L	wang-2017	Table 4, rpl20 site 1, codon 103, Z. mays '+'	codon 103 position 2 (tCa S→L)
+NC_001666.2	rpoB	467	2	156	TCG	TTG	S	L	wang-2017	Table 4, rpoB site 1, codon 156, Z. mays '+'	codon 156 position 2 (tCa S→L)
+NC_001666.2	rpoB	545	2	182	TCA	TTA	S	L	wang-2017	Table 4, rpoB site 2, codon 182, Z. mays '+'	codon 182 position 2 (tCa S→L)
+NC_001666.2	rpoB	560	2	187	TCG	TTG	S	L	wang-2017	Table 4, rpoB site 3, codon 187, Z. mays '+'	codon 187 position 2 (tCg S→L)
+NC_001666.2	rpoB	617	2	206	CCG	CTG	P	L	wang-2017	Table 4, rpoB site 4, codon 206, Z. mays '+'	codon 206 position 2 (cCg P→L)
+NC_001666.2	rpoC2	2774	2	925	TCG	TTG	S	L	chen-2017-s4	Supplementary Table 4, rpoC2 row 2336 (Phalaenopsis numbering), Zea mays '+'; placed by protein alignment: Phalaenopsis codon 775 = this record's codon 925	Phalaenopsis gene position 2336 (Chen et al. 2017 numbering)
+NC_001666.2	rps14	80	2	27	TCA	TTA	S	L	wang-2017	Table 4, rps14 site 1, codon 27, Z. mays '+'	codon 27 position 2 (tCa S→L)
+NC_001666.2	rps8	182	2	61	TCA	TTA	S	L	wang-2017	Table 4, rps8 site 1, codon 61, Z. mays '+'	codon 61 position 2 (tCa S→L)
+NC_001666.2	ycf3	44	2	15	TCC	TTC	S	F	wang-2017	Table 4, ycf3 site 1, codon 15, Z. mays '+'	codon 15 position 2 (tCc S→F)
+NC_001666.2	ycf3	185	2	62	ACG	ATG	T	M	wang-2017	Table 4, ycf3 site 2, codon 62 (64), Z. mays '+ a' (partial editing)	codon 62 position 2 (aCg T→M)
+NC_001879.2	atpA	791	2	264	CCC	CTC	P	L	sasaki-2003	Table 2, atpA-1, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 264 cCc
+NC_001879.2	atpF	92	2	31	CCA	CTA	P	L	sasaki-2003	Table 2, atpF, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 31 cCa
+NC_001879.2	ndhA	341	2	114	TCA	TTA	S	L	sasaki-2003	Table 2, ndhA-1, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 114 uCa
+NC_001879.2	ndhA	1073	2	358	TCC	TTC	S	F	sasaki-2003	Table 2, ndhA-3, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 358 uCc
+NC_001879.2	ndhB	149	2	50	TCA	TTA	S	L	sasaki-2003	Table 2, ndhB-1, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 50 uCa
+NC_001879.2	ndhB	467	2	156	CCA	CTA	P	L	sasaki-2003	Table 2, ndhB-2, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 156 cCa
+NC_001879.2	ndhB	586	1	196	CAT	TAT	H	Y	sasaki-2003	Table 2, ndhB-3, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 196 Cau
+NC_001879.2	ndhB	611	2	204	TCA	TTA	S	L	sasaki-2003	Table 2, ndhB-4, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 204 uCa
+NC_001879.2	ndhB	737	2	246	CCA	CTA	P	L	sasaki-2003	Table 2, ndhB-5, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 246 cCa
+NC_001879.2	ndhB	746	2	249	TCT	TTT	S	F	sasaki-2003	Table 2, ndhB-6, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 249 uCu
+NC_001879.2	ndhB	830	2	277	TCA	TTA	S	L	sasaki-2003	Table 2, ndhB-7, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 277 uCa
+NC_001879.2	ndhB	836	2	279	TCA	TTA	S	L	sasaki-2003	Table 2, ndhB-8, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 279 uCa
+NC_001879.2	ndhB	1481	2	494	CCA	CTA	P	L	sasaki-2003	Table 2, ndhB-9, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 494 cCa
+NC_001879.2	ndhD	2	2	1	ACG	ATG	T	M	sasaki-2003	Table 2, ndhD-1, N. tabacum 'Δ (partial editing)'; from Hirose et al. 1999 (footnote b)	codon 1 aCg
+NC_001879.2	ndhD	383	2	128	TCA	TTA	S	L	sasaki-2003	Table 2, ndhD-2, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 128 uCa
+NC_001879.2	ndhD	599	2	200	TCA	TTA	S	L	sasaki-2003	Table 2, ndhD-3, N. tabacum 'Δ (partial editing)'	codon 200 uCa
+NC_001879.2	ndhD	674	2	225	TCG	TTG	S	L	sasaki-2003	Table 2, ndhD-4, N. tabacum '+'	codon 225 uCg
+NC_001879.2	ndhF	290	2	97	TCA	TTA	S	L	sasaki-2003	Table 2, ndhF, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 97 uCa
+NC_001879.2	petB	611	2	204	CCA	CTA	P	L	sasaki-2003	Table 2, petB, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 204 cCa
+NC_001879.2	psbE	214	1	72	CCT	TCT	P	S	sasaki-2003	Table 2, psbE, N. tabacum '+'; from Hirose et al. 1999 (footnote b); the table prints Cca, the codon is CCT in the record (and in Z00044.1): another third base, the same edited C and P→S	codon 72 Cca
+NC_001879.2	psbL	2	2	1	ACG	ATG	T	M	sasaki-2003	Table 2, psbL, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 1 aCg
+NC_001879.2	rpl20	308	2	103	TCA	TTA	S	L	sasaki-2003	Table 2, rpl20, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 103 uCa
+NC_001879.2	rpoA	830	2	277	TCA	TTA	S	L	sasaki-2003	Table 2, rpoA, N. tabacum 'Δ (partial editing)'; from Hirose et al. 1999 (footnote b)	codon 277 uCa
+NC_001879.2	rpoB	338	2	113	TCT	TTT	S	F	sasaki-2003	Table 2, rpoB-1, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 113 uCu
+NC_001879.2	rpoB	473	2	158	TCA	TTA	S	L	sasaki-2003	Table 2, rpoB-2, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 158 uCa
+NC_001879.2	rpoB	551	2	184	TCA	TTA	S	L	sasaki-2003	Table 2, rpoB-3, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 184 uCa
+NC_001879.2	rpoB	2000	2	667	TCT	TTT	S	F	sasaki-2003	Table 2, rpoB-4, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 667 uCu
+NC_001879.2	rpoC1	62	2	21	TCA	TTA	S	L	sasaki-2003	Table 2, rpoC1, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 21 uCa
+NC_001879.2	rpoC2	3731	2	1244	TCA	TTA	S	L	sasaki-2003	Table 2, rpoC2, N. tabacum '+'; from Hirose et al. 1999 (footnote b); Table 2 numbers rpoC2 on the 1986 model (Z00044.1, 1,393 codons), which starts 4 codons upstream of the record's: codon 1248 there is the record's codon 1244	codon 1248 uCa
+NC_001879.2	rps14	80	2	27	TCA	TTA	S	L	sasaki-2003	Table 2, rps14-1, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 27 uCa
+NC_001879.2	rps14	149	2	50	CCA	CTA	P	L	sasaki-2003	Table 2, rps14-2, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 50 cCa
+NC_001879.2	rps2	134	2	45	ACA	ATA	T	I	sasaki-2003	Table 2, rps2-1, N. tabacum '+'	codon 45 aCa
+NC_001879.2	rps2	248	2	83	TCA	TTA	S	L	sasaki-2003	Table 2, rps2-2, N. tabacum '+'; from Hirose et al. 1999 (footnote b)	codon 83 uCa
+NC_004561.1	atpF	92	2	31	CCA	CTA	P	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco atpF (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 31 cCa
+NC_004561.1	ndhA	341	2	114	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhA-1 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 114 uCa
+NC_004561.1	ndhA	566	2	189	TCA	TTA	S	L	schmitz-linneweber-2002	Atropa-Specific Editing Sites: ndhA codon 189, Ser to Leu	codon 189
+NC_004561.1	ndhA	1073	2	358	TCC	TTC	S	F	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhA-3 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 358 uCc
+NC_004561.1	ndhB	149	2	50	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhB-1 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 50 uCa
+NC_004561.1	ndhB	467	2	156	CCA	CTA	P	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhB-2 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 156 cCa
+NC_004561.1	ndhB	586	1	196	CAT	TAT	H	Y	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhB-3 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 196 Cau
+NC_004561.1	ndhB	611	2	204	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhB-4 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 204 uCa
+NC_004561.1	ndhB	737	2	246	CCA	CTA	P	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhB-5 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 246 cCa
+NC_004561.1	ndhB	746	2	249	TCT	TTT	S	F	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhB-6 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 249 uCu
+NC_004561.1	ndhB	830	2	277	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhB-7 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 277 uCa
+NC_004561.1	ndhB	836	2	279	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhB-8 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 279 uCa
+NC_004561.1	ndhB	1481	2	494	CCA	CTA	P	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhB-9 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 494 cCa
+NC_004561.1	ndhD	2	2	1	ACG	ATG	T	M	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhD-1 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa (partial editing)	tobacco codon 1 aCg
+NC_004561.1	ndhD	383	2	128	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhD-2 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 128 uCa
+NC_004561.1	ndhD	878	2	293	TCA	TTA	S	L	schmitz-linneweber-2002	Atropa-Specific Editing Sites: ndhD codon 293, Ser to Leu	codon 293
+NC_004561.1	ndhF	290	2	97	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco ndhF (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 97 uCa
+NC_004561.1	petB	611	2	204	CCA	CTA	P	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco petB (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 204 cCa
+NC_004561.1	psbL	2	2	1	ACG	ATG	T	M	schmitz-linneweber-2002	Introns and Editing Sites: tobacco psbL (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 1 aCg
+NC_004561.1	rpl20	308	2	103	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rpl20 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 103 uCa
+NC_004561.1	rpoA	830	2	277	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rpoA (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa (partial editing)	tobacco codon 277 uCa
+NC_004561.1	rpoB	338	2	113	TCT	TTT	S	F	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rpoB-1 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 113 uCu
+NC_004561.1	rpoB	473	2	158	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rpoB-2 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa (partial editing)	tobacco codon 158 uCa
+NC_004561.1	rpoB	551	2	184	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rpoB-3 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 184 uCa
+NC_004561.1	rpoB	2000	2	667	TCT	TTT	S	F	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rpoB-4 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 667 uCu
+NC_004561.1	rpoB	2426	2	809	TCA	TTA	S	L	schmitz-linneweber-2002	Atropa-Specific Editing Sites: rpoB codon 809, Ser to Leu	codon 809
+NC_004561.1	rpoC1	41	2	14	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rpoC1 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa; tobacco codon 21 (Table 2 numbering) is Atropa codon 14	tobacco codon 21 uCa
+NC_004561.1	rpoC2	3722	2	1241	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rpoC2 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa; tobacco codon 1248 (Table 2 numbering) is Atropa codon 1241	tobacco codon 1248 uCa
+NC_004561.1	rps14	80	2	27	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rps14-1 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa (partial editing)	tobacco codon 27 uCa
+NC_004561.1	rps2	248	2	83	TCA	TTA	S	L	schmitz-linneweber-2002	Introns and Editing Sites: tobacco rps2-2 (numbered as in Sasaki et al. 2003 Table 2) is among the 28 sites edited in Atropa	tobacco codon 83 uCa
+NC_007499.1	accD	1184	2	395	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 59414, gene position 1184a	genome position 59414 (1-based, AY916449.1 = NC_007499.1); gene position 1184
+NC_007499.1	accD	1412	2	471	CCA	CTA	P	L	chen-2017-zeng-2007	Supplementary Table 2, genome 59642, gene position 1412a	genome position 59642 (1-based, AY916449.1 = NC_007499.1); gene position 1412
+NC_007499.1	accD	1430	2	477	CCT	CTT	P	L	chen-2017-zeng-2007	Supplementary Table 2, genome 59660, gene position 1430a	genome position 59660 (1-based, AY916449.1 = NC_007499.1); gene position 1430
+NC_007499.1	atpA	773	2	258	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 11667, gene position 773a	genome position 11667 (1-based, AY916449.1 = NC_007499.1); gene position 773
+NC_007499.1	atpA	1148	2	383	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 11292, gene position 1148a	genome position 11292 (1-based, AY916449.1 = NC_007499.1); gene position 1148
+NC_007499.1	atpB	1184	2	395	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 53785, gene position 1184a	genome position 53785 (1-based, AY916449.1 = NC_007499.1); gene position 1184
+NC_007499.1	atpF	92	2	31	CCA	CTA	P	L	chen-2017-zeng-2007	Supplementary Table 2, genome 13962, gene position 92a	genome position 13962 (1-based, AY916449.1 = NC_007499.1); gene position 92
+NC_007499.1	atpI	428	2	143	CCT	CTT	P	L	chen-2017-zeng-2007	Supplementary Table 2, genome 15480, gene position 428a	genome position 15480 (1-based, AY916449.1 = NC_007499.1); gene position 428
+NC_007499.1	atpI	629	2	210	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 15279, gene position 629a	genome position 15279 (1-based, AY916449.1 = NC_007499.1); gene position 629
+NC_007499.1	clpP	82	1	28	CAT	TAT	H	Y	chen-2017-zeng-2007	Supplementary Table 2, genome 72255, gene position 82a	genome position 72255 (1-based, AY916449.1 = NC_007499.1); gene position 82
+NC_007499.1	clpP	559	1	187	CAT	TAT	H	Y	chen-2017-zeng-2007	Supplementary Table 2, genome 71089, gene position 559a	genome position 71089 (1-based, AY916449.1 = NC_007499.1); gene position 559
+NC_007499.1	matK	728	2	243	TCT	TTT	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 2528, gene position 533a — the source's gene position 533 is record CDS 728 (its matK model starts 65 codons downstream of the record's start; same codon)	genome position 2528 (1-based, AY916449.1 = NC_007499.1); gene position 533
+NC_007499.1	matK	913	1	305	CAT	TAT	H	Y	chen-2017-zeng-2007	Supplementary Table 2, genome 2343, gene position 718a — the source's gene position 718 is record CDS 913 (its matK model starts 65 codons downstream of the record's start; same codon)	genome position 2343 (1-based, AY916449.1 = NC_007499.1); gene position 718
+NC_007499.1	matK	1261	1	421	CAC	TAC	H	Y	chen-2017-zeng-2007	Supplementary Table 2, genome 1995, gene position 1066a — the source's gene position 1066 is record CDS 1261 (its matK model starts 65 codons downstream of the record's start; same codon)	genome position 1995 (1-based, AY916449.1 = NC_007499.1); gene position 1066
+NC_007499.1	petB	611	2	204	CCA	CTA	P	L	chen-2017-zeng-2007	Supplementary Table 2, genome 77940, gene position 611a	genome position 77940 (1-based, AY916449.1 = NC_007499.1); gene position 611
+NC_007499.1	petL	5	2	2	CCT	CTT	P	L	chen-2017-zeng-2007	Supplementary Table 2, genome 66862, gene position 5a	genome position 66862 (1-based, AY916449.1 = NC_007499.1); gene position 5
+NC_007499.1	psaI	80	2	27	TCT	TTT	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 60705, gene position 80a	genome position 60705 (1-based, AY916449.1 = NC_007499.1); gene position 80
+NC_007499.1	psbF	77	2	26	TCT	TTT	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 65322, gene position 77a	genome position 65322 (1-based, AY916449.1 = NC_007499.1); gene position 77
+NC_007499.1	rpl2	2	2	1	ACG	ATG	T	M	chen-2017-zeng-2007	Supplementary Table 2, genome 88243, gene position 2a	genome position 88243 (1-based, AY916449.1 = NC_007499.1); gene position 2
+NC_007499.1	rpl23	71	2	24	TCT	TTT	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 146448, gene position 71a	genome position 146448 (1-based, AY916449.1 = NC_007499.1); gene position 71
+NC_007499.1	rpoA	200	2	67	TCT	TTT	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 80516, gene position 200a	genome position 80516 (1-based, AY916449.1 = NC_007499.1); gene position 200
+NC_007499.1	rpoA	368	2	123	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 80348, gene position 368a	genome position 80348 (1-based, AY916449.1 = NC_007499.1); gene position 368
+NC_007499.1	rpoA	830	2	277	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 79886, gene position 830a	genome position 79886 (1-based, AY916449.1 = NC_007499.1); gene position 830
+NC_007499.1	rpoB	29	2	10	TCC	TTC	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 27484, gene position 92a — the source's gene position 92 is record CDS 29 (its rpoB model starts 21 codons upstream of the record's start; same codon)	genome position 27484 (1-based, AY916449.1 = NC_007499.1); gene position 92
+NC_007499.1	rpoB	338	2	113	TCT	TTT	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 27175, gene position 401a — the source's gene position 401 is record CDS 338 (its rpoB model starts 21 codons upstream of the record's start; same codon)	genome position 27175 (1-based, AY916449.1 = NC_007499.1); gene position 401
+NC_007499.1	rpoB	473	2	158	TCG	TTG	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 27040, gene position 536a — the source's gene position 536 is record CDS 473 (its rpoB model starts 21 codons upstream of the record's start; same codon)	genome position 27040 (1-based, AY916449.1 = NC_007499.1); gene position 536
+NC_007499.1	rpoB	551	2	184	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 26962, gene position 614a — the source's gene position 614 is record CDS 551 (its rpoB model starts 21 codons upstream of the record's start; same codon)	genome position 26962 (1-based, AY916449.1 = NC_007499.1); gene position 614
+NC_007499.1	rpoB	566	2	189	TCG	TTG	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 26947, gene position 629a — the source's gene position 629 is record CDS 566 (its rpoB model starts 21 codons upstream of the record's start; same codon)	genome position 26947 (1-based, AY916449.1 = NC_007499.1); gene position 629
+NC_007499.1	rpoB	623	2	208	CCG	CTG	P	L	chen-2017-zeng-2007	Supplementary Table 2, genome 26890, gene position 686a — the source's gene position 686 is record CDS 623 (its rpoB model starts 21 codons upstream of the record's start; same codon)	genome position 26890 (1-based, AY916449.1 = NC_007499.1); gene position 686
+NC_007499.1	rpoB	2426	2	809	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 25087, gene position 2489a — the source's gene position 2489 is record CDS 2426 (its rpoB model starts 21 codons upstream of the record's start; same codon)	genome position 25087 (1-based, AY916449.1 = NC_007499.1); gene position 2489
+NC_007499.1	rpoC1	41	2	14	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 24233, gene position 62a — the source's gene position 62 is record CDS 41 (its rpoC1 model starts 7 codons upstream of the record's start; same codon)	genome position 24233 (1-based, AY916449.1 = NC_007499.1); gene position 62
+NC_007499.1	rpoC1	182	2	61	TCT	TTT	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 24092, gene position 203a — the source's gene position 203 is record CDS 182 (its rpoC1 model starts 7 codons upstream of the record's start; same codon)	genome position 24092 (1-based, AY916449.1 = NC_007499.1); gene position 203
+NC_007499.1	rpoC1	617	2	206	TCG	TTG	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 22899, gene position 638a — the source's gene position 638 is record CDS 617 (its rpoC1 model starts 7 codons upstream of the record's start; same codon)	genome position 22899 (1-based, AY916449.1 = NC_007499.1); gene position 638
+NC_007499.1	rpoC2	2834	2	945	TCT	TTT	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 18443, gene position 2846a — the source's gene position 2846 is record CDS 2834 (its rpoC2 model starts 4 codons upstream of the record's start; same codon)	genome position 18443 (1-based, AY916449.1 = NC_007499.1); gene position 2846
+NC_007499.1	rps14	149	2	50	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 38459, gene position 149a	genome position 38459 (1-based, AY916449.1 = NC_007499.1); gene position 149
+NC_007499.1	rps16	143	2	48	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 5026, gene position 143a	genome position 5026 (1-based, AY916449.1 = NC_007499.1); gene position 143
+NC_007499.1	rps2	134	2	45	ACA	ATA	T	I	chen-2017-zeng-2007	Supplementary Table 2, genome 16782, gene position 134a	genome position 16782 (1-based, AY916449.1 = NC_007499.1); gene position 134
+NC_007499.1	rps8	182	2	61	TCA	TTA	S	L	chen-2017-zeng-2007	Supplementary Table 2, genome 82172, gene position 182ca	genome position 82172 (1-based, AY916449.1 = NC_007499.1); gene position 182
+NC_007499.1	ycf3	44	2	15	TCT	TTT	S	F	chen-2017-zeng-2007	Supplementary Table 2, genome 45758, gene position 44a	genome position 45758 (1-based, AY916449.1 = NC_007499.1); gene position 44
+NC_007499.1	ycf3	185	2	62	ACG	ATG	T	M	chen-2017-zeng-2007	Supplementary Table 2, genome 44886, gene position 185a	genome position 44886 (1-based, AY916449.1 = NC_007499.1); gene position 185
+NC_007499.1	ycf3	191	2	64	CCA	CTA	P	L	chen-2017-zeng-2007	Supplementary Table 2, genome 44880, gene position 191a	genome position 44880 (1-based, AY916449.1 = NC_007499.1); gene position 191

@@ -302,6 +302,36 @@ Terms used in every block:
 - **Missing rule.** A genome without a locus gets gaps for that block, and `matrix_genes` reports
   per-locus coverage; the topology is a construction, not a claim of correctness.
 
+## RNA editing
+
+### `rna_editing` — predicted C-to-U sites, PREP-Cp-compatible (arity 1, IR gate: no)
+
+- **Unit.** One CDS feature (a locus: each IR copy is its own); one predicted edited nucleotide.
+- **Input.** One genome's CDS features; reference B′, the packaged rebuild of the PREP-Cp training
+  reference ([specification](tools/prep_cp.md)).
+- **Tables.** `rna_editing_summary`, `rna_editing_coverage`, `rna_editing_sites`,
+  `rna_editing_query`; the query-plus-reference alignment of each evaluated locus is written to
+  `alignments/`.
+- **Control.** The published PREP rule (Mower 2005): standard-code translation, MAFFT 7.526
+  `--amino --localpair --maxiterate 1000 --add` into B′'s fixed alignment (the reference rows are
+  checked unchanged on every call), a score of matching over non-gap reference residues, ties to
+  fewer edits and then to codon position 2, reported when the edited state scores ≥ C (default
+  0.8). Independent checks: the archived genuine PREP-Cp outputs for *Vitis* accD (eight sites at
+  C = 0.2, two at C = 0.8), the three *Aegilops tauschii* evidence sets of the acceptance paper,
+  kept apart, and the 33 known sites of the unseen *N. sylvestris* (Mower 2009 Table 3).
+- **Copies / pseudo / partial.** Both IR copies are evaluated and mapped, each on its own
+  coordinates; two features sharing a name are two loci. A pseudogene, a non-standard translation
+  table, a frame that is not whole codons and an internal stop are `not evaluated` with the reason.
+  A partial CDS is evaluated and marked.
+- **Naming / comparison reference.** Vocabulary A through the alias table: a locus counts as one of
+  the 35 PREP-Cp genes by its canonical name or any synonym of its locus. B′ is the only comparison
+  reference; its digest is in every scope label, the run manifest's `reference_sets` and the step's
+  cache key.
+- **Missing rule.** Every CDS and every supported gene has one status: `evaluated` (its site count
+  may be 0), `not supported`, `absent from the record`, or `not evaluated` with a reason; the last
+  three leave the counts blank, never 0. A codon with an ambiguity code is listed and not scored; a
+  C codon whose column holds no reference residue is listed as unscored.
+
 ## Production and submission
 
 ### `plastid_annotate` — annotate a plastome from a reference set (arity 1, IR gate: yes)

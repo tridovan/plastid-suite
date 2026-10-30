@@ -1675,7 +1675,57 @@ def _gene_normalize_result() -> Result:
     )
 
 
+def _rna_editing_result() -> Result:
+    """The summary row the RNA-editing template reads — every column it names."""
+    summary = Table(
+        id="rna_editing_summary",
+        title="RNA editing — predicted C-to-U sites (PREP-Cp-compatible)",
+        columns=tuple(
+            Column(name, name)
+            for name in (
+                "sample",
+                "organism",
+                "method",
+                "reference",
+                "reference_digest",
+                "cutoff",
+                "aligner",
+                "tie_rule",
+                "n_evaluated",
+                "n_not_evaluated",
+                "n_absent",
+                "n_not_supported",
+                "n_sites",
+                "n_loci_with_sites",
+            )
+        ),
+        rows=(
+            {
+                "sample": "NC_007957.1",
+                "organism": "Vitis vinifera",
+                "method": "predicted · PREP-Cp-compatible",
+                "reference": "B′ — PTS rebuild of the PREP-Cp training reference",
+                "reference_digest": "1c419be5",
+                "cutoff": "0.8",
+                "aligner": "MAFFT 7.526 --amino --localpair --maxiterate 1000 --add",
+                "tie_rule": "highest score; tie: fewer edits; tie: codon position 2",
+                "n_evaluated": 37,
+                "n_not_evaluated": 0,
+                "n_absent": 0,
+                "n_not_supported": 47,
+                "n_sites": 40,
+                "n_loci_with_sites": 17,
+            },
+        ),
+        scope=Scope(label="predicted · PREP-Cp-compatible"),
+    )
+    return Result(
+        module="rna_editing", module_version="0.1.0", tables={"rna_editing_summary": summary}
+    )
+
+
 TEMPLATE_FIXTURES = {
+    "rna_editing": _rna_editing_result,
     "gene_normalize": _gene_normalize_result,
     "reference_audit": _reference_audit_result,
     "mito_annotate": _mito_annotate_result,

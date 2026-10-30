@@ -23,7 +23,8 @@ toolkit can call, with its role — runtime, cross-check, deferred or survey-onl
 [docs/tools/](docs/tools/).
 
 The [canonical pipeline](docs/pipeline.md) shows reference preparation, annotation, analysis and
-outputs, including deferred assembly, the open RNA-editing work and the integration still missing.
+outputs, including deferred assembly, RNA editing (predicted, PREP-Cp-compatible) and the
+integration still missing.
 
 ## Install
 

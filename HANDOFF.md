@@ -1,19 +1,22 @@
 # Development handoff
 
-**State:** 29/10/2026, `main` — phase M11 is merged and acceptance-tested on this tree (host run
-set and the full golden). Product documentation, requirements and shared
-method live in this repository. Maintainer planning — the active task, the milestones and their
-Definition of Done, and the dated evidence records — lives in `.dev/`, which is not part of the
-product repository.
+**State:** 30/10/2026 — phase M11 is merged and acceptance-tested; RNA editing (M4.5) is the
+module `rna_editing` (`docs/tools/prep_cp.md`), its reference B′'s seven records in
+`.panel/rna_editing/`, pinned in `src/plastid/data/rna_editing/taxa.yaml`. Product documentation,
+requirements and shared method live in this repository. Maintainer planning — the active task, the
+milestones and their Definition of Done, and the dated evidence records — lives in `.dev/`, which
+is not part of the product repository.
 
 ## What the product does now
 
 `plastid` reads plastid GenBank or FASTA records and runs the analyses in
 [the pipeline](docs/pipeline.md): `structure`, `genome_stats`, `gene_table`, `gene_names`,
 `gene_normalize`, `orf`, `codon_usage`, `amino_acid`, `introns`, `ssr`, `repeats`, `substitutions`,
-`diversity`, `barcodes`, `kaks`, `popgen`, `stats`, `synteny`, `phylogeny`, `submission`, plus the
-reference path `panel`/`reference`/`annotate` and the export path `figures`/`package`/`qc`. The
-mito modules are a frozen prototype: keep them passing, do not extend them.
+`diversity`, `barcodes`, `kaks`, `popgen`, `stats`, `synteny`, `phylogeny`, `submission`,
+`rna_editing` (predicted C-to-U sites, PREP-Cp-compatible), plus the reference path
+`panel`/`reference`/`annotate`, `editing-reference` (rebuild or verify the RNA-editing reference) and
+the export path `figures`/`package`/`qc`. The mito modules are a frozen prototype: keep them
+passing, do not extend them.
 
 Reproduced defects are in [known issues](docs/known_issues.md). A documentation change does not
 fix one.

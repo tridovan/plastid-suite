@@ -110,7 +110,9 @@ def test_the_registry_carries_each_modules_group() -> None:
     The two exact sets are deliberate tripwires: a module added without a group —
     or a group changed without the table — makes this fail, and updating it means reading the
     table. ``plastid_annotate`` is in the plastid row because it transfers from plastid records
-    and reads the inverted repeat; the seven "transitional" analyses are ``shared`` because that
+    and reads the inverted repeat; ``rna_editing`` because its reference B′ holds chloroplast
+    proteins only (a plastid predictor scored against a mitogenome would answer a question nobody
+    asked); the seven "transitional" analyses are ``shared`` because that
     is what the table calls them, and what keeps them off a mitogenome today is ``requires_ir``,
     a different question with its own gate.
     """
@@ -129,6 +131,7 @@ def test_the_registry_carries_each_modules_group() -> None:
         "gene_table",
         "genome_stats",
         "plastid_annotate",
+        "rna_editing",
         "structure",
     }
 

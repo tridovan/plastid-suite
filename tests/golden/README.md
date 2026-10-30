@@ -8,7 +8,7 @@ pretend otherwise. Each check proves one of five things:
 | A number measured once on the golden pair, then pinned | Ts/Tv 2.6917 (323 Ts / 120 Tv), π 0.007181, Ka/Ks 0.2167 | the number did not drift | that it is right — π and Ka/Ks have no published value for this pair |
 | A second engine with the same definition | repeat-match and Vmatch report the same 9 repeats; the de-novo IR equals the annotated one | the result is not one implementation's bug | that the definition is the biologically right one |
 | An answer known by construction, or an invariance | the synthetic IR record; five rotated origins; the reverse-complemented record; one sequence under two annotations | a property any correct tool must keep | — |
-| A source outside this code | gene counts from the published record's own features; the curated mito record OX459128.1; NCBI's VADR tables | agreement with that source | that the source is right — a disagreement is investigated on both sides |
+| A source outside this code | gene counts from the published record's own features; the curated mito record OX459128.1; NCBI's VADR tables; the two archived genuine PREP-Cp outputs and the *Aegilops* evidence sets (`test_rna_editing_acceptance.py`) | agreement with that source | that the source is right — a disagreement is investigated on both sides |
 | The pinned tools really run | MAFFT strategy names, the MACSE jar, table2asn | the argv and versions the code claims | — |
 
 The golden pair (*Iris domestica* NC_050833.1 vs *Iris gatesii* NC_024936.1) is one input. It is
@@ -33,6 +33,13 @@ instead of skipping. Both targets print the 25 slowest tests.
 
 A new test that reads `.panel/` gets `@pytest.mark.panel`, or the mark in its module's
 `pytestmark`. Without it, the test skips in CI and belongs to no tier that says so.
+
+**RNA editing** (`test_rna_editing_acceptance.py`, tier B): both archived PREP-Cp outputs for
+*Vitis* accD come back site for site and score for score; reference B′ rebuilds byte for byte; and
+the *Aegilops* comparison keeps the original prediction, the RNA-seq calls and the RT-PCR checks
+apart.
+Each *Aegilops* difference is pinned together with the reference column that explains it, re-read
+from the run's own alignment — a new number there needs a new explanation, not a new constant.
 
 A changed golden number is never edited to make the suite pass: explain it with independent
 evidence and get the dev's review first.

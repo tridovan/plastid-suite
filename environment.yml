@@ -97,6 +97,7 @@ dependencies:
   #            (MAKER, CPGAVAS2, ARAGORN, tRNAscan-SE, TRF, Vmatch…) is far heavier and never ran
   #            here; the mito annotate step is this project's own caller (P3A), covered by
   #            the blast/aragorn pinned above — nothing here is open.
-  # deepred-mt needs TensorFlow ~2 GB; PMGA's RNA-editing module uses it. PREP-Cp is M4.5's
-  #            chosen predictor and has no verified local distribution (docs/tools/prep_cp.md);
-  #            no install line is invented for it.
+  # deepred-mt needs TensorFlow ~2 GB and predicts mitochondrial editing only (PMGA uses it).
+  #            M4.5's plastid predictor is the published PREP method run inside PTS with the
+  #            MAFFT pinned above; the original PREP-Cp service ended in 2022 and has no install
+  #            line (docs/tools/prep_cp.md).

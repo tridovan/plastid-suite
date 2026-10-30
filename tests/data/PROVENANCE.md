@@ -130,3 +130,36 @@
   from `out.delta` with the block whose query span is `153441..127260` kept as the reverse case.
 - **Licence:** generated data, no third-party content — the input sequences are the two public
   GenBank records already vendored here.
+
+## RNA editing — the regression and acceptance inputs (M4.5)
+
+| File | Accession | Organism | Role |
+|---|---|---|---|
+| `rna_editing/NC_007957.1.gb` | NC_007957.1 | *Vitis vinifera* | regression input (the archived PREP-Cp form's accD sample) |
+| `rna_editing/KJ614412.1.gb` | KJ614412.1 | *Aegilops tauschii* AL8/78 | acceptance input |
+
+- **Source:** NCBI Nucleotide, fetched 30/10/2026 via E-utilities
+  (`efetch … rettype=gbwithparts&retmode=text`, the request `plastid panel pin` makes).
+  NC_007957.1's digest equals the one recorded when the archived form's sample was matched to it
+  on 29/10/2026.
+- **Reference B′'s seven records are not here.** They are pinned by SHA-256 in
+  `src/plastid/data/rna_editing/taxa.yaml` and kept out of git;
+  `plastid panel pin --accessions NC_000932.1,NC_001879.2,NC_004561.1,NC_001666.2,NC_001320.1,NC_007499.1,NC_001631.1 --out .panel/rna_editing`
+  re-creates them byte for byte (checked 30/10/2026), and `plastid editing-reference build`
+  refuses any other bytes. The *N. sylvestris* record of the unseen-taxon test, NC_007500.1
+  (sha256 `786941e3…`, pinned in the test), lives there too. Tests that read them are marked
+  `panel`.
+- **`rna_editing/prep_cp_archived_vitis_accD.tsv`:** the two genuine PREP-Cp results the Internet
+  Archive kept for that sample (C = 0.2 and C = 0.8), transcribed with the capture each row comes
+  from.
+- **`rna_editing/wang2017_aegilops_sets.tsv`:** the three evidence sets of Wang et al. 2017
+  (Genes 8:13, doi 10.3390/genes8010013, Europe PMC full text PMC5295008): Table 2 (the original
+  PREP-Cp prediction), Table 3 (RNA-seq calls) and the RT-PCR checks (Table 2 footnotes a/b and
+  Table 3 footnote d). Every coding row was placed on KJ614412.1 and checked — the base, the codon
+  and, for Table 3, the genome position against the CDS position. The counts are the paper's:
+  34 · 60 · 23 edited + 1 unedited.
+- **`rna_editing/sasaki2003_nsylvestris_sites.tsv`:** the 33 *N. sylvestris* sites of Sasaki et al.
+  2003 (Mol Biol Evol 20:1028, Table 2), placed on NC_007500.1 and checked the same way — the set
+  Mower 2009 Table 3 scored PREP-Cp against.
+- **Licence:** NCBI GenBank data is in the public domain; the tables are facts transcribed from
+  their sources, cited above.

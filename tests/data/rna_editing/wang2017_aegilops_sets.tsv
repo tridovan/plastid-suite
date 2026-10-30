@@ -1,0 +1,119 @@
+set	gene	cds_position	aa_position	codon	aa_change	genome_position	strand	note
+table2_prepcp	ndhA	473	158	TCA	S→L	112572	-	Table 2 (a)
+rtpcr_edited	ndhA	473	158	TCA	S→L	112572	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhA	563	188	TCA	S→L	111453	-	Table 2 (a)
+rtpcr_edited	ndhA	563	188	TCA	S→L	111453	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhA	1070	357	TCT	S→F	110946	-	Table 2
+table2_prepcp	atpA	1148	383	TCA	S→L	35354	+	Table 2 (a)
+rtpcr_edited	atpA	1148	383	TCA	S→L	35354	+	Table 2 footnote a: experimental verification
+table2_prepcp	atpB	1487	496	TCG	S→L	52265	-	Table 2
+table2_prepcp	matK	1261	421	CAT	H→Y	1956	-	Table 2 (a)
+rtpcr_edited	matK	1261	421	CAT	H→Y	1956	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhB	149	50	TCA	S→L	87494	-	Table 2 (a)
+rtpcr_edited	ndhB	149	50	TCA	S→L	87494	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhB	467	156	CCA	P→L	87176	-	Table 2 (a)
+rtpcr_edited	ndhB	467	156	CCA	P→L	87176	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhB	586	196	CAT	H→Y	87057	-	Table 2 (a)
+rtpcr_edited	ndhB	586	196	CAT	H→Y	87057	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhB	611	204	TCA	S→L	87032	-	Table 2 (a)
+rtpcr_edited	ndhB	611	204	TCA	S→L	87032	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhB	704	235	TCC	S→F	86939	-	Table 2 (a)
+rtpcr_edited	ndhB	704	235	TCC	S→F	86939	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhB	737	246	CCA	P→L	86906	-	Table 2 (a)
+rtpcr_edited	ndhB	737	246	CCA	P→L	86906	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhB	830	277	TCA	S→L	86101	-	Table 2 (a)
+rtpcr_edited	ndhB	830	277	TCA	S→L	86101	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhB	836	279	TCA	S→L	86095	-	Table 2 (a)
+rtpcr_edited	ndhB	836	279	TCA	S→L	86095	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhB	1481	494	CCA	P→L	85450	-	Table 2 (a)
+rtpcr_edited	ndhB	1481	494	CCA	P→L	85450	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhD	878	293	TCA	S→L	107262	-	Table 2 (a)
+rtpcr_edited	ndhD	878	293	TCA	S→L	107262	-	Table 2 footnote a: experimental verification
+table2_prepcp	ndhF	62	21	TCA	S→L	103487	-	Table 2
+table2_prepcp	ndhF	1487	496	ACG	T→M	102062	-	Table 2
+table2_prepcp	petB	662	221	CCA	P→L	71835	+	Table 2
+table2_prepcp	rpoC2	2009	670	CCA	P→L	27159	+	Table 2
+table2_prepcp	rpoC2	2030	677	CCA	P→L	27180	+	Table 2
+table2_prepcp	rpoC2	2158	720	CCC	P→S	27308	+	Table 2
+table2_prepcp	rpoC2	3002	1001	CCG	P→L	28152	+	Table 2
+table2_prepcp	rpoC2	4031	1344	TCG	S→L	29181	+	Table 2
+table2_prepcp	rpl2	62	21	ACT	T→I	80769	-	Table 2
+table2_prepcp	rpl20	308	103	TCA	S→L	65632	-	Table 2
+table2_prepcp	rpoA	1009	337	CTC	L→F	73498	-	Table 2
+table2_prepcp	rpoB	467	156	TCG	S→L	20093	+	Table 2 (a)
+rtpcr_edited	rpoB	467	156	TCG	S→L	20093	+	Table 2 footnote a: experimental verification
+table2_prepcp	rpoB	545	182	TCA	S→L	20171	+	Table 2 (a)
+rtpcr_edited	rpoB	545	182	TCA	S→L	20171	+	Table 2 footnote a: experimental verification
+table2_prepcp	rpoB	560	187	TCG	S→L	20186	+	Table 2 (a)
+rtpcr_edited	rpoB	560	187	TCG	S→L	20186	+	Table 2 footnote a: experimental verification
+table2_prepcp	rpoB	617	206	CCG	P→L	20243	+	Table 2 (b)
+rtpcr_unedited	rpoB	617	206	CCG	P→L	20243	+	Table 2 footnote b: unedited by experimental verification
+table2_prepcp	rps8	182	61	TCA	S→L	76074	-	Table 2
+table2_prepcp	ycf3	44	15	TCC	S→F	43880	-	Table 2
+table2_prepcp	ycf3	191	64	ACG	T→M	42982	-	Table 2
+rnaseq	~psbK					3090		Table 3, outside a CDS
+rnaseq	~psbK					3551		Table 3, outside a CDS
+rnaseq	psbI~psbD					8259		Table 3, outside a CDS
+rnaseq	psbI~psbD					8481		Table 3, outside a CDS
+rnaseq	psbC~psbZ					11311		Table 3, outside a CDS
+rnaseq	rpoB	467	156	TCG	S→L	20093	+	Table 3 genome 20093 (a)
+rnaseq	rpoB	545	182	TCA	S→L	20171	+	Table 3 genome 20171 (a)
+rnaseq	rpoB	560	187	TCG	S→L	20186	+	Table 3 genome 20186 (a)
+rnaseq	rpoC2	4031	1344	TCG	S→L	29181	+	Table 3 genome 29181 (a)
+rnaseq	atpH~atpF					32404		Table 3, outside a CDS
+rnaseq	atpA	234	78	GGC	G→G	34440	+	Table 3 genome 34440
+rnaseq	atpA	1148	383	TCA	S→L	35354	+	Table 3 genome 35354 (a)
+rnaseq	atpA~trnS-GGA					42415		Table 3, outside a CDS
+rnaseq	ycf4~cemA					57960		Table 3, outside a CDS
+rnaseq	petL	56	19	CCA	P→L	62758	+	Table 3 genome 62758 (d)
+rtpcr_edited	petL	56	19	CCA	P→L	62758	+	Table 3 footnote d: validated by direct sequencing of PCR products (genome 62758)
+rnaseq	rps18	448	150	CGA	R→Stop	65352	+	Table 3 genome 65352
+rnaseq	psbB	414	138	ATC	L→L	68447	+	Table 3 genome 68447
+rnaseq	petB	662	221	CCA	P→L	71835	+	Table 3 genome 71835 (a)
+rnaseq	ndhB	149	50	TCA	S→L	127814	+	Table 3 genome 127814 (a)
+rnaseq	ndhB	586	196	CAT	H→Y	128251	+	Table 3 genome 128251 (a)
+rnaseq	ndhB	611	204	TCA	S→L	128276	+	Table 3 genome 128276 (a)
+rnaseq	ndhB	704	235	TCC	S→F	128369	+	Table 3 genome 128369 (a)
+rnaseq	ndhB	1481	494	CCA	P→L	129858	+	Table 3 genome 129858 (a)
+rnaseq	matK	1261	421	CAT	H→Y	1956	-	Table 3 genome 1956 (a)
+rnaseq	rps16-intron					5100		Table 3, outside a CDS
+rnaseq	rps16-intron					5179		Table 3, outside a CDS
+rnaseq	rps14~psaB					36673		Table 3, outside a CDS
+rnaseq	ycf3	191	64	ACG	T→M	42982	-	Table 3 genome 42982 (a)
+rnaseq	ycf3	44	15	TCC	S→F	43880	-	Table 3 genome 43880 (a)
+rnaseq	ycf3~rps4					44727		Table 3, outside a CDS
+rnaseq	ycf3~rps4					44868		Table 3, outside a CDS
+rnaseq	rps4	305	102	TCA	S→L	45244	-	Table 3 genome 45244
+rnaseq	ndhK	125	42	CCA	P→L	49393	-	Table 3 genome 49393 (d)
+rtpcr_edited	ndhK	125	42	CCA	P→L	49393	-	Table 3 footnote d: validated by direct sequencing of PCR products (genome 49393)
+rnaseq	ndhC	13	5	CAC	H→Y	49858	-	Table 3 genome 49858
+rnaseq	psbL	111	37	TTC	F→F	61027	-	Table 3 genome 61027
+rnaseq	trnP-GGG~rpl20					65383		Table 3, outside a CDS
+rnaseq	rpl20	308	103	TCA	S→L	65632	-	Table 3 genome 65632 (a)
+rnaseq	clpP~psbN					67968		Table 3, outside a CDS
+rnaseq	psbN~rpoA					73402		Table 3, outside a CDS
+rnaseq	rpoA	527	176	TCC	S→F	73980	-	Table 3 genome 73980 (d)
+rtpcr_edited	rpoA	527	176	TCC	S→F	73980	-	Table 3 footnote d: validated by direct sequencing of PCR products (genome 73980)
+rnaseq	rpoA~rps11					74553		Table 3, outside a CDS
+rnaseq	rps8	182	61	TCA	S→L	76074	-	Table 3 genome 76074 (a)
+rnaseq	rpl16	36	12	CCC	P→P	77285	-	Table 3 genome 77285
+rnaseq	rpl16~rps3					78313		Table 3, outside a CDS
+rnaseq	rps3	30	10	TTC	F→F	79174	-	Table 3 genome 79174 (d)
+rtpcr_edited	rps3	30	10	TTC	F→F	79174	-	Table 3 footnote d: validated by direct sequencing of PCR products (genome 79174)
+rnaseq	rpl2~rpl23					81816		Table 3, outside a CDS
+rnaseq	ndhB	836	279	TCA	S→L	86095	-	Table 3 genome 86095 (a)
+rnaseq	ndhB	467	156	CCA	P→L	87176	-	Table 3 genome 87176 (a)
+rnaseq	ndhB	149	50	TCA	S→L	87494	-	Table 3 genome 87494 (a)
+rnaseq	rps7~trnN-GUU					96705		Table 3, outside a CDS
+rnaseq	ndhF	1891	631	CAG	Q→Stop	101658	-	Table 3 genome 101658
+rnaseq	ndhF	62	21	TCA	S→L	103487	-	Table 3 genome 103487 (a)
+rnaseq	ndhD	1398	466	ATC	L→L	106742	-	Table 3 genome 106742 (d)
+rtpcr_edited	ndhD	1398	466	ATC	L→L	106742	-	Table 3 footnote d: validated by direct sequencing of PCR products (genome 106742)
+rnaseq	ndhD	878	293	TCA	S→L	107262	-	Table 3 genome 107262 (a,d)
+rnaseq	ndhE~ndhG					109393		Table 3, outside a CDS
+rnaseq	ndhG	347	116	CCA	P→L	109684	-	Table 3 genome 109684 (d)
+rtpcr_edited	ndhG	347	116	CCA	P→L	109684	-	Table 3 footnote d: validated by direct sequencing of PCR products (genome 109684)
+rnaseq	ndhG~ndhI					110034		Table 3, outside a CDS
+rnaseq	ndhA	1070	357	TCT	S→F	110946	-	Table 3 genome 110946 (a)
+rnaseq	ndhA	563	188	TCA	S→L	111453	-	Table 3 genome 111453 (a)
+rnaseq	ndhA	473	158	TCA	S→L	112572	-	Table 3 genome 112572 (a)

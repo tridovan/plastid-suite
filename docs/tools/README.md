@@ -26,7 +26,7 @@ failure, not a placeholder.
 | Tool | Role | Package | Version | Call site | Page |
 |---|---|---|---|---|---|
 | `perl` | active-runtime | `perl` | 5.32.1 | interpreter for `misa.pl` and `CPJSdraw.pl` — `run/tools.py` (`tool_version`), `external/misa.py`, `external/cpjsdraw.py` | [misa](misa.md), [cpjsdraw](cpjsdraw.md) |
-| `mafft` | active-runtime | `mafft` | 7.526 | `external/mafft.py` ← `modules/substitutions.py`, `modules/diversity.py`, `modules/barcodes.py`, `modules/popgen.py`, `modules/kaks.py` | — |
+| `mafft` | active-runtime | `mafft` | 7.526 | `external/mafft.py` ← `modules/substitutions.py`, `modules/diversity.py`, `modules/barcodes.py`, `modules/popgen.py`, `modules/kaks.py`, `modules/rna_editing.py` and `cli.py` (`editing-reference build`) | [prep_cp](prep_cp.md) (the RNA-editing method) |
 | `aragorn` | active-runtime | `aragorn` | 1.2.41 | `external/aragorn.py` ← `modules/plastid_annotate.py`, `modules/mito_annotate.py` | [aragorn](aragorn.md) |
 | `blast` | active-runtime | `blast` | 2.17.0 | `external/blast.py` ← `modules/plastid_annotate.py`, `modules/mito_annotate.py`, `modules/gene_normalize.py` | [blast](blast.md) |
 | `mummer4` | active-runtime | `mummer4` | 4.0.1 | `external/mummer.py` ← `modules/synteny.py` | [mummer4](mummer4.md) |
