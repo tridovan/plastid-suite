@@ -23,7 +23,8 @@ toolkit can call, with its role — runtime, cross-check, deferred or survey-onl
 [docs/tools/](docs/tools/).
 
 The [canonical pipeline](docs/pipeline.md) shows reference preparation, annotation, analysis and
-outputs, including deferred assembly, the open RNA-editing work and the integration still missing.
+outputs, including deferred assembly, RNA editing (predicted, PREP-Cp-compatible) and the
+integration still missing.
 
 ## Install
 
@@ -85,14 +86,16 @@ disagrees with the chosen naming reference. A refused run still leaves its direc
 In a checkout, with the tools you have installed:
 
 ```bash
-make test      # fast tests — no external tools, no network
-make golden    # the golden-number set; names every missing tool
-make check     # lint + test + golden
+make test        # fast tests — no external tools, no network
+make golden      # the golden numbers and pinned-tool checks; names every missing tool
+make acceptance  # the tests that read the pinned panels under .panel/
+make check       # lint + test + golden
 ```
 
-The corpus half of `make golden` needs the pinned panels under `.panel/`, which are not in git by
-design — those tests skip with a named reason in a fresh clone. Record skips explicitly: skipped
+The tests that read `.panel/` are marked `panel` and run only under `make acceptance`. The panels
+are not in git by design, so a fresh clone cannot run that tier. Record skips explicitly: skipped
 cases are unverified, and passing golden tests alone do not establish correctness on other records.
+What each kind of golden check proves: `tests/golden/README.md`.
 
 **Golden sample:** *Iris domestica* NC_050833.1 — **153,724 bp · 37.85 % GC · 132 genes = 86 CDS +
 38 tRNA + 8 rRNA** · IR 26,214 bp at 100.00 % identity · LSC 83,127 · SSC 18,169 · 37 SSRs

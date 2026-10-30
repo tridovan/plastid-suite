@@ -34,6 +34,7 @@ VARIANTS = ROOT / ".panel" / "ir-validation" / "annotation-variants"
 
 pytestmark = [
     pytest.mark.tier_b,
+    pytest.mark.panel,
     pytest.mark.skipif(
         not PANEL.is_dir() or not VARIANTS.is_dir(),
         reason="the IR validation panel is not in this tree (.panel/ is gitignored)",

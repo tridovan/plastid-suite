@@ -1,0 +1,108 @@
+# Reference B′ — the seven PREP-Cp training taxa (Mower 2009), one pinned record each.
+#
+# B′ is PTS's rebuild of the reference PREP-Cp scored against; the original 35 alignments were
+# never published (docs/tools/prep_cp.md). These taxa belong to the method — they are not a
+# toolkit default for any other analysis. Mower 2009 names the last two only by genus: the
+# species are the ones whose plastid editing had been surveyed by 2009 (Phalaenopsis aphrodite
+# subsp. formosana, Zeng et al. 2007; Pinus thunbergii, Wakasugi et al. 1996), on the records
+# those surveys used.
+#
+# `sha256` pins the GenBank file as NCBI E-utilities returned it on 30/10/2026
+# (efetch rettype=gbwithparts); `plastid editing-reference build` refuses a record with another
+# digest. The files are kept out of git: `plastid panel pin --accessions <the seven> --out
+# .panel/rna_editing` re-creates them byte for byte.
+#
+# `known_2009` is Mower 2009 Table 2's TP + FN at C = 0.8 — the number of edit sites PREP-Cp's
+# own reference held for the taxon in the 35 genes. It is a completeness yardstick for the edit
+# list (`edit_sites.tsv`), not a target: a list may differ from 2009's, and the difference is
+# stated, never filled in by inference.
+#
+# `names` gives a gene symbol to a supported CDS the record names only by /product, matched by
+# location and /product together, with the reason the product is that gene.
+
+taxa:
+  - key: Arabidopsis
+    organism: Arabidopsis thaliana
+    accession: NC_000932.1
+    sha256: a5ad237da710526a1cbd01129ad35ab362ca439adc5656b37319fcfd040e6c73
+    length: 154478
+    known_2009: 29
+    edit_list: "chateigner-boutin-2007 — the complete 2007 list (31 sites in the 35 genes)"
+    names: []
+
+  - key: Nicotiana
+    organism: Nicotiana tabacum
+    accession: NC_001879.2
+    sha256: 25c5b39fd25d702c0a390fe5e7480eda0ccc1e4d6d7c388445b4686049412a24
+    length: 155943
+    known_2009: 38
+    edit_list: >-
+      sasaki-2003 — the complete 2003 list (Table 2, which includes the 31 sites of Hirose et al.
+      1999): 33 amino-acid-changing sites; the one silent site is not part of B′.
+    names: []
+
+  - key: Atropa
+    organism: Atropa belladonna
+    accession: NC_004561.1
+    sha256: ecd63d9aceaa0f81a9a98a52a8f816a7769e9b4443767cb2417b3f62a8ebf35d
+    length: 156687
+    known_2009: 31
+    edit_list: >-
+      schmitz-linneweber-2002 — 28 of tobacco's 31 sites edited in Atropa (placed through the
+      tobacco numbering of sasaki-2003) plus 3 Atropa-only sites: 30 amino-acid-changing sites.
+    names: []
+
+  - key: Zea
+    organism: Zea mays
+    accession: NC_001666.2
+    sha256: 27a59552c3142b57fdaada115d282ecd7c15c43b2138abede6390f95477d7f0f
+    length: 140384
+    known_2009: 26
+    edit_list: "wang-2017 (Table 4, rice and maize columns) and chen-2017-s4 (rpoC2) — 24 sites"
+    names: []
+
+  - key: Oryza
+    organism: Oryza sativa Japonica Group
+    accession: NC_001320.1
+    sha256: 661f6730c4457fa2618c098d94218381a523af0f40556fb7bb80d813678cc718
+    length: 134525
+    known_2009: 25
+    edit_list: "wang-2017 (Table 4, rice and maize columns) — 23 sites"
+    names: []
+
+  - key: Phalaenopsis
+    organism: Phalaenopsis aphrodite subsp. formosana
+    accession: NC_007499.1
+    sha256: ee5575d4ae09d59c168860bf1365e03c0c07a1d632a723d2be4162a8776e22a6
+    length: 148964
+    known_2009: 42
+    edit_list: "chen-2017-zeng-2007 — the Zeng et al. 2007 sites, 41 in the 35 genes"
+    names:
+      - location: "60626..60736(+)"
+        product: "PSI reaction centre subunit VIII"
+        gene: psaI
+        evidence: "photosystem I subunit VIII is the protein psaI encodes"
+      - location: "66858..66953(+)"
+        product: "cyt b6/f complex subunit VI; ycf7"
+        gene: petL
+        evidence: "cytochrome b6/f complex subunit VI is the protein petL encodes (formerly ycf7)"
+
+  - key: Pinus
+    organism: Pinus thunbergii
+    accession: NC_001631.1
+    sha256: 27beee733b62ae04912bd1381e9bc511b2eb8b2dc57fa4eada8eb6fe3e9385d6
+    length: 119707
+    known_2009: 27
+    edit_list: >-
+      wakasugi-1996 (Table 1, 26 sites in 12 genes, all of them among the 35) and uniprot-2026
+      (accD P88L, Sasaki Y. et al. 2001): 27, of which two create stop codons.
+    names:
+      - location: "33899..33997(-)"
+        product: "cytochrome b6/f complex subunit VI"
+        gene: petL
+        cds: "33899..34000(-)"
+        evidence: >-
+          cytochrome b6/f complex subunit VI is the protein petL (ycf7) encodes. The record's CDS
+          starts one codon after its own start: its /transl_except puts Met on 33995..33997, a CCT
+          that no C-to-U edit can make AUG, while 33998..34000 is the ACG that editing turns into
+          the start of ORF33 (Wakasugi et al. 1996, Table 1: ycf7 codon 14 AcG→AUG; Fig. 2).

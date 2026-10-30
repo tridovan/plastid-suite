@@ -33,6 +33,7 @@ from plastid.core.gene_names import (
     NamingConflictError,
     RecordedReference,
     checkout_root,
+    load_gene_aliases,
     load_recorded_reference,
 )
 from plastid.core.ir import (
@@ -57,6 +58,7 @@ from plastid.core.panel import (
     propose,
     save_index,
 )
+from plastid.core.rna_editing import EditingReferenceError
 from plastid.core.samples import group_of, load_groups
 from plastid.modules import registry
 from plastid.report.citations import Citation, format_citation, load_citations
@@ -95,7 +97,7 @@ from plastid.run.runner import (
     export_files,
     write_payload,
 )
-from plastid.run.tools import ToolError
+from plastid.run.tools import ToolError, tool_version, which
 
 EXIT_OK = 0
 EXIT_ERROR = 1
@@ -494,6 +496,36 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="where to write it (default: <panel>/REFERENCE_SET.json; point it at "
         "src/plastid/data/ to commit the offline copy)",
+    )
+
+    editing = subparsers.add_parser(
+        "editing-reference",
+        help="reference B′ of the RNA-editing predictor: rebuild it, or verify it",
+    )
+    editing_actions = editing.add_subparsers(dest="editing_action", metavar="ACTION")
+    editing_build = editing_actions.add_parser(
+        "build",
+        help="rebuild B′ from its pinned records, the sourced edit list and the pinned MAFFT",
+    )
+    editing_build.add_argument(
+        "--records",
+        default=".panel/rna_editing",
+        help="directory holding the seven pinned records as <accession>.gb (default: "
+        ".panel/rna_editing; `plastid panel pin --accessions … --out .panel/rna_editing` fetches "
+        "them, and the build refuses any bytes other than their pins in taxa.yaml)",
+    )
+    editing_build.add_argument("--out", required=True, help="where to write the reference JSON")
+    editing_build.add_argument(
+        "--runs", default=".runs", help="output root for the build's own run (default: .runs)"
+    )
+    editing_verify = editing_actions.add_parser(
+        "verify", help="check B′ against its digest, and the records against their pins"
+    )
+    editing_verify.add_argument(
+        "--reference", default=None, help="a reference JSON (default: the packaged B′)"
+    )
+    editing_verify.add_argument(
+        "--records", default=None, help="also re-hash the pinned records in this directory"
     )
     return parser
 
@@ -1214,6 +1246,18 @@ def _execute_run(
         dataset=label,
         reference_sets=list(reference_sets or []),
     )
+    # A module that computes against a packaged reference (M4.5: the RNA-editing reference B′)
+    # names it in the manifest by its digest, and the digest enters the step's parameters so the
+    # cache key carries it explicitly. A reference that fails its own digest stops the run here.
+    for spec in specs:
+        if spec.reference_set is None:
+            continue
+        try:
+            entry = spec.reference_set()
+        except EditingReferenceError as error:
+            return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_ERROR)
+        manifest["reference_sets"].append(entry)
+        params[f"{spec.id}_reference_digest"] = entry["digest"]
     # The set a GenBank artifact was transferred from; recorded on the artifact itself so a
     # consumer does not have to infer it from the module's parameters (M11.16).
     annotation_reference = next(
@@ -3050,6 +3094,158 @@ def _panel_pin(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_editing_reference(args: argparse.Namespace) -> int:
+    action = getattr(args, "editing_action", None)
+    if action == "build":
+        return _editing_reference_build(args)
+    if action == "verify":
+        return _editing_reference_verify(args)
+    print("editing-reference: choose an action — build | verify", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _editing_reference_build(args: argparse.Namespace) -> int:
+    """Rebuild reference B′ (M4.5) as a run of its own — manifest, tool logs, the JSON written.
+
+    The inputs are pinned twice over: every record by its SHA-256 in ``taxa.yaml``, the edit list
+    and its sources by the files packaged beside it. MAFFT is the pinned 7.526 or the build stops,
+    because the aligner's version is part of the digest and a reference built with another one
+    would carry the same label and different columns.
+    """
+    from plastid.core import rna_editing
+    from plastid.core.resources import data_file
+    from plastid.external import mafft
+
+    records_dir = Path(args.records)
+    try:
+        taxa, sources = rna_editing.load_build_inputs(data_file(rna_editing.REFERENCE_DIRECTORY))
+        sites = rna_editing.read_edit_sites(data_file(rna_editing.EDIT_SITES_FILE))
+    except (OSError, ValueError, KeyError) as error:
+        print(f"editing-reference build: {error}", file=sys.stderr)
+        return EXIT_ERROR
+    paths = [records_dir / f"{taxon['accession']}.gb" for taxon in taxa]
+    missing = [str(path) for path in paths if not path.is_file()]
+    if missing:
+        print(f"editing-reference build: missing record(s): {', '.join(missing)}", file=sys.stderr)
+        return EXIT_USAGE
+    pairs = list(zip((str(taxon["accession"]) for taxon in taxa), paths, strict=True))
+    records = {accession: read_genbank(path) for accession, path in pairs}
+    digests = {accession: _sha256_file(path) for accession, path in pairs}
+
+    binary = which("mafft")
+    reported = tool_version("mafft", "binary", binary)[0] if binary else None
+    if reported is None or mafft.MAFFT_VERSION not in reported:
+        print(
+            f"editing-reference build: MAFFT {mafft.MAFFT_VERSION} is required (found "
+            f"{reported or 'none'}) — the aligner's version is part of B′'s digest",
+            file=sys.stderr,
+        )
+        return EXIT_TOOL
+
+    layout = RunLayout.create(
+        args.runs, "editing-reference", fingerprint=_sha256_text(str(digests))
+    )
+    layout.make_dirs()
+    ctx = RunContext(layout=layout, params={}, module_id="editing_reference", module_order=1)
+    command = ["plastid", "editing-reference", "build", "--records", str(records_dir)]
+    manifest = build_manifest(
+        run_id=layout.run_id,
+        command=[*command, "--out", str(args.out)],
+        package_version=__version__,
+        started_at=datetime.now().isoformat(timespec="seconds"),
+        params={},
+        inputs=[
+            {
+                "path": str(path),
+                "sha256": digests[str(taxon["accession"])],
+                "bytes": path.stat().st_size,
+            }
+            for taxon, path in zip(taxa, paths, strict=True)
+        ],
+        coordinate_system={"name": "genbank", "rotation_offset": 0, "note": "records as pinned"},
+        dataset="editing-reference",
+    )
+    try:
+        payload = rna_editing.build_reference(
+            records=records,
+            record_sha256=digests,
+            taxa=taxa,
+            sites=sites,
+            sources=sources,
+            aliases=load_gene_aliases(),
+            aligner=lambda rows: mafft.align_proteins(rows, ctx),
+            aligner_record={
+                "name": "mafft",
+                "version": mafft.MAFFT_VERSION,
+                "reported": reported,
+                "argv": list(mafft.PROTEIN_ARGV),
+            },
+            label=rna_editing.REFERENCE_LABEL,
+        )
+    except rna_editing.EditingReferenceError as error:
+        return _fail(manifest, layout, ctx, "1", str(error), EXIT_ERROR)
+    except ToolError as error:
+        return _fail(manifest, layout, ctx, "1", str(error), EXIT_TOOL)
+    text = json.dumps(payload, ensure_ascii=False, indent=1, sort_keys=True) + "\n"
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    copy = layout.run_dir / "reference_b_prime.json"
+    copy.write_text(text, encoding="utf-8")
+    manifest["modules"].append(
+        {
+            "id": "editing_reference",
+            "version": "1",
+            "status": "ok",
+            "tools": [asdict(record) for record in ctx.tools],
+            "files": [str(copy.relative_to(layout.run_dir))],
+        }
+    )
+    manifest["files"] = [
+        {
+            "path": str(copy.relative_to(layout.run_dir)),
+            "module": "editing_reference",
+            "sha256": _sha256_file(copy),
+            "bytes": copy.stat().st_size,
+        }
+    ]
+    manifest["reference_sets"].append(
+        {"role": "rna_editing_reference", "digest": payload["digest"], "path": str(out)}
+    )
+    manifest["status"] = "ok"
+    print(f"reference B′ digest {payload['digest']} — {out}")
+    return _finish(manifest, layout, ctx, "1", EXIT_OK)
+
+
+def _editing_reference_verify(args: argparse.Namespace) -> int:
+    """B′ must describe itself (its digest) and, when the records are given, its pins."""
+    from plastid.core import rna_editing
+
+    try:
+        reference = rna_editing.load_reference(args.reference)
+    except (OSError, ValueError, KeyError) as error:
+        print(f"editing-reference verify: {error}", file=sys.stderr)
+        return EXIT_ERROR
+    problems = []
+    if args.records:
+        for taxon in reference.payload["taxa"]:
+            path = Path(args.records) / f"{taxon['accession']}.gb"
+            if not path.is_file():
+                problems.append(f"{path} — missing")
+            elif _sha256_file(path) != taxon["sha256"]:
+                problems.append(f"{path} — not the pinned bytes ({taxon['sha256'][:12]}…)")
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    if problems:
+        return EXIT_ERROR
+    print(f"reference B′ {reference.digest} — digest matches its contents")
+    return EXIT_OK
+
+
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -3091,6 +3287,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "reference":
         return _cmd_reference(args)
+
+    if args.command == "editing-reference":
+        return _cmd_editing_reference(args)
 
     # Unreachable: argparse rejects unknown subcommands before this point.
     return EXIT_USAGE

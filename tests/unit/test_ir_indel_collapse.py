@@ -39,6 +39,8 @@ from plastid.core.ir import detect_ir, ir_de_novo, ir_from_annotation
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / ".panel" / "ir-validation" / "source" / "NC_028027.1.gb"
 
+pytestmark = pytest.mark.panel
+
 
 def _require_source() -> Path:
     if SOURCE.is_file():

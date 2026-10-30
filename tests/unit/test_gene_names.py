@@ -466,6 +466,7 @@ NEEDS_PANEL = pytest.mark.skipif(
 )
 
 
+@pytest.mark.panel
 @NEEDS_PANEL
 def test_the_panel_normalizes_every_name_and_resolves_the_bare_trna_names() -> None:
     """The Done-when's panel half: the four functional names and the bare tRNA names resolve,
@@ -531,6 +532,7 @@ def test_the_panel_normalizes_every_name_and_resolves_the_bare_trna_names() -> N
     assert not {"pafI", "pafII", "pbf1", "clpP1"} & canonicals
 
 
+@pytest.mark.panel
 @NEEDS_PANEL
 def test_the_panel_plus_the_golden_genome_is_156_distinct_names(data_dir: Path) -> None:
     """The count the board's Done-when rests on — measured, not assumed."""

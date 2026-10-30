@@ -364,6 +364,17 @@ are told to use. Fixed by adding `macse=2.07` and `openjdk=17` to the image's to
 `tests/golden/test_macse_tool.py` (it fails by name, not skips, under `PTS_REQUIRE_TOOLS=1` when
 the jar is absent) and by the build-time golden in `docker/Dockerfile`.
 
+## K-15 — `plastid qc` failed on every run that called an external tool — **fixed (30/10/2026)**
+
+Found while checking that the RNA-editing labels reach the QC report (M4.5). `report/qc.py` read
+each tool call's exit code as `tool["exit_code"]`, but the manifest stores `asdict(ToolRecord)`,
+whose field is `rc`; `plastid qc <run>` stopped with `cannot write the QC report: 'exit_code'` for
+any run with a MAFFT, BLAST, MISA, yn00, MUMmer or IQ-TREE call. The unit test passed because its
+hand-written manifest carried an `exit_code` key no real manifest has. Fixed by reading `rc`; the
+report also lists the run's reference sets (role, label, digest). Held by
+`tests/unit/test_exports.py` (a tool entry built from `ToolRecord` itself) and by
+`tests/golden/test_rna_editing_acceptance.py` (`plastid qc` on a real run).
+
 ## Other current limitations
 
 The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's

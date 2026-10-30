@@ -18,7 +18,7 @@ import pytest
 from conftest import iqtree_directory
 from plastid.core.genbank import read_genbank
 
-pytestmark = pytest.mark.tier_b
+pytestmark = [pytest.mark.tier_b, pytest.mark.panel]
 
 ROOT = Path(__file__).resolve().parents[2]
 PANEL = ROOT / ".panel" / "ir-validation" / "source"

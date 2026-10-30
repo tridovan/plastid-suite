@@ -16,7 +16,7 @@ import pytest
 from plastid.external.macse import MacseBinary, align_cds, resolve_macse
 from plastid.run.tools import ToolError
 
-pytestmark = pytest.mark.tier_b
+pytestmark = [pytest.mark.tier_b, pytest.mark.panel]
 
 ROOT = Path(__file__).resolve().parents[2]
 PANEL = ROOT / ".panel" / "ir-validation" / "source"

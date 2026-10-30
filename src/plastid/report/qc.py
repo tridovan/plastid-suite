@@ -110,8 +110,10 @@ def render_qc(
         ("Module", "Version", "Status", "Files", "Error"),
     )
 
+    # A tool entry is `asdict(ToolRecord)`, so its exit code is `rc`. Asking for `exit_code` made
+    # this report raise KeyError on every run that called a tool (K-15).
     tools = [
-        (entry["id"], tool["name"], tool["version"], tool["path"], str(tool["exit_code"]))
+        (entry["id"], tool["name"], tool["version"], tool["path"], str(tool["rc"]))
         for entry in manifest.get("modules", [])
         for tool in entry.get("tools", [])
     ]
@@ -120,6 +122,27 @@ def render_qc(
         _table(tools, ("Module", "Tool", "Version", "Path", "Exit"))
         if tools
         else ["No external tool was called by this run."]
+    )
+
+    # The privileged sets a run computed against — the annotation database, the RNA-editing
+    # reference B′ — by the digest the manifest recorded, so a reader can tell two runs apart.
+    reference_sets = manifest.get("reference_sets", [])
+    lines += ["", "## Reference sets", ""]
+    lines += (
+        _table(
+            [
+                (
+                    item.get("role", ""),
+                    item.get("label", ""),
+                    item.get("digest") or item.get("sha256", ""),
+                    item.get("path", ""),
+                )
+                for item in reference_sets
+            ],
+            ("Role", "Label", "Digest", "Path"),
+        )
+        if reference_sets
+        else ["No reference set was recorded by this run."]
     )
 
     lines += ["", "## Parameters", ""]

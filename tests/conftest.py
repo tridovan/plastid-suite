@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import os
 import stat
+from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -201,3 +203,26 @@ def require_r(reason: str) -> None:
     if os.environ.get("PTS_REQUIRE_TOOLS") == "1":
         pytest.fail(reason)
     pytest.skip(reason)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(
+    item: pytest.Item, call: pytest.CallInfo[None]
+) -> Generator[None, Any, None]:
+    """Under PTS_REQUIRE_PANEL=1 a ``panel`` test that skips is reported as failed.
+
+    Each panel test skips with its own named reason when its part of ``.panel/`` (gitignored) is
+    absent — right in a fresh clone or CI, wrong in ``make acceptance``, where a missing panel
+    subset, tool or extra would otherwise pass as a skip. An xfail keeps its own outcome.
+    """
+    outcome = yield
+    report = outcome.get_result()
+    if (
+        report.skipped
+        and not hasattr(report, "wasxfail")
+        and os.environ.get("PTS_REQUIRE_PANEL") == "1"
+        and item.get_closest_marker("panel") is not None
+    ):
+        reason = report.longrepr[2] if isinstance(report.longrepr, tuple) else report.longrepr
+        report.outcome = "failed"
+        report.longrepr = f"PTS_REQUIRE_PANEL=1, and this panel test skipped: {reason}"

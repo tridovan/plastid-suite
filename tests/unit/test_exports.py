@@ -160,7 +160,7 @@ def _run_directory(root: Path) -> Path:
                                 "name": "mafft",
                                 "version": "7.526",
                                 "path": "/usr/bin/mafft",
-                                "exit_code": 0,
+                                "rc": 0,
                             }
                         ],
                     }
@@ -308,6 +308,52 @@ def test_the_qc_report_names_every_tool_version_and_input_hash(tmp_path: Path) -
     assert "skipped `pi_window`" in text
     assert "Queryable-number audit" in text and "clean" in text
     assert "rotation offset 0" in text
+
+
+def test_the_qc_report_reads_tool_records_and_reference_sets_as_the_runner_writes_them(
+    tmp_path: Path,
+) -> None:
+    """K-15: the manifest's tool entries are ``asdict(ToolRecord)``, whose exit code is ``rc``.
+
+    The fixture above once wrote an ``exit_code`` key that no real manifest has, so the QC report
+    passed here and raised ``KeyError: 'exit_code'`` on every real run that called a tool. The
+    entry below is built from the record type itself. A reference set the run recorded (the
+    RNA-editing reference B′, the annotation database) is listed by role, label and digest.
+    """
+    from dataclasses import asdict
+
+    from plastid.run.tools import ToolRecord
+
+    record = ToolRecord(
+        name="mafft",
+        kind="binary",
+        version="7.526",
+        version_source="pinned",
+        path="/usr/bin/mafft",
+        argv=("mafft", "--add", "query.fasta", "reference.fasta"),
+        cwd="/tmp",
+        rc=0,
+        started_at="2026-10-30T09:00:00",
+        duration_s=0.1,
+        stdout_file="logs/001__mafft__stdout.log",
+        stderr_file="logs/001__mafft__stderr.log",
+        stdout_tail="",
+    )
+    run = _run_directory(tmp_path)
+    manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
+    manifest["modules"][0]["tools"] = [json.loads(json.dumps(asdict(record)))]
+    manifest["reference_sets"] = [
+        {
+            "role": "rna_editing_reference",
+            "label": "B′ — PTS rebuild of the PREP-Cp training reference",
+            "digest": "c" * 64,
+            "path": "plastid/data/rna_editing/reference_b_prime.json",
+        }
+    ]
+    text = render_qc(manifest)
+    assert "| genome_stats | mafft | 7.526 | /usr/bin/mafft | 0 |" in text
+    assert "## Reference sets" in text
+    assert "rna_editing_reference" in text and "c" * 64 in text and "B′ — PTS rebuild" in text
 
 
 def test_the_qc_report_is_written_into_the_run_directory(tmp_path: Path) -> None:

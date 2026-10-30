@@ -167,6 +167,7 @@ def test_the_golden_carries_two_trnG_genes_under_one_name() -> None:
     assert trng[0][0].length == trng[1][0].length == 71
 
 
+@pytest.mark.panel
 @needs_panel
 def test_the_two_trnG_sequences_carry_both_names_across_the_corpus() -> None:
     """Sequence does not settle the spelling: records disagree in both directions.
@@ -193,6 +194,7 @@ def test_the_two_trnG_sequences_carry_both_names_across_the_corpus() -> None:
     assert "trnG-GCC" in names["second"], "no record spells the golden's second trnG-GCC"
 
 
+@pytest.mark.panel
 @needs_panel
 def test_the_margin_and_the_floor_are_where_the_naming_step_will_read_them(
     tmp_path: Path, blast_tools: dict[str, str | None]
@@ -257,6 +259,7 @@ def test_the_margin_and_the_floor_are_where_the_naming_step_will_read_them(
     assert max(value for value in wrong if value < min(ortholog)) < 50.0 < min(ortholog)
 
 
+@pytest.mark.panel
 @needs_panel
 def test_the_serine_trnas_are_where_the_ranking_fails() -> None:
     """For tRNA the sequence ranking alone is not enough — and the failing family is trnS.
@@ -300,6 +303,7 @@ def test_the_serine_trnas_are_where_the_ranking_fails() -> None:
 PINNED = ROOT / ".panel" / "plastid-reference"
 
 
+@pytest.mark.panel
 @pytest.mark.skipif(
     not PINNED.is_dir(),
     reason="the pinned plastid reference set is not here (.panel/ is gitignored)",

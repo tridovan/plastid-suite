@@ -1,19 +1,23 @@
 # Development handoff
 
-**State:** 29/10/2026, `main` — phase M11 is merged and acceptance-tested on this tree (host run
-set and the full golden). Product documentation, requirements and shared
-method live in this repository. Maintainer planning — the active task, the milestones and their
-Definition of Done, and the dated evidence records — lives in `.dev/`, which is not part of the
-product repository.
+**State:** 30/10/2026, `main` — phases M11 and M4.5 are merged and acceptance-tested (`make
+acceptance` 239 passed, 0 skipped). RNA editing is the module `rna_editing`
+(`docs/tools/prep_cp.md`); its reference B′'s seven records live in `.panel/rna_editing/`, pinned in
+`src/plastid/data/rna_editing/taxa.yaml`. Product documentation,
+requirements and shared method live in this repository. Maintainer planning — the active task, the
+milestones and their Definition of Done, and the dated evidence records — lives in `.dev/`, which
+is not part of the product repository.
 
 ## What the product does now
 
 `plastid` reads plastid GenBank or FASTA records and runs the analyses in
 [the pipeline](docs/pipeline.md): `structure`, `genome_stats`, `gene_table`, `gene_names`,
 `gene_normalize`, `orf`, `codon_usage`, `amino_acid`, `introns`, `ssr`, `repeats`, `substitutions`,
-`diversity`, `barcodes`, `kaks`, `popgen`, `stats`, `synteny`, `phylogeny`, `submission`, plus the
-reference path `panel`/`reference`/`annotate` and the export path `figures`/`package`/`qc`. The
-mito modules are a frozen prototype: keep them passing, do not extend them.
+`diversity`, `barcodes`, `kaks`, `popgen`, `stats`, `synteny`, `phylogeny`, `submission`,
+`rna_editing` (predicted C-to-U sites, PREP-Cp-compatible), plus the reference path
+`panel`/`reference`/`annotate`, `editing-reference` (rebuild or verify the RNA-editing reference) and
+the export path `figures`/`package`/`qc`. The mito modules are a frozen prototype: keep them
+passing, do not extend them.
 
 Reproduced defects are in [known issues](docs/known_issues.md). A documentation change does not
 fix one.
@@ -29,10 +33,13 @@ pipeline. Do not invent a replacement task list.
 
 ## Verifying a change
 
-- Fast suite: `make test` (no external tool, no network).
-- Tool-carrying suite: `make golden`. Missing tools are declared in `environment.yml` and
-  `docs/tools/`; a missing one skips with a printed reason, and `PTS_REQUIRE_TOOLS=1` turns that
-  skip into a failure. Report which checks actually ran — a skip is not acceptance evidence.
+- Fast suite: `make test` (no external tool, no network, no `.panel/`).
+- Golden: `make golden`, the golden-pair numbers and the pinned-tool checks, the same set CI runs.
+  Missing tools are declared in `environment.yml` and `docs/tools/`; a missing one skips with a
+  printed reason, and `PTS_REQUIRE_TOOLS=1` turns that skip into a failure.
+- Panel acceptance: `make acceptance`, the tests marked `panel` that read the gitignored `.panel/`.
+  Run it when closing a milestone; it fails instead of skipping. Report which checks actually ran
+  — a skip is not acceptance evidence. What each check proves: `tests/golden/README.md`.
 - Lint and format: `make lint`, `make fmt`.
 
 ## Environment notes that cost time to find

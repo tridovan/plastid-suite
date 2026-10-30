@@ -160,6 +160,7 @@ def test_render_then_read_gives_the_same_entries(tmp_path: Path) -> None:
     assert read_reference(written) == entries
 
 
+@pytest.mark.panel
 @NEEDS_PANEL
 def test_the_committed_set_is_what_the_pinned_panel_builds(tmp_path: Path) -> None:
     """The artifact is reproducible: rebuild it from the pinned records and it is the same file.

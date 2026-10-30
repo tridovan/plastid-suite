@@ -30,6 +30,7 @@ BLOCKED = "NC_024936.1"
 
 pytestmark = [
     pytest.mark.tier_b,
+    pytest.mark.panel,
     pytest.mark.skipif(
         not PANEL.is_dir(),
         reason="the pinned plastid reference set is not in this tree (.panel/ is gitignored)",

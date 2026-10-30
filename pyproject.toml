@@ -10,8 +10,8 @@ readme = "README.md"
 keywords = ["plastome", "chloroplast", "mitochondrial genome", "bioinformatics", "genomics"]
 classifiers = [
     # Development Status :: 4 - Beta, not 5 - Production/Stable (M11.9): the whole-pipeline
-    # input/output acceptance completed 29/10/2026 (M11.8, host + full golden), but M4.5
-    # (RNA editing) has no module yet and docs/known_issues.md still lists reproduced defects.
+    # input/output acceptance completed 29/10/2026 (M11.8, host + full golden) and RNA editing
+    # (M4.5) was built on 30/10/2026, but docs/known_issues.md still lists reproduced defects.
     # The version number is the code's, not a readiness claim; a classifier that says "stable"
     # while the code says otherwise is the kind of plausible-looking untruth this project exists
     # to avoid.
@@ -97,4 +97,5 @@ addopts = "-ra"
 pythonpath = ["."]
 markers = [
     "tier_b: requires external tools (MISA/cpstools/MAFFT); skipped with a printed reason when absent",
+    "panel: reads the private validation data under .panel/ (gitignored, never in CI); run by `make acceptance`",
 ]

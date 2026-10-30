@@ -18,6 +18,7 @@ coverage merely because each component has some tests. Deferred branches are not
 | Check | Command | What it proves |
 |---|---|---|
 | The suite | `make check`, with required tools present and skips reviewed | lint, fast tests and golden cases that actually ran; this does not replace input/output acceptance |
+| The panel | `make acceptance`, on a machine that holds `.panel/` | the tests marked `panel` ran on the validation panel with no skip — the tier CI cannot run |
 | The package | `uv build` then install the wheel into a **fresh** venv | the artifact works somewhere that has nothing of the dev's in it |
 | The container | `docker build -f docker/Dockerfile -t plastid-suite .` | the golden numbers reproduce **inside** the image — one input, one set of numbers, three environments (WSL · CI · Docker) |
 | The citation | `uv tool run cffconvert --validate` | `CITATION.cff` parses against CFF 1.2.0 |

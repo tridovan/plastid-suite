@@ -79,18 +79,18 @@ pipeline.
                                             │
                    ┌────────────────────────┼─────────────────────────┐
                    ▼                        ▼                         ▼
-        [4] ANALYSIS              [5] RNA EDITING [NOT BUILT]  [6b] NCBI SUBMISSION
-        structure · gene · codon  original PREP-Cp · cutoff 0.8 checked GenBank
-        intron · SSR (MISA)       CDS → batch → original result → .fsa + .tbl
-        exact repeat              B = PREP-Cp's reference       + .sbt template
-          repeat-match            PTS prepares/imports; maps   → table2asn
-          (Vmatch cross-check)    CDS → GenBank, names per A   → .sqn + validator
+        [4] ANALYSIS              [5] RNA EDITING              [6b] NCBI SUBMISSION
+        structure · gene · codon  PREP-Cp-compatible · C 0.8    checked GenBank
+        intron · SSR (MISA)       published PREP method in PTS  → .fsa + .tbl
+        exact repeat              CDS + B′ (7 taxa) → MAFFT     + .sbt template
+          repeat-match            → sites · score · coverage   → table2asn
+          (Vmatch cross-check)    module rna_editing           → .sqn + validator
         synteny (MUMmer4)
         Ka/Ks (PAML yn00)
         Ts/Tv · π · barcode
         popgen · group statistics
         MAFFT when alignment is needed
-                   │                        │ when M4.5 is implemented
+                   │                        │
                    └──────────────┬─────────┘
                                   ▼
                     [6a] TABLES · FIGURES · DRAFT REPORT
@@ -113,12 +113,14 @@ pipeline.
 - The IR gate applies only to the part that actually needs position/IR region. A gate-pass does not
   by itself prove the IR boundaries are right; the current defects are blocking acceptance of this
   part.
-- RNA editing (M4.5) is **open work, with no module yet**, not a branch excluded from this cycle.
-  **Original PREP-Cp has been chosen**, cutoff 0.8: PTS prepares the CDS and imports/maps the
-  results, it does not rewrite the predictor. RNA-seq is not required to run a prediction; use the
-  public set for independent validation. The first integration is prepare → run the external
-  service → import; a local CLI or API to call the server automatically is not yet verified.
-  Details and the chosen validation set are in [PREP-Cp](tools/prep_cp.md).
+- RNA editing (M4.5) is the module `rna_editing`. The original PREP-Cp can no longer be run: its
+  web service ended in 2022, and its reference alignments were never published. PTS therefore runs
+  the **published PREP method itself**, with a rebuilt reference B′ and cutoff 0.8, and labels
+  every site **PREP-Cp-compatible**. It reproduces both archived genuine PREP-Cp outputs exactly,
+  32 of the original's 34 *Aegilops* sites, and 31 of 33 known sites of the unseen *N.
+  sylvestris*. RNA-seq is not required to run a prediction; the public set is used for
+  independent validation. The method, the evidence and the acceptance results are in the
+  [specification](tools/prep_cp.md).
 - The NCBI submission goes from **checked sequence and annotation**, and must not be built from
   statistics tables. The `.sbt` is supplied by the submitter. Producing a `.sqn` does not mean the
   validator passes or that NCBI accepts the submission.
@@ -139,7 +141,7 @@ pipeline.
 | Comparison reference | Genome used as the first row/coordinate anchor for an analysis | Today many modules take the first input; state the record and input order, do not assume it is ★ |
 | Assembly seed/HMM | GetOrganelle seed DB or OATK HMM | DB version/checksum and program used; do not use in place of the annotation DB |
 | Mapping reads | Sequence of the sample under test | Hash of the sequence copy and the corresponding frame; do not map to ★ and then treat it as support for the sample |
-| RNA editing reference B | Internal reference/alignment of original PREP-Cp | PTS does not replace this DB; keep the metadata/alignment the tool provides, write "not reported" when there is no revision; pin input/output, map gene IDs and CDS positions to sample A per the [specification](tools/prep_cp.md) |
+| RNA editing reference B′ | Mature proteins of the seven PREP-Cp training taxa, rebuilt by PTS because the original alignments were never published | Pinned records, sourced edit lists and build recipe under one digest in the manifest and scope label; never presented as the original PREP-Cp reference ([specification](tools/prep_cp.md)) |
 | Submission template | `.sbt` | Submitter metadata, not a genome reference |
 | Tree/outgroup | Tree built by the user and declared taxa | Tree hash, root/drop/order performed; do not infer the outgroup from the taxonomy level |
 
@@ -161,7 +163,7 @@ pipeline.
 | 2 — annotate | `plastid annotate` calls `plastid_annotate`, batch one run per sample | The normalised DB is not yet joined automatically; feature/locus/IR length discrepancies and validation outside the family need fixing |
 | 3 — verify/ORF | `gene_normalize mode=verify`, `orf` | Verify currently reports would-change, does not write a new GenBank itself; needs stop/accept rules in the workflow and annotation preservation |
 | 4 — analyses | The modules listed below | Need a data contract per module and validation before aggregation; do not accept only through IR/gene count |
-| 5 — RNA editing | No module yet; original PREP-Cp chosen, not a simulated minimap2/samtools engine | Prepare/import/mapping/provenance; actually run the original engine and compare with Aegilops KJ614412.1 per the [specification](tools/prep_cp.md) |
+| 5 — RNA editing | `rna_editing`: the PREP method against reference B′ (`plastid editing-reference build/verify`); both archived *Vitis* outputs reproduced; *Aegilops* KJ614412.1 compared with its three evidence sets; *N. sylvestris* scored as Mower 2009 Table 3 did ([specification](tools/prep_cp.md)) | The maize and rice edit lists come from a comparison table, not their primary surveys; *Pisum* and *Saccharum* (Table 3) are not measured; the module does not yet read a GenBank artifact produced earlier in the same pipeline run |
 | 6a — export | CSV/JSON, Word, Excel, `figures`, `package`, `qc`, `genome_page` | One figure pass over the matplotlib and R catalogues for `run --figures`, `figures` and `package`; `qc` inventories both catalogues without drawing. A missing plotting extra or R is a named status, never a silent absence. The package is replaced as a whole, its index links every file with a digest, and the workbook names each table's scope; a batch's multi-sample figures use `plastid figures <batch-dir>` |
 | 6b — submission | `submission`: `.fsa/.tbl`, optional `.sqn` via table2asn + `.sbt` | Reads the checked GenBank directly (a bare sequence is refused); `.fsa` and `.tbl` share the sequence id; the validator's `not run` state is distinct from zero errors, and a `.sqn` is not ready-to-submit evidence |
 
@@ -212,10 +214,8 @@ current plastid development scope; their existing checks are kept.
    every tool one role, `environment.yml` is the runtime scope only, and the minimum install
    (biopython + PyYAML) was measured running the pure-Python modules from a freshly built wheel
    ([platforms](platforms.md)).
-6. M4.5 still being open must appear in the whole-pipeline acceptance verdict. If a partial release
-   is made before RNA editing is complete, the scope and the missing part must be clearly
-   decided/announced; do not change "not built" to "deferred" just to close the pipeline. Assembly
-   and the already-deferred branches still have their own DoD.
+6. RNA editing (M4.5) is built and checked on its specification's evidence. Assembly and the
+   already-deferred branches still have their own DoD.
 
 These are target criteria; the documentation update session has not implemented or run acceptance
 for the missing parts.

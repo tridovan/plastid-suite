@@ -124,6 +124,7 @@ def test_the_mitochondrial_table_never_renames_a_plastid_gene() -> None:
     assert normalize_name("ribosomal protein S3", load_mito_aliases()).canonical == "rps3"
 
 
+@pytest.mark.panel
 @NEEDS_PANEL
 def test_the_stand_in_mitogenome_is_reported_with_symbols_and_without_the_gate() -> None:
     """The measured end of P3-04's testable half: 51 genes = 31 CDS + 17 tRNA + 3 rRNA, every

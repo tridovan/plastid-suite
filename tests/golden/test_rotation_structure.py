@@ -49,6 +49,7 @@ BOUNDARY_TOLERANCE_BP = 2
 
 pytestmark = [
     pytest.mark.tier_b,
+    pytest.mark.panel,
     pytest.mark.skipif(
         not EXPECTED.is_file(),
         reason="the rotated FASTA panel is not in this tree (.panel/ is gitignored)",

@@ -122,12 +122,12 @@ def _describe(tmp_path: Path, **overrides):
     raw = tmp_path / "raw.tsv"
     raw.write_text("q1\tA>G\t2\n", encoding="utf-8")
     arguments = {
-        "tool_name": "prep_cp",
+        "tool_name": "external_tool",
         "tool_version": "1.0",
-        "argv": ["prep_cp", "-i", str(input_file)],
+        "argv": ["external_tool", "-i", str(input_file)],
         "input_path": input_file,
         "query_map": {"q1": "NC_008641.1:rbcL"},
-        "source": {"command": "prep_cp -i input.fa", "retrieved_at": "2026-10-29"},
+        "source": {"command": "external_tool -i input.fa", "retrieved_at": "2026-10-29"},
         "raw_path": raw,
         "status": "ok",
         "count": 1,
@@ -142,9 +142,9 @@ def test_an_external_result_carries_the_tool_input_query_map_source_and_raw_byte
     payload = _describe(tmp_path)
     validate_external_result(payload)
     assert payload["tool"] == {
-        "name": "prep_cp",
+        "name": "external_tool",
         "version": "1.0",
-        "argv": ["prep_cp", "-i", str(tmp_path / "input.fa")],
+        "argv": ["external_tool", "-i", str(tmp_path / "input.fa")],
     }
     assert payload["input"]["sha256"] == hashlib.sha256(b">q1\nACGTACGT\n").hexdigest()
     assert payload["input"]["bytes"] == len(b">q1\nACGTACGT\n")
@@ -183,7 +183,7 @@ def test_an_incomplete_description_is_refused(tmp_path: Path) -> None:
         validate_external_result(_describe(tmp_path, query_map={}))
     with pytest.raises(ContractError, match="ISO date"):
         validate_external_result(
-            _describe(tmp_path, source={"command": "prep_cp", "retrieved_at": "29/10/2026"})
+            _describe(tmp_path, source={"command": "external_tool", "retrieved_at": "29/10/2026"})
         )
     with pytest.raises(ContractError, match="source"):
         validate_external_result(_describe(tmp_path, source={"retrieved_at": "2026-10-29"}))

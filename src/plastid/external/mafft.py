@@ -20,13 +20,24 @@ __all__ = [
     "DEFAULT_STRATEGY",
     "MAFFT_STRATEGIES",
     "MAFFT_VERSION",
+    "PROTEIN_ARGV",
+    "add_protein",
     "adjust_direction",
     "align",
+    "align_proteins",
     "parse_directions",
     "strategy_flag",
 ]
 
 MAFFT_VERSION = "7.526"
+
+# The two protein calls of the PREP-Cp-compatible predictor (M4.5): building reference B′ and
+# adding one query to it. Both say `--amino` because MAFFT otherwise guesses the alphabet from the
+# letters, and a 37-residue peptide (petG, psaI) is a small sample to guess from. Both use L-INS-i
+# (`--localpair --maxiterate 1000`), the accuracy-oriented option for a handful of sequences with
+# one alignable domain; with at most eight rows its cost is negligible. The argv is part of the
+# method's scope: it travels in the reference's recipe and in every table's scope label.
+PROTEIN_ARGV: tuple[str, ...] = ("--amino", "--localpair", "--maxiterate", "1000")
 
 # The aligner's own entry points, by the name this toolkit gives each. `auto` is MAFFT's default
 # and the one every published number here was measured with; the rest are offered because a
@@ -100,6 +111,53 @@ def adjust_direction(rows: Sequence[tuple[str, str]], ctx: RunContext) -> dict[s
     return directions
 
 
+def align_proteins(rows: Sequence[tuple[str, str]], ctx: RunContext) -> dict[str, str]:
+    """Align ``(name, protein)`` rows once with :data:`PROTEIN_ARGV`; name → aligned row."""
+    text = _run(rows, ctx, extra=(), argv=PROTEIN_ARGV)
+    aligned = _parse_fasta(text)
+    missing = [name for name, _ in rows if name not in aligned]
+    if missing:
+        raise ToolError(f"mafft returned no row for {', '.join(missing)}")
+    return {name: aligned[name] for name, _ in rows}
+
+
+def add_protein(
+    reference: Sequence[tuple[str, str]], query: tuple[str, str], ctx: RunContext
+) -> dict[str, str]:
+    """Add one protein to a fixed alignment (``--add``); name → aligned row, query included.
+
+    ``--add`` keeps the existing alignment: it may insert whole gap columns where the query has
+    residues no reference has, but it never re-aligns the reference rows among themselves
+    (measured 30/10/2026 on 7.526 with the accD reference: the reference rows, with the inserted
+    columns removed, came back byte for byte). The caller checks that property on every call
+    rather than trusting it.
+    """
+    binary = which("mafft")
+    if binary is None:
+        raise ToolError(
+            f"mafft not found — the RNA-editing predictor needs MAFFT {MAFFT_VERSION}; install it"
+        )
+    names = [name for name, _ in reference]
+    if query[0] in names:
+        raise ValueError(f"the query name {query[0]!r} is also a reference row")
+    with tempfile.TemporaryDirectory(prefix="mafft_add_") as work:
+        workdir = Path(work)
+        (workdir / "reference.fasta").write_text(_to_fasta(reference), encoding="utf-8")
+        (workdir / "query.fasta").write_text(_to_fasta([query]), encoding="utf-8")
+        record = ctx.tool(
+            "mafft",
+            [binary, *PROTEIN_ARGV, "--quiet", "--add", "query.fasta", "reference.fasta"],
+            tool_path=binary,
+            pinned_version=MAFFT_VERSION,
+            cwd=workdir,
+        )
+        aligned = _parse_fasta(Path(record.stdout_file).read_text(encoding="utf-8"))
+    missing = [name for name in (*names, query[0]) if name not in aligned]
+    if missing:
+        raise ToolError(f"mafft --add returned no row for {', '.join(missing)}")
+    return {name: aligned[name] for name in (*names, query[0])}
+
+
 def parse_directions(text: str) -> dict[str, bool]:
     """MAFFT's answer, read off its headers: ``_R_`` prefix means it flipped that sequence.
 
@@ -123,12 +181,14 @@ def _run(
     *,
     extra: Sequence[str],
     strategy: str = DEFAULT_STRATEGY,
+    argv: Sequence[str] | None = None,
 ) -> str:
     """One MAFFT call, through the tool door: a temp file in, its stdout out.
 
     Both callers need the same three things — the binary located and version-checked, the aligned
     fasta written somewhere we can name, and every argument recorded — so the call is written
-    once here rather than twice (CLAUDE.md: DRY after the second real copy).
+    once here rather than twice (CLAUDE.md: DRY after the second real copy). ``argv``, when
+    given, replaces the strategy's flags (the protein calls state their own).
     """
     if len(rows) < 2:
         raise ValueError(f"an alignment needs at least two sequences, got {len(rows)}")
@@ -138,13 +198,14 @@ def _run(
             f"mafft not found — the comparison modules need MAFFT {MAFFT_VERSION}; install it"
         )
     version, _ = tool_version("mafft", "mafft", binary)
+    flags = tuple(argv) if argv is not None else strategy_flag(strategy)
     with tempfile.TemporaryDirectory(prefix="mafft_") as work:
         workdir = Path(work)
         fasta = workdir / "input.fasta"
         fasta.write_text(_to_fasta(rows), encoding="utf-8")
         record = ctx.tool(
             "mafft",
-            [binary, *strategy_flag(strategy), "--quiet", *extra, fasta.name],
+            [binary, *flags, "--quiet", *extra, fasta.name],
             tool_path=binary,
             pinned_version=MAFFT_VERSION,
             cwd=workdir,

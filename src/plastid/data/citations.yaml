@@ -35,6 +35,14 @@ iqtree:
   # release the module pins; a different IQ-TREE has its own citation and its own release paper.
   text: "Minh BQ, Schmidt HA, Chernomor O, Schrempf D, Woodhams MD, von Haeseler A, Lanfear R. IQ-TREE 2: new models and efficient methods for phylogenetic inference in the genomic era. Molecular Biology and Evolution 37:1530–1534 (2020)."
   doi: "10.1093/molbev/msaa015"
+# M4.5: the PREP-Cp-compatible predictor. The algorithm is PREP-Mt's (2005); the chloroplast
+# reference, its seven training taxa and the 0.8 cutoff are from the PREP suite paper (2009).
+prep_mt:
+  text: "Mower JP. PREP-Mt: predictive RNA editor for plant mitochondrial genes. BMC Bioinformatics 6:96 (2005)."
+  doi: "10.1186/1471-2105-6-96"
+prep_suite:
+  text: "Mower JP. The PREP suite: predictive RNA editors for plant mitochondrial genes, chloroplast genes and user-defined alignments. Nucleic Acids Research 37:W253–W259 (2009)."
+  doi: "10.1093/nar/gkp337"
 cbol:
   text: "CBOL Plant Working Group. A DNA barcode for land plants. Proceedings of the National Academy of Sciences 106:12794–12797 (2009)."
   doi: "10.1073/pnas.0905845106"

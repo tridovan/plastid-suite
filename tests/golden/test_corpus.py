@@ -272,6 +272,7 @@ CORPUS_PANEL = Path(__file__).resolve().parents[2] / ".panel" / "iridaceae-34"
 CORPUS_RECORDS = sorted(CORPUS_PANEL.glob("*.gb")) if CORPUS_PANEL.is_dir() else []
 
 
+@pytest.mark.panel
 @pytest.mark.skipif(
     not CORPUS_RECORDS,
     reason="the pinned Iridaceae panel is not in this working tree (.panel/ is gitignored)",

@@ -1,0 +1,11 @@
+cutoff	nt_pos	aa_pos	align_col	effect	score	capture
+0.2	125	42	42	ACG (T) => ATG (M)	1.00	web.archive.org/web/20180115102246/http://prep.unl.edu/tmp/prep-cp/4073/
+0.2	134	45	45	CCT (P) => CTT (L)	0.75	web.archive.org/web/20180115102246/http://prep.unl.edu/tmp/prep-cp/4073/
+0.2	185	62	62	ACG (T) => ATG (M)	0.50	web.archive.org/web/20180115102246/http://prep.unl.edu/tmp/prep-cp/4073/
+0.2	244	82	85	CAT (H) => TAT (Y)	0.75	web.archive.org/web/20180115102246/http://prep.unl.edu/tmp/prep-cp/4073/
+0.2	484	162	168	CAC (H) => TAC (Y)	0.75	web.archive.org/web/20180115102246/http://prep.unl.edu/tmp/prep-cp/4073/
+0.2	845	282	311	TCG (S) => TTG (L)	0.80	web.archive.org/web/20180115102246/http://prep.unl.edu/tmp/prep-cp/4073/
+0.2	992	331	372	ACA (T) => ATA (I)	0.60	web.archive.org/web/20180115102246/http://prep.unl.edu/tmp/prep-cp/4073/
+0.2	1436	479	520	CCA (P) => CTA (L)	0.60	web.archive.org/web/20180115102246/http://prep.unl.edu/tmp/prep-cp/4073/
+0.8	125	42	42	ACG (T) => ATG (M)	1.00	web.archive.org/web/20180128161411/http://prep.unl.edu/tmp/prep-cp/13605/
+0.8	845	282	311	TCG (S) => TTG (L)	0.80	web.archive.org/web/20180128161411/http://prep.unl.edu/tmp/prep-cp/13605/

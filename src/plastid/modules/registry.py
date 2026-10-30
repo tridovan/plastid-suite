@@ -60,6 +60,12 @@ class ModuleSpec:
     # resolve it, audit it and record its digest without knowing which module is asking: the
     # module says what it needs, the command line says how it is supplied.
     reference_param: str | None = None
+    # A packaged reference this module computes against, described for the run manifest: a
+    # callable returning a dict with at least ``role`` and ``digest`` (M4.5, reference B′). The
+    # CLI records it under ``reference_sets`` and passes the digest to the step as
+    # ``<module>_reference_digest``, so the cache key names the reference by its digest and not
+    # only through the packaged files' bytes.
+    reference_set: Callable[[], dict[str, Any]] | None = None
     # Every parameter this module reads, so the CLI can refuse a key it does not (M11.20).
     # An empty tuple is a claim — "this module takes no parameter" — and a test compares it with
     # the keys the module's source actually reads. Do not add a key here without a code path
@@ -166,6 +172,7 @@ def module(
     arity: int = 1,
     citations: tuple[str, ...] = (),
     reference_param: str | None = None,
+    reference_set: Callable[[], dict[str, Any]] | None = None,
     params: tuple[ParamSpec, ...] = (),
 ) -> Callable[[ModuleFn], ModuleFn]:
     """Register a module's ``run`` function.
@@ -198,6 +205,7 @@ def module(
             citations=citations,
             group=group,
             reference_param=reference_param,
+            reference_set=reference_set,
             params=params,
         )
         return run_fn

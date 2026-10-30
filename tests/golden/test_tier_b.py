@@ -669,6 +669,7 @@ def test_barcodes_reuses_diversitys_pi_window_for_window(
 PANEL = Path(__file__).parents[2] / ".panel" / "oldenlandia-coleus"
 
 
+@pytest.mark.panel
 def test_popgen_over_the_pinned_panel(tools: dict[str, str | None], tmp_path: Path) -> None:
     """P4-03's real run: the pinned stand-in panel, every statistic with its n.
 
