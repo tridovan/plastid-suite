@@ -32,6 +32,8 @@ PANEL = ROOT / ".panel" / "ir-validation"
 SOURCE = PANEL / "source"
 INDEX = PANEL / "PINNED.json"
 
+pytestmark = pytest.mark.panel
+
 
 def _require_panel() -> None:
     if not INDEX.is_file():

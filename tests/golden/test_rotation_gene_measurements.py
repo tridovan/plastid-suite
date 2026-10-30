@@ -48,6 +48,7 @@ PANEL_RECORDS = ("NC_008641.1", "NC_016708.2", "NC_028027.1", "NC_016736.1")
 
 pytestmark = [
     pytest.mark.tier_b,
+    pytest.mark.panel,
     pytest.mark.skipif(
         not EXPECTED.is_file() or not SOURCES.is_dir(),
         reason="the rotated FASTA panel is not in this tree (.panel/ is gitignored)",

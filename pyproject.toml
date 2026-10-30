@@ -97,4 +97,5 @@ addopts = "-ra"
 pythonpath = ["."]
 markers = [
     "tier_b: requires external tools (MISA/cpstools/MAFFT); skipped with a printed reason when absent",
+    "panel: reads the private validation data under .panel/ (gitignored, never in CI); run by `make acceptance`",
 ]

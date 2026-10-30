@@ -29,10 +29,13 @@ pipeline. Do not invent a replacement task list.
 
 ## Verifying a change
 
-- Fast suite: `make test` (no external tool, no network).
-- Tool-carrying suite: `make golden`. Missing tools are declared in `environment.yml` and
-  `docs/tools/`; a missing one skips with a printed reason, and `PTS_REQUIRE_TOOLS=1` turns that
-  skip into a failure. Report which checks actually ran — a skip is not acceptance evidence.
+- Fast suite: `make test` (no external tool, no network, no `.panel/`).
+- Golden: `make golden`, the golden-pair numbers and the pinned-tool checks, the same set CI runs.
+  Missing tools are declared in `environment.yml` and `docs/tools/`; a missing one skips with a
+  printed reason, and `PTS_REQUIRE_TOOLS=1` turns that skip into a failure.
+- Panel acceptance: `make acceptance`, the tests marked `panel` that read the gitignored `.panel/`.
+  Run it when closing a milestone; it fails instead of skipping. Report which checks actually ran
+  — a skip is not acceptance evidence. What each check proves: `tests/golden/README.md`.
 - Lint and format: `make lint`, `make fmt`.
 
 ## Environment notes that cost time to find

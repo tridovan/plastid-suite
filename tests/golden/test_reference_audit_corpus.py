@@ -29,9 +29,12 @@ PANEL = Path(__file__).resolve().parents[2] / ".panel" / "plastid-reference"
 INVERTED = {"NC_042827.1.gb", "NC_062351.1.gb"}
 PARTIAL = "NC_024936.1.gb"
 
-pytestmark = pytest.mark.skipif(
-    not PANEL.is_dir(), reason="the pinned reference set lives outside the repo (.panel/)"
-)
+pytestmark = [
+    pytest.mark.panel,
+    pytest.mark.skipif(
+        not PANEL.is_dir(), reason="the pinned reference set lives outside the repo (.panel/)"
+    ),
+]
 
 
 def _paths() -> list[Path]:

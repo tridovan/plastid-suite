@@ -77,6 +77,7 @@ REQUIRED_FIELDS = (
 
 pytestmark = [
     pytest.mark.tier_b,
+    pytest.mark.panel,
     pytest.mark.skipif(
         not SOURCE.is_dir(),
         reason="the IR validation panel is not in this tree (.panel/ is gitignored)",

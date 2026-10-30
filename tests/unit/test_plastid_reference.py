@@ -159,6 +159,7 @@ def test_the_cli_reports_a_broken_pin_and_exits_nonzero(
     assert "is this a pinned reference set?" in capsys.readouterr().err
 
 
+@pytest.mark.panel
 @pytest.mark.skipif(
     not PANEL.is_dir(),
     reason="the pinned plastid reference set is not in this working tree (.panel/ is gitignored)",
@@ -198,6 +199,7 @@ def test_the_committed_manifest_is_what_the_pinned_set_builds(tmp_path: Path) ->
     assert read_manifest(copied).leave_one_out == committed.leave_one_out
 
 
+@pytest.mark.panel
 @pytest.mark.skipif(
     not PANEL.is_dir() or not (ROOT / ".panel" / "iridaceae-34").is_dir(),
     reason="the corpus panel is not in this working tree (.panel/ is gitignored)",

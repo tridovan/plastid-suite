@@ -9,11 +9,13 @@ passing their tests, but do not extend them.
 
 ## Commands
 
-- `make test`: fast tests. Needs no external tool and no network (~4 min).
-- `make golden`: the golden-number tests. A test whose tool is missing skips with a printed reason;
-  `PTS_REQUIRE_TOOLS=1` turns that skip into a failure. The tools are in `environment.yml` and
-  `docs/tools/`.
-- `make lint` and `make fmt`: ruff. `make check` runs lint, test and golden (~12 min).
+- `make test`: fast tests. Needs no external tool, no network and no `.panel/` (~5 min).
+- `make golden`: the golden-pair numbers and the pinned-tool checks, the set CI runs (~6 min). A
+  test whose tool is missing skips with a printed reason; `PTS_REQUIRE_TOOLS=1` turns that skip
+  into a failure. The tools are in `environment.yml` and `docs/tools/`.
+- `make acceptance`: every test marked `panel`, which reads the private `.panel/` data that CI never
+  has (~40 min). Run it when closing a milestone; a missing tool or panel fails it.
+- `make lint` and `make fmt`: ruff. `make check` runs lint, test and golden (~11 min).
 
 ## Context and scope
 
@@ -94,6 +96,8 @@ tables. Convert only with `Interval.to_1based` / `Interval.from_1based`.
   one pinned input. It is not evidence about any other genome, so a change must also be tested on the
   other record shapes in `tests/`.
 - No test touches the network. Figures are tested through the data they are fed, not their pixels.
+- A test that reads `.panel/` carries the `panel` mark. What each kind of golden check proves is in
+  `tests/golden/README.md`.
 - Report which checks actually ran and every missing tool/panel. A skip is not acceptance evidence.
 
 Commits use the conventional style (`feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:`), in

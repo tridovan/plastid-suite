@@ -44,7 +44,7 @@ from plastid.modules import mito_annotate
 from plastid.run.context import RunContext
 from plastid.run.layout import RunLayout
 
-pytestmark = pytest.mark.tier_b
+pytestmark = [pytest.mark.tier_b, pytest.mark.panel]
 
 PANEL = Path(__file__).resolve().parents[2] / ".panel" / "oldenlandia-coleus-mito"
 NEEDS_PANEL = pytest.mark.skipif(

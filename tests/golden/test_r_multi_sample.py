@@ -30,6 +30,8 @@ from plastid.run.layout import RunLayout
 ROOT = Path(__file__).resolve().parents[2]
 PANEL = ROOT / ".panel" / "ir-validation" / "source"
 
+pytestmark = pytest.mark.panel
+
 
 def _rscript() -> str:
     found = shutil.which("Rscript")

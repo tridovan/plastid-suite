@@ -161,6 +161,7 @@ def test_kaks_does_not_depend_on_the_origin(
     assert _rows(rotated) == baseline
 
 
+@pytest.mark.panel
 def test_popgen_does_not_depend_on_the_origin(tools: dict[str, str | None], tmp_path: Path) -> None:
     """π, Tajima's D and Fst are computed from the CDS alignment; the alignment is unchanged.
 
@@ -237,6 +238,7 @@ def test_synteny_follows_the_reference_annotation_not_its_origin(
 # ------------------------------------------------------------------ tree
 
 
+@pytest.mark.panel
 def test_the_phylogeny_tree_does_not_depend_on_the_origin(
     tools: dict[str, str | None], tmp_path: Path
 ) -> None:

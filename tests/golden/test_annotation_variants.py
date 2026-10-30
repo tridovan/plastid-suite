@@ -100,6 +100,7 @@ FAST_ALIGNMENT = {"mafft_strategy": "fftns"}
 
 pytestmark = [
     pytest.mark.tier_b,
+    pytest.mark.panel,
     pytest.mark.skipif(
         not SOURCE.is_dir() or not VARIANTS.is_dir(),
         reason="the IR validation panels are not in this tree (.panel/ is gitignored)",

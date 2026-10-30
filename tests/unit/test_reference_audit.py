@@ -633,6 +633,7 @@ def test_dotplot_runs_finds_the_anti_diagonal_of_an_inverted_sequence() -> None:
 # ---------------------------------------------------------------- the real corpus
 
 
+@pytest.mark.panel
 @pytest.mark.skipif(not PANEL.is_dir(), reason="the pinned reference set lives outside the repo")
 def test_the_pinned_set_audits_clean_and_reports_the_two_inversions() -> None:
     """H-21 fixed: the set blocks nothing, and every special case is a named REPORT.
@@ -810,6 +811,7 @@ def test_the_dotplot_figure_draws_the_matches_it_was_given() -> None:
     )
 
 
+@pytest.mark.panel
 @pytest.mark.skipif(not PANEL.is_dir(), reason="the pinned reference set lives outside the repo")
 def test_the_gene_strand_rule_reproduces_the_measured_verdicts() -> None:
     """The rule as the corpus count ran it — same two records, same comparison of region votes."""

@@ -34,6 +34,7 @@ MANIFEST = ROOT / ".panel" / "ir-validation" / "manifest.tsv"
 
 pytestmark = [
     pytest.mark.tier_b,
+    pytest.mark.panel,
     pytest.mark.skipif(
         not PANEL.is_dir() or not VARIANTS.is_dir(),
         reason="the IR validation panel is not in this tree (.panel/ is gitignored)",

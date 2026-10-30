@@ -9,6 +9,9 @@
 #     the tier-B job installs it on purpose because a check that skips proves nothing). An
 #     unpinned `conda install mafft` is not a shortcut — two MAFFT builds were measured giving two
 #     Ts/Tv numbers from one genome.
+#   * Neither job selects tests marked `panel`: they read `.panel/`, the private validation data
+#     git never carries. `make acceptance` runs them on a machine that has the panel. Both jobs
+#     call the Makefile targets, so CI and a local `make test`/`make golden` select the same set.
 #
 # `PTS_REQUIRE_TOOLS=1` in the tier-B job turns "tool missing" from a printed skip into a failure:
 # a green build that quietly skipped the tools would prove nothing. **R is a tool here** (M11.8):
@@ -40,7 +43,7 @@ jobs:
       - name: ruff (lint + format check)
         run: make lint
       - name: fast tests
-        run: uv run pytest -q -m "not tier_b"
+        run: make test
       - name: tier-A golden — the golden numbers, no tools
         run: uv run pytest -q tests/golden/test_tier_a.py
 
@@ -120,4 +123,4 @@ jobs:
         env:
           PTS_REQUIRE_TOOLS: "1"
           PTS_TABLE2ASN: ${{ github.workspace }}/table2asn
-        run: uv run pytest -q tests/golden -rs
+        run: make golden
