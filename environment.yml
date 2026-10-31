@@ -90,8 +90,8 @@ dependencies:
   #            outputs survive as measured counter-examples in tests/data/corpus/*.pga.gb. Its
   #            pinned source is commit 0683a0ec… (sha256 0d55b70e…), and it is GPL-3.0 —
   #            it must not be bundled into the MIT-licensed package (docs/licensing.md).
-  # table2asn  not on conda — NCBI ships it directly:
-  #            ftp.ncbi.nlm.nih.gov/asn1-converters/by_program/table2asn/
+  # table2asn  not here: bioconda's 1.29.324 needs libsqlite >=3.54.1, which cannot be solved beside
+  #            r-base=4.3. Its own environment, or NCBI's binary (docs/tools/table2asn.md).
   # misa.pl    obtained separately, never bundled (docs/tools/misa.md)
   # cpjsdraw   cloned by the user (docs/tools/cpjsdraw.md)
   # mito       MITOS2 is a METAZOAN annotator and cannot do a plant mitochondrion. PMGA

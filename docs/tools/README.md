@@ -77,7 +77,7 @@ that works.
 | `environment-check.yml` | `cross-check` engines that conda can supply | someone verifying a published number |
 | `environment-future.yml` | `future` and `survey-only` tools | nobody, for this release — it is the written state of a deferred branch |
 
-Tools that cannot come from conda — `misa.pl`, `table2asn`, CPJSdraw, CGAS, parasail — have their
+Tools that cannot be installed from these environment files — `misa.pl`, `table2asn`, CPJSdraw, CGAS, parasail — have their
 exact acquisition line on their own page and are **never** in an environment file; a conda line
 that does not work is worse than no line (M11.19's rule for PREP-Cp applies to all of them).
 

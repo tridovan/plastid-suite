@@ -2,10 +2,11 @@
 
 **Why this file exists.** CLAUDE.md: a tool that exists only on one machine is not part of the
 toolkit. The moment a module uses an external tool, that tool must be declared in the repo — in
-`environment.yml`, in `vendor/` with a `SOURCE.json`, or here. table2asn fits none of the first
-two: it is not on conda and it is a 56 MB NCBI binary, so it is declared here, with its source and
-its exact install line, and the module that uses it records name · version · path · argv at every
-run.
+`environment.yml`, in `vendor/` with a `SOURCE.json`, or here. table2asn fits neither of the first
+two. It is on bioconda, but it cannot join `environment.yml`: 1.29.324 needs `libsqlite` ≥ 3.54.1,
+which the solver cannot give beside `r-base=4.3` (measured 31 October 2026). And it is a 56 MB NCBI
+binary, too large to vendor. So it is declared here, with its source and its exact install lines, and
+the module that uses it records name · version · path · argv at every run.
 
 **What it is.** NCBI's ASN.1 converter: FASTA + five-column feature table in, `.sqn` out. It is
 the only step of P3-05 that is not pure Python, and the only one that needs a file the team owns.
@@ -22,6 +23,16 @@ Measured: **20,213,344 B** gzipped → **56,847,504 B** binary, `table2asn -h` �
 **1.29.324** (the tool prints a notice that it is more than a year old; NCBI's FTP serves that
 build). `md5sum` of the unpacked binary: `8b5b6cbede9d38b47c7c4cae29a25a0a` — the checksum is recorded so a second
 machine can prove it installed the same build.
+
+**Or from bioconda, in an environment of its own** (measured 31 October 2026, 62 MB installed):
+
+```sh
+micromamba create -n table2asn -c conda-forge -c bioconda table2asn=1.29.324
+```
+
+That is build `h190543b_0`, uploaded 28 October 2026. It reports the same version and is not the same
+file: 56,851,600 B, md5 `6ae6ffcb80670d42b1ade76af0bf90a4`.
+`test_the_sqn_step_runs_and_ncbi_reads_the_table` passes on both.
 
 **Not vendored, deliberately:** 56 MB of third-party binary in a git repository whose golden data
 is a 170 kB GenBank file. It is fetched by whoever needs the `.sqn` step, and the step is optional

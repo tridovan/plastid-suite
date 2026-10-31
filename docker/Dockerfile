@@ -66,9 +66,10 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
     && micromamba clean -a -y
 
 # **table2asn is deliberately NOT in this image.** It is the one tool that (a) is optional — the
-# `.fsa` + `.tbl` route needs nothing (D3-04) — and (b) is a 56 MB fetch from NCBI that cannot come
-# from conda. Measured 11/10/2026: through the Docker VM that download crawls (the host was pulling
-# the same file at ~600 kB/s), and an optional tool must never be able to hang a user's build. So
+# `.fsa` + `.tbl` route needs nothing (D3-04) — and (b) cannot share this environment with R, and is
+# otherwise a 56 MB fetch from NCBI. Measured 11/10/2026: through the Docker VM that download crawls
+# (the host was pulling the same file at ~600 kB/s), and an optional tool must never be able to hang
+# a user's build. So
 # the image carries the tools the *analyses* need, and the `.sqn` step is what `docs/tools/
 # table2asn.md` describes: fetch the binary on the host and mount it, or pass
 # `--set table2asn=/path/to/table2asn`. Its single check is deselected by name below.

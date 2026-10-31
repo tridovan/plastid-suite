@@ -17,7 +17,7 @@
 # a green build that quietly skipped the tools would prove nothing. **R is a tool here** (M11.8):
 # until 28/10/2026 its checks called `pytest.skip` directly, so CI was green while every figure
 # script went unrun. `conftest.require_r` now honours the variable, and R is installed below. table2asn is the one tool that
-# cannot come from conda, so the job fetches the build `docs/tools/table2asn.md` records and
+# cannot share this environment with R, so the job fetches the build `docs/tools/table2asn.md` records and
 # checks its md5 — the same reasoning as the pins.
 
 name: CI
