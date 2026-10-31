@@ -22,6 +22,8 @@ when it closed, has every base known, the reads support it, and its graph is res
 
 from __future__ import annotations
 
+import gzip
+import itertools
 import json
 import os
 import shutil
@@ -30,6 +32,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
+
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from plastid.core.assembly import (
     STATUS_COMPLETE,
@@ -51,6 +55,7 @@ from plastid.core.assembly import (
     compare_to_reference,
     ir_junctions,
     parse_sam,
+    pool_repeated_joins,
     weak_regions,
 )
 from plastid.core.assembly_graph import (
@@ -65,6 +70,7 @@ from plastid.core.sequence import gc_percent
 from plastid.external.fastp import FastpResult, fastp_version, resolve_fastp
 from plastid.external.fastp import trim as run_fastp
 from plastid.external.getorganelle import (
+    ASSEMBLER_WORD_LIMIT,
     ENTRY_POINT,
     GETORGANELLE_VERSION,
     ORGANELLE,
@@ -111,6 +117,7 @@ __all__ = [
     "preflight",
     "prepare",
     "resolve_params",
+    "word_limit",
 ]
 
 MODULE_ID = "assembly"
@@ -132,6 +139,11 @@ ASSEMBLY_PARAMS: tuple[str, ...] = (
     "random_seed",
     "threads",
     "memory_gb",
+    "max_words",
+    "memory_reserve_gb",
+    "word_bytes",
+    "word_bytes_per_base",
+    "word_size_share",
     "trim",
     "tools",
     "database",
@@ -205,6 +217,8 @@ class Assembled:
     read_qc: ReadQC | None = None
     external_result: Mapping[str, Any] | None = None
     graph_readings: tuple[GraphReading, ...] = ()
+    word_limit: int | None = None  # the limit this run was given; None when it ran elsewhere
+    word_limit_hit: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -264,8 +278,20 @@ def resolve_params(params: Mapping[str, Any]) -> dict[str, Any]:
         "extension",
     ):
         merged[key] = int(merged[key])
-    for key in ("min_ram_gb", "disk_factor"):
+    for key in (
+        "min_ram_gb",
+        "disk_factor",
+        "memory_reserve_gb",
+        "word_bytes",
+        "word_bytes_per_base",
+        "word_size_share",
+    ):
         merged[key] = float(merged[key])
+    if merged["memory_gb"] is not None:
+        merged["memory_gb"] = float(merged["memory_gb"])
+    # The assembler's own notation for this number is 3E7, so that spelling has to work here.
+    if merged["max_words"] is not None:
+        merged["max_words"] = int(float(merged["max_words"]))
     for key in ("trim", "keep_work"):
         value = merged[key]
         merged[key] = value if isinstance(value, bool) else str(value).lower() in ("yes", "true")
@@ -285,6 +311,35 @@ def measure_machine(directory: Path) -> Machine:
     )
 
 
+def word_limit(memory_gb: float, read_length: int, params: Mapping[str, Any]) -> int:
+    """The words the assembler may hold in this much memory.
+
+    Peak memory follows the words read recruitment holds, and neither the input's size nor its
+    plastid share predicts how many that will be (``docs/tools/getorganelle.md``), so the words are
+    limited rather than guessed. A run that reaches the limit stops recruiting and assembles what it
+    has, and says so. The word size is the assembler's choice, made after it starts; the limit plans
+    for a share of the read length.
+    """
+    room = max(memory_gb - params["memory_reserve_gb"], 1.0) * _BYTES_PER_GB
+    per_word = (
+        params["word_bytes"]
+        + params["word_bytes_per_base"] * params["word_size_share"] * read_length
+    )
+    return min(ASSEMBLER_WORD_LIMIT, int(room / per_word))
+
+
+def _read_length(path: Path, *, reads: int = 1_000) -> int:
+    """The longest of a file's first reads, in bases. The assembler takes both forms of FASTQ."""
+    with path.open("rb") as raw:
+        compressed = raw.read(2) == b"\x1f\x8b"
+    with gzip.open(path, "rt", encoding="ascii") if compressed else path.open() as handle:
+        first = itertools.islice(FastqGeneralIterator(handle), reads)
+        lengths = [len(sequence) for _, sequence, _ in first]
+    if not lengths:
+        raise AssemblyError(f"{path}: no reads")
+    return max(lengths)
+
+
 def _input_gb(reads: ReadPair) -> float:
     return (reads.reads_1.stat().st_size + reads.reads_2.stat().st_size) / _BYTES_PER_GB
 
@@ -300,8 +355,9 @@ def preflight(
 
     Memory is a floor, not a prediction: peak memory follows the share of plastid reads in the
     sample much more than the size of the input, so a file's size cannot say what a run will use
-    (``docs/tools/getorganelle.md``). What stops a run that needs more than the machine has is the
-    limit given to SPAdes, whose refusal the caller reports the same way as this one.
+    (``docs/tools/getorganelle.md``). What keeps a run inside the machine is the limit on the words
+    the assembler holds, and the limit given to SPAdes, whose refusal the caller reports the same
+    way as this one.
     """
     try:
         tools = resolve_tools(params.get("tools"))
@@ -362,6 +418,7 @@ def _assembled(
     mapping_reads: tuple[Path, Path],
     read_qc: ReadQC | None,
     external_result: Mapping[str, Any] | None = None,
+    word_limit: int | None = None,
 ) -> Assembled:
     facts = output.facts
     return Assembled(
@@ -383,6 +440,8 @@ def _assembled(
         read_qc=read_qc,
         external_result=external_result,
         graph_readings=output.graph_readings,
+        word_limit=word_limit,
+        word_limit_hit=facts.word_limit_hit,
     )
 
 
@@ -402,7 +461,11 @@ def assemble_local(
         trimmed = _trim(reads, params, ctx)
         pair = (trimmed.reads_1, trimmed.reads_2)
         read_qc = _read_qc(trimmed)
-    memory_gb = params.get("memory_gb") or max(1, int(machine.ram_gb))
+        read_length = trimmed.read_length_before
+    else:
+        read_length = _read_length(reads.reads_1)
+    memory_gb = params.get("memory_gb") or machine.ram_gb
+    max_words = params.get("max_words") or word_limit(memory_gb, read_length, params)
     try:
         output = run_getorganelle(
             pair[0],
@@ -414,7 +477,8 @@ def assemble_local(
             kmers=params["kmers"],
             threads=params["threads"],
             random_seed=params["random_seed"],
-            memory_gb=int(memory_gb),
+            memory_gb=max(1, int(memory_gb)),
+            max_words=max_words,
             ctx=ctx,
         )
     except ToolError as error:
@@ -432,6 +496,7 @@ def assemble_local(
         ),
         mapping_reads=(reads.reads_1, reads.reads_2),
         read_qc=read_qc,
+        word_limit=max_words,
     )
 
 
@@ -647,12 +712,15 @@ def _measure(
         binary=resolve_minimap2(params.get("tools")),
     )
     with sam.open(encoding="utf-8") as handle:
-        profile = build_profile(
-            parse_sam(handle),
-            length=len(sequence),
-            extension=extension,
-            flank=params["flank"],
-            min_clip=params["min_clip"],
+        profile = pool_repeated_joins(
+            build_profile(
+                parse_sam(handle),
+                length=len(sequence),
+                extension=extension,
+                flank=params["flank"],
+                min_clip=params["min_clip"],
+            ),
+            sequence,
         )
     sam.unlink()
     ir = ir_de_novo(Genome(name=name, sequence=sequence, topology="circular"))
@@ -814,6 +882,8 @@ def _summary(assembled: Assembled, evaluation: Evaluation, scope: Scope) -> Tabl
             assembled.base_coverage if assembled.base_coverage is not None else "not measured"
         ),
         "reads_used": assembled.reads_used if assembled.reads_used is not None else "not measured",
+        "word_limit": assembled.word_limit if assembled.word_limit is not None else "not stated",
+        "word_limit_hit": "yes" if assembled.word_limit_hit else "no",
         "mapped_reads": profile.reads if profile else "not measured",
         "mean_depth": round(profile.mean_depth, 2) if profile else "not measured",
         "sd_depth": round(profile.sd_depth, 2) if profile else "not measured",
@@ -847,6 +917,8 @@ def _summary(assembled: Assembled, evaluation: Evaluation, scope: Scope) -> Tabl
         Column("gc_percent", "GC", dtype="float", unit="%", precision=2),
         Column("assembler_coverage", "Coverage, by the assembler", dtype="float", precision=2),
         Column("reads_used", "Reads used by the assembler", dtype="int"),
+        Column("word_limit", "Word limit given to the assembler", dtype="int"),
+        Column("word_limit_hit", "Reached it"),
         Column("mapped_reads", "Reads mapped back", dtype="int"),
         Column("mean_depth", "Mean depth", dtype="float", precision=2),
         Column("sd_depth", "SD of depth", dtype="float", precision=2),
@@ -890,6 +962,22 @@ def _paths_table(assembled: Assembled, scope: Scope) -> Table:
     )
 
 
+def _isomers_cell(reading: GraphReading) -> str:
+    if reading.structures is None:
+        return "not measured"
+    if reading.isomers is None:
+        return "not applicable"  # measured: not two structures, so there is no pair to call
+    return "yes" if reading.isomers else "no"
+
+
+def _repeat_cell(reading: GraphReading) -> str:
+    if reading.structures is None:
+        return "not measured"
+    if reading.repeat is None:
+        return "none"
+    return f"{reading.repeat[1]} bp, {reading.repeat[0]}"
+
+
 def _graph_table(readings: Sequence[GraphReading], scope: Scope) -> Table:
     missing = "not measured"
     return Table(
@@ -918,14 +1006,8 @@ def _graph_table(readings: Sequence[GraphReading], scope: Scope) -> Table:
                 "free_ends": reading.free_ends,
                 "paths_written": reading.paths_written,
                 "structures": reading.structures if reading.structures is not None else missing,
-                "isomers": (
-                    "not applicable"
-                    if reading.isomers is None
-                    else ("yes" if reading.isomers else "no")
-                ),
-                "repeat": (
-                    f"{reading.repeat[1]} bp, {reading.repeat[0]}" if reading.repeat else "none"
-                ),
+                "isomers": _isomers_cell(reading),
+                "repeat": _repeat_cell(reading),
                 "reasons": "; ".join(reading.reasons) or "nothing",
             }
             for reading in readings
@@ -1294,6 +1376,11 @@ def assembly_result(
         notes += (
             f"This assembly ran on GetOrganelle {assembled.tool_version}; the local route pins "
             f"{GETORGANELLE_VERSION}.",
+        )
+    if assembled.word_limit_hit:
+        notes += (
+            "The assembler stopped recruiting reads at its word limit, and assembled what it had. "
+            "More memory, or a run elsewhere, would recruit more.",
         )
     notes += tuple(f"The graph leaves this open: {reason}." for reason in evaluation.graph_reasons)
     repeat_note = _repeat_note(assembled, evaluation)

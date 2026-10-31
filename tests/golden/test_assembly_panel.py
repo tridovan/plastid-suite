@@ -26,7 +26,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from conftest import require_tools
 from plastid.cli import main
-from plastid.core.assembly import same_circular
+from plastid.core.assembly import compare_to_reference, same_circular
 from plastid.core.sequence import reverse_complement
 
 pytestmark = [pytest.mark.tier_b, pytest.mark.panel]
@@ -47,6 +47,10 @@ LAURUS = ReadSet("SRR5602602", "Laurus nobilis", "KY085912.1")
 SELAGINELLA = ReadSet("SRR2037123", "Selaginella kraussiana", "MH549643.1")
 MUSA = ReadSet("SRR2057084", "Musa balbisiana", "KT595228.1")
 ARABIDOPSIS = ReadSet("DRR173054", "Arabidopsis thaliana Col-0", "AP000423.1")
+# 142 M and 116 M words, 19.9 and 18.0 GB in the published runs. Stored here as this machine ran
+# them, under the word limit its memory gives: 8.33 GB, 2×250, so 30.3 M words.
+SPECIOSA = ReadSet("SRR5602576", "Echinacea speciosa", "KX548222.1")
+TENNESSEENSIS = ReadSet("SRR5602587", "Echinacea tennesseensis", "KX548223.1")
 
 
 def _tool_directory() -> str | None:
@@ -288,6 +292,7 @@ def test_the_musa_graph_is_unresolved_and_kept_for_a_person_to_read(musa) -> Non
     [graph] = _table(run, "assembly_graph")
     assert (graph["segments"], graph["links"]) == (15, 0)
     assert graph["structures"] == "not measured"
+    assert graph["repeat"] == "not measured"
     kept = {path.name for path in (run / "01_assembly").iterdir()}
     assert "assembler.log" in kept
     assert "scaffolds.fasta" in kept
@@ -391,6 +396,43 @@ def test_the_musa_record_has_joins_the_reads_do_not_cross(musa) -> None:
     assert rows["KT595228.1"]["weak_regions"] == 8
     # Jin Table S2 on this sequence: 2205.78 ± 470.46.
     assert rows["KT595228.1"]["mean_depth"] == pytest.approx(2205.78, rel=0.02)
+
+
+def _published_path(read_set: ReadSet) -> str:
+    files = sorted((PANEL / "jin2020" / f"auto--{read_set.run}-plastome").glob("*.1.path_*.fasta"))
+    return str(next(SeqIO.parse(files[0], "fasta")).seq).upper()
+
+
+def test_the_word_limit_closes_a_sample_that_took_20_gb(tmp_path: Path) -> None:
+    run, code = _imported(SPECIOSA, tmp_path)
+    assert code == 0
+    [summary] = _table(run, "assembly_summary")
+    assert summary["word_limit_hit"] == "yes"
+    assert summary["status"] == "complete"
+    assert summary["read_support"] == "supported"
+    assert summary["graph_call"] == "resolved"
+    # What stopping early cost: two bases, and no mismatch, against the published reassembly.
+    published = _published_path(SPECIOSA)
+    paths = sorted((PANEL / "results" / SPECIOSA.run).glob("*.path_sequence.fasta"))
+    comparisons = [
+        compare_to_reference(str(next(SeqIO.parse(path, "fasta")).seq).upper(), published)
+        for path in paths
+    ]
+    near = next(item for item in comparisons if item.identity is not None)
+    assert (near.mismatches, near.gap_columns) == (0, 2)
+
+
+def test_the_word_limit_can_leave_a_sample_open_and_says_so(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # The published run closed this one on 116 M words and 18 GB. The limit is not free.
+    run, code = _imported(TENNESSEENSIS, tmp_path)
+    assert code == 1
+    [summary] = _table(run, "assembly_summary")
+    assert summary["word_limit_hit"] == "yes"
+    assert summary["status"] == "fragmented"
+    assert summary["graph_call"] == "unresolved"
+    assert "--set memory_gb" in capsys.readouterr().err
 
 
 def test_selaginella_two_direct_repeats_and_no_inverted_repeat(tmp_path: Path) -> None:

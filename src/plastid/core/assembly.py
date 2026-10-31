@@ -21,8 +21,9 @@ back with ``b % L``, and each read is counted once because only primary alignmen
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from collections.abc import Iterable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from Bio.Align import PairwiseAligner
 
@@ -53,6 +54,7 @@ __all__ = [
     "ir_junctions",
     "orient_to",
     "parse_sam",
+    "pool_repeated_joins",
     "same_circular",
     "weak_regions",
 ]
@@ -474,7 +476,8 @@ class SupportProfile:
     """What the mapped reads say at every position of one circular sequence.
 
     ``spanning[b]`` counts reads with at least ``flank`` aligned bases of reference on both sides
-    of boundary ``b``, with no long indel between them. ``clipped[b]`` counts reads whose alignment
+    of boundary ``b``, with no long indel between them, on every place that join occurs once
+    :func:`pool_repeated_joins` has read it. ``clipped[b]`` counts reads whose alignment
     stops there with at least ``min_clip`` read bases left over. ``depth[i]`` counts aligned bases
     at base ``i``. All three are indexed on the circle, ``[0, length)``.
     """
@@ -580,6 +583,34 @@ def build_profile(
         inserted=inserted,
         deleted=deleted,
     )
+
+
+def pool_repeated_joins(profile: SupportProfile, sequence: str) -> SupportProfile:
+    """The profile with each join's crossing reads summed over every place it occurs.
+
+    A read inside a repeat has equally good placements and the aligner takes one, so a join's reads
+    are dealt out among the copies at random. At 20× that left one copy of a correct plastome with
+    no read over 52 bp while the other had five. Two boundaries with the same ``flank`` bases on
+    each side, on either strand, are one join to a read, and what crosses one is evidence for both.
+    A wrong join has flanks of its own and pools with nothing, so it stays uncrossed.
+    """
+    length = profile.length
+    if len(sequence) != length:
+        raise AssemblyError(f"a profile of {length} bp cannot be read on {len(sequence)} bp")
+    flank = profile.flank
+    circle = sequence + sequence[: 2 * flank]
+    places: defaultdict[str, list[int]] = defaultdict(list)
+    for boundary in range(length):
+        start = (boundary - flank) % length
+        window = circle[start : start + 2 * flank]
+        places[min(window, reverse_complement(window))].append(boundary)
+    spanning = list(profile.spanning)
+    for members in places.values():
+        if len(members) > 1:
+            pooled = sum(profile.spanning[member] for member in members)
+            for member in members:
+                spanning[member] = pooled
+    return replace(profile, spanning=tuple(spanning))
 
 
 @dataclass(frozen=True, slots=True)

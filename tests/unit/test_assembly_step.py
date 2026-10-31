@@ -8,6 +8,7 @@ that the two backends give one result. The real tools run in `tests/golden/test_
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import itertools
 import json
@@ -371,6 +372,60 @@ def test_the_tool_record_and_the_database_are_in_the_manifest(bench: Bench) -> N
     assert len(manifest["inputs"]) == 2
 
 
+def test_the_word_limit_follows_the_memory_and_the_read_length(bench: Bench) -> None:
+    _canned_complete(bench.tools)
+    assert bench.run("--set", "memory_gb=8") == 0
+    run = bench.run_dir()
+    # 7 GB of room, at 108 + 0.89 bytes for each of 0.6 of the report's 150 bp of word.
+    expected = int(7e9 / (108 + 0.89 * 0.6 * 150))
+    argv = bench.manifest(run)["modules"][0]["tools"][1]["argv"]
+    assert argv[argv.index("--max-n-words") + 1] == str(expected)
+    assert argv[argv.index("--spades-options") + 1] == "-m 8"
+    [summary] = bench.table(run, "assembly_summary")
+    assert int(summary["word_limit"]) == expected
+    assert summary["word_limit_hit"] == "no"
+
+
+@pytest.mark.parametrize("given", ["5000000", "5E6"])
+def test_a_word_limit_can_be_set_by_hand(bench: Bench, given: str) -> None:
+    _canned_complete(bench.tools)
+    assert bench.run("--set", f"max_words={given}", "--set", "memory_gb=8.5") == 0
+    argv = bench.manifest(bench.run_dir())["modules"][0]["tools"][1]["argv"]
+    assert argv[argv.index("--max-n-words") + 1] == "5000000"
+    assert argv[argv.index("--spades-options") + 1] == "-m 8"
+
+
+@pytest.mark.parametrize("compressed", [True, False])
+def test_without_quality_control_the_reads_give_the_read_length(
+    bench: Bench, compressed: bool
+) -> None:
+    _canned_complete(bench.tools)
+    record = f"@r\n{'A' * 200}\n+\n{'I' * 200}\n".encode()
+    for path in (bench.reads_1, bench.reads_2):
+        path.write_bytes(gzip.compress(record) if compressed else record)
+    assert bench.run("--set", "trim=no", "--set", "memory_gb=8") == 0
+    argv = bench.manifest(bench.run_dir())["modules"][0]["tools"][0]["argv"]
+    assert argv[argv.index("--max-n-words") + 1] == str(int(7e9 / (108 + 0.89 * 0.6 * 200)))
+
+
+def test_a_run_that_reaches_its_word_limit_says_so(
+    bench: Bench, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _canned_scaffolds(bench.tools)
+    log = bench.tools / "canned" / "get_org.log.txt"
+    log.write_text(
+        log.read_text() + "2026-10-31 INFO: Hit the words limit and terminated ...\n",
+        encoding="utf-8",
+    )
+    assert bench.run() == 1
+    run = bench.run_dir()
+    [summary] = bench.table(run, "assembly_summary")
+    assert summary["word_limit_hit"] == "yes"
+    payload = json.loads((run / "01_assembly" / "result.json").read_text("utf-8"))
+    assert any("stopped recruiting reads" in note for note in payload["notes"])
+    assert "--set memory_gb" in capsys.readouterr().err
+
+
 def test_the_map_back_reads_the_raw_reads_and_the_assembler_the_trimmed_ones(bench: Bench) -> None:
     _canned_complete(bench.tools)
     assert bench.run() == 0
@@ -621,7 +676,9 @@ def test_both_backends_give_one_result_and_differ_only_in_provenance(bench: Benc
         bench.table(imported, "assembly_summary")[0],
     )
     differing = {key for key in first if first[key] != second[key]}
-    assert differing == {"backend", "where"}
+    # The limit belongs to the machine a run was given, which is provenance too.
+    assert differing == {"backend", "where", "word_limit"}
+    assert second["word_limit"] == "not stated"
     assert second["backend"] == "import"
     assert second["where"] == "imported: usegalaxy.eu, retrieved 2026-10-31"
     for file in ("assembly.fasta", "assembly.paths.fasta"):
@@ -693,6 +750,19 @@ def test_a_walk_over_a_link_the_graph_lacks_is_refused(
     assert "not a link" in capsys.readouterr().err
 
 
+def test_reads_dealt_to_one_copy_of_the_repeat_still_support_the_other(tmp_path: Path) -> None:
+    # A stretch of the second copy with no read, as the aligner left Echinacea at 20×. The same
+    # joins are crossed on the first copy, so nothing here is unsupported.
+    start = _LSC + _IR + _SSC + 5_000
+    bench = Bench(tmp_path, sam=_sam(skip_between=(start, start + 100)))
+    _canned_complete(bench.tools)
+    assert bench.run() == 0
+    run = bench.run_dir()
+    [summary] = bench.table(run, "assembly_summary")
+    assert summary["read_support"] == "supported"
+    assert int(summary["fewest_spanning"]) >= 2
+
+
 def test_a_graph_of_many_structures_is_not_passed_on_the_reads(bench: Bench) -> None:
     _canned_many_structures(bench.tools)
     assert bench.run() == 1
@@ -725,6 +795,15 @@ def test_an_import_without_its_selected_graph_gives_no_artifact(bench: Bench) ->
     assert summary["graph_call"] == "not measured"
     assert summary["graph_reasons"] == "no selected graph to read"
     assert bench.manifest(run)["artifacts"] == []
+
+
+def test_what_an_open_graph_cannot_say_is_not_measured_rather_than_none(bench: Bench) -> None:
+    _canned_scaffolds(bench.tools)
+    assert bench.run() == 1
+    [graph] = bench.table(bench.run_dir(), "assembly_graph")
+    assert graph["structures"] == "not measured"
+    assert graph["isomers"] == "not measured"
+    assert graph["repeat"] == "not measured"
 
 
 def test_a_path_that_does_not_state_its_walk_is_not_measured(bench: Bench) -> None:
@@ -993,3 +1072,20 @@ def test_a_fastp_report_without_its_counts_is_refused() -> None:
 def test_kmers_may_be_written_as_a_list_on_the_command_line() -> None:
     assert assembly.resolve_params({"kmers": "21,45,65"})["kmers"] == (21, 45, 65)
     assert assembly.resolve_params({})["kmers"] == (21, 55, 91, 127)
+
+
+def _word_params() -> dict:
+    return assembly.resolve_params({})
+
+
+def test_the_word_limit_never_goes_above_the_assemblers_own() -> None:
+    assert assembly.word_limit(10_000, 100, _word_params()) == getorganelle.ASSEMBLER_WORD_LIMIT
+
+
+def test_a_longer_read_holds_fewer_words_in_the_same_memory() -> None:
+    params = _word_params()
+    assert assembly.word_limit(8, 300, params) < assembly.word_limit(8, 100, params)
+
+
+def test_a_machine_under_the_reserve_still_gets_a_limit() -> None:
+    assert assembly.word_limit(0.5, 150, _word_params()) > 0

@@ -56,7 +56,7 @@ def outputs() -> dict[str, GetOrganelleOutput]:
     if not PANEL.is_dir():
         pytest.skip(f"not in this tree (.panel/ is gitignored): {PANEL}")
     read = {}
-    for root in sorted(PANEL.iterdir()):
+    for root in sorted(path for path in PANEL.iterdir() if path.is_dir()):
         if root.name != REDONE:
             read[root.name] = read_output(root)
     return read

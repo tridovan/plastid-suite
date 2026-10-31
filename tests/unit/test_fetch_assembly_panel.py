@@ -79,6 +79,7 @@ def test_only_the_graph_paths_and_log_of_the_two_run_sets_are_kept() -> None:
         ("auto--A-plastome/x.K127.complete.graph1.1.path_sequence.fasta", "0"),
         ("auto--A-plastome/x.K127.complete.graph1.selected_graph.gfa", "1"),
         ("customized--A-plastome/get_org.log.txt", "2"),
+        ("plant.plastome.summary.corrected.tab", "6"),
     ]
 
 

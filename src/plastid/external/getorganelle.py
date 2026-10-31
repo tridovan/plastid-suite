@@ -14,9 +14,10 @@ directory imported from elsewhere, which is how both backends come to mean the s
 same status.
 
 **What a local run is given.** The dependencies are named on the command line (``--which-*``) and
-the database by ``--config-dir``, so the run does not depend on the shell it starts from. SPAdes
-gets a memory limit, because on a small machine the alternative is the kernel's out-of-memory
-killer, which leaves no message at all.
+the database by ``--config-dir``, so the run does not depend on the shell it starts from. Both
+stages that can outgrow a machine get a limit, because the alternative is the kernel's out-of-memory
+killer, which leaves no message at all: SPAdes a number of GB, and read recruitment a number of
+words, which is what its memory follows.
 """
 
 from __future__ import annotations
@@ -44,6 +45,7 @@ from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, tool_version, which
 
 __all__ = [
+    "ASSEMBLER_WORD_LIMIT",
     "GETORGANELLE_VERSION",
     "ORGANELLE",
     "SPADES_VERSION",
@@ -65,6 +67,9 @@ ORGANELLE = "embplant_pt"
 # separates from the plastome.
 DATABASE_TYPES = (ORGANELLE, "embplant_mt")
 ENTRY_POINT = "get_organelle_from_reads.py"
+# The assembler's own default for this organelle, in words: about 63 GB, so it limits nothing on
+# the machines this toolkit is for. A limit set here never goes above it.
+ASSEMBLER_WORD_LIMIT = 400_000_000
 
 _STATUS = re.compile(rf"Result status of {ORGANELLE}: (.+?)\s*$", re.M)
 _VERSION = re.compile(r"^GetOrganelle v(\S+)", re.M)
@@ -72,6 +77,7 @@ _DEPENDENCIES = re.compile(r"^DEPENDENCIES: (.+?)\s*$", re.M)
 _DATABASE = re.compile(r"^(SEED|LABEL)\s+DB: (.+?)\s*$", re.M)
 _COVERAGE = re.compile(rf"Average {ORGANELLE} base-coverage = ([0-9.]+)")
 _READS_USED = re.compile(r"Reads used = (\d+)\+(\d+)")
+_WORD_LIMIT_HIT = "Hit the words limit and terminated"
 _ERROR = re.compile(r" - ERROR: (.+?)\s*$", re.M)
 _ARCHITECTURE = re.compile(
     r"Detecting large repeats \(>1000 bp\) in PATH1 with (.+?), "
@@ -116,6 +122,7 @@ class LogFacts:
     # label for the repeat, such as "IRs detected".
     architecture: tuple[str, int, int, int, int] | None
     errors: tuple[str, ...] = ()
+    word_limit_hit: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +173,7 @@ def parse_log(text: str) -> LogFacts:
             else None
         ),
         errors=tuple(_ERROR.findall(text)),
+        word_limit_hit=_WORD_LIMIT_HIT in text,
     )
 
 
@@ -369,6 +377,7 @@ def assemble(
     threads: int,
     random_seed: int,
     memory_gb: int,
+    max_words: int,
     ctx: RunContext,
 ) -> GetOrganelleOutput:
     """Run one assembly into ``out_dir``, which must not exist, and read what it left.
@@ -407,6 +416,8 @@ def assemble(
             str(Path(tools.blastn).parent),
             "--spades-options",
             f"-m {memory_gb}",
+            "--max-n-words",
+            str(max_words),
         ],
         tool_path=tools.assembler,
     )

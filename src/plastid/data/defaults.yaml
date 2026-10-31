@@ -120,7 +120,8 @@ assembly:
   kmers: [21, 55, 91, 127]
   random_seed: 12345
   threads: 4
-  memory_gb: null # the limit given to SPAdes; null means the machine's physical memory
+  memory_gb: null # what the assembler may use; null means the machine's physical memory
+  max_words: null # the assembler's word limit; null means set from memory_gb and the read length
   trim: yes # fastp before the assembler
   tools: null # a directory holding the assembly tools, when they are not on PATH
   database: null # GetOrganelle's database directory; null means GETORG_PATH, then ~/.GetOrganelle
@@ -130,6 +131,14 @@ assembly:
   # 50 published runs was 4.4 GB. It is a floor and not a prediction (docs/tools/getorganelle.md).
   min_ram_gb: 4
   disk_factor: 7 # working disk per compressed input byte, measured on real runs
+  # Recruiting reads holds every word in memory, and that stage decides the peak. Over the 308
+  # published runs it took 0.38 GB + words * (108 + 0.89 * word size) bytes, R2 0.997, and no run
+  # under the limit this gives went over its budget, from 4 to 64 GB (docs/tools/getorganelle.md).
+  # The assembler picks the word size after it starts, so the limit plans for a share of the reads.
+  memory_reserve_gb: 1 # left out of the word limit, for what else the process and machine hold
+  word_bytes: 108 # bytes per word held, whatever its length
+  word_bytes_per_base: 0.89 # bytes per base of a word
+  word_size_share: 0.6 # the word size planned for, as a share of the read length
   # The rule was measured on six sequences of known state (docs/tools/getorganelle.md): with two
   # reads required, every correct sequence is clean, down to 22x, and every wrong join shows. Three
   # already flags a correct plastome at 22x; a share of the depth flagged a correct one at 780x.

@@ -41,7 +41,7 @@ The assembler's invocation, with the defaults from `src/plastid/data/defaults.ya
 ```
 get_organelle_from_reads.py -1 R1 -2 R2 -F embplant_pt -o out -R 10 -k 21,55,91,127 -t 4
   --random-seed 12345 --config-dir DB --which-spades BIN --which-bowtie2 BIN --which-blast BIN
-  --spades-options "-m GB"
+  --spades-options "-m GB" --max-n-words WORDS
 ```
 
 `-R 10 -k 21,55,91,127` are the settings of the published comparison. With them 39 of the 50 closed;
@@ -86,6 +86,13 @@ JLA) and the origin are lookups in one profile, so a plastome with no inverted r
 same rule. `weak_regions` applies it to every boundary of the circle, so a wrong join nobody thought
 to ask about still shows, and the assembly is `supported` only with none.
 
+**A join in a repeat is read on every copy.** A read inside a repeat has equally good placements and
+the aligner takes one, so a join's reads are dealt out among the copies. At depth 20 that left 52 bp of
+one copy of a correct *Echinacea speciosa* with no crossing read, while the other copy had five at the
+same joins. Two boundaries with the same 30 bases on each side, on either strand, are one join to a
+read, so their crossing reads are summed. A wrong join has flanks of its own and pools with nothing:
+`KY085912.1` keeps its two regions and `KT595228.1` its eight.
+
 Reads that **stop** at a boundary are counted and reported and do not decide. On correct sequence
 half the reads can stop at a motif the sequencer reads badly, and at a wrong join inside an inverted
 repeat they stop on one side only, as they do at those motifs, so stopping tells the two apart in
@@ -95,19 +102,21 @@ The rule was measured on sequences of known state, each with its own reads:
 
 | Sequence | State | Regions under 2 crossing reads | Fewest crossing |
 |---|---|---|---|
-| *Magnolia officinalis* `KY085916.1` | correct: three assemblers agree | 0 | 62 |
-| *Laurus nobilis*, reassembled | correct: the paper's reassembly | 0 | 87 |
+| *Magnolia officinalis* `KY085916.1` | correct: three assemblers agree | 0 | 64 |
+| *Laurus nobilis*, reassembled | correct: the paper's reassembly | 0 | 95 |
 | *Selaginella kraussiana* `MH549643.1`, depth 784 | correct: reassembled identically | 0 | 5 |
-| *Eleutherococcus senticosus* `KY085901.1`, depth 22 | correct: reassembled identically | 0 | 2 |
-| *Arabidopsis thaliana* `AP000423.1`, depth 1,442 | one base from the assembly (below) | 0 | 182 |
+| *Eleutherococcus senticosus* `KY085901.1`, depth 22 | correct: reassembled identically | 0 | 4 |
+| *Echinacea speciosa*, reassembled, depth 20 | two bases from the paper's reassembly | 0 | 2 |
+| *Arabidopsis thaliana* `AP000423.1`, depth 1,442 | one base from the assembly (below) | 0 | 234 |
 | *Laurus nobilis* `KY085912.1` | wrong joins, named by Jin et al. | **2** | 0 |
+| *Echinacea speciosa* `KX548222.1`, depth 21 | apart from the reassembly at 8 places | **6** | 0 |
 | *Musa balbisiana* `KT595228.1`, depth 2,216 | the assembler cannot close it either | **8** | 0 |
 
-Requiring 3 reads already flags a correct plastome at depth 22; an absolute 10 flags it 216 times; a
-share of the depth flags *Selaginella*, where 5 reads cross one spot at depth 784 on a sequence that
-two independent assemblies give identically. So the requirement is 2, and the margin is one read:
-more low-depth sets would test it harder than these did. The values are `flank`, `min_spanning`, `min_clip` and
-`clip_window` in `defaults.yaml`, and each can be set with `--set`.
+Requiring 3 reads already flags a correct plastome at depth 20; an absolute 10 flags one at depth 22
+120 times; a share of the depth flags *Selaginella*, where 5 reads cross one spot at depth 784 on a
+sequence that two independent assemblies give identically. So the requirement is 2, and the margin is
+one read: more low-depth sets would test it harder than these did. The values are `flank`,
+`min_spanning`, `min_clip` and `clip_window` in `defaults.yaml`, and each can be set with `--set`.
 
 **When an assembly and a reference disagree, the reads are asked about both.** If no path equals the
 reference, or the assembly stayed open, the reference is mapped and read by the same rule and
@@ -152,7 +161,7 @@ the paths stay in `assembly.paths.fasta`, and none is offered as the answer.
 
 **Depth is reported and decides nothing.** `graph_segments` gives each segment's depth over one copy's
 depth. It is a guide, not a rule: on 3 of the 47 a segment used twice reads 1.32 (*Juniperus cedrus*),
-1.47 (*Mankyua chejuensis*) and 2.82 (*P. sitchensis*).
+1.47 (*Mankyua chejuensis*), and 2.82 and 3.25 (*P. sitchensis*).
 
 **The inverted repeat, read a second way.** The longest stretch a walk holds twice is the repeat
 according to the graph, independent of the sequence: its ends are where the copies stop being one
@@ -277,14 +286,47 @@ what a hand-assembled directory is exposed to.
 
 ## What decides the memory
 
-The size of the input does not. Across the 50 published runs (version 1.6.2, one thread), the
-logarithm of peak memory correlates at r = −0.70 with the share of plastid reads and at r = 0.26
-with the bases given. A 1.14 Gb sample took 60.9 GB and a 1.04 Gb sample took 2.5 GB. 31 of the 50
-stayed under 7 GB; the median was 4.4 GB and the worst 65.1 GB. A file's size therefore cannot say
-what a run will use, and `--backend auto` does not pretend to: it checks a floor (`min_ram_gb`) and
-disk (`disk_factor`), and gives SPAdes a limit, so a run that needs more stops with a message rather
-than meeting the kernel's out-of-memory killer. An estimate from the sample's plastid share belongs
-to the resource measurement still open.
+Not the size of the input. Across the 50 published runs (version 1.6.2, one thread) a 1.14 Gb sample
+took 60.9 GB and a 1.04 Gb sample took 2.5 GB; 31 stayed under 7 GB, the median was 4.4 GB and the
+worst 65.1 GB. The share of plastid reads does not settle it either: it explains half of the
+logarithm of the peak (R² 0.49), a run left out of the fit is a factor of 2 off, and as a gate at 7 GB
+it refuses 7 samples that fit and passes 8 that do not. So the step estimates nothing.
+
+**The words do.** Recruiting reads holds every word in memory, and that stage takes the peak. Over the
+308 runs the authors deposited, under all their settings, it took
+
+```
+0.38 GB + words × (108 + 0.89 × word size) bytes        R² 0.997, worst miss 2.1 GB
+```
+
+So the words are limited, as SPAdes is limited in GB. With `memory_gb`, by default the machine's
+memory, the step passes `--max-n-words`:
+
+```
+(memory_gb − 1 GB) / (108 + 0.89 × 0.6 × read length) bytes, at most the assembler's own 4E8
+```
+
+The assembler picks its word size after it starts, so the limit plans for 0.6 of the read length. Of
+the 308 runs, none that stayed under this limit went over its budget, at 4, 7, 8, 16, 32 or 64 GB
+(`tests/golden/test_assembly_memory_panel.py`). The assembler's own default is about 63 GB, so it
+limits nothing on these machines: without a limit, here, a run dies of `MemoryError` after two and a
+half minutes.
+
+**A run that reaches the limit** stops recruiting, assembles what it has, and says so in
+`assembly_summary` and a note. That is not free. Two samples the published runs closed on 19.9 and
+18.0 GB, on this machine (8.33 GB, 5 threads, limit 30.3 M words):
+
+| Read set | Published | Here | Result |
+|---|---|---|---|
+| `SRR5602576` *Echinacea speciosa*, depth 20 | 142 M words, 19.9 GB, 4.5 h | 4.72 GB, 8.5 min | closed, supported, resolved; two gap columns and no mismatch from the published reassembly |
+| `SRR5602587` *Echinacea tennesseensis*, depth 12 | 116 M words, 18.0 GB, 3.6 h | 5.68 GB, 10.6 min | stayed open, 4 scaffolds |
+
+On the first, 20 M words left it open and 30 and 35 M closed it, so the limit can decide the result on
+a sample like these. 32 of the 50 published runs never reach this machine's limit. A run that stays
+open at its limit needs more memory, or the import route, whose prepared command sets no limit because
+a service has its own memory. `--backend auto` still checks a floor (`min_ram_gb`) and disk
+(`disk_factor`). One published run of the 50, `SRR5602577`, peaked above 7 GB in a stage this limit
+does not touch: grouping reads, 8.4 GB.
 
 Citation: Jin J-J, Yu W-B, Yang J-B, Song Y, dePamphilis CW, Yi T-S, Li D-Z. *Genome Biology* 21:241
 (2020).

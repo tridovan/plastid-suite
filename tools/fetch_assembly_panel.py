@@ -51,6 +51,7 @@ _JIN_RESULTS = "res/GetOrganelle-plastome/"
 _JIN_KEPT = re.compile(
     r"(auto|customized)--[^/]+/"
     r"(.+\.selected_graph\.gfa|.+\.path_sequence\.fasta|get_org\.log\.txt)$"
+    r"|plant\.plastome\.summary\.corrected\.tab$"
 )
 
 
@@ -91,6 +92,16 @@ PANEL: tuple[WholeRun | RunPrefix, ...] = (
         "SRR2057084",
         "SRR205/004/SRR2057084",
         ("662878609ee3838b2e9c21a50ddd0568", "faae1482a7d58dcac44ae60b7db76111"),
+    ),
+    WholeRun(
+        "SRR5602576",
+        "SRR560/006/SRR5602576",
+        ("fbfe7d35db210a70ed0a873f00192fe2", "06c19d5156a409ea1a2fc838870b7614"),
+    ),
+    WholeRun(
+        "SRR5602587",
+        "SRR560/007/SRR5602587",
+        ("06f51422c54ed9718a34b984666556f5", "de32cb88fe8b7a64eec971295421e52c"),
     ),
     RunPrefix(
         "SRR2037123",

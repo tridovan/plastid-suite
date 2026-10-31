@@ -23,6 +23,7 @@ from plastid.core.assembly import (
     ir_junctions,
     orient_to,
     parse_sam,
+    pool_repeated_joins,
     same_circular,
     weak_regions,
 )
@@ -370,3 +371,60 @@ def test_junctions_come_back_on_the_sequence_the_frame_was_rotated_from() -> Non
     first, second = Interval(80, 100), Interval(120, 140)
     names = dict(ir_junctions(first, second, length=140, frame_offset=30))
     assert names == {"JLB": 110, "JSB": 130, "JSA": 10, "JLA": 30}
+
+
+def _inverted_repeat_circle() -> tuple[str, int, int]:
+    """LSC, repeat, SSC, reversed repeat; returns the circle and each copy's start."""
+    lsc = _random_sequence(600, 1)
+    repeat = _random_sequence(400, 2)
+    ssc = _random_sequence(300, 3)
+    return lsc + repeat + ssc + reverse_complement(repeat), 600, 1300
+
+
+def test_a_join_in_a_repeat_is_read_on_both_copies() -> None:
+    # The aligner gives a read inside a repeat to one copy. Here it gave these two to the first.
+    sequence, first, second = _inverted_repeat_circle()
+    boundary = first + 200
+    reads = [_read(boundary - 50, boundary + 50), _read(boundary - 40, boundary + 60)]
+    raw = build_profile(reads, length=len(sequence), extension=100, flank=30, min_clip=10)
+    # Inside the repeat the same boundary on the other copy, counted from its far end.
+    twin = second + 400 - 200
+    assert raw.spanning[boundary] == 2
+    assert raw.spanning[twin] == 0
+    pooled = pool_repeated_joins(raw, sequence)
+    assert pooled.spanning[boundary] == 2
+    assert pooled.spanning[twin] == 2
+
+
+def test_pooling_changes_nothing_outside_a_repeat() -> None:
+    sequence, first, _ = _inverted_repeat_circle()
+    boundary = first - 100
+    reads = [_read(boundary - 50, boundary + 50)]
+    raw = build_profile(reads, length=len(sequence), extension=100, flank=30, min_clip=10)
+    assert pool_repeated_joins(raw, sequence).spanning == raw.spanning
+
+
+def test_a_wrong_join_in_one_copy_pools_with_nothing() -> None:
+    # Laurus nobilis KY085912.1: one copy lacks 429 bp of the other. The join that deletion makes
+    # exists nowhere else, so the reads of the intact copy say nothing for it.
+    lsc, repeat, ssc = _random_sequence(600, 1), _random_sequence(400, 2), _random_sequence(300, 3)
+    damaged = repeat[:200] + repeat[260:]
+    sequence = lsc + damaged + ssc + reverse_complement(repeat)
+    join = len(lsc) + 200
+    intact_start = len(lsc) + len(damaged) + len(ssc)
+    reads = [
+        _read(position - 50, position + 50)
+        for position in range(intact_start + 100, intact_start + 300, 5)
+    ]
+    raw = build_profile(reads, length=len(sequence), extension=100, flank=30, min_clip=10)
+    pooled = pool_repeated_joins(raw, sequence)
+    assert pooled.spanning[join] == 0
+    assert [
+        region.lowest for region in weak_regions(pooled, RULE) if region.start <= join <= region.end
+    ] == [0]
+
+
+def test_the_pooled_profile_needs_its_own_sequence() -> None:
+    raw = build_profile([], length=100, extension=10, flank=5, min_clip=5)
+    with pytest.raises(AssemblyError, match="100"):
+        pool_repeated_joins(raw, "ACGT")

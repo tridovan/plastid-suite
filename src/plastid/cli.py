@@ -3651,6 +3651,13 @@ def _assembly_outcome(
             f"for the next step — {layout.run_dir}",
             file=sys.stderr,
         )
+        if assembled.word_limit_hit:
+            print(
+                "assemble: it stopped recruiting reads at its word limit. More memory (--set "
+                "memory_gb), or a run elsewhere through `plastid assemble prepare`, would recruit "
+                "more.",
+                file=sys.stderr,
+            )
     return code
 
 
