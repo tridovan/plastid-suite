@@ -372,7 +372,7 @@ def test_with_the_tool_present_the_missing_template_is_what_stops_the_sqn(
 
     binary = submission_tools["table2asn"]
     if binary is None:
-        pytest.skip("table2asn is not installed here — nothing to test past the tool check")
+        pytest.skip("table2asn is not on PATH or in PTS_TABLE2ASN — nothing past the tool check")
 
     golden = read_genbank(data_dir / "NC_050833.1.gb")
     with pytest.raises(ToolError, match="needs a submitter template"):

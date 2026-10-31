@@ -19,6 +19,9 @@ curl -C - -o table2asn.gz \
 gunzip table2asn.gz && chmod +x table2asn
 ```
 
+Put it on `PATH`, or give its path with `--set table2asn=<path>`: a binary that is on the disk and on
+neither reads as not installed, to the module and to the tests (`PTS_TABLE2ASN` for those).
+
 Measured: **20,213,344 B** gzipped → **56,847,504 B** binary, `table2asn -h` → version
 **1.29.324** (the tool prints a notice that it is more than a year old; NCBI's FTP serves that
 build). `md5sum` of the unpacked binary: `8b5b6cbede9d38b47c7c4cae29a25a0a` — the checksum is recorded so a second
