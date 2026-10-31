@@ -7,6 +7,9 @@ reads. A whole file is checked against ENA's md5. A set far larger than a run ne
 first bytes, cut to the last complete pair: Jin et al. 2020 likewise used the first reads of a large
 run, and GetOrganelle stops using reads past 500× anyway.
 
+Long reads come one file to a run. The HiFi run is whole; the nanopore run is taken as its first
+1.5 GB, cut to the last complete record.
+
 The graphs are what the authors of that comparison deposited for every run: selected graph, paths
 and log, about 30 MB, for ``tests/golden/test_assembly_graph_panel.py``. They come from one pinned
 commit, whose tree names each file's git blob, so each file is checked against that hash.
@@ -40,6 +43,7 @@ from typing import Any
 
 ENA = "https://ftp.sra.ebi.ac.uk/vol1/fastq"
 PREFIX_BYTES = 350_000_000
+LONG_PREFIX_BYTES = 1_500_000_000
 BLOCK = 1 << 20
 ATTEMPTS = 40
 
@@ -77,7 +81,26 @@ class RunPrefix:
     sha256: tuple[str, str]
 
 
-PANEL: tuple[WholeRun | RunPrefix, ...] = (
+@dataclass(frozen=True)
+class SingleRun:
+    """A run of one file, taken whole; ``md5`` is ENA's."""
+
+    run: str
+    path: str
+    md5: str
+
+
+@dataclass(frozen=True)
+class SinglePrefix:
+    """The first bytes of a run of one file, cut to complete records, pinned by their sha256."""
+
+    run: str
+    path: str
+    records: int
+    sha256: str
+
+
+PANEL: tuple[WholeRun | RunPrefix | SingleRun | SinglePrefix, ...] = (
     WholeRun(
         "SRR5602589",
         "SRR560/009/SRR5602589",
@@ -92,6 +115,17 @@ PANEL: tuple[WholeRun | RunPrefix, ...] = (
         "SRR2057084",
         "SRR205/004/SRR2057084",
         ("662878609ee3838b2e9c21a50ddd0568", "faae1482a7d58dcac44ae60b7db76111"),
+    ),
+    SingleRun(
+        "ERR13987671",
+        "ERR139/071/ERR13987671",
+        "ba634f12246082300c2455ec9b95a111",
+    ),
+    SinglePrefix(
+        "ERR13987449",
+        "ERR139/049/ERR13987449",
+        53_207,
+        "236a5d6ed22df5e2032e81168d73d3a81235bd0ef3dea2e263a53d429a33e65f",
     ),
     WholeRun(
         "SRR5602576",
@@ -234,6 +268,46 @@ def fetch_prefix(item: RunPrefix, reads: Path) -> None:
     print(f"{item.run}: the first {pairs} pairs, reads sha256 verified")
 
 
+def cut_records(prefix: Path, target: Path) -> tuple[int, str]:
+    """Keep the complete records of a cut gzip file. Returns their number and sha256."""
+    decompressor = zlib.decompressobj(31)
+    digest = hashlib.sha256()
+    tail = b""
+    records = 0
+    with prefix.open("rb") as handle, gzip.open(target, "wb", compresslevel=3) as out:
+        while block := handle.read(BLOCK):
+            lines = (tail + decompressor.decompress(block)).split(b"\n")
+            usable = (len(lines) - 1) // 4 * 4
+            tail = b"\n".join(lines[usable:])
+            if usable:
+                chunk = b"\n".join(lines[:usable]) + b"\n"
+                out.write(chunk)
+                digest.update(chunk)
+                records += usable // 4
+    return records, digest.hexdigest()
+
+
+def fetch_single(item: SingleRun, reads: Path) -> None:
+    target = reads / f"{item.run}.fastq.gz"
+    if not (target.exists() and _md5(target) == item.md5):
+        _fetch(f"{ENA}/{item.path}/{item.run}.fastq.gz", target)
+    if _md5(target) != item.md5:
+        raise OSError(f"{target}: md5 is not ENA's {item.md5}")
+
+
+def fetch_single_prefix(item: SinglePrefix, reads: Path) -> None:
+    target = reads / f"{item.run}.fastq.gz"
+    if target.exists():
+        return
+    part = reads / f"{item.run}.part.gz"
+    _fetch(f"{ENA}/{item.path}/{item.run}.fastq.gz", part, limit=LONG_PREFIX_BYTES)
+    records, digest = cut_records(part, target)
+    part.unlink()
+    if (records, digest) != (item.records, item.sha256):
+        target.unlink()
+        raise OSError(f"{item.run}: {records} records with sha256 {digest}, not the pinned reads")
+
+
 def blob_sha1(data: bytes) -> str:
     """The hash git names a file's content by."""
     return hashlib.sha1(f"blob {len(data)}\0".encode() + data, usedforsecurity=False).hexdigest()
@@ -306,6 +380,10 @@ def main() -> int:
         try:
             if isinstance(item, WholeRun):
                 fetch_whole(item, reads)
+            elif isinstance(item, SingleRun):
+                fetch_single(item, reads)
+            elif isinstance(item, SinglePrefix):
+                fetch_single_prefix(item, reads)
             else:
                 fetch_prefix(item, reads)
         except OSError as error:

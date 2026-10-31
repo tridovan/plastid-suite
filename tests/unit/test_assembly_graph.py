@@ -27,6 +27,7 @@ from plastid.core.assembly_graph import (
     closed_walks,
     graph_verdict,
     longest_repeat,
+    other_isomer,
     parse_gfa,
     parse_walk,
     read_selected_graph,
@@ -40,6 +41,11 @@ _SOURCE = random.Random(20261031)
 
 def _bases(length: int) -> str:
     return "".join(_SOURCE.choice("ACGT") for _ in range(length))
+
+
+def _bounded(length: int, base: str) -> str:
+    """Random bases that start and end on ``base``, so what flanks a repeat is known to differ."""
+    return base + _bases(length - 2) + base
 
 
 def _gfa(
@@ -60,7 +66,7 @@ class Quadripartite:
     """LSC, IR, SSC, reversed IR: a segment holds the k bases it shares with the next."""
 
     def __init__(self) -> None:
-        self.lsc, self.ir, self.ssc = _bases(300), _bases(120), _bases(60)
+        self.lsc, self.ir, self.ssc = _bounded(300, "A"), _bases(120), _bounded(60, "A")
         mirror = reverse_complement(self.ir)
         self.sequence = self.lsc + self.ir + self.ssc + mirror
         self.isomer = self.lsc + self.ir + reverse_complement(self.ssc) + mirror
@@ -91,7 +97,7 @@ class DirectRepeats:
 
     def __init__(self, count: int) -> None:
         self.repeat = _bases(100)
-        self.pieces = {f"p{index}": _bases(200) for index in range(count)}
+        self.pieces = {f"p{index}": _bounded(200, "ACGT"[index]) for index in range(count)}
         segments = {
             name: self.repeat[-_K:] + bases + self.repeat[:_K]
             for name, bases in self.pieces.items()
@@ -247,7 +253,7 @@ def test_the_longest_repeat_of_direct_copies_is_direct() -> None:
 
 def test_a_repeat_of_several_segments_is_read_as_one_stretch() -> None:
     # The inverted repeat in two segments, which a variant between the copies' ends would give.
-    one, two, lsc, ssc = _bases(60), _bases(70), _bases(200), _bases(90)
+    one, two, lsc, ssc = _bases(60), _bases(70), _bounded(200, "A"), _bounded(90, "A")
     first = one + two[:_K]
     second = two
     mirror = reverse_complement(one + two)
@@ -269,6 +275,54 @@ def test_a_repeat_of_several_segments_is_read_as_one_stretch() -> None:
     )
     walk = (("L", "+"), ("A", "+"), ("B", "+"), ("S", "+"), ("B", "-"), ("A", "-"))
     assert longest_repeat(graph, walk) == ("inverted", len(one) + len(two))
+
+
+def test_a_repeat_is_carried_out_to_where_its_copies_part() -> None:
+    # A syncmer graph ends a segment short of the repeat: the last 7 bases of each copy sit in the
+    # neighbours, and only the bases can say so. The overlaps differ, as Oatk's do.
+    lsc, ssc = _bounded(300, "A"), _bounded(80, "A")
+    repeat = _bases(150)
+    core, tail = repeat[:143], repeat[143:]
+    mirror = reverse_complement(repeat)
+    sequence = lsc + repeat + ssc + mirror
+    graph = parse_gfa(
+        [
+            f"S\tL\t{mirror[-20:] + lsc + core[:30]}\tSC:f:50\n",
+            f"S\tI\t{core}\tSC:f:100\n",
+            f"S\tS\t{core[-25:] + tail + ssc + mirror[:40]}\tSC:f:50\n",
+            "L\tL\t+\tI\t+\t30M\n",
+            "L\tI\t+\tS\t+\t25M\n",
+            "L\tS\t+\tI\t-\t33M\n",
+            "L\tI\t-\tL\t+\t20M\n",
+        ]
+    )
+    walk = parse_walk("L+,I+,S+,I-(circular)")
+    from plastid.core.assembly import same_circular
+
+    assert same_circular(spell(graph, walk), sequence)
+    assert graph.segments["I"].depth == pytest.approx(100.0)
+    assert longest_repeat(graph, walk) == ("inverted", len(repeat))
+
+
+def test_the_other_isomer_is_spelled_for_an_assembler_that_writes_one(
+    plastome: Quadripartite,
+) -> None:
+    from plastid.core.assembly import same_circular
+
+    written = parse_walk(plastome.paths()[0].title)
+    other = other_isomer(plastome.graph, written)
+    assert other is not None
+    assert same_circular(spell(plastome.graph, other), plastome.isomer)
+
+
+def test_there_is_no_other_isomer_when_more_structures_close() -> None:
+    shape = DirectRepeats(4)
+    assert other_isomer(shape.graph, parse_walk(shape.path(("p0", "p1", "p2", "p3")).title)) is None
+
+
+def test_a_single_structure_has_no_other_isomer() -> None:
+    shape = DirectRepeats(2)
+    assert other_isomer(shape.graph, parse_walk(shape.path(("p0", "p1")).title)) is None
 
 
 def test_a_walk_with_no_repeated_step_has_no_repeat() -> None:

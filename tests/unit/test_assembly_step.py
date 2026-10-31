@@ -907,6 +907,17 @@ def test_prepared_reads_outside_the_run_are_named_absolutely(
     assert Path(payload["input_reads"][0]["path"]).is_absolute()
 
 
+def test_reads_named_from_where_the_command_was_typed_are_found(
+    bench: Bench, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Every tool runs in the run directory, and the page's own example names the reads relatively.
+    _canned_complete(bench.tools)
+    monkeypatch.chdir(bench.root)
+    reads = ["-1", "r_1.fastq.gz", "-2", "r_2.fastq.gz", "--sample", "s"]
+    sets = ["--set", "tools=tools", "--set", "database=database"]
+    assert main(["assemble", "run", *reads, "-o", "relative", *sets]) == 0
+
+
 def test_a_failing_quality_control_stops_with_the_route(
     bench: Bench, capsys: pytest.CaptureFixture[str]
 ) -> None:

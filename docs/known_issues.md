@@ -386,6 +386,17 @@ whatever NCBI serves that day. The manifest was rebuilt from the bytes on disk, 
 `pin()` now does what `pin_files()` does, and refuses before it writes anything. Held by the three
 tests after `test_pin_writes_checksums_and_verifies_the_file` in `tests/unit/test_panel.py`.
 
+## K-17 — `plastid assemble` could not read a relative path — **fixed (31/10/2026)**
+
+Found on the first run of the HiFi route with a relative path. Every tool runs in the run directory,
+and the command handed tools the reads, the output directory and `--set tools=` as they were typed. So
+`plastid assemble run -1 R1.fastq.gz -2 R2.fastq.gz --sample NAME --out .runs`, the page's own example,
+stopped at fastp: measured with real fastp on `main` at `38d910f`, `file 'short_1.fastq.gz' doesn't
+exist`. Every assembly test named absolute paths, so none met it, on either backend. Those paths are
+now made absolute where they enter. Held by `test_reads_named_from_where_the_command_was_typed_are_found`
+in `tests/unit/test_assembly_step.py` and `tests/unit/test_assembly_hifi.py`, and measured with real
+tools on both routes.
+
 ## Other current limitations
 
 The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's

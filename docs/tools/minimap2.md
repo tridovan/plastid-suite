@@ -21,7 +21,7 @@ minimap2 -ax sr --eqx --secondary=no --sam-hit-only -t N -o mapped.sam target.fa
 
 | Option | Reason |
 |---|---|
-| `-ax sr` | the short-read preset, the same for every sample |
+| `-ax sr` | the short-read preset, the same for every sample; HiFi reads take one file and `map-hifi` |
 | `--eqx` | writes `=`/`X` CIGAR operators, so mismatches are counted from the CIGAR alone. The reader refuses a plain `M` |
 | `--secondary=no` | one placement per read. A read inside an inverted repeat has two equal placements; its primary falls on either copy, which spreads the repeat's reads over both and leaves the depth level |
 | `--sam-hit-only` | leaves unmapped reads out. Most reads of a genome skim are not plastid, and writing them would make the SAM as large as the input |

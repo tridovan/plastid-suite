@@ -58,6 +58,9 @@ spades:
 fastp:
   text: "Chen S, Zhou Y, Chen Y, Gu J. fastp: an ultra-fast all-in-one FASTQ preprocessor. Bioinformatics 34:i884–i890 (2018)."
   doi: "10.1093/bioinformatics/bty560"
+oatk:
+  text: "Zhou C, Brown M, Blaxter M, Darwin Tree of Life Project Consortium, McCarthy SA, Durbin R. Oatk: a de novo assembly tool for complex plant organelle genomes. Genome Biology 26:235 (2025)."
+  doi: "10.1186/s13059-025-03676-6"
 minimap2:
   text: "Li H. Minimap2: pairwise alignment for nucleotide sequences. Bioinformatics 34:3094–3100 (2018)."
   doi: "10.1093/bioinformatics/bty191"

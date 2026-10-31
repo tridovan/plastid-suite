@@ -6,11 +6,11 @@ input is a pair of read files and its output is the genome every registered modu
 ``plastid assemble`` drives it and owns the run directory.
 
 **One step, two backends, one output contract.** The local backend runs fastp and GetOrganelle
-through ``run_tool()``. The import backend reads an assembly made elsewhere, from reads this
-toolkit prepared and hashed, and accepts it only through ``validate_external_result``. From there
-both are the same object and go through the same evaluation, so nothing downstream can tell them
-apart except the provenance that says where the assembly ran. The toolkit never moves reads to
-another machine by itself.
+through ``run_tool()``, or Oatk on HiFi reads. The import backend reads an assembly made elsewhere,
+from reads this toolkit prepared and hashed, and accepts it only through
+``validate_external_result``. From there all of them are the same object and go through the same
+evaluation, so nothing downstream can tell them apart except the provenance that says where and with
+what the assembly ran. The toolkit never moves reads to another machine by itself.
 
 **What "done" means.** The assembler's word that a path closed is a claim. Reads mapped back with
 an aligner the assembler does not use test it position by position, and a join the reads do not
@@ -61,6 +61,7 @@ from plastid.core.assembly import (
 from plastid.core.assembly_graph import (
     GRAPH_NOT_MEASURED,
     GRAPH_RESOLVED,
+    AssemblerOutput,
     GraphReading,
     graph_verdict,
 )
@@ -75,14 +76,18 @@ from plastid.external.getorganelle import (
     GETORGANELLE_VERSION,
     ORGANELLE,
     SPADES_VERSION,
-    GetOrganelleOutput,
     GetOrganelleTools,
     read_output,
     resolve_database,
     resolve_tools,
 )
 from plastid.external.getorganelle import assemble as run_getorganelle
-from plastid.external.minimap2 import map_pair, minimap2_version, resolve_minimap2
+from plastid.external.minimap2 import map_long, map_pair, minimap2_version, resolve_minimap2
+from plastid.external.oatk import MITOCHONDRION_PROFILES, OATK_VERSION, PLASTID_PROFILES, OatkTools
+from plastid.external.oatk import assemble as run_oatk
+from plastid.external.oatk import read_output as read_oatk_output
+from plastid.external.oatk import resolve_database as resolve_oatk_database
+from plastid.external.oatk import resolve_tools as resolve_oatk_tools
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.contract import (
@@ -104,6 +109,7 @@ __all__ = [
     "Assembled",
     "BackendUnavailable",
     "Evaluation",
+    "LongReads",
     "Machine",
     "Measured",
     "ReadPair",
@@ -126,6 +132,8 @@ MODULE_VERSION = "0.1.0"
 BACKEND_LOCAL = "local"
 BACKEND_IMPORT = "import"
 
+_HIFI_PRESET = "map-hifi"
+
 PREPARED_FILENAME = "prepared.json"
 PREPARED_SCHEMA_VERSION = 1
 
@@ -140,6 +148,11 @@ ASSEMBLY_PARAMS: tuple[str, ...] = (
     "threads",
     "memory_gb",
     "max_words",
+    "syncmer",
+    "min_coverage",
+    "max_bases",
+    "oatk_db",
+    "long_extension",
     "memory_reserve_gb",
     "word_bytes",
     "word_bytes_per_base",
@@ -170,6 +183,24 @@ class ReadPair:
     sample: str
     reads_1: Path
     reads_2: Path
+
+    @property
+    def files(self) -> tuple[Path, ...]:
+        """The read files, in the order they are hashed."""
+        return self.reads_1, self.reads_2
+
+
+@dataclass(frozen=True, slots=True)
+class LongReads:
+    """One sample's PacBio HiFi reads, as given, all of them: nuclear and organellar together."""
+
+    sample: str
+    reads: Path
+
+    @property
+    def files(self) -> tuple[Path, ...]:
+        """The read files, in the order they are hashed."""
+        return (self.reads,)
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,12 +244,15 @@ class Assembled:
     reads_used: int | None
     architecture: tuple[str, int, int, int, int] | None
     where: str  # a person's sentence: where this assembly ran
-    mapping_reads: tuple[Path, Path]  # always the reads as they arrived, whatever the assembler got
+    mapping_reads: tuple[Path, ...]  # always the reads as they arrived, whatever the assembler got
     read_qc: ReadQC | None = None
     external_result: Mapping[str, Any] | None = None
     graph_readings: tuple[GraphReading, ...] = ()
     word_limit: int | None = None  # the limit this run was given; None when it ran elsewhere
     word_limit_hit: bool = False
+    assembler_name: str = "GetOrganelle"
+    citations: tuple[str, ...] = ("getorganelle", "spades", "fastp", "minimap2")
+    mapping_preset: str = "sr"  # how minimap2 reads these reads: its preset for the technology
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,8 +310,12 @@ def resolve_params(params: Mapping[str, Any]) -> dict[str, Any]:
         "min_spanning",
         "clip_window",
         "extension",
+        "syncmer",
+        "min_coverage",
+        "long_extension",
     ):
         merged[key] = int(merged[key])
+    merged["max_bases"] = int(float(merged["max_bases"]))
     for key in (
         "min_ram_gb",
         "disk_factor",
@@ -289,6 +327,11 @@ def resolve_params(params: Mapping[str, Any]) -> dict[str, Any]:
         merged[key] = float(merged[key])
     if merged["memory_gb"] is not None:
         merged["memory_gb"] = float(merged["memory_gb"])
+    # Absolute, because a tool runs in the run directory and these are named from wherever the
+    # command was typed.
+    for key in ("tools", "database", "oatk_db"):
+        if merged[key]:
+            merged[key] = str(Path(merged[key]).resolve())
     # The assembler's own notation for this number is 3E7, so that spelling has to work here.
     if merged["max_words"] is not None:
         merged["max_words"] = int(float(merged["max_words"]))
@@ -340,30 +383,36 @@ def _read_length(path: Path, *, reads: int = 1_000) -> int:
     return max(lengths)
 
 
-def _input_gb(reads: ReadPair) -> float:
-    return (reads.reads_1.stat().st_size + reads.reads_2.stat().st_size) / _BYTES_PER_GB
+def _input_gb(reads: ReadPair | LongReads) -> float:
+    return sum(file.stat().st_size for file in reads.files) / _BYTES_PER_GB
 
 
 def preflight(
-    reads: ReadPair,
+    reads: ReadPair | LongReads,
     params: Mapping[str, Any],
     *,
     machine: Machine,
     check_resources: bool,
-) -> tuple[GetOrganelleTools, dict[str, Any]]:
+) -> tuple[GetOrganelleTools | OatkTools, dict[str, Any]]:
     """Everything the local backend needs, or one named reason it cannot run here.
 
     Memory is a floor, not a prediction: peak memory follows the share of plastid reads in the
     sample much more than the size of the input, so a file's size cannot say what a run will use
     (``docs/tools/getorganelle.md``). What keeps a run inside the machine is the limit on the words
     the assembler holds, and the limit given to SPAdes, whose refusal the caller reports the same
-    way as this one.
+    way as this one. Oatk's limit is the bases it takes, and it writes megabytes, so HiFi reads ask
+    nothing of the disk however large the input is.
     """
+    long_reads = isinstance(reads, LongReads)
     try:
-        tools = resolve_tools(params.get("tools"))
-        database = resolve_database(params.get("database"))
-        if params["trim"]:
-            fastp_version(resolve_fastp(params.get("tools")))
+        if long_reads:
+            tools = resolve_oatk_tools(params.get("tools"))
+            database = resolve_oatk_database(params.get("oatk_db"))
+        else:
+            tools = resolve_tools(params.get("tools"))
+            database = resolve_database(params.get("database"))
+            if params["trim"]:
+                fastp_version(resolve_fastp(params.get("tools")))
         minimap2_version(resolve_minimap2(params.get("tools")))
     except ToolError as error:
         raise BackendUnavailable(str(error)) from error
@@ -373,7 +422,7 @@ def preflight(
                 f"this step needs at least {params['min_ram_gb']:g} GB of memory, the machine "
                 f"has {machine.ram_gb:.1f} GB"
             )
-        needed = _input_gb(reads) * params["disk_factor"]
+        needed = 0.0 if long_reads else _input_gb(reads) * params["disk_factor"]
         if machine.disk_free_gb < needed:
             raise BackendUnavailable(
                 f"the assembly needs ~{needed:.1f} GB of disk for this input, the output "
@@ -410,17 +459,22 @@ def _trim(reads: ReadPair, params: Mapping[str, Any], ctx: RunContext) -> FastpR
 
 
 def _assembled(
-    reads: ReadPair,
-    output: GetOrganelleOutput,
+    reads: ReadPair | LongReads,
+    output: AssemblerOutput,
     *,
     backend: str,
     where: str,
-    mapping_reads: tuple[Path, Path],
+    mapping_reads: tuple[Path, ...],
     read_qc: ReadQC | None,
     external_result: Mapping[str, Any] | None = None,
     word_limit: int | None = None,
 ) -> Assembled:
     facts = output.facts
+    from_hifi = {
+        "assembler_name": "Oatk",
+        "citations": ("oatk", "minimap2"),
+        "mapping_preset": _HIFI_PRESET,
+    }
     return Assembled(
         sample=reads.sample,
         backend=backend,
@@ -442,19 +496,59 @@ def _assembled(
         graph_readings=output.graph_readings,
         word_limit=word_limit,
         word_limit_hit=facts.word_limit_hit,
+        **(from_hifi if isinstance(reads, LongReads) else {}),
+    )
+
+
+def _assemble_hifi(
+    reads: LongReads,
+    params: Mapping[str, Any],
+    ctx: RunContext,
+    *,
+    tools: OatkTools,
+    database: Mapping[str, Any],
+    machine: Machine,
+) -> Assembled:
+    """HiFi reads through Oatk. A HiFi read is already a consensus, so no quality control runs."""
+    try:
+        output = run_oatk(
+            reads.reads,
+            out_dir=ctx.out("work/oatk", "d"),
+            tools=tools,
+            database=str(database["path"]),
+            syncmer=params["syncmer"],
+            min_coverage=params["min_coverage"],
+            max_bases=params["max_bases"],
+            threads=params["threads"],
+            ctx=ctx,
+        )
+    except ToolError as error:
+        raise BackendUnavailable(str(error)) from error
+    return _assembled(
+        reads,
+        output,
+        backend=BACKEND_LOCAL,
+        where=(
+            f"local: {machine.cores} cores, {machine.ram_gb:.1f} GB memory, "
+            f"{params['threads']} threads, the first {params['max_bases']} bases"
+        ),
+        mapping_reads=reads.files,
+        read_qc=None,
     )
 
 
 def assemble_local(
-    reads: ReadPair,
+    reads: ReadPair | LongReads,
     params: Mapping[str, Any],
     ctx: RunContext,
     *,
-    tools: GetOrganelleTools,
+    tools: GetOrganelleTools | OatkTools,
     database: Mapping[str, Any],
     machine: Machine,
 ) -> Assembled:
     """The local backend: quality control, then the assembler, on this machine."""
+    if isinstance(reads, LongReads):
+        return _assemble_hifi(reads, params, ctx, tools=tools, database=database, machine=machine)
     read_qc: ReadQC | None = None
     pair = (reads.reads_1, reads.reads_2)
     if params["trim"]:
@@ -514,11 +608,10 @@ def _hashed(path: Path, *, relative_to: Path | None = None) -> dict[str, Any]:
     return {"path": name, "sha256": sha256_file(path), "bytes": path.stat().st_size}
 
 
-def _prepared_reads(payload: Mapping[str, Any], source: Path, key: str) -> tuple[Path, Path]:
-    """Two read files a prepared record names, resolved against the record's own directory."""
+def _prepared_reads(payload: Mapping[str, Any], source: Path, key: str) -> tuple[Path, ...]:
+    """The read files a prepared record names, resolved against the record's own directory."""
     files = [Path(entry["path"]) for entry in payload[key]]
-    first, second = (file if file.is_absolute() else source.parent / file for file in files)
-    return first, second
+    return tuple(file if file.is_absolute() else source.parent / file for file in files)
 
 
 def _command(prepared_1: str, prepared_2: str, params: Mapping[str, Any]) -> list[str]:
@@ -542,12 +635,56 @@ def _command(prepared_1: str, prepared_2: str, params: Mapping[str, Any]) -> lis
     ]
 
 
-def prepare(reads: ReadPair, params: Mapping[str, Any], ctx: RunContext) -> dict[str, Any]:
+def _hifi_command(reads: str, params: Mapping[str, Any]) -> list[str]:
+    """Oatk's command for a run elsewhere. The stderr of that run is the log the import reads."""
+    return [
+        "oatk",
+        "-k",
+        str(params["syncmer"]),
+        "-c",
+        str(params["min_coverage"]),
+        "-D",
+        str(params["max_bases"]),
+        "-m",
+        MITOCHONDRION_PROFILES,
+        "-p",
+        PLASTID_PROFILES,
+        "-o",
+        "oatk",
+        reads,
+    ]
+
+
+def _prepare_hifi(reads: LongReads, params: Mapping[str, Any]) -> dict[str, Any]:
+    entry = _hashed(reads.reads)
+    return {
+        "prepared_schema_version": PREPARED_SCHEMA_VERSION,
+        "sample": reads.sample,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "raw_reads": [entry],
+        "input_reads": [entry],
+        "read_qc": None,
+        "tool": {
+            "name": "oatk",
+            "version": OATK_VERSION,
+            "command": _hifi_command(reads.reads.name, params),
+        },
+        "params": {
+            key: params[key] for key in ("syncmer", "min_coverage", "max_bases", "random_seed")
+        },
+    }
+
+
+def prepare(
+    reads: ReadPair | LongReads, params: Mapping[str, Any], ctx: RunContext
+) -> dict[str, Any]:
     """Quality-control the reads here and record what a run elsewhere must be given.
 
     The reads an outside service receives are the ones hashed here, so the import can prove the
     result it receives was asked for. Nothing leaves this machine in this step.
     """
+    if isinstance(reads, LongReads):
+        return _prepare_hifi(reads, params)
     read_qc: dict[str, Any] | None = None
     here = ctx.out("prepared", "json").parent
     if params["trim"]:
@@ -625,10 +762,12 @@ def assemble_imported(
     """The import backend: an assembly made elsewhere, accepted only through the contract."""
     prepared_file = Path(prepared_path)
     prepared = load_prepared(prepared_file)
-    output = read_output(result_dir)
+    tool_name = prepared["tool"]["name"]
+    from_hifi = tool_name == "oatk"
+    output = read_oatk_output(result_dir) if from_hifi else read_output(result_dir)
     facts = output.facts
     if facts.version is None:
-        raise AssemblyError(f"{output.log}: the log does not state GetOrganelle's version")
+        raise AssemblyError(f"{output.log}: the log does not state the assembler's version")
     source = {"name": source_name, "retrieved_at": retrieved_at}
     if source_url:
         source["url"] = source_url
@@ -643,7 +782,7 @@ def assemble_imported(
     has_paths = bool(output.path_files)
     try:
         description = describe_external_result(
-            tool_name="getorganelle",
+            tool_name=tool_name,
             tool_version=facts.version,
             argv=prepared["tool"]["command"],
             input_path=prepared_file,
@@ -656,7 +795,11 @@ def assemble_imported(
         validate_external_result(description)
     except ContractError as error:
         raise AssemblyError(f"the imported result was refused: {error}") from error
-    reads = ReadPair(prepared["sample"], raw_reads[0], raw_reads[1])
+    reads = (
+        LongReads(prepared["sample"], raw_reads[0])
+        if from_hifi
+        else ReadPair(prepared["sample"], raw_reads[0], raw_reads[1])
+    )
     return _assembled(
         reads,
         output,
@@ -694,23 +837,39 @@ def _measure(
     *,
     name: str,
     tag: str,
-    reads: tuple[Path, Path],
+    reads: tuple[Path, ...],
+    preset: str,
     params: Mapping[str, Any],
     ctx: RunContext,
 ) -> Measured:
     """Map the reads onto one sequence as a circle and read every join."""
-    extension = min(params["extension"], len(sequence))
+    long_reads = len(reads) == 1
+    reach = params["long_extension"] if long_reads else params["extension"]
+    extension = min(reach, len(sequence))
     target = ctx.out(f"work/{tag}_target", "fasta")
     _target_fasta(sequence, extension, target)
-    sam = map_pair(
-        target,
-        reads[0],
-        reads[1],
-        out=ctx.out(f"work/{tag}_mapped", "sam"),
-        threads=params["threads"],
-        ctx=ctx,
-        binary=resolve_minimap2(params.get("tools")),
-    )
+    mapped = ctx.out(f"work/{tag}_mapped", "sam")
+    binary = resolve_minimap2(params.get("tools"))
+    if long_reads:
+        sam = map_long(
+            target,
+            reads[0],
+            preset=preset,
+            out=mapped,
+            threads=params["threads"],
+            ctx=ctx,
+            binary=binary,
+        )
+    else:
+        sam = map_pair(
+            target,
+            reads[0],
+            reads[1],
+            out=mapped,
+            threads=params["threads"],
+            ctx=ctx,
+            binary=binary,
+        )
     with sam.open(encoding="utf-8") as handle:
         profile = pool_repeated_joins(
             build_profile(
@@ -782,6 +941,7 @@ def evaluate(
             name=reference.accession or reference.name,
             tag="reference",
             reads=assembled.mapping_reads,
+            preset=assembled.mapping_preset,
             params=params,
             ctx=ctx,
         )
@@ -805,6 +965,7 @@ def evaluate(
         name=assembled.sample,
         tag="assembly",
         reads=assembled.mapping_reads,
+        preset=assembled.mapping_preset,
         params=params,
         ctx=ctx,
     )
@@ -859,6 +1020,12 @@ def _versions(stated: Mapping[str, str]) -> str:
     return "; ".join(f"{name} {version}" for name, version in stated.items()) or "not stated"
 
 
+def _word_limit_cell(assembled: Assembled) -> int | str:
+    if assembled.word_limit is not None:
+        return assembled.word_limit
+    return "not stated" if assembled.assembler_name == "GetOrganelle" else "not applicable"
+
+
 def _summary(assembled: Assembled, evaluation: Evaluation, scope: Scope) -> Table:
     path = assembled.paths[0] if assembled.paths else None
     profile = evaluation.profile
@@ -867,7 +1034,7 @@ def _summary(assembled: Assembled, evaluation: Evaluation, scope: Scope) -> Tabl
         "sample": assembled.sample,
         "backend": assembled.backend,
         "where": assembled.where,
-        "assembler": f"GetOrganelle {assembled.tool_version}",
+        "assembler": f"{assembled.assembler_name} {assembled.tool_version}",
         "assembler_programs": _versions(assembled.dependencies),
         "seed_database": _versions(assembled.seed_db),
         "status": assembled.status,
@@ -882,7 +1049,7 @@ def _summary(assembled: Assembled, evaluation: Evaluation, scope: Scope) -> Tabl
             assembled.base_coverage if assembled.base_coverage is not None else "not measured"
         ),
         "reads_used": assembled.reads_used if assembled.reads_used is not None else "not measured",
-        "word_limit": assembled.word_limit if assembled.word_limit is not None else "not stated",
+        "word_limit": _word_limit_cell(assembled),
         "word_limit_hit": "yes" if assembled.word_limit_hit else "no",
         "mapped_reads": profile.reads if profile else "not measured",
         "mean_depth": round(profile.mean_depth, 2) if profile else "not measured",
@@ -1372,10 +1539,11 @@ def assembly_result(
     spades = assembled.dependencies.get("SPAdes")
     if spades is not None and spades != SPADES_VERSION:
         notes += (f"This assembly ran on SPAdes {spades}; the local route pins {SPADES_VERSION}.",)
-    if assembled.tool_version != GETORGANELLE_VERSION:
+    pinned = {"GetOrganelle": GETORGANELLE_VERSION, "Oatk": OATK_VERSION}[assembled.assembler_name]
+    if assembled.tool_version != pinned:
         notes += (
-            f"This assembly ran on GetOrganelle {assembled.tool_version}; the local route pins "
-            f"{GETORGANELLE_VERSION}.",
+            f"This assembly ran on {assembled.assembler_name} {assembled.tool_version}; the local "
+            f"route pins {pinned}.",
         )
     if assembled.word_limit_hit:
         notes += (
@@ -1400,6 +1568,6 @@ def assembly_result(
         module_version=MODULE_VERSION,
         tables=tables,
         notes=notes,
-        citations=("getorganelle", "spades", "fastp", "minimap2"),
+        citations=assembled.citations,
         artifacts=artifacts,
     )

@@ -83,8 +83,8 @@ dependencies:
   # --- NOT here, on purpose ---------------------------------------------------------------
   # vmatch, cpstools, kakscalculator2
   #            cross-check only — no module calls them. environment-check.yml
-  # getorganelle, spades, bandage, oatk, raven-assembler, novoplasty, minimap2, samtools,
-  # wgsim, sibelia, mreps, trf, beast2
+  # getorganelle, spades, oatk, hmmer, minimap2: environment-assembly.yml
+  # bandage, raven-assembler, novoplasty, samtools, wgsim, sibelia, mreps, trf, beast2
   #            deferred/survey — no module calls them. environment-future.yml
   # PGA        retired from the toolkit 10/10/2026 (P3B-11) and never a dependency; its
   #            outputs survive as measured counter-examples in tests/data/corpus/*.pga.gb. Its

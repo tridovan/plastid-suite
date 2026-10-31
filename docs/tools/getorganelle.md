@@ -1,8 +1,9 @@
 # GetOrganelle 1.7.7.1 — the assembly step, and how its result is tested
 
-**Why this file exists.** `plastid assemble` runs GetOrganelle, and a module's tool is declared in
-the repository. This page is also the step's specification: what goes in, what comes out, what the
-statuses mean and which published numbers it is judged against.
+**Why this file exists.** `plastid assemble` runs GetOrganelle on short reads, and a module's tool is
+declared in the repository. This page is also the step's specification: what goes in, what comes out,
+what the statuses mean and which published numbers it is judged against. HiFi reads go through
+[Oatk](oatk.md), by the same evaluation.
 
 **Why this assembler.** It finished the most plastomes in an independent benchmark of seven tools
 (Freudenthal et al. 2020, *Genome Biology* 21:254), and its authors published the raw comparison
@@ -197,8 +198,9 @@ Jin et al. print.
 **One base from a Sanger record.** *Arabidopsis* is the one set whose answer comes from other data
 and another technology (Sato et al. 1999). The assembly differs from it by one T in an intergenic
 run at 28,673–28,685: the record has 13, the assembly 14, and of the reads that hold the whole run,
-308 say 14 and 50 say 13. Whether that is a 1999 error or a difference between two Col-0 stocks
-cannot be told from here, and it is recorded as unexplained.
+308 say 14 and 50 say 13. HiFi reads of another study's Col-0 read 14 as well ([measured](oatk.md)).
+Whether that is a 1999 error or a difference between stocks of Col-0 cannot be told from here, and it
+is recorded as unexplained.
 
 **Why *Musa* stays open.** Three tandem arrays longer than its 100 bp reads. In the wider graph they
 are loops of short edges at 3–5× the depth of one copy, and the contigs stop at them:

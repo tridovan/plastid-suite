@@ -531,7 +531,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     assemble = subparsers.add_parser(
         "assemble",
-        help="assemble a plastome from paired short reads: here, or imported from elsewhere",
+        help="assemble a plastome from short reads or HiFi reads: here, or imported from elsewhere",
     )
     assemble_actions = assemble.add_subparsers(dest="assemble_action", metavar="ACTION")
     assemble_run = assemble_actions.add_parser(
@@ -546,6 +546,12 @@ def build_parser() -> argparse.ArgumentParser:
     for action in (assemble_run, assemble_prepare):
         action.add_argument("-1", "--reads-1", default=None, help="first reads (FASTQ, gzipped ok)")
         action.add_argument("-2", "--reads-2", default=None, help="second reads")
+        action.add_argument(
+            "--hifi",
+            default=None,
+            metavar="FASTQ",
+            help="PacBio HiFi reads (gzipped ok), in place of -1 and -2; assembled with Oatk",
+        )
         action.add_argument("--sample", default=None, help="sample name for the run and outputs")
         action.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
         action.add_argument("--dataset", default=None, help="dataset label (default: the sample)")
@@ -3330,8 +3336,21 @@ def _assembly_params(args: argparse.Namespace) -> dict | None:
     return assembly_step.resolve_params(params)
 
 
-def _read_pair(args: argparse.Namespace) -> assembly_step.ReadPair | None:
+def _read_pair(
+    args: argparse.Namespace,
+) -> assembly_step.ReadPair | assembly_step.LongReads | None:
     """The reads the command names, or None after saying what is missing."""
+    if args.hifi:
+        if args.reads_1 or args.reads_2:
+            print("assemble: --hifi replaces -1 and -2: give one or the other", file=sys.stderr)
+            return None
+        if not args.sample:
+            print("assemble: --sample required for this action", file=sys.stderr)
+            return None
+        if not Path(args.hifi).is_file():
+            print(f"assemble: {args.hifi}: no such file", file=sys.stderr)
+            return None
+        return assembly_step.LongReads(args.sample, Path(args.hifi).resolve())
     missing = [
         flag
         for flag, value in (("-1", args.reads_1), ("-2", args.reads_2), ("--sample", args.sample))
@@ -3340,7 +3359,10 @@ def _read_pair(args: argparse.Namespace) -> assembly_step.ReadPair | None:
     if missing:
         print(f"assemble: {' '.join(missing)} required for this action", file=sys.stderr)
         return None
-    pair = assembly_step.ReadPair(args.sample, Path(args.reads_1), Path(args.reads_2))
+    # Absolute, because every tool runs in the run directory and a person types them from elsewhere.
+    pair = assembly_step.ReadPair(
+        args.sample, Path(args.reads_1).resolve(), Path(args.reads_2).resolve()
+    )
     for path in (pair.reads_1, pair.reads_2):
         if not path.is_file():
             print(f"assemble: {path}: no such file", file=sys.stderr)
@@ -3350,7 +3372,8 @@ def _read_pair(args: argparse.Namespace) -> assembly_step.ReadPair | None:
 
 def _assembly_route(args: argparse.Namespace) -> str:
     """The way forward when this machine cannot run the step: the same commands, spelled out."""
-    reads = f"-1 {args.reads_1} -2 {args.reads_2} --sample {args.sample} -o {args.out}"
+    given = f"--hifi {args.hifi}" if args.hifi else f"-1 {args.reads_1} -2 {args.reads_2}"
+    reads = f"{given} --sample {args.sample} -o {args.out}"
     return (
         "Nothing ran, and nothing was sent anywhere. To run the assembly on a service or a "
         "cluster of your choice:\n"
@@ -3393,7 +3416,8 @@ def _assembly_manifest(
 
 def _assembly_layout(out: str, dataset: str, digests: Sequence[str]) -> RunLayout:
     fingerprint = hashlib.sha256("".join(digests).encode("utf-8")).hexdigest()
-    layout = RunLayout.create(out, dataset, fingerprint=fingerprint)
+    # Absolute: the assembler is told where to write, and it runs inside the run directory.
+    layout = RunLayout.create(Path(out).resolve(), dataset, fingerprint=fingerprint)
     layout.make_dirs()
     return layout
 
@@ -3417,7 +3441,7 @@ def _assemble_prepare(args: argparse.Namespace) -> int:
     layout = _assembly_layout(
         args.out,
         args.dataset or reads.sample,
-        [_sha256_file(reads.reads_1), _sha256_file(reads.reads_2), "prepare"],
+        [*(_sha256_file(file) for file in reads.files), "prepare"],
     )
     ctx = RunContext(
         layout=layout,
@@ -3429,7 +3453,7 @@ def _assemble_prepare(args: argparse.Namespace) -> int:
         layout=layout,
         command=command,
         params=params,
-        inputs=(reads.reads_1, reads.reads_2),
+        inputs=reads.files,
         reference_sets=(),
     )
     try:
@@ -3547,7 +3571,7 @@ def _assemble_run(args: argparse.Namespace) -> int:
     layout = _assembly_layout(
         args.out,
         args.dataset or reads.sample,
-        [_sha256_file(reads.reads_1), _sha256_file(reads.reads_2), str(sorted(params.items()))],
+        [*(_sha256_file(file) for file in reads.files), str(sorted(params.items()))],
     )
     ctx = RunContext(
         layout=layout,
@@ -3559,7 +3583,7 @@ def _assemble_run(args: argparse.Namespace) -> int:
         layout=layout,
         command=["plastid", "assemble", "run", "--backend", args.backend, "--sample", reads.sample],
         params=params,
-        inputs=(reads.reads_1, reads.reads_2),
+        inputs=reads.files,
         reference_sets=[database, *reference_sets],
     )
     try:

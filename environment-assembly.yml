@@ -1,4 +1,5 @@
-# The tools `plastid assemble` runs — short reads to a plastome (Phase 7).
+# The tools `plastid assemble` runs — reads to a plastome (Phase 7): GetOrganelle for short reads,
+# Oatk for HiFi reads.
 #
 # A file of its own because the analyses need none of it: this environment is about 3 GB and 200
 # packages, and `environment.yml` must stay installable by someone who starts from a finished
@@ -13,6 +14,7 @@
 #
 # GetOrganelle also needs its database, fetched once:
 #   get_organelle_config.py -a embplant_pt,embplant_mt --config-dir <dir>
+# Oatk needs its HMM profiles, which are not a package: docs/tools/oatk.md gives the release.
 #
 # Installing:  conda env create -f environment-assembly.yml
 name: plastid-suite-assembly
@@ -27,3 +29,5 @@ dependencies:
   - blast=2.5.0
   - fastp=1.4.0
   - minimap2=2.31
+  - oatk=1.0
+  - hmmer=3.4

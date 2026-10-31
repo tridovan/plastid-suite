@@ -44,6 +44,8 @@ failure, not a placeholder.
 | `blastn-assembly` | assembly-runtime | `blast` | 2.5.0 | run by GetOrganelle to label contigs, and resolved by the solver below the analyses' 2.17.0; located in `external/getorganelle.py` | [getorganelle](getorganelle.md) |
 | `fastp` | assembly-runtime | `fastp` | 1.4.0 | `external/fastp.py` ← `modules/assembly.py` | [fastp](fastp.md) |
 | `minimap2` | assembly-runtime | `minimap2` | 2.31 | `external/minimap2.py` ← `modules/assembly.py` | [minimap2](minimap2.md) |
+| `oatk` | assembly-runtime | `oatk` | 1.0 | `external/oatk.py` ← `modules/assembly.py` (`plastid assemble --hifi`) | [oatk](oatk.md) |
+| `hmmer` | assembly-runtime | `hmmer` | 3.4 | run by Oatk to class contigs; located and checked in `external/oatk.py` | [oatk](oatk.md) |
 | `vmatch` | cross-check | `vmatch` | 2.3.1 | **none** — `external/vmatch.py` is called only by `tests/golden/test_tier_b.py` | [vmatch](vmatch.md) |
 | `cpstools` | cross-check | `cpstools` | 3.0 | **none** — compared by hand, recorded in its page | [cpstools](cpstools.md) |
 | `kakscalculator` | cross-check | `kakscalculator2` | 2.0.1 | **none** — reached only through cpstools' KaKs sub-command | [cpstools](cpstools.md) |
@@ -58,7 +60,6 @@ failure, not a placeholder.
 | `trf` | survey-only | `trf` | not recorded | **none** — same class as `mreps`; absent from this machine's PATH | — |
 | `spades` | assembly-runtime | `spades` | 4.3.0 | run by GetOrganelle; its version is checked in `external/getorganelle.py` | [getorganelle](getorganelle.md) |
 | `bandage` | future | `bandage` | 0.9.0 | deferred — M7.2 graph check; drawing the graph is not checking the assembly | — |
-| `oatk` | future | `oatk` | 1.0 | deferred — M7.6 long reads | — |
 | `raven` | future | `raven-assembler` | 1.8.3 | deferred — M7.6 long reads | — |
 | `novoplasty` | future | `novoplasty` | not recorded | deferred — Phase 7 assembly | — |
 | `samtools` | future | `samtools` | not recorded | deferred — the map-back reads minimap2's SAM directly and does not call it; no milestone owns it yet | — |

@@ -40,7 +40,13 @@ from plastid.core.assembly import (
     AssembledPath,
     AssemblyError,
 )
-from plastid.core.assembly_graph import GraphReading, parse_gfa, read_selected_graph
+from plastid.core.assembly_graph import (
+    AssemblerOutput,
+    GraphReading,
+    LogFacts,
+    parse_gfa,
+    read_selected_graph,
+)
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, tool_version, which
 
@@ -49,7 +55,6 @@ __all__ = [
     "GETORGANELLE_VERSION",
     "ORGANELLE",
     "SPADES_VERSION",
-    "GetOrganelleOutput",
     "GetOrganelleTools",
     "assemble",
     "parse_log",
@@ -105,39 +110,6 @@ class GetOrganelleTools:
     spades: str
     bowtie2: str
     blastn: str
-
-
-@dataclass(frozen=True, slots=True)
-class LogFacts:
-    """What the assembler's own log states. Every field may be absent from an imported log."""
-
-    status_text: str | None
-    version: str | None
-    dependencies: dict[str, str]
-    seed_db: dict[str, str]
-    label_db: dict[str, str]
-    base_coverage: float | None
-    reads_used: int | None
-    # The assembler's own reading of PATH1: (name, total, LSC, SSC, repeat), in bp. Name is its
-    # label for the repeat, such as "IRs detected".
-    architecture: tuple[str, int, int, int, int] | None
-    errors: tuple[str, ...] = ()
-    word_limit_hit: bool = False
-
-
-@dataclass(frozen=True, slots=True)
-class GetOrganelleOutput:
-    """One finished assembly directory, read."""
-
-    status: str
-    log: Path
-    paths: tuple[AssembledPath, ...]
-    path_files: tuple[Path, ...]
-    # The graph the paths were read from, then the wider one before it was disentangled, which is
-    # what a person opens in Bandage when a path looks wrong.
-    graphs: tuple[Path, ...]
-    facts: LogFacts
-    graph_readings: tuple[GraphReading, ...] = ()
 
 
 def _pairs(text: str) -> dict[str, str]:
@@ -237,7 +209,7 @@ def _read_graphs(
     return tuple(readings)
 
 
-def read_output(directory: str | Path) -> GetOrganelleOutput:
+def read_output(directory: str | Path) -> AssemblerOutput:
     """Read a finished output directory, and refuse one that contradicts itself."""
     root = Path(directory)
     log = root / LOG_NAME
@@ -264,7 +236,7 @@ def read_output(directory: str | Path) -> GetOrganelleOutput:
     circular = status in (STATUS_COMPLETE, STATUS_GAPPED)
     paths = tuple(_read_path_file(file, circular=circular) for file in files)
     selected = sorted(root.glob("*.selected_graph.gfa"))
-    return GetOrganelleOutput(
+    return AssemblerOutput(
         status=status,
         log=log,
         paths=paths,
@@ -379,7 +351,7 @@ def assemble(
     memory_gb: int,
     max_words: int,
     ctx: RunContext,
-) -> GetOrganelleOutput:
+) -> AssemblerOutput:
     """Run one assembly into ``out_dir``, which must not exist, and read what it left.
 
     GetOrganelle catches every failure, logs it and exits 0, so a SPAdes that ran out of memory

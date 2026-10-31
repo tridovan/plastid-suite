@@ -2,7 +2,8 @@
 
 **State:** 31/10/2026 — `main` holds phases M11, M4.5, and of Phase 7 M7.1, M7.2 and M7.5 (assembly
 from short reads, with its graph read and its memory limited), merged and acceptance-tested (`make
-acceptance` 281 cases, 0 skipped: see `.dev/TASKS.md` for how they ran). RNA editing is the module `rna_editing`
+acceptance` 281 cases, 0 skipped: see `.dev/TASKS.md` for how they ran). M7.6, HiFi reads through Oatk,
+is on `feat/m7.6-long-reads`. RNA editing is the module `rna_editing`
 (`docs/tools/prep_cp.md`); its reference B′'s seven records live in `.panel/rna_editing/`, pinned in
 `src/plastid/data/rna_editing/taxa.yaml`. Product documentation,
 requirements and shared method live in this repository. Maintainer planning — the active task, the
@@ -17,8 +18,9 @@ is not part of the product repository.
 `diversity`, `barcodes`, `kaks`, `popgen`, `stats`, `synteny`, `phylogeny`, `submission`,
 `rna_editing` (predicted C-to-U sites, PREP-Cp-compatible), plus the reference path
 `panel`/`reference`/`annotate`, `editing-reference` (rebuild or verify the RNA-editing reference) and
-the export path `figures`/`package`/`qc`. `plastid assemble run|prepare` takes paired short reads to
-a checked plastome through a local or an imported run ([specification](docs/tools/getorganelle.md)).
+the export path `figures`/`package`/`qc`. `plastid assemble run|prepare` takes paired short reads or
+HiFi reads to a checked plastome through a local or an imported run
+([short reads](docs/tools/getorganelle.md), [HiFi](docs/tools/oatk.md)).
 The mito modules are a frozen prototype: keep them passing, do not extend them.
 
 Reproduced defects are in [known issues](docs/known_issues.md). A documentation change does not
@@ -52,7 +54,8 @@ pipeline. Do not invent a replacement task list.
 - A run longer than a few minutes goes detached (`nohup … &`) so an interrupted shell does not
   take it down.
 - The assembly tools are in their own environment (`environment-assembly.yml`). The panel test finds
-  them through `PTS_ASSEMBLY_DIR` and the GetOrganelle database through `PTS_GETORGANELLE_DB`.
+  them through `PTS_ASSEMBLY_DIR`, the GetOrganelle database through `PTS_GETORGANELLE_DB` and Oatk's
+  through `PTS_OATK_DB`.
 - GetOrganelle exits 0 when it fails. Only the `ERROR` lines of its log say so.
 - Its peak memory is read recruitment, and that follows the words it holds, not the input's size. The
   step limits the words from `memory_gb`; on an 8 GB machine two samples that took 18–20 GB in the

@@ -21,7 +21,7 @@ from pathlib import Path
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, tool_version, which
 
-__all__ = ["MINIMAP2_VERSION", "map_pair", "minimap2_version", "resolve_minimap2"]
+__all__ = ["MINIMAP2_VERSION", "map_long", "map_pair", "minimap2_version", "resolve_minimap2"]
 
 MINIMAP2_VERSION = "2.31"
 MINIMAP2_DOC = "docs/tools/minimap2.md"
@@ -81,6 +81,40 @@ def map_pair(
             str(target),
             str(reads_1),
             str(reads_2),
+        ],
+        tool_path=binary,
+        pinned_version=version,
+    )
+    return out
+
+
+def map_long(
+    target: Path,
+    reads: Path,
+    *,
+    preset: str,
+    out: Path,
+    threads: int,
+    ctx: RunContext,
+    binary: str,
+) -> Path:
+    """Map long reads to ``target``, into the SAM ``out``. ``preset`` names the technology."""
+    version = minimap2_version(binary)
+    ctx.tool(
+        "minimap2",
+        [
+            binary,
+            "-ax",
+            preset,
+            "--eqx",
+            "--secondary=no",
+            "--sam-hit-only",
+            "-t",
+            str(threads),
+            "-o",
+            str(out),
+            str(target),
+            str(reads),
         ],
         tool_path=binary,
         pinned_version=version,

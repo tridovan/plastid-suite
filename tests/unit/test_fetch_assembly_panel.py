@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import gzip
+import hashlib
 import random
 from pathlib import Path
 
 import pytest
-from tools.fetch_assembly_panel import _cut_pairs, blob_sha1, published_files
+from tools.fetch_assembly_panel import _cut_pairs, blob_sha1, cut_records, published_files
 
 
 def _reads(count: int, mate: int, seed: int) -> bytes:
@@ -86,3 +87,14 @@ def test_only_the_graph_paths_and_log_of_the_two_run_sets_are_kept() -> None:
 def test_a_truncated_listing_is_refused() -> None:
     with pytest.raises(OSError, match="truncated"):
         published_files({"truncated": True, "tree": []})
+
+
+def test_the_cut_keeps_only_complete_records_of_a_single_file(tmp_path: Path) -> None:
+    content = _reads(4_000, 1, 1)
+    _prefix(tmp_path / "part.gz", content, 0.5)
+    records, digest = cut_records(tmp_path / "part.gz", tmp_path / "cut.fastq.gz")
+    assert 1_000 < records < 3_000
+    kept = gzip.decompress((tmp_path / "cut.fastq.gz").read_bytes())
+    assert kept.count(b"\n") == 4 * records
+    assert content.startswith(kept)
+    assert digest == hashlib.sha256(kept).hexdigest()

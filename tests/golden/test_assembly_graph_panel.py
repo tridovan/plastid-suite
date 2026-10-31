@@ -22,6 +22,7 @@ from plastid.core.assembly import STATUS_COMPLETE, AssembledPath, AssemblyError
 from plastid.core.assembly_graph import (
     GRAPH_RESOLVED,
     GRAPH_UNRESOLVED,
+    AssemblerOutput,
     graph_verdict,
     parse_gfa,
     parse_walk,
@@ -30,7 +31,7 @@ from plastid.core.assembly_graph import (
 from plastid.core.ir import ir_de_novo
 from plastid.core.model import Genome
 from plastid.core.sequence import reverse_complement
-from plastid.external.getorganelle import GetOrganelleOutput, read_output
+from plastid.external.getorganelle import read_output
 
 pytestmark = pytest.mark.panel
 
@@ -52,7 +53,7 @@ THE_THREE_LEFT_OPEN = ("ERR2206741", "SRR2057084", "SRR6478596")  # Ginkgo, Musa
 
 
 @pytest.fixture(scope="module")
-def outputs() -> dict[str, GetOrganelleOutput]:
+def outputs() -> dict[str, AssemblerOutput]:
     if not PANEL.is_dir():
         pytest.skip(f"not in this tree (.panel/ is gitignored): {PANEL}")
     read = {}
@@ -62,7 +63,7 @@ def outputs() -> dict[str, GetOrganelleOutput]:
     return read
 
 
-def _closed(outputs: dict[str, GetOrganelleOutput]) -> dict[str, GetOrganelleOutput]:
+def _closed(outputs: dict[str, AssemblerOutput]) -> dict[str, AssemblerOutput]:
     return {name: out for name, out in outputs.items() if out.status == STATUS_COMPLETE}
 
 

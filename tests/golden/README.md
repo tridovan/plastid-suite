@@ -64,6 +64,12 @@ with several structures are told apart from the 44 that are resolved, and that t
 the published one on *Picea abies*. It says nothing about GetOrganelle 1.7.7.1, which the assembly
 panel above covers, on fewer graphs.
 
+`test_assembly_long_panel.py` holds the HiFi route to the same standard: *Arabidopsis* Col-0 against the
+Sanger record `AP000423.1`, through stored output and through Oatk itself, which takes about two
+minutes a run. It proves the assembly is two bases from that record, that the settings do not move the
+plastome, and that single nanopore reads cross the repeat on both isomers alike. It needs
+`PTS_ASSEMBLY_DIR` and `PTS_OATK_DB`.
+
 `test_assembly_memory_panel.py` reads the authors' table of the 308 runs behind that comparison, in the
 same directory. It proves that the words held decide the memory of read recruitment, that the share of
 plastid reads does not predict the peak, and that no run under the word limit this step sets went over

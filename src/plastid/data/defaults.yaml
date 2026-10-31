@@ -139,6 +139,15 @@ assembly:
   word_bytes: 108 # bytes per word held, whatever its length
   word_bytes_per_base: 0.89 # bytes per base of a word
   word_size_share: 0.6 # the word size planned for, as a share of the read length
+  # HiFi reads go through Oatk (docs/tools/oatk.md). `syncmer` and `min_coverage` are its defaults.
+  # From 30 to 400 and from 150 Mb of reads to 1.45 Gb, Arabidopsis gave one plastome. max_bases is
+  # the most it was measured on, 2.2 GB of memory: its table grows with the reads, and a plastome
+  # is reached long before a sample's reads run out.
+  syncmer: 1001
+  min_coverage: 30
+  max_bases: 1500000000
+  oatk_db: null # the directory holding OatkDB's profiles; null means OATK_DB
+  long_extension: 100000 # as `extension`, for reads that can be this long, in bp
   # The rule was measured on six sequences of known state (docs/tools/getorganelle.md): with two
   # reads required, every correct sequence is clean, down to 22x, and every wrong join shows. Three
   # already flags a correct plastome at 22x; a share of the depth flagged a correct one at 780x.

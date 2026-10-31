@@ -21,7 +21,8 @@ runs a segment's depth rounds to another copy number than the path gives it.
 
 A step is ``(segment, strand)``, strand ``+`` or ``-``. A link joins two steps and overlaps them by
 a number of bases, and the same link read from the other strand joins the two steps flipped and in
-reverse order. A walk is circular: its last step links to its first.
+reverse order. A walk is circular: its last step links to its first. GetOrganelle's links overlap by
+k and Oatk's by whatever its syncmers leave, so nothing here assumes one overlap.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ import re
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from plastid.core.assembly import (
     STATUS_COMPLETE,
@@ -43,14 +45,17 @@ __all__ = [
     "GRAPH_NOT_MEASURED",
     "GRAPH_RESOLVED",
     "GRAPH_UNRESOLVED",
+    "AssemblerOutput",
     "AssemblyGraph",
     "GraphReading",
+    "LogFacts",
     "Segment",
     "SegmentReading",
     "are_isomers",
     "closed_walks",
     "graph_verdict",
     "longest_repeat",
+    "other_isomer",
     "parse_gfa",
     "parse_walk",
     "read_selected_graph",
@@ -71,6 +76,24 @@ _OVERLAP = re.compile(r"(\d+)M")
 # Search steps before the count of structures is given up. A graph with this many structures is not
 # resolved whatever the exact number; the largest of the 47 published closed graphs takes far fewer.
 _WALK_BUDGET = 2_000_000
+
+
+@dataclass(frozen=True, slots=True)
+class LogFacts:
+    """What an assembler's own log states. Every field may be absent from an imported log."""
+
+    status_text: str | None
+    version: str | None
+    dependencies: dict[str, str]
+    seed_db: dict[str, str]
+    label_db: dict[str, str]
+    base_coverage: float | None
+    reads_used: int | None
+    # The assembler's own reading of PATH1: (name, total, LSC, SSC, repeat), in bp. Name is its
+    # label for the repeat, such as "IRs detected".
+    architecture: tuple[str, int, int, int, int] | None
+    errors: tuple[str, ...] = ()
+    word_limit_hit: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,6 +184,21 @@ class GraphReading:
     rows: tuple[SegmentReading, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class AssemblerOutput:
+    """One finished assembly directory, read, whichever assembler wrote it."""
+
+    status: str
+    log: Path
+    paths: tuple[AssembledPath, ...]
+    path_files: tuple[Path, ...]
+    # The graph the paths were read from, then the wider one before it was disentangled, which is
+    # what a person opens in Bandage when a path looks wrong.
+    graphs: tuple[Path, ...]
+    facts: LogFacts
+    graph_readings: tuple[GraphReading, ...] = ()
+
+
 def _flip(step: Step) -> Step:
     return step[0], _FLIP[step[1]]
 
@@ -170,7 +208,11 @@ def _link(first: Step, second: Step) -> Link:
 
 
 def parse_gfa(lines: Iterable[str]) -> AssemblyGraph:
-    """The segments and links of a GFA 1 text. Depth is ``RC`` over the segment's length."""
+    """The segments and links of a GFA 1 text.
+
+    Depth is ``RC`` over the segment's length where the assembler writes a count (GetOrganelle), and
+    ``SC`` where it writes the coverage itself (Oatk).
+    """
     segments: dict[str, Segment] = {}
     links: list[tuple[Step, Step, int]] = []
     for line in lines:
@@ -179,9 +221,11 @@ def parse_gfa(lines: Iterable[str]) -> AssemblyGraph:
             if len(fields) < 3 or fields[2] == "*":
                 raise AssemblyError(f"a GFA segment with no sequence: {line[:80]!r}")
             tags = {tag[:2]: tag[5:] for tag in fields[3:]}
-            count = tags.get("RC")
+            count, coverage = tags.get("RC"), tags.get("SC")
             sequence = fields[2].upper()
-            depth = int(count) / len(sequence) if count is not None else None
+            depth = float(coverage) if coverage is not None else None
+            if count is not None:
+                depth = int(count) / len(sequence)
             segments[fields[1]] = Segment(fields[1], sequence, depth)
         elif fields[0] == "L":
             if len(fields) < 6 or fields[2] not in _FLIP or fields[4] not in _FLIP:
@@ -308,6 +352,22 @@ def are_isomers(first: Walk, second: Walk) -> bool:
     return False
 
 
+def other_isomer(graph: AssemblyGraph, walk: Walk) -> Walk | None:
+    """The second form of a flip-flop pair, for an assembler that writes one; None when it is not.
+
+    A plastome with an inverted repeat exists in both forms, so an assembler that writes one has
+    left out half of the same result. Only an exact pair is completed: with more structures than two
+    there is no other isomer to name, and that is what the graph reading reports.
+    """
+    copies = Counter(step[0] for step in walk)
+    structures = closed_walks(graph, copies)
+    if structures is None or len(structures) != 2 or _canonical(walk) not in structures:
+        return None
+    first, second = sorted(structures)
+    other = second if _canonical(walk) == first else first
+    return other if are_isomers(walk, other) else None
+
+
 def _spelled_length(graph: AssemblyGraph, walk: Sequence[Step]) -> int:
     """Bases a linear stretch of a walk spells: its segments, less what they share."""
     total = sum(len(graph.segments[name].sequence) for name, _ in walk)
@@ -316,14 +376,52 @@ def _spelled_length(graph: AssemblyGraph, walk: Sequence[Step]) -> int:
     )
 
 
+def _step_starts(graph: AssemblyGraph, walk: Walk) -> list[int]:
+    """Where each step starts on the circle its walk spells, 0-based."""
+    starts = [0]
+    for step, after in zip(walk, walk[1:], strict=False):
+        starts.append(
+            starts[-1] + len(graph.segments[step[0]].sequence) - graph.following[step][after]
+        )
+    return starts
+
+
+def _to_the_ends(circle: str, first: tuple[int, int], second: tuple[int, int], kind: str) -> int:
+    """How long two copies are once carried out to where their bases part, in bp.
+
+    A k-overlap graph already ends a repeat where the copies part. A syncmer graph ends it at the
+    last syncmer, up to a few hundred bases short, so the walk says where the repeat is and the
+    bases say where it stops.
+    """
+    size = len(circle)
+    left, right = first
+    low, high = second
+    if kind == "direct":
+        while right - left < size // 2 and circle[right % size] == circle[high % size]:
+            right, high = right + 1, high + 1
+        while right - left < size // 2 and circle[(left - 1) % size] == circle[(low - 1) % size]:
+            left, low = left - 1, low - 1
+        return right - left
+    while right - left < size // 2 and circle[right % size] == _pair(circle[(low - 1) % size]):
+        right, low = right + 1, low - 1
+    while right - left < size // 2 and circle[(left - 1) % size] == _pair(circle[high % size]):
+        left, high = left - 1, high + 1
+    return right - left
+
+
+def _pair(base: str) -> str:
+    return reverse_complement(base)
+
+
 def longest_repeat(graph: AssemblyGraph, walk: Walk) -> tuple[str, int] | None:
     """The longest stretch a circular walk holds twice: ``("inverted" | "direct", bp)``.
 
-    This is a reading of the repeat independent of the sequence: where the graph puts its ends is
-    where the two copies stop being one segment.
+    This is a reading of the repeat that the graph locates and no detector does: the copies are
+    wherever the walk passes one stretch of segments twice, and only their ends come from the bases.
     """
     size = len(walk)
     best: tuple[str, int] | None = None
+    places: tuple[str, int, int, int] | None = None
     for first in range(size):
         for second in range(size):
             if first == second:
@@ -340,6 +438,7 @@ def longest_repeat(graph: AssemblyGraph, walk: Walk) -> tuple[str, int] | None:
                 length = _spelled_length(graph, stretch)
                 if best is None or length > best[1]:
                     best = ("inverted", length)
+                    places = ("inverted", first, (second - len(stretch) + 1) % size, length)
             # Direct: both copies forward, up to where the first would run into the second.
             stretch = []
             while len(stretch) < gap:
@@ -351,7 +450,18 @@ def longest_repeat(graph: AssemblyGraph, walk: Walk) -> tuple[str, int] | None:
                 length = _spelled_length(graph, stretch)
                 if best is None or length > best[1]:
                     best = ("direct", length)
-    return best
+                    places = ("direct", first, second, length)
+    if places is None:
+        return None
+    kind, first, second, length = places
+    circle = spell(graph, walk)
+    starts = _step_starts(graph, walk)
+    return kind, _to_the_ends(
+        circle,
+        (starts[first], starts[first] + length),
+        (starts[second], starts[second] + length),
+        kind,
+    )
 
 
 def _median_depth(graph: AssemblyGraph) -> float | None:

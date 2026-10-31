@@ -27,7 +27,6 @@ dependencies:
   # --- assembly, not yet called ----------------------------------------------------------
   - bandage=0.9.0 # graph figure; drew a PNG on a real OATK GFA in the survey. Drawing the graph
                   # is not evidence that the assembly or its IR boundary was checked (M7.2)
-  - oatk=1.0 # needs an external HMM DB: github.com/c-zhou/OatkDB
   - raven-assembler=1.8.3 # long-read route (M7.6), waiting on ONT/HiFi reads
   - novoplasty # no version recorded — installed, never run with a real seed
   - samtools # no version recorded — the map-back reads minimap2's SAM directly and does not need it

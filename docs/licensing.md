@@ -60,6 +60,9 @@ by us* — which is **none of them**.
 | **Bowtie2** | 2.5.5 | run by GetOrganelle | GPL-3.0-or-later | bioconda metadata | no |
 | **fastp** | 1.4.0 | `external/fastp.py` (`plastid assemble`) | MIT | bioconda metadata | no |
 | **minimap2** | 2.31 | `external/minimap2.py` (`plastid assemble`) | MIT | bioconda metadata | no |
+| **Oatk** | 1.0 | `external/oatk.py` (`plastid assemble --hifi`) | MIT | bioconda metadata and its repository | no |
+| **OatkDB** | v20230921 | `external/oatk.py`, its profile database | MIT | its repository | no |
+| **HMMER** | 3.4 | `external/oatk.py`, run by Oatk | BSD | bioconda metadata | no |
 | **Vmatch** | 2.3.1 | `external/vmatch.py` — the *second engine* for the repeats count; never required | **academic use only** (upstream); conda metadata says `Unknown` | `docs/tools/vmatch.md` + bioconda metadata | no |
 | **table2asn** | 1.29.324 | module `submission` | NCBI converter — U.S. Government work, as BLAST+ | `docs/tools/table2asn.md`; **not independently measured** (no licence file ships with the binary) | no |
 | **perl** | 5.32.1 | runs `misa.pl` | GPL-1.0+ or Artistic-1.0-Perl | conda-forge metadata | no |
