@@ -1,4 +1,4 @@
-"""Fetch the public reads of the assembly panel into ``.panel/assembly/reads/``, verified.
+"""Fetch the public reads and published graphs of the assembly panel, verified.
 
 Each read set of ``tests/golden/test_assembly_panel.py`` comes from ENA. Files are fetched one at a
 time, because ENA answered parallel requests with 403 and cut others short (measured 31 October
@@ -7,10 +7,15 @@ reads. A whole file is checked against ENA's md5. A set far larger than a run ne
 first bytes, cut to the last complete pair: Jin et al. 2020 likewise used the first reads of a large
 run, and GetOrganelle stops using reads past 500× anyway.
 
+The graphs are what the authors of that comparison deposited for every run: selected graph, paths
+and log, about 30 MB, for ``tests/golden/test_assembly_graph_panel.py``. They come from one pinned
+commit, whose tree names each file's git blob, so each file is checked against that hash.
+
 Run from the product repository root, on a machine with the disk for it:
 
     uv run python tools/fetch_assembly_panel.py
     uv run python tools/fetch_assembly_panel.py --only SRR5602589
+    uv run python tools/fetch_assembly_panel.py --graphs-only
 
 No test runs this script, and no test touches the network. It is how a checkout rebuilds its panel.
 Exit codes: 0 when every file arrived and was verified, 1 when one did not.
@@ -21,18 +26,32 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
+import json
+import re
 import sys
 import time
 import urllib.error
 import urllib.request
 import zlib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 ENA = "https://ftp.sra.ebi.ac.uk/vol1/fastq"
 PREFIX_BYTES = 350_000_000
 BLOCK = 1 << 20
 ATTEMPTS = 40
+
+# The repository of Jin et al. 2020. Results of the 50 runs with the published settings (``auto--``)
+# and of the 8 re-run with settings chosen per sample (``customized--``).
+JIN_REPOSITORY = "Kinggerm/GetOrganelleComparison"
+JIN_COMMIT = "b58f4a6171612a740ee232fe17061aa4353be961"
+_JIN_RESULTS = "res/GetOrganelle-plastome/"
+_JIN_KEPT = re.compile(
+    r"(auto|customized)--[^/]+/"
+    r"(.+\.selected_graph\.gfa|.+\.path_sequence\.fasta|get_org\.log\.txt)$"
+)
 
 
 @dataclass(frozen=True)
@@ -204,14 +223,72 @@ def fetch_prefix(item: RunPrefix, reads: Path) -> None:
     print(f"{item.run}: the first {pairs} pairs, reads sha256 verified")
 
 
+def blob_sha1(data: bytes) -> str:
+    """The hash git names a file's content by."""
+    return hashlib.sha1(f"blob {len(data)}\0".encode() + data, usedforsecurity=False).hexdigest()
+
+
+def published_files(tree: Mapping[str, Any]) -> list[tuple[str, str]]:
+    """``(path under the results, blob hash)`` of each file kept, from a git tree listing."""
+    if tree.get("truncated"):
+        raise OSError("the repository's tree listing came back truncated")
+    kept = []
+    for entry in tree["tree"]:
+        path = entry["path"]
+        if path.startswith(_JIN_RESULTS) and _JIN_KEPT.fullmatch(path[len(_JIN_RESULTS) :]):
+            kept.append((path[len(_JIN_RESULTS) :], entry["sha"]))
+    return sorted(kept)
+
+
+def _read_url(url: str) -> bytes:
+    with urllib.request.urlopen(url, timeout=120) as response:
+        return response.read()
+
+
+def fetch_graphs(out: Path) -> int:
+    """Fetch the published graphs, one file at a time. Returns how many did not verify."""
+    tree = json.loads(
+        _read_url(
+            f"https://api.github.com/repos/{JIN_REPOSITORY}/git/trees/{JIN_COMMIT}?recursive=1"
+        )
+    )
+    failed = 0
+    for name, blob in published_files(tree):
+        target = out / name
+        if target.is_file() and blob_sha1(target.read_bytes()) == blob:
+            continue
+        url = (
+            f"https://raw.githubusercontent.com/{JIN_REPOSITORY}/{JIN_COMMIT}/{_JIN_RESULTS}{name}"
+        )
+        try:
+            data = _read_url(url)
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            print(f"{name}: {error}", file=sys.stderr)
+            failed += 1
+            continue
+        if blob_sha1(data) != blob:
+            print(f"{name}: not the blob {blob} the pinned commit names", file=sys.stderr)
+            failed += 1
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+    return failed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", default=".panel/assembly/reads", help="where the reads go")
     parser.add_argument("--only", default=None, help="one run accession")
+    parser.add_argument(
+        "--graphs", default=".panel/assembly/jin2020", help="where the published graphs go"
+    )
+    parser.add_argument("--graphs-only", action="store_true", help="fetch no reads")
     args = parser.parse_args()
+    if args.graphs_only:
+        return 1 if fetch_graphs(Path(args.graphs)) else 0
     reads = Path(args.out)
     reads.mkdir(parents=True, exist_ok=True)
-    failed = 0
+    failed = 0 if args.only else fetch_graphs(Path(args.graphs))
     for item in PANEL:
         if args.only and item.run != args.only:
             continue

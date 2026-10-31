@@ -14,8 +14,10 @@ another machine by itself.
 
 **What "done" means.** The assembler's word that a path closed is a claim. Reads mapped back with
 an aligner the assembler does not use test it position by position, and a join the reads do not
-cross is reported as undetermined rather than passed. A sequence becomes an artifact for the next
-step only when it closed, has every base known, and the reads support it.
+cross is reported as undetermined rather than passed. Reads cannot say which arrangement of the
+pieces is the molecule, so the selected graph is read as well, and a graph through which several
+structures close is reported as unresolved. A sequence becomes an artifact for the next step only
+when it closed, has every base known, the reads support it, and its graph is resolved.
 """
 
 from __future__ import annotations
@@ -51,7 +53,13 @@ from plastid.core.assembly import (
     parse_sam,
     weak_regions,
 )
-from plastid.core.ir import IRResult, ir_de_novo
+from plastid.core.assembly_graph import (
+    GRAPH_NOT_MEASURED,
+    GRAPH_RESOLVED,
+    GraphReading,
+    graph_verdict,
+)
+from plastid.core.ir import IR_MIN_LENGTH, IRResult, ir_de_novo
 from plastid.core.model import Genome, Interval
 from plastid.core.sequence import gc_percent
 from plastid.external.fastp import FastpResult, fastp_version, resolve_fastp
@@ -196,6 +204,7 @@ class Assembled:
     mapping_reads: tuple[Path, Path]  # always the reads as they arrived, whatever the assembler got
     read_qc: ReadQC | None = None
     external_result: Mapping[str, Any] | None = None
+    graph_readings: tuple[GraphReading, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,11 +233,13 @@ class Evaluation:
     # The same measurement on the reference, made when no path equals it: a disagreement has two
     # possible causes, and the reads can speak to both sides.
     reference_measured: Measured | None = None
+    graph_call: str = GRAPH_NOT_MEASURED
+    graph_reasons: tuple[str, ...] = ()
 
     @property
     def usable(self) -> bool:
-        """Closed, every base known, and read-supported: the only state a next step may consume."""
-        return self.support == SUPPORT_SUPPORTED
+        """Closed, every base known, read-supported, one molecule: all a next step may consume."""
+        return self.support == SUPPORT_SUPPORTED and self.graph_call == GRAPH_RESOLVED
 
 
 def resolve_params(params: Mapping[str, Any]) -> dict[str, Any]:
@@ -371,6 +382,7 @@ def _assembled(
         mapping_reads=mapping_reads,
         read_qc=read_qc,
         external_result=external_result,
+        graph_readings=output.graph_readings,
     )
 
 
@@ -673,7 +685,9 @@ def evaluate(
     Only a closed path with every base known can be mapped as a circle, so an open assembly
     reports its read support as not measured, not as zero. Mapping runs on the first path:
     two isomers share every junction, because they differ only in the orientation of a region
-    between identical repeats, and reads shorter than the repeat cannot separate them.
+    between identical repeats, and the graph has shown that of this run when it calls it resolved.
+    Reads shorter than the repeat cannot separate them, and cannot separate wider rearrangements
+    either, which is why a graph with more structures than that is never passed on the reads.
 
     The reads mapped are the raw ones, whatever the assembler was given. Quality control serves the
     assembler; a check that read its output would lose the evidence it removed, and the aligner
@@ -692,6 +706,7 @@ def evaluate(
             for path in assembled.paths
         )
     reference_name = reference.accession or reference.name if reference is not None else None
+    graph_call, graph_reasons = graph_verdict(assembled.graph_readings)
     reference_measured = None
     if reference is not None and not any(item.identical for _, item in comparisons):
         reference_measured = _measure(
@@ -713,6 +728,8 @@ def evaluate(
             reference_name=reference_name,
             reference_sha256=reference_sha256,
             reference_measured=reference_measured,
+            graph_call=graph_call,
+            graph_reasons=graph_reasons,
         )
 
     measured = _measure(
@@ -733,6 +750,8 @@ def evaluate(
         reference_name=reference_name,
         reference_sha256=reference_sha256,
         reference_measured=reference_measured,
+        graph_call=graph_call,
+        graph_reasons=graph_reasons,
     )
 
 
@@ -786,6 +805,8 @@ def _summary(assembled: Assembled, evaluation: Evaluation, scope: Scope) -> Tabl
         "status": assembled.status,
         "assembler_says": assembled.status_text,
         "read_support": evaluation.support,
+        "graph_call": evaluation.graph_call,
+        "graph_reasons": "; ".join(evaluation.graph_reasons) or "nothing",
         "n_paths": len(assembled.paths),
         "length_bp": path.length if path else "not measured",
         "gc_percent": round(gc_percent(sequence), 2) if sequence else "not measured",
@@ -819,6 +840,8 @@ def _summary(assembled: Assembled, evaluation: Evaluation, scope: Scope) -> Tabl
         Column("status", "Status"),
         Column("assembler_says", "The assembler's own words"),
         Column("read_support", "Read support"),
+        Column("graph_call", "Graph"),
+        Column("graph_reasons", "What the graph leaves open"),
         Column("n_paths", "Paths", dtype="int"),
         Column("length_bp", "Length", dtype="int", unit="bp"),
         Column("gc_percent", "GC", dtype="float", unit="%", precision=2),
@@ -863,6 +886,82 @@ def _paths_table(assembled: Assembled, scope: Scope) -> Table:
             for path in assembled.paths
         ),
         key="path",
+        scope=scope,
+    )
+
+
+def _graph_table(readings: Sequence[GraphReading], scope: Scope) -> Table:
+    missing = "not measured"
+    return Table(
+        id="assembly_graph",
+        title="The selected graph, read without the assembler's words",
+        columns=(
+            Column("graph", "Graph"),
+            Column("call", "Call"),
+            Column("segments", "Segments", dtype="int"),
+            Column("links", "Links", dtype="int"),
+            Column("components", "Components", dtype="int"),
+            Column("free_ends", "Free ends", dtype="int"),
+            Column("paths_written", "Paths written", dtype="int"),
+            Column("structures", "Structures that close", dtype="int"),
+            Column("isomers", "Flip-flop isomers"),
+            Column("repeat", "Longest repeat of the first path"),
+            Column("reasons", "What it leaves open"),
+        ),
+        rows=tuple(
+            {
+                "graph": reading.name,
+                "call": reading.call,
+                "segments": reading.segments,
+                "links": reading.links,
+                "components": reading.components,
+                "free_ends": reading.free_ends,
+                "paths_written": reading.paths_written,
+                "structures": reading.structures if reading.structures is not None else missing,
+                "isomers": (
+                    "not applicable"
+                    if reading.isomers is None
+                    else ("yes" if reading.isomers else "no")
+                ),
+                "repeat": (
+                    f"{reading.repeat[1]} bp, {reading.repeat[0]}" if reading.repeat else "none"
+                ),
+                "reasons": "; ".join(reading.reasons) or "nothing",
+            }
+            for reading in readings
+        ),
+        key="graph",
+        scope=scope,
+    )
+
+
+def _segments_table(readings: Sequence[GraphReading], scope: Scope) -> Table:
+    missing = "not measured"
+    return Table(
+        id="graph_segments",
+        title="Segments of the selected graph, longest first",
+        columns=(
+            Column("graph", "Graph"),
+            Column("segment", "Segment"),
+            Column("length_bp", "Length", dtype="int", unit="bp"),
+            Column("depth", "Depth, as the assembler states it", dtype="float", precision=1),
+            Column("copies", "Copies in the first path", dtype="int"),
+            Column("depth_ratio", "Depth over one copy's depth", dtype="float", precision=2),
+        ),
+        rows=tuple(
+            {
+                "graph": reading.name,
+                "segment": row.name,
+                "length_bp": row.length,
+                "depth": round(row.depth, 1) if row.depth is not None else missing,
+                "copies": row.copies if row.copies is not None else missing,
+                "depth_ratio": (
+                    round(row.depth_ratio, 2) if row.depth_ratio is not None else missing
+                ),
+            }
+            for reading in readings
+            for row in reading.rows
+        ),
         scope=scope,
     )
 
@@ -1091,6 +1190,31 @@ def _comparison_table(evaluation: Evaluation, scope: Scope) -> Table:
     )
 
 
+def _repeat_note(assembled: Assembled, evaluation: Evaluation) -> str | None:
+    """The graph's reading of the inverted repeat against the sequence's, when they differ.
+
+    A short inverted repeat is ordinary in a plastome that has no quadripartite form, so only one
+    long enough to count as an IR copy is compared.
+    """
+    if evaluation.profile is None or not assembled.graph_readings:
+        return None
+    kind, length = assembled.graph_readings[0].repeat or ("", 0)
+    in_graph = length if kind == "inverted" and length >= IR_MIN_LENGTH else None
+    in_sequence = evaluation.ir.length if evaluation.ir is not None else None
+    if in_graph == in_sequence:
+        return None
+    if in_sequence is None:
+        return (
+            f"The graph holds an inverted repeat of {in_graph} bp and the sequence's own reading "
+            "reports none: it looks only for the lengths it was validated on."
+        )
+    return (
+        f"The inverted repeat reads {in_sequence} bp in the sequence and "
+        f"{in_graph if in_graph is not None else 'none'} in the graph; compare the copies before "
+        "using a position-based analysis."
+    )
+
+
 def assembly_result(
     assembled: Assembled, evaluation: Evaluation, *, data_label: str = ""
 ) -> Result:
@@ -1102,6 +1226,9 @@ def assembly_result(
     tables: dict[str, Table] = {"assembly_summary": _summary(assembled, evaluation, scope)}
     if assembled.paths:
         tables["assembly_paths"] = _paths_table(assembled, scope)
+    if assembled.graph_readings:
+        tables["assembly_graph"] = _graph_table(assembled.graph_readings, scope)
+        tables["graph_segments"] = _segments_table(assembled.graph_readings, scope)
     if assembled.read_qc is not None:
         tables["read_qc"] = _read_qc_table(assembled.read_qc, scope)
     if evaluation.calls:
@@ -1168,6 +1295,10 @@ def assembly_result(
             f"This assembly ran on GetOrganelle {assembled.tool_version}; the local route pins "
             f"{GETORGANELLE_VERSION}.",
         )
+    notes += tuple(f"The graph leaves this open: {reason}." for reason in evaluation.graph_reasons)
+    repeat_note = _repeat_note(assembled, evaluation)
+    if repeat_note is not None:
+        notes += (repeat_note,)
     if evaluation.ir is not None and assembled.architecture is not None:
         theirs = assembled.architecture[4]
         if theirs != evaluation.ir.length:

@@ -3634,6 +3634,7 @@ def _assembly_outcome(
             "where": assembled.where,
             "assembly_status": assembled.status,
             "read_support": evaluation.support,
+            "graph": evaluation.graph_call,
             "tools": [asdict(record) for record in ctx.tools],
             "files": [str(path.relative_to(layout.run_dir)) for path in files],
         }
@@ -3643,7 +3644,8 @@ def _assembly_outcome(
     if not usable:
         print(
             f"assemble: {assembled.sample}: the assembler says {assembled.status_text!r}, read "
-            f"support is {evaluation.support}: no artifact for the next step — {layout.run_dir}",
+            f"support is {evaluation.support}, the graph is {evaluation.graph_call}: no artifact "
+            f"for the next step — {layout.run_dir}",
             file=sys.stderr,
         )
     return code

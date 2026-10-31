@@ -56,5 +56,13 @@ with none skipped. It needs
 `results/`, GetOrganelle's own output for each run (`-R 10 -k 21,55,91,127`; `DRR173054` with
 `-k 21,55,85`), and `results_galaxy/`, the server's output.
 
+`test_assembly_graph_panel.py` reads the graph of every run deposited for that comparison, 58 of them
+in `.panel/assembly/jin2020/` (`tools/fetch_assembly_panel.py`), plus two published records in
+`records/` for the order along a molecule. It needs no tool and no reads, and takes under a minute. It
+proves that the walks enumerated from a graph are the paths the assembler wrote, that the three runs
+with several structures are told apart from the 44 that are resolved, and that the first path is not
+the published one on *Picea abies*. It says nothing about GetOrganelle 1.7.7.1, which the assembly
+panel above covers, on fewer graphs.
+
 A changed golden number is never edited to make the suite pass: explain it with independent
 evidence and get the dev's review first.

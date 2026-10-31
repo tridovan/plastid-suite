@@ -104,6 +104,7 @@ class AssembledPath:
     name: str
     contigs: tuple[str, ...]
     circular: bool
+    title: str = ""  # the path file's header, which names the path's walk through the graph
 
     @property
     def length(self) -> int:

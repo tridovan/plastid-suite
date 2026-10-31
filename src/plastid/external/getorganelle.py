@@ -8,8 +8,10 @@ against: 50 public read sets with their published plastomes, including the three
 **What is read, and from where.** The run's own log states the result, the dependency versions and
 the seed database, and the path files are named after the same result. Both are read, and a
 disagreement is refused: the result of an assembly decides what may follow it, so it cannot rest
-on one string. The same reader serves a local run and a directory imported from elsewhere, which
-is how both backends come to mean the same thing by the same status.
+on one string. The selected graph is read against the paths too, by ``core/assembly_graph.py``, and
+a path its graph cannot spell is refused the same way. The same reader serves a local run and a
+directory imported from elsewhere, which is how both backends come to mean the same thing by the
+same status.
 
 **What a local run is given.** The dependencies are named on the command line (``--which-*``) and
 the database by ``--config-dir``, so the run does not depend on the shell it starts from. SPAdes
@@ -37,6 +39,7 @@ from plastid.core.assembly import (
     AssembledPath,
     AssemblyError,
 )
+from plastid.core.assembly_graph import GraphReading, parse_gfa, read_selected_graph
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, tool_version, which
 
@@ -74,12 +77,17 @@ _ARCHITECTURE = re.compile(
     r"Detecting large repeats \(>1000 bp\) in PATH1 with (.+?), "
     r"Total:LSC:SSC:Repeat\(bp\) = (\d+):(\d+):(\d+):(\d+)"
 )
-_PATH_FILE = re.compile(r"\.(complete|nearly-complete|scaffolds)\.graph(\d+)\.(.*)path_sequence$")
+# ``scaffolds`` here, ``contigs`` in the 1.6 series, whose output the published comparison holds.
+_PATH_FILE = re.compile(
+    r"\.(complete|nearly-complete|scaffolds|contigs)\.graph(\d+)\.(.*)path_sequence$"
+)
+_GRAPH_FILE = re.compile(r"\.graph(\d+)\.selected_graph\.gfa$")
 
 _STATUS_OF_FILE = {
     "complete": STATUS_COMPLETE,
     "nearly-complete": STATUS_GAPPED,
     "scaffolds": STATUS_FRAGMENTED,
+    "contigs": STATUS_FRAGMENTED,
 }
 
 
@@ -122,6 +130,7 @@ class GetOrganelleOutput:
     # what a person opens in Bandage when a path looks wrong.
     graphs: tuple[Path, ...]
     facts: LogFacts
+    graph_readings: tuple[GraphReading, ...] = ()
 
 
 def _pairs(text: str) -> dict[str, str]:
@@ -180,7 +189,44 @@ def _read_path_file(path: Path, *, circular: bool) -> AssembledPath:
         name=path.name.removesuffix(".path_sequence.fasta"),
         contigs=tuple(str(record.seq).upper() for record in records),
         circular=circular,
+        title=records[0].description,
     )
+
+
+def _read_graphs(
+    selected: Sequence[Path],
+    files: Sequence[Path],
+    paths: Sequence[AssembledPath],
+    status: str,
+) -> tuple[GraphReading, ...]:
+    """Each selected graph against the paths written from it, which its number names.
+
+    No graph at all is a state of its own, not measured. A path whose number has no graph is a
+    directory put together from two runs, and is refused like any other contradiction.
+    """
+    readings: list[GraphReading] = []
+    numbers = [_PATH_FILE.search(file.name.removesuffix(".fasta")).group(2) for file in files]
+    graphs: dict[str, Path] = {}
+    for gfa in selected:
+        match = _GRAPH_FILE.search(gfa.name)
+        if match is None:
+            raise AssemblyError(f"{gfa}: a selected graph this step cannot name")
+        graphs[match.group(1)] = gfa
+    if graphs and set(numbers) - set(graphs):
+        missing = ", ".join(f"graph{number}" for number in sorted(set(numbers) - set(graphs)))
+        raise AssemblyError(f"no selected graph for its paths: {missing}")
+    for number, gfa in graphs.items():
+        written_from_it = [
+            path for path, written in zip(paths, numbers, strict=True) if written == number
+        ]
+        graph = parse_gfa(gfa.read_text(encoding="utf-8").splitlines())
+        try:
+            readings.append(
+                read_selected_graph(f"graph{number}", graph, written_from_it, status=status)
+            )
+        except AssemblyError as error:
+            raise AssemblyError(f"{gfa}: {error}") from error
+    return tuple(readings)
 
 
 def read_output(directory: str | Path) -> GetOrganelleOutput:
@@ -208,17 +254,20 @@ def read_output(directory: str | Path) -> GetOrganelleOutput:
             f"{sorted(kinds) or 'nothing'} — the result cannot be read from this directory"
         )
     circular = status in (STATUS_COMPLETE, STATUS_GAPPED)
+    paths = tuple(_read_path_file(file, circular=circular) for file in files)
+    selected = sorted(root.glob("*.selected_graph.gfa"))
     return GetOrganelleOutput(
         status=status,
         log=log,
-        paths=tuple(_read_path_file(file, circular=circular) for file in files),
+        paths=paths,
         path_files=tuple(files),
         graphs=(
-            *sorted(root.glob("*.selected_graph.gfa")),
+            *selected,
             *sorted(root.glob("extended_*.extend-*.fastg")),
             *sorted(root.glob("extended_*.extend-*.csv")),
         ),
         facts=facts,
+        graph_readings=_read_graphs(selected, files, paths, status),
     )
 
 

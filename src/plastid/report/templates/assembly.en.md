@@ -19,5 +19,10 @@ boundary of the circle is {{assembly_summary.fewest_spanning}}. `junction_suppor
 and the junctions, `weak_regions` lists any boundary too few reads cross, and a join the reads do
 not cross is **undetermined**, never verified.
 
-Only a closed sequence with every base known and every join supported is declared in the manifest
-as an artifact for the next step.
+Reads cannot say which arrangement of the pieces is the molecule, because every arrangement crosses
+the same joins. That is read from the selected graph, without the assembler's words: `assembly_graph`
+counts the structures that close through it and `graph_segments` lists its pieces. The graph is
+**{{assembly_summary.graph_call}}**; it leaves open: {{assembly_summary.graph_reasons}}.
+
+Only a closed sequence with every base known, every join supported and a resolved graph is declared
+in the manifest as an artifact for the next step.

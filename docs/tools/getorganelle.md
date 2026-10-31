@@ -33,6 +33,7 @@ plastid assemble run -1 R1.fastq.gz -2 R2.fastq.gz --sample NAME --out .runs [--
 | Quality control | fastp ([page](fastp.md)); `--set trim=no` skips it | `read_qc` |
 | Assembly | GetOrganelle, driving Bowtie2, SPAdes and BLAST+ | paths, graph, log |
 | Read support | minimap2 ([page](minimap2.md)) on the raw reads, read by `core/assembly.py` | `junction_support`, `weak_regions` |
+| The graph | `core/assembly_graph.py`, no external tool | `assembly_graph`, `graph_segments` |
 | Comparison, with `--reference` | `core/assembly.py`, no external tool | `reference_comparison`, `reference_differences` |
 
 The assembler's invocation, with the defaults from `src/plastid/data/defaults.yaml`:
@@ -51,7 +52,7 @@ paper's 47. A k-mer longer than the reads is dropped by the assembler.
 
 | Status | The assembler's own words | Written | Artifact for the next step |
 |---|---|---|---|
-| `complete` | `circular genome` | `assembly.fasta`, and `assembly.paths.fasta` when there are several paths | only with read support `supported` |
+| `complete` | `circular genome` | `assembly.fasta`, and `assembly.paths.fasta` when there are several paths | only with read support `supported` and a `resolved` graph |
 | `gapped` | `circular genome with gaps` | `assembly.fasta` | no: an unknown base is not a finished sequence |
 | `fragmented` | `N scaffold(s)` | `scaffolds.fasta` | no |
 | `no_result` | no status line | the log only | no; this is not a measured zero |
@@ -64,7 +65,8 @@ person to read.
 **Two paths are the normal result.** A plastome with an inverted repeat has two isomers, because the
 small single-copy region recombines between the copies, and reads shorter than the repeat cannot
 tell them apart. Both are kept. `assembly.fasta` is the first, and when `--reference` is given
-`reference_comparison` says which path is that record.
+`reference_comparison` says which path is that record. More than two is a different state, and is
+what [the graph](#the-graph) is read for.
 
 ### Read support
 
@@ -111,6 +113,54 @@ more low-depth sets would test it harder than these did. The values are `flank`,
 reference, or the assembly stayed open, the reference is mapped and read by the same rule and
 `reference_read_support` puts the two side by side. Neither is taken as the truth.
 
+### The graph
+
+Reads test joins. They cannot test the arrangement: two arrangements of the same pieces cross the same
+joins and hold the same k-mers, so a read shorter than a repeat fits both. `core/assembly_graph.py`
+reads the selected graph, with no external tool and none of the assembler's words:
+
+| Question | A failure |
+|---|---|
+| Is each path a walk of the graph: every step a link, and the walk spelling the path as a circle? | refused: the path file and the graph are not from one assembly |
+| Is the graph closed: one component, no free end, every segment and every link used? | `unresolved` |
+| How many structures close through it? Every circular walk that uses each segment as often as the path does is enumerated here. | `unresolved`, unless one, or two that are isomers |
+
+Two structures are isomers when one inversion turns the first into the second and both cross the same
+links. The first is what recombination between inverted copies does. The second is what lets the
+reads mapped to the first path speak for both.
+
+The call is `resolved`, `unresolved` or `not measured`, in `assembly_summary` beside what the graph
+leaves open. A result with no selected graph, or with a path whose title does not state its walk, is
+`not measured` and gives no artifact, because the output contract includes the graph.
+
+Measured on the 58 graphs deposited for the published comparison (GetOrganelle 1.6.2):
+
+| The 47 closed runs | |
+|---|---|
+| Each path a walk that spells its sequence, the graph closed and wholly used, and the walks enumerated here exactly the paths the assembler wrote | all 47 |
+| 2 structures, isomers | 42 |
+| 1 structure | 2: *Selaginella kraussiana*, whose repeats are direct, and *Cytinus hypocistis*, 19,400 bp, one segment closing on itself |
+| **12 or 15 structures: `unresolved`** | 3: *Picea abies* 15, *P. sitchensis* 15, *Jasminum tortuosum* 12 |
+
+**Why those three are not passed.** The order of the pieces is all that separates their structures:
+the number of 41-mers each path of *P. abies* lacks from `HF937082.1` is 1,102 on all 15. Read along
+the records by exact anchors, the published order is path 3 of 15 on *P. abies* and path 1 on *P.
+sitchensis*, so the order the paths are written in means nothing. The assembler says as much: "Please
+check the existence of those isomers by using reads mapping (library information) or longer reads."
+Reads longer than a repeat, or pairs across it, could separate them, and this step does not try. All
+the paths stay in `assembly.paths.fasta`, and none is offered as the answer.
+
+**Depth is reported and decides nothing.** `graph_segments` gives each segment's depth over one copy's
+depth. It is a guide, not a rule: on 3 of the 47 a segment used twice reads 1.32 (*Juniperus cedrus*),
+1.47 (*Mankyua chejuensis*) and 2.82 (*P. sitchensis*).
+
+**The inverted repeat, read a second way.** The longest stretch a walk holds twice is the repeat
+according to the graph, independent of the sequence: its ends are where the copies stop being one
+segment. It equals the sequence's reading on all 41 of the 47 where that finds an inverted repeat. On
+*Mankyua chejuensis* the graph holds one of 9,756 bp that the sequence's reading does not report,
+because its validated window starts at 10 kb. `ir_bp` then says "no inverted repeat found", and a note
+names the graph's reading.
+
 ## Measured against the published comparison
 
 GetOrganelle 1.7.7.1 + SPAdes 4.3.0 here, against Jin et al. 2020 (version 1.6.2). The sets are in
@@ -141,9 +191,28 @@ run at 28,673–28,685: the record has 13, the assembly 14, and of the reads tha
 308 say 14 and 50 say 13. Whether that is a 1999 error or a difference between two Col-0 stocks
 cannot be told from here, and it is recorded as unexplained.
 
-**Why *Musa* stays open is not explained.** At over 2,000× the reads still leave eight stretches of
-`KT595228.1` that fewer than two reads cross, and scaffold ends fall at several of them. Whether the
-sequence is wrong there or those stretches do not sequence, these reads cannot say.
+**Why *Musa* stays open.** Three tandem arrays longer than its 100 bp reads. In the wider graph they
+are loops of short edges at 3–5× the depth of one copy, and the contigs stop at them:
+
+| Array | On `KT595228.1` | Reads wholly inside it | Pairs: reads minus record |
+|---|---|---|---|
+| 24 bp unit | 61,229–61,432 | 1,842 | +75 bp |
+| 17–23 bp units | 90,604–90,791, and its mirror | 9,303 | +167 bp |
+| 48 bp unit | 118,894–118,994, and its mirror | 5,846 | +268 bp |
+
+A read made wholly of an array's 31-mers can only exist if the array is at least a read long, so no
+read crosses it, and a graph's loop cannot be walked a measured number of times. The last column uses
+no aligner and no assembler. This library's insert is tight (509 ± 14 bp), each mate is placed by its
+first 31 bases, and where the reads hold more bases than the record a pair spans fewer. Of 2,627
+windows along the record 2,485 are within 10 bp of 509, so the three departures stand out. On the
+record the first array is 84 bp, shorter than a read. These are the record's own reads, so these are
+places where it does not agree with them.
+
+At over 2,000× the reads still leave eight stretches of the record that fewer than two reads cross.
+They are six places, two of them seen through both repeat copies. Two fall where pairs show the record
+departing from the reads (−103 bp at 91,250–91,750, +48 bp at 114,750–115,200). Two sit in sequence of
+3–4 % GC, where too few pairs can be placed to measure anything. Two (124,289 and 124,575), which one
+read crosses and where pairs show nothing, are not explained.
 
 **fastp does not change the answer on the two sets tried.** On *Magnolia* it removed 9.2 % of the
 reads as low quality, and the assembly is still the same molecule as `KY085916.1`; the two isomers
@@ -202,7 +271,9 @@ names in one directory before the import:
 | Contig labels, optional | the same name with `.csv` |
 
 The element names read like `embplant_pt.K127.complete.graph1.1`, and the path files' names state the
-result, so they are not free to change.
+result, so they are not free to change. The selected graph is not optional: without it the graph is
+`not measured` and there is no artifact. A path paired with another run's graph is refused, which is
+what a hand-assembled directory is exposed to.
 
 ## What decides the memory
 

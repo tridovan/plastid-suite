@@ -13,17 +13,21 @@ usegalaxy.eu, which is the import route as a user meets it.
 
 from __future__ import annotations
 
+import gzip
 import json
 import os
+import statistics
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 from Bio import SeqIO
+from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from conftest import require_tools
 from plastid.cli import main
 from plastid.core.assembly import same_circular
+from plastid.core.sequence import reverse_complement
 
 pytestmark = [pytest.mark.tier_b, pytest.mark.panel]
 
@@ -166,6 +170,20 @@ def test_magnolia_is_the_published_molecule_and_every_join_is_supported(magnolia
     assert _table(run, "weak_regions") == []
 
 
+def test_the_magnolia_graph_is_resolved_and_reads_the_repeat_the_sequence_does(magnolia) -> None:
+    run, _ = magnolia
+    [summary] = _table(run, "assembly_summary")
+    assert summary["graph_call"] == "resolved"
+    [graph] = _table(run, "assembly_graph")
+    assert (graph["segments"], graph["links"]) == (3, 4)
+    assert (graph["components"], graph["free_ends"]) == (1, 0)
+    assert (graph["structures"], graph["isomers"]) == (2, "yes")
+    assert graph["repeat"] == f"{summary['ir_bp']} bp, inverted"
+    rows = {row["copies"]: row for row in _table(run, "graph_segments")}
+    assert rows[2]["depth_ratio"] == pytest.approx(2.0, abs=0.1)
+    assert rows[1]["depth_ratio"] == pytest.approx(1.0, abs=0.1)
+
+
 def test_the_magnolia_depth_agrees_with_the_published_bowtie2_depth(magnolia) -> None:
     run, _ = magnolia
     [summary] = _table(run, "assembly_summary")
@@ -262,6 +280,109 @@ def test_musa_stays_open_and_passes_nothing_downstream(musa) -> None:
     assert manifest["status"] == "incomplete"
 
 
+def test_the_musa_graph_is_unresolved_and_kept_for_a_person_to_read(musa) -> None:
+    run, _ = musa
+    [summary] = _table(run, "assembly_summary")
+    assert summary["graph_call"] == "unresolved"
+    assert "15 component(s) and 30 free end(s)" in summary["graph_reasons"]
+    [graph] = _table(run, "assembly_graph")
+    assert (graph["segments"], graph["links"]) == (15, 0)
+    assert graph["structures"] == "not measured"
+    kept = {path.name for path in (run / "01_assembly").iterdir()}
+    assert "assembler.log" in kept
+    assert "scaffolds.fasta" in kept
+    assert "embplant_pt.K91.contigs.graph1.selected_graph.gfa" in kept
+    assert "extended_K91.assembly_graph.fastg.extend-embplant_pt-embplant_mt.fastg" in kept
+
+
+# The repeat's second copy starts here on KT595228.1, and only one copy may be indexed for its words
+# to be unique. The library's insert is the log's 508.8 ± 13.7 bp.
+_MUSA_ONE_REPEAT_COPY = 134_400
+_MUSA_PAIRS = 2_000_000
+_WORD = 31
+
+
+def _musa_edges(names: tuple[str, ...]) -> set[str]:
+    """The 31-mers of the named edges of the wider graph, on both strands."""
+    root = PANEL / "results" / MUSA.run
+    [fastg] = root.glob("extended_*.extend-*.fastg")
+    words: set[str] = set()
+    for record in SeqIO.parse(fastg, "fasta"):
+        identifier = record.id.split("_")[1]
+        if identifier in names and "'" not in record.id.split(":")[0]:
+            sequence = str(record.seq).upper()
+            for text in (sequence, reverse_complement(sequence)):
+                words.update(text[i : i + _WORD] for i in range(len(text) - _WORD + 1))
+    return words
+
+
+def test_the_musa_arrays_are_longer_than_its_reads_and_than_its_record() -> None:
+    """Why it stays open, measured from the reads with no aligner and no assembler.
+
+    Three tandem arrays are loops of the graph. A read made wholly of an array's words can only
+    exist if the array is at least a read long, so no read crosses it. Pairs, each mate placed by
+    its first 31 bases, say how much longer: where the sample holds D bases more than the record,
+    a pair spans D fewer on the record, and this library's insert is tight.
+    """
+    files = _require(MUSA)
+    record = str(SeqIO.read(files["record"], "genbank").seq).upper()
+    # The first array as the record has it: 84 bp, shorter than the 100 bp reads.
+    array = record[61_250:61_334]
+    assert all(array[i] == array[i + 24] for i in range(len(array) - 24))
+
+    arrays = {
+        "24 bp unit": _musa_edges(("377", "6827")),
+        "48 bp unit": _musa_edges(("4261", "6631")),
+        "self-loop": _musa_edges(("5",)),
+    }
+    indexed = record[:_MUSA_ONE_REPEAT_COPY]
+    seen: set[str] = set()
+    forward: dict[str, int] = {}
+    for position in range(len(indexed) - _WORD + 1):
+        word = indexed[position : position + _WORD]
+        if word in seen:
+            forward.pop(word, None)
+        else:
+            seen.add(word)
+            forward[word] = position
+    backward = {reverse_complement(word): position for word, position in forward.items()}
+
+    wholly_inside = dict.fromkeys(arrays, 0)
+    placed: list[tuple[int, int]] = []
+    with gzip.open(files["reads_1"], "rt") as one, gzip.open(files["reads_2"], "rt") as two:
+        for index, ((_, first, _), (_, second, _)) in enumerate(
+            zip(FastqGeneralIterator(one), FastqGeneralIterator(two), strict=True)
+        ):
+            if index == _MUSA_PAIRS:
+                break
+            for name, words in arrays.items():
+                for read in (first, second):
+                    if read[:_WORD] in words and all(
+                        read[i : i + _WORD] in words for i in range(0, len(read) - _WORD + 1, 7)
+                    ):
+                        wholly_inside[name] += 1
+            head_1, head_2 = first[:_WORD], second[:_WORD]
+            start, end = forward.get(head_1), backward.get(head_2)
+            if start is None or end is None:
+                start, end = forward.get(head_2), backward.get(head_1)
+            if start is None or end is None:
+                continue
+            size = end + _WORD - start
+            if 150 <= size <= 1_500:
+                placed.append(((start + end + _WORD) // 2, size))
+
+    assert all(count >= 100 for count in wholly_inside.values()), wholly_inside
+    library = statistics.median(size for _, size in placed)
+    assert library == pytest.approx(509, abs=2)
+    for (low, high), longer in {
+        (61_100, 61_500): 75,  # the 24 bp array
+        (90_650, 90_800): 167,  # the self-loop
+        (118_800, 119_050): 268,  # the 48 bp array
+    }.items():
+        spans = [size for middle, size in placed if low <= middle < high]
+        assert library - statistics.median(spans) == pytest.approx(longer, abs=8)
+
+
 def test_the_musa_record_has_joins_the_reads_do_not_cross(musa) -> None:
     run, _ = musa
     rows = {row["sequence"]: row for row in _table(run, "reference_read_support")}
@@ -282,6 +403,11 @@ def test_selaginella_two_direct_repeats_and_no_inverted_repeat(tmp_path: Path) -
     assert summary["ir_bp"] == "no inverted repeat found"
     assert summary["assembler_repeat"] == "14597 bp, DRs detected"
     assert summary["read_support"] == "supported"
+    # One structure: the graph reads the two copies as direct too, independently of the log.
+    assert summary["graph_call"] == "resolved"
+    [graph] = _table(run, "assembly_graph")
+    assert (graph["structures"], graph["isomers"]) == (1, "not applicable")
+    assert graph["repeat"] == "14597 bp, direct"
     assert any(row["identical"] == "yes" for row in _table(run, "reference_comparison"))
     assert [row["junction"] for row in _table(run, "junction_support")] == ["origin"]
 

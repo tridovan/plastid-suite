@@ -9,6 +9,7 @@ that the two backends give one result. The real tools run in `tests/golden/test_
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import random
 import stat
@@ -27,6 +28,7 @@ from plastid.run.tools import ToolError
 _LSC, _IR, _SSC = 20_000, 11_000, 5_000
 _EXTENSION = 1_000
 _READ = 150
+_K = 127
 
 
 def _sequence() -> str:
@@ -156,18 +158,76 @@ def _tools(directory: Path, *, sam: str) -> Path:
     return directory
 
 
-def _canned_complete(tools: Path, *, isomers: bool = True) -> None:
+def _gfa(segments: dict[str, str], links: Sequence[tuple[str, str, str, str]]) -> str:
+    """A selected graph as GetOrganelle writes it, each link overlapping by k."""
+    lines = [
+        f"S\t{name}\t{bases}\tLN:i:{len(bases)}\tRC:i:{100 * len(bases)}"
+        for name, bases in segments.items()
+    ]
+    lines.extend(
+        f"L\t{a}\t{a_strand}\t{b}\t{b_strand}\t{_K}M" for a, a_strand, b, b_strand in links
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _selected_graph() -> str:
+    """The graph ``SEQUENCE`` was read from: a segment holds the k bases it shares with the next."""
+    lsc = SEQUENCE[:_LSC]
+    ir = SEQUENCE[_LSC : _LSC + _IR]
+    ssc = SEQUENCE[_LSC + _IR : _LSC + _IR + _SSC]
+    mirror = SEQUENCE[_LSC + _IR + _SSC :]
+    return _gfa(
+        {"lsc": mirror[-_K:] + lsc + ir[:_K], "ir": ir, "ssc": ir[-_K:] + ssc + mirror[:_K]},
+        [
+            ("lsc", "+", "ir", "+"),
+            ("ir", "+", "ssc", "+"),
+            ("ssc", "+", "ir", "-"),
+            ("ir", "-", "lsc", "+"),
+        ],
+    )
+
+
+def _canned_complete(tools: Path) -> None:
     canned = tools / "canned"
     (canned / "get_org.log.txt").write_text(_LOG_COMPLETE, encoding="utf-8")
     prefix = "embplant_pt.K127.complete.graph1"
     (canned / f"{prefix}.1.path_sequence.fasta").write_text(
-        f">a,b(circular)\n{SEQUENCE}\n", encoding="utf-8"
+        f">lsc+,ir+,ssc+,ir-(circular)\n{SEQUENCE}\n", encoding="utf-8"
     )
-    if isomers:
-        (canned / f"{prefix}.2.path_sequence.fasta").write_text(
-            f">a,c(circular)\n{ISOMER}\n", encoding="utf-8"
+    (canned / f"{prefix}.2.path_sequence.fasta").write_text(
+        f">lsc+,ir+,ssc-,ir-(circular)\n{ISOMER}\n", encoding="utf-8"
+    )
+    (canned / f"{prefix}.selected_graph.gfa").write_text(_selected_graph(), encoding="utf-8")
+
+
+def _canned_many_structures(tools: Path) -> None:
+    """Four pieces between four direct copies of one repeat: six circles over one set of joins.
+
+    The six have the length of ``SEQUENCE``, so the reads fit, and the reads cannot choose: every
+    join of every circle is crossed. This is the shape of *Picea abies* in the published comparison.
+    """
+    source = random.Random(20261101)
+
+    def random_bases(length: int) -> str:
+        return "".join(source.choice("ACGT") for _ in range(length))
+
+    repeat = random_bases(600)
+    size = (LENGTH - 4 * len(repeat)) // 4
+    pieces = {name: random_bases(size) for name in "abc"}
+    pieces["d"] = random_bases(LENGTH - 4 * len(repeat) - 3 * size)
+    segments = {name: repeat[-_K:] + bases + repeat[:_K] for name, bases in pieces.items()}
+    segments["r"] = repeat
+    links = [(name, "+", "r", "+") for name in pieces] + [("r", "+", name, "+") for name in pieces]
+    canned = tools / "canned"
+    (canned / "get_org.log.txt").write_text(_LOG_COMPLETE, encoding="utf-8")
+    prefix = "embplant_pt.K127.complete.graph1"
+    for number, order in enumerate(itertools.permutations("bcd"), start=1):
+        walk = ",".join(f"{name}+,r+" for name in ("a", *order))
+        sequence = "".join(pieces[name] + repeat for name in ("a", *order))
+        (canned / f"{prefix}.{number}.path_sequence.fasta").write_text(
+            f">{walk}(circular)\n{sequence}\n", encoding="utf-8"
         )
-    (canned / f"{prefix}.selected_graph.gfa").write_text("S\t1\tACGT\n", encoding="utf-8")
+    (canned / f"{prefix}.selected_graph.gfa").write_text(_gfa(segments, links), encoding="utf-8")
 
 
 def _canned_scaffolds(tools: Path) -> None:
@@ -254,6 +314,8 @@ def test_a_closed_supported_assembly_is_the_artifact_the_next_step_reads(bench: 
     [summary] = bench.table(run, "assembly_summary")
     assert summary["status"] == "complete"
     assert summary["read_support"] == "supported"
+    assert summary["graph_call"] == "resolved"
+    assert summary["graph_reasons"] == "nothing"
     assert summary["backend"] == "local"
     assert summary["assembler"] == "GetOrganelle 1.7.7.1"
     assert int(summary["length_bp"]) == LENGTH
@@ -604,6 +666,115 @@ def test_an_import_on_the_pinned_programs_carries_no_such_note(bench: Bench) -> 
     assert _import(bench, prepared, bench.tools / "canned") == 0
     payload = json.loads((bench.run_dir() / "01_assembly" / "result.json").read_text("utf-8"))
     assert not any("the local route pins" in note for note in payload["notes"])
+
+
+def test_a_path_its_graph_cannot_spell_is_refused(
+    bench: Bench, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A person assembling a result directory by hand can pair a path with another run's graph.
+    _canned_complete(bench.tools)
+    path = bench.tools / "canned" / "embplant_pt.K127.complete.graph1.1.path_sequence.fasta"
+    changed = "A" if SEQUENCE[5_000] != "A" else "C"
+    edited = SEQUENCE[:5_000] + changed + SEQUENCE[5_001:]
+    path.write_text(f">lsc+,ir+,ssc+,ir-(circular)\n{edited}\n", encoding="utf-8")
+    prepared = _prepare(bench)
+    assert _import(bench, prepared, bench.tools / "canned") == 1
+    assert "not the sequence its walk spells" in capsys.readouterr().err
+
+
+def test_a_walk_over_a_link_the_graph_lacks_is_refused(
+    bench: Bench, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _canned_complete(bench.tools)
+    path = bench.tools / "canned" / "embplant_pt.K127.complete.graph1.1.path_sequence.fasta"
+    path.write_text(f">lsc+,ssc+,ir+,ir-(circular)\n{SEQUENCE}\n", encoding="utf-8")
+    prepared = _prepare(bench)
+    assert _import(bench, prepared, bench.tools / "canned") == 1
+    assert "not a link" in capsys.readouterr().err
+
+
+def test_a_graph_of_many_structures_is_not_passed_on_the_reads(bench: Bench) -> None:
+    _canned_many_structures(bench.tools)
+    assert bench.run() == 1
+    run = bench.run_dir()
+    [summary] = bench.table(run, "assembly_summary")
+    assert summary["status"] == "complete"
+    assert summary["read_support"] == "supported"  # the reads have nothing to say here
+    assert summary["graph_call"] == "unresolved"
+    assert "6 structures close through it" in summary["graph_reasons"]
+    manifest = bench.manifest(run)
+    assert manifest["status"] == "incomplete"
+    assert manifest["artifacts"] == []
+    assert manifest["modules"][0]["graph"] == "unresolved"
+    [graph] = bench.table(run, "assembly_graph")
+    assert int(graph["structures"]) == 6
+    assert int(graph["paths_written"]) == 6
+    # Every structure stays for a person to read; none is offered as the answer.
+    text = (run / "01_assembly" / "assembly.paths.fasta").read_text(encoding="utf-8")
+    assert text.count(">") == 6
+
+
+def test_an_import_without_its_selected_graph_gives_no_artifact(bench: Bench) -> None:
+    _canned_complete(bench.tools)
+    (bench.tools / "canned" / "embplant_pt.K127.complete.graph1.selected_graph.gfa").unlink()
+    prepared = _prepare(bench)
+    assert _import(bench, prepared, bench.tools / "canned") == 1
+    run = bench.run_dir()
+    [summary] = bench.table(run, "assembly_summary")
+    assert summary["read_support"] == "supported"
+    assert summary["graph_call"] == "not measured"
+    assert summary["graph_reasons"] == "no selected graph to read"
+    assert bench.manifest(run)["artifacts"] == []
+
+
+def test_a_path_that_does_not_state_its_walk_is_not_measured(bench: Bench) -> None:
+    _canned_complete(bench.tools)
+    canned = bench.tools / "canned"
+    path = canned / "embplant_pt.K127.complete.graph1.1.path_sequence.fasta"
+    path.write_text(f">renamed by hand\n{SEQUENCE}\n", encoding="utf-8")
+    prepared = _prepare(bench)
+    assert _import(bench, prepared, canned) == 1
+    run = bench.run_dir()
+    [summary] = bench.table(run, "assembly_summary")
+    assert summary["graph_call"] == "not measured"
+    assert "does not state its walk" in summary["graph_reasons"]
+    assert bench.manifest(run)["artifacts"] == []
+
+
+def test_paths_of_a_graph_that_is_not_there_are_refused(
+    bench: Bench, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _canned_complete(bench.tools)
+    canned = bench.tools / "canned"
+    extra = canned / "embplant_pt.K127.complete.graph2.1.path_sequence.fasta"
+    extra.write_text(f">lsc+,ir+,ssc+,ir-(circular)\n{SEQUENCE}\n", encoding="utf-8")
+    prepared = _prepare(bench)
+    assert _import(bench, prepared, canned) == 1
+    assert "no selected graph for its paths: graph" in capsys.readouterr().err
+
+
+def test_a_graph_no_path_came_from_is_refused(
+    bench: Bench, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _canned_complete(bench.tools)
+    canned = bench.tools / "canned"
+    source = canned / "embplant_pt.K127.complete.graph1.selected_graph.gfa"
+    source.rename(canned / "embplant_pt.K127.complete.graph2.selected_graph.gfa")
+    prepared = _prepare(bench)
+    assert _import(bench, prepared, canned) == 1
+    assert "no selected graph for its paths: graph" in capsys.readouterr().err
+
+
+def test_two_selected_graphs_are_not_one_molecule(bench: Bench) -> None:
+    _canned_complete(bench.tools)
+    canned = bench.tools / "canned"
+    for name in (".selected_graph.gfa", ".1.path_sequence.fasta", ".2.path_sequence.fasta"):
+        source = canned / f"embplant_pt.K127.complete.graph1{name}"
+        (canned / f"embplant_pt.K127.complete.graph2{name}").write_bytes(source.read_bytes())
+    assert bench.run() == 1
+    [summary] = bench.table(bench.run_dir(), "assembly_summary")
+    assert summary["graph_call"] == "unresolved"
+    assert "2 graphs were selected" in summary["graph_reasons"]
 
 
 def test_an_import_maps_the_raw_reads_too(bench: Bench) -> None:

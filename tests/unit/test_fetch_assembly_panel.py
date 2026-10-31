@@ -1,4 +1,4 @@
-"""The cut that turns the first bytes of a large run into complete read pairs. No network."""
+"""The panel's fetch tool: the cut of a large run, and the pins of the graphs. No network."""
 
 from __future__ import annotations
 
@@ -6,7 +6,8 @@ import gzip
 import random
 from pathlib import Path
 
-from tools.fetch_assembly_panel import _cut_pairs
+import pytest
+from tools.fetch_assembly_panel import _cut_pairs, blob_sha1, published_files
 
 
 def _reads(count: int, mate: int, seed: int) -> bytes:
@@ -52,3 +53,35 @@ def test_the_cut_gives_the_same_bytes_twice(tmp_path: Path) -> None:
         _cut_pairs(tmp_path / "1.prefix", tmp_path / "2.prefix", out_1, out_2)
         outputs.append((out_1.read_bytes(), out_2.read_bytes()))
     assert outputs[0] == outputs[1]
+
+
+def test_a_file_is_pinned_by_the_hash_git_gives_it() -> None:
+    # `printf 'hello\n' | git hash-object --stdin`
+    assert blob_sha1(b"hello\n") == "ce013625030ba8dba906f756967f9e9ca394464a"
+
+
+def test_only_the_graph_paths_and_log_of_the_two_run_sets_are_kept() -> None:
+    results = "res/GetOrganelle-plastome"
+    tree = {
+        "tree": [
+            {"path": f"{results}/auto--A-plastome/x.K127.complete.graph1.1.path_sequence.fasta"},
+            {"path": f"{results}/auto--A-plastome/x.K127.complete.graph1.selected_graph.gfa"},
+            {"path": f"{results}/customized--A-plastome/get_org.log.txt"},
+            {"path": f"{results}/auto--A-plastome/filtered_K127.assembly_graph.fastg.gz"},
+            {"path": f"{results}/w0.60--A-plastome/get_org.log.txt"},
+            {"path": "res/NOVOPlasty-plastome/auto--A-plastome/get_org.log.txt"},
+            {"path": f"{results}/plant.plastome.summary.corrected.tab"},
+        ]
+    }
+    for index, entry in enumerate(tree["tree"]):
+        entry["sha"] = str(index)
+    assert published_files(tree) == [
+        ("auto--A-plastome/x.K127.complete.graph1.1.path_sequence.fasta", "0"),
+        ("auto--A-plastome/x.K127.complete.graph1.selected_graph.gfa", "1"),
+        ("customized--A-plastome/get_org.log.txt", "2"),
+    ]
+
+
+def test_a_truncated_listing_is_refused() -> None:
+    with pytest.raises(OSError, match="truncated"):
+        published_files({"truncated": True, "tree": []})
