@@ -264,21 +264,26 @@ def pin(
 ) -> tuple[PinnedGenome, ...]:
     """Download the chosen genomes once, record checksums, and index them in ``PINNED.json``.
 
-    ``fetch(accession) -> GenBank text`` is injected so tests never touch the network.
+    ``fetch(accession) -> GenBank text`` is injected so tests never touch the network. A manifest
+    already in the directory is added to, and a record already pinned keeps its bytes: a pin that
+    dropped its neighbours or rewrote them would leave results with no description of their input.
     """
     directory = Path(out_dir)
     directory.mkdir(parents=True, exist_ok=True)
+    payloads = {entry.accession: fetch(entry.accession).encode("utf-8") for entry in entries}
+    # Every refusal comes before any write, so a refused pin leaves the panel as it found it.
+    for accession, payload in payloads.items():
+        _refuse_changed_pin(directory / f"{accession}.gb", payload, accession)
     pinned: list[PinnedGenome] = []
-    for entry in entries:
-        text = fetch(entry.accession)
-        payload = text.encode("utf-8")
-        path = directory / f"{entry.accession}.gb"
+    for accession, payload in payloads.items():
+        path = directory / f"{accession}.gb"
         path.write_bytes(payload)
-        pinned.append(_measured(entry.accession, path, payload))
+        pinned.append(_measured(accession, path, payload))
+    merged = [record for record in _load_pinned(directory) if record.accession not in payloads]
     manifest = {
         "pinned_at": timestamp or datetime.now().isoformat(timespec="seconds"),
         "index_retrieved_at": retrieved_at,
-        "genomes": [asdict(record) for record in pinned],
+        "genomes": [asdict(record) for record in (*merged, *pinned)],
     }
     (directory / "PINNED.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -354,10 +359,9 @@ def pin_files(
     bytes, sha256 and md5 as an NCBI download, the same re-read with our own reader, and the
     same IR measurements.
 
-    Two differences from :func:`pin`: there is no accession to fetch, so the key is the record's
+    The difference from :func:`pin`: there is no accession to fetch, so the key is the record's
     own id — or the file's stem when it carries none, which is exactly the case for a sample that
-    has no accession yet — and an existing ``PINNED.json`` is **added to**, not replaced, because
-    a file is normally pinned *into* a panel that already exists.
+    has no accession yet.
     """
     directory = Path(out_dir)
     directory.mkdir(parents=True, exist_ok=True)

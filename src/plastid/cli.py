@@ -3131,6 +3131,9 @@ def _panel_pin(args: argparse.Namespace) -> int:
     except (NcbiError, OSError) as error:
         print(f"NCBI: {error}", file=sys.stderr)
         return EXIT_ERROR
+    except ValueError as error:
+        print(f"panel pin: {error}", file=sys.stderr)
+        return EXIT_ERROR
     problems = list(failed)
     for record in pinned:
         digest = record.sha256[:12]

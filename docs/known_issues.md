@@ -375,6 +375,17 @@ report also lists the run's reference sets (role, label, digest). Held by
 `tests/unit/test_exports.py` (a tool entry built from `ToolRecord` itself) and by
 `tests/golden/test_rna_editing_acceptance.py` (`plastid qc` on a real run).
 
+## K-16 — `plastid panel pin` replaced the panel it was pointed at — **fixed (31/10/2026)**
+
+Found when two records were pinned into `.panel/assembly/records/`: `PINNED.json` went from five
+entries to two, with the other three files still in the directory and no message. `pin()` wrote the
+manifest from the accessions of that call alone, and wrote each record's bytes without checking them,
+while `pin_files()`, the `--file` route, added to the manifest and refused changed bytes. So a narrower
+second pin silently dropped its neighbours, and a repeated pin could replace a record's bytes with
+whatever NCBI serves that day. The manifest was rebuilt from the bytes on disk, which had not changed.
+`pin()` now does what `pin_files()` does, and refuses before it writes anything. Held by the three
+tests after `test_pin_writes_checksums_and_verifies_the_file` in `tests/unit/test_panel.py`.
+
 ## Other current limitations
 
 The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's

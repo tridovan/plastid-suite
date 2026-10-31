@@ -172,6 +172,43 @@ def test_pin_writes_checksums_and_verifies_the_file(tmp_path: Path, data_dir: Pa
     assert calls == ["NC_222222.1"]
 
 
+def test_a_second_pin_adds_to_the_panel_it_finds(tmp_path: Path, data_dir: Path) -> None:
+    # `pin_files` has always added. A narrower pin replacing the manifest left records in the
+    # directory that no pin described any more, and no message said so.
+    golden = (data_dir / "NC_050833.1.gb").read_text(encoding="utf-8")
+    entries = _index().entries
+    first, second = entries[0], entries[1]
+    pin((first,), lambda _: golden, tmp_path)
+    pin((second,), lambda _: golden, tmp_path)
+    manifest = json.loads((tmp_path / "PINNED.json").read_text(encoding="utf-8"))
+    assert [record["accession"] for record in manifest["genomes"]] == [
+        first.accession,
+        second.accession,
+    ]
+
+
+def test_pinning_the_same_record_again_replaces_its_entry(tmp_path: Path, data_dir: Path) -> None:
+    golden = (data_dir / "NC_050833.1.gb").read_text(encoding="utf-8")
+    entry = _index().entries[0]
+    pin((entry,), lambda _: golden, tmp_path)
+    pin((entry,), lambda _: golden, tmp_path)
+    manifest = json.loads((tmp_path / "PINNED.json").read_text(encoding="utf-8"))
+    assert [record["accession"] for record in manifest["genomes"]] == [entry.accession]
+
+
+def test_a_pin_refuses_other_bytes_for_a_pinned_record(tmp_path: Path, data_dir: Path) -> None:
+    golden = (data_dir / "NC_050833.1.gb").read_text(encoding="utf-8")
+    entry = _index().entries[0]
+    pin((entry,), lambda _: golden, tmp_path)
+    target = tmp_path / f"{entry.accession}.gb"
+    before = target.read_bytes()
+    manifest = (tmp_path / "PINNED.json").read_bytes()
+    with pytest.raises(ValueError, match="a pin is immutable"):
+        pin((entry,), lambda _: golden + "\n", tmp_path)
+    assert target.read_bytes() == before
+    assert (tmp_path / "PINNED.json").read_bytes() == manifest
+
+
 def test_pin_records_a_parse_failure_instead_of_crashing(tmp_path: Path) -> None:
     entries = tuple(entry for entry in _index().entries if entry.accession.startswith("NC_222"))
     pinned = pin(entries, lambda accession: "this is not a GenBank file", tmp_path)
