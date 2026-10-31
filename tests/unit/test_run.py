@@ -809,11 +809,27 @@ def test_the_artifact_contract_names_what_a_next_step_reads(tmp_path: Path) -> N
 
     for broken in (
         {**entry, "status": "failed"},  # a failed step's output may not be consumed
-        {**entry, "format": "fasta"},  # a format this build cannot read as an artifact
+        {**entry, "format": "embl"},  # a format this build cannot read as an artifact
         {key: value for key, value in entry.items() if key != "sha256"},
     ):
         with pytest.raises(ContractError):
             validate_artifact(broken)
+
+
+def test_an_assembled_fasta_is_an_artifact_the_next_step_can_read(tmp_path: Path) -> None:
+    path = tmp_path / "assembly.fasta"
+    path.write_text(">sample\nACGT\n", encoding="utf-8")
+    entry = describe_artifact(
+        path,
+        relative_to=tmp_path,
+        sample_id="sample",
+        topology="circular",
+        status="ok",
+        frame="assembler",
+        format="fasta",
+    )
+    assert (entry["format"], entry["frame"]) == ("fasta", "assembler")
+    validate_artifact(entry)
 
 
 def test_a_reference_set_digest_names_the_records_a_run_searched(tmp_path: Path) -> None:

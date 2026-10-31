@@ -1724,7 +1724,45 @@ def _rna_editing_result() -> Result:
     )
 
 
+def _assembly_result() -> Result:
+    """The module's own builder, so the template is held to the columns it really writes."""
+    from pathlib import Path
+
+    from plastid.core.assembly import AssembledPath
+    from plastid.modules import assembly
+
+    assembled = assembly.Assembled(
+        sample="sample",
+        backend="local",
+        status="complete",
+        status_text="circular genome",
+        paths=(AssembledPath(name="path", contigs=("ACGT" * 50,), circular=True),),
+        graph_texts={},
+        log_text="log",
+        tool_version="1.7.7.1",
+        dependencies={},
+        seed_db={},
+        base_coverage=100.0,
+        reads_used=10,
+        architecture=None,
+        where="local",
+        mapping_reads=(Path("r1"), Path("r2")),
+    )
+    evaluation = assembly.Evaluation(
+        support="not measured",
+        profile=None,
+        calls=(),
+        weak=(),
+        ir=None,
+        comparisons=(),
+        reference_name=None,
+        reference_sha256=None,
+    )
+    return assembly.assembly_result(assembled, evaluation)
+
+
 TEMPLATE_FIXTURES = {
+    "assembly": _assembly_result,
     "rna_editing": _rna_editing_result,
     "gene_normalize": _gene_normalize_result,
     "reference_audit": _reference_audit_result,

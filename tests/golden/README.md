@@ -41,5 +41,20 @@ apart.
 Each *Aegilops* difference is pinned together with the reference column that explains it, re-read
 from the run's own alignment — a new number there needs a new explanation, not a new constant.
 
+**Assembly** (`test_assembly_panel.py`, panel): five public read sets, four of them from the
+published comparison of 50 (Jin et al. 2020), whose tables give the assembled size, the differences
+from the published record and the mapped depth on each sequence. A closed plastome identical to its
+record, one whose record the reads contradict at two named places, one with two direct repeats and
+no inverted repeat, and one that stays open. The fifth has an answer from other data and another
+technology (Sato et al. 1999, Sanger). Evaluation runs on stored assembler output through the import
+backend; two tests assemble from reads, one through the default route with fastp, and they must give
+the same molecule. One real run made on usegalaxy.eu comes back through the import and must match the
+local assembly base for base. The set took 22 minutes on the development machine on 31 October 2026,
+with none skipped. It needs
+`PTS_ASSEMBLY_DIR` and `PTS_GETORGANELLE_DB`, because the assembly tools have their own environment.
+`.panel/assembly/` holds `reads/` (`tools/fetch_assembly_panel.py`), `records/` (`plastid panel pin`),
+`results/`, GetOrganelle's own output for each run (`-R 10 -k 21,55,91,127`; `DRR173054` with
+`-k 21,55,85`), and `results_galaxy/`, the server's output.
+
 A changed golden number is never edited to make the suite pass: explain it with independent
 evidence and get the dev's review first.

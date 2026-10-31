@@ -101,10 +101,15 @@ with `[figures,docx,excel,stats]` produced the PDF/SVG/EPS figures and the Word 
 same record, so the extras are independent and none is needed for the others.
 
 **The tool files are split by role** (M11.19): `environment.yml` is the runtime analyses;
-`environment-check.yml` holds the cross-check engines no module calls; `environment-future.yml`
-holds the deferred assembly and survey tools. The role of every tool is written in
-[docs/tools/README.md](tools/README.md), and `tests/unit/test_tool_inventory.py` fails if any of
-the three files and that table disagree.
+`environment-assembly.yml` holds what `plastid assemble` runs; `environment-check.yml` holds the
+cross-check engines no module calls; `environment-future.yml` holds the deferred and survey tools.
+The role of every tool is written in [docs/tools/README.md](tools/README.md), and
+`tests/unit/test_tool_inventory.py` fails if any of the four files and that table disagree.
+
+**Assembly is not in the Docker image.** `plastid assemble` needs `environment-assembly.yml` and the
+GetOrganelle database, on Linux. The image carries the runtime analyses only, so on Windows an
+assembly made elsewhere is a FASTA to start from; `prepare` and the import backend need fastp and
+minimap2, which the image does not have yet.
 
 **Not measured, named rather than implied** (M8.3's own note, kept here because this is the table
 users read): the annotation and naming path and the mito pair have no scale row. That is the honest

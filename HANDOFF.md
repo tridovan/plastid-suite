@@ -1,7 +1,7 @@
 # Development handoff
 
-**State:** 30/10/2026, `main` — phases M11 and M4.5 are merged and acceptance-tested (`make
-acceptance` 239 passed, 0 skipped). RNA editing is the module `rna_editing`
+**State:** 31/10/2026 — `main` holds phases M11, M4.5 and M7.1 (assembly from short reads), merged
+and acceptance-tested (`make acceptance` 251 passed, 0 skipped). RNA editing is the module `rna_editing`
 (`docs/tools/prep_cp.md`); its reference B′'s seven records live in `.panel/rna_editing/`, pinned in
 `src/plastid/data/rna_editing/taxa.yaml`. Product documentation,
 requirements and shared method live in this repository. Maintainer planning — the active task, the
@@ -16,8 +16,9 @@ is not part of the product repository.
 `diversity`, `barcodes`, `kaks`, `popgen`, `stats`, `synteny`, `phylogeny`, `submission`,
 `rna_editing` (predicted C-to-U sites, PREP-Cp-compatible), plus the reference path
 `panel`/`reference`/`annotate`, `editing-reference` (rebuild or verify the RNA-editing reference) and
-the export path `figures`/`package`/`qc`. The mito modules are a frozen prototype: keep them
-passing, do not extend them.
+the export path `figures`/`package`/`qc`. `plastid assemble run|prepare` takes paired short reads to
+a checked plastome through a local or an imported run ([specification](docs/tools/getorganelle.md)).
+The mito modules are a frozen prototype: keep them passing, do not extend them.
 
 Reproduced defects are in [known issues](docs/known_issues.md). A documentation change does not
 fix one.
@@ -49,3 +50,8 @@ pipeline. Do not invent a replacement task list.
   the bioconda wrapper needs a JDK, so the jar path is the reliable one.
 - A run longer than a few minutes goes detached (`nohup … &`) so an interrupted shell does not
   take it down.
+- The assembly tools are in their own environment (`environment-assembly.yml`). The panel test finds
+  them through `PTS_ASSEMBLY_DIR` and the GetOrganelle database through `PTS_GETORGANELLE_DB`.
+- GetOrganelle exits 0 when it fails. Only the `ERROR` lines of its log say so.
+- ENA answers parallel range requests with 403 or cuts them short. `tools/fetch_assembly_panel.py`
+  fetches one file at a time and verifies each.

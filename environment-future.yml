@@ -9,8 +9,8 @@
 # by forgetting.
 #
 # Three groups, distinguished because their reasons differ:
-#   assembly   — Phase 7 is deferred until the plastid IR rework is accepted (M11.8/M11.4). The
-#                survey measurements are not part of the product record; no module exists.
+#   assembly   — what `plastid assemble` does not call yet: the long-read route (M7.6) and the
+#                graph check (M7.2). The short-read route is in environment-assembly.yml.
 #   dating     — removed from the plan 10/10/2026: divergence time is the PI's analysis with her
 #                own tools, not a module of this toolkit (`docs/things_we_do_not_do.md`).
 #   survey     — tried while choosing an engine and not chosen; kept named because a later scope
@@ -24,17 +24,13 @@ channels:
 dependencies:
   - python>=3.10
 
-  # --- assembly (Phase 7, deferred) ------------------------------------------------------
-  - getorganelle=1.7.7.1 # needs a one-off seed download:
-                        # get_organelle_config.py -a embplant_pt,embplant_mt
-  - spades=4.3.0
+  # --- assembly, not yet called ----------------------------------------------------------
   - bandage=0.9.0 # graph figure; drew a PNG on a real OATK GFA in the survey. Drawing the graph
                   # is not evidence that the assembly or its IR boundary was checked (M7.2)
   - oatk=1.0 # needs an external HMM DB: github.com/c-zhou/OatkDB
   - raven-assembler=1.8.3 # long-read route (M7.6), waiting on ONT/HiFi reads
   - novoplasty # no version recorded — installed, never run with a real seed
-  - minimap2 # no version recorded — map-back, part of M7.1's read-support check
-  - samtools # no version recorded — pairs with minimap2 for the map-back check
+  - samtools # no version recorded — the map-back reads minimap2's SAM directly and does not need it
   - wgsim # no version recorded — read simulation used in the survey only
 
   # --- dating and comparative genomics (not modules) -------------------------------------

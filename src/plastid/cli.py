@@ -26,6 +26,7 @@ from typing import Any
 
 from plastid import __version__
 from plastid.core import organelle, plastid_reference, reference_audit
+from plastid.core.assembly import AssemblyError
 from plastid.core.codon import UnsupportedTranslationError
 from plastid.core.deps import ExportDependencyError
 from plastid.core.genbank import read_fasta, read_genbank
@@ -60,6 +61,7 @@ from plastid.core.panel import (
 )
 from plastid.core.rna_editing import EditingReferenceError
 from plastid.core.samples import group_of, load_groups
+from plastid.modules import assembly as assembly_step
 from plastid.modules import registry
 from plastid.report.citations import Citation, format_citation, load_citations
 from plastid.report.engine import CitationError, load_template, render
@@ -526,6 +528,67 @@ def build_parser() -> argparse.ArgumentParser:
     )
     editing_verify.add_argument(
         "--records", default=None, help="also re-hash the pinned records in this directory"
+    )
+    assemble = subparsers.add_parser(
+        "assemble",
+        help="assemble a plastome from paired short reads: here, or imported from elsewhere",
+    )
+    assemble_actions = assemble.add_subparsers(dest="assemble_action", metavar="ACTION")
+    assemble_run = assemble_actions.add_parser(
+        "run",
+        help="assemble on this machine, or read an assembly made elsewhere; both are checked "
+        "against the reads the same way",
+    )
+    assemble_prepare = assemble_actions.add_parser(
+        "prepare",
+        help="quality-control and hash the reads for a run elsewhere; nothing leaves this machine",
+    )
+    for action in (assemble_run, assemble_prepare):
+        action.add_argument("-1", "--reads-1", default=None, help="first reads (FASTQ, gzipped ok)")
+        action.add_argument("-2", "--reads-2", default=None, help="second reads")
+        action.add_argument("--sample", default=None, help="sample name for the run and outputs")
+        action.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
+        action.add_argument("--dataset", default=None, help="dataset label (default: the sample)")
+        action.add_argument(
+            "--label",
+            default=None,
+            metavar="TEXT",
+            help="data-provenance label written into every table's scope",
+        )
+        action.add_argument(
+            "--set",
+            action="append",
+            default=[],
+            metavar="KEY=VALUE",
+            help=f"step parameter, repeatable: {', '.join(assembly_step.ASSEMBLY_PARAMS)}",
+        )
+    assemble_run.add_argument(
+        "--backend",
+        choices=("auto", "local", "import"),
+        default="auto",
+        help="auto runs here when the tools and the machine allow it and otherwise stops with "
+        "the reason; local skips the resource check; import reads a run made elsewhere. "
+        "Nothing is ever sent to a service by this command",
+    )
+    assemble_run.add_argument(
+        "--reference",
+        default=None,
+        help="GenBank or FASTA sequence to compare every assembled path with",
+    )
+    assemble_run.add_argument(
+        "--prepared", default=None, help="import: the prepared.json of `plastid assemble prepare`"
+    )
+    assemble_run.add_argument(
+        "--result", default=None, help="import: the directory holding the assembler's output"
+    )
+    assemble_run.add_argument(
+        "--source-name", default=None, help="import: where it ran, e.g. usegalaxy.eu"
+    )
+    assemble_run.add_argument(
+        "--retrieved-at", default=None, help="import: the date it was retrieved, YYYY-MM-DD"
+    )
+    assemble_run.add_argument(
+        "--source-url", default=None, help="import: a link to the run, such as a history"
     )
     return parser
 
@@ -3246,6 +3309,346 @@ def _sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _assembly_params(args: argparse.Namespace) -> dict | None:
+    """The step's parameters, or None when a key was refused. A misspelling never takes effect."""
+    try:
+        params = _parse_sets(args.set or [])
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return None
+    unknown = sorted(set(params) - set(assembly_step.ASSEMBLY_PARAMS))
+    if unknown:
+        accepted = ", ".join(assembly_step.ASSEMBLY_PARAMS)
+        for key in unknown:
+            print(f"--set {key}: assemble does not take it (accepted: {accepted})", file=sys.stderr)
+        return None
+    if args.label:
+        params[DATA_LABEL_PARAM] = args.label
+    return assembly_step.resolve_params(params)
+
+
+def _read_pair(args: argparse.Namespace) -> assembly_step.ReadPair | None:
+    """The reads the command names, or None after saying what is missing."""
+    missing = [
+        flag
+        for flag, value in (("-1", args.reads_1), ("-2", args.reads_2), ("--sample", args.sample))
+        if not value
+    ]
+    if missing:
+        print(f"assemble: {' '.join(missing)} required for this action", file=sys.stderr)
+        return None
+    pair = assembly_step.ReadPair(args.sample, Path(args.reads_1), Path(args.reads_2))
+    for path in (pair.reads_1, pair.reads_2):
+        if not path.is_file():
+            print(f"assemble: {path}: no such file", file=sys.stderr)
+            return None
+    return pair
+
+
+def _assembly_route(args: argparse.Namespace) -> str:
+    """The way forward when this machine cannot run the step: the same commands, spelled out."""
+    reads = f"-1 {args.reads_1} -2 {args.reads_2} --sample {args.sample} -o {args.out}"
+    return (
+        "Nothing ran, and nothing was sent anywhere. To run the assembly on a service or a "
+        "cluster of your choice:\n"
+        f"  plastid assemble prepare {reads}\n"
+        "  (run the command it prints there, on the reads it wrote)\n"
+        f"  plastid assemble run --backend import --prepared <prepared.json> --result <dir> "
+        f"--source-name <service> --retrieved-at <YYYY-MM-DD> -o {args.out}"
+    )
+
+
+def _assembly_manifest(
+    *,
+    layout: RunLayout,
+    command: list[str],
+    params: Mapping[str, Any],
+    inputs: Sequence[Path],
+    reference_sets: Sequence[dict],
+) -> dict:
+    return build_manifest(
+        run_id=layout.run_id,
+        command=command,
+        package_version=__version__,
+        started_at=datetime.now().isoformat(timespec="seconds"),
+        params={
+            key: list(value) if isinstance(value, tuple) else value for key, value in params.items()
+        },
+        inputs=[
+            {"path": str(path), "sha256": _sha256_file(path), "bytes": path.stat().st_size}
+            for path in inputs
+        ],
+        coordinate_system={
+            "name": "assembler",
+            "rotation_offset": 0,
+            "note": "positions are on the assembled sequence as the assembler wrote it",
+        },
+        dataset=layout.dataset,
+        reference_sets=list(reference_sets),
+    )
+
+
+def _assembly_layout(out: str, dataset: str, digests: Sequence[str]) -> RunLayout:
+    fingerprint = hashlib.sha256("".join(digests).encode("utf-8")).hexdigest()
+    layout = RunLayout.create(out, dataset, fingerprint=fingerprint)
+    layout.make_dirs()
+    return layout
+
+
+def _cmd_assemble(args: argparse.Namespace) -> int:
+    if args.assemble_action == "run":
+        return _assemble_run(args)
+    if args.assemble_action == "prepare":
+        return _assemble_prepare(args)
+    print("assemble: choose an action: run or prepare", file=sys.stderr)
+    return EXIT_USAGE
+
+
+def _assemble_prepare(args: argparse.Namespace) -> int:
+    """Quality-control and hash the reads, and print what a run elsewhere has to do."""
+    params = _assembly_params(args)
+    reads = _read_pair(args)
+    if params is None or reads is None:
+        return EXIT_USAGE
+    command = ["plastid", "assemble", "prepare", "--sample", reads.sample]
+    layout = _assembly_layout(
+        args.out,
+        args.dataset or reads.sample,
+        [_sha256_file(reads.reads_1), _sha256_file(reads.reads_2), "prepare"],
+    )
+    ctx = RunContext(
+        layout=layout,
+        params=params,
+        module_id=assembly_step.MODULE_ID,
+        module_order=1,
+    )
+    manifest = _assembly_manifest(
+        layout=layout,
+        command=command,
+        params=params,
+        inputs=(reads.reads_1, reads.reads_2),
+        reference_sets=(),
+    )
+    try:
+        payload = assembly_step.prepare(reads, params, ctx)
+    except (AssemblyError, ToolError, OSError) as error:
+        return _fail(manifest, layout, ctx, assembly_step.MODULE_VERSION, str(error), EXIT_ERROR)
+    prepared = ctx.out("prepared", "json")
+    prepared.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    assembly_step.clean_work(ctx)
+    manifest["status"] = "ok"
+    manifest["modules"].append(
+        {
+            "id": assembly_step.MODULE_ID,
+            "version": assembly_step.MODULE_VERSION,
+            "status": "prepared",
+            "tools": [asdict(record) for record in ctx.tools],
+            "files": [str(prepared.relative_to(layout.run_dir))],
+        }
+    )
+    code = _finish(manifest, layout, ctx, assembly_step.MODULE_VERSION, EXIT_OK)
+    print(f"prepared: {prepared}")
+    print("Reads to give the service, hashed in that file:")
+    for entry in payload["input_reads"]:
+        print(f"  {prepared.parent / entry['path']}")
+    print("The assembler's settings, for the service's form or your cluster's command line:")
+    print(f"  {' '.join(payload['tool']['command'])}")
+    print("Then bring the output directory back:")
+    print(
+        f"  plastid assemble run --backend import --prepared {prepared} --result <dir> "
+        f"--source-name <service> --retrieved-at <YYYY-MM-DD> -o {args.out}"
+    )
+    return code
+
+
+def _assemble_run(args: argparse.Namespace) -> int:
+    """One step, two backends: everything after the assembly is the same code for both."""
+    params = _assembly_params(args)
+    if params is None:
+        return EXIT_USAGE
+    reference: Genome | None = None
+    reference_sha256: str | None = None
+    reference_sets: list[dict] = []
+    if args.reference:
+        try:
+            reference = _read_input(args.reference)
+        except (OSError, ValueError) as error:
+            print(f"{args.reference} — {error}", file=sys.stderr)
+            return EXIT_USAGE
+        reference_sha256 = _sha256_file(Path(args.reference))
+        reference_sets.append(
+            {
+                "role": "comparison_reference",
+                "path": args.reference,
+                "accession": reference.accession or reference.name,
+                "digest": reference_sha256,
+            }
+        )
+
+    if args.backend == "import":
+        required = (
+            ("--prepared", args.prepared),
+            ("--result", args.result),
+            ("--source-name", args.source_name),
+            ("--retrieved-at", args.retrieved_at),
+        )
+        missing = [flag for flag, value in required if not value]
+        if missing:
+            print(f"assemble: --backend import needs {' '.join(missing)}", file=sys.stderr)
+            return EXIT_USAGE
+        try:
+            assembled = assembly_step.assemble_imported(
+                args.prepared,
+                args.result,
+                source_name=args.source_name,
+                retrieved_at=args.retrieved_at,
+                source_url=args.source_url,
+            )
+        except (AssemblyError, OSError, ValueError) as error:
+            print(f"assemble: {error}", file=sys.stderr)
+            return EXIT_ERROR
+        layout = _assembly_layout(
+            args.out,
+            args.dataset or assembled.sample,
+            [_sha256_file(Path(args.prepared)), args.source_name],
+        )
+        ctx = RunContext(
+            layout=layout,
+            params=params,
+            module_id=assembly_step.MODULE_ID,
+            module_order=1,
+        )
+        manifest = _assembly_manifest(
+            layout=layout,
+            command=["plastid", "assemble", "run", "--backend", "import"],
+            params=params,
+            inputs=(Path(args.prepared), *assembled.mapping_reads),
+            reference_sets=reference_sets,
+        )
+        return _assembly_outcome(
+            assembled, params, ctx, manifest, layout, reference, reference_sha256
+        )
+
+    reads = _read_pair(args)
+    if reads is None:
+        return EXIT_USAGE
+    machine = assembly_step.measure_machine(Path(args.out))
+    try:
+        tools, database = assembly_step.preflight(
+            reads, params, machine=machine, check_resources=args.backend == "auto"
+        )
+    except assembly_step.BackendUnavailable as error:
+        print(f"assemble: cannot run here: {error}", file=sys.stderr)
+        print(_assembly_route(args), file=sys.stderr)
+        return EXIT_TOOL
+    layout = _assembly_layout(
+        args.out,
+        args.dataset or reads.sample,
+        [_sha256_file(reads.reads_1), _sha256_file(reads.reads_2), str(sorted(params.items()))],
+    )
+    ctx = RunContext(
+        layout=layout,
+        params=params,
+        module_id=assembly_step.MODULE_ID,
+        module_order=1,
+    )
+    manifest = _assembly_manifest(
+        layout=layout,
+        command=["plastid", "assemble", "run", "--backend", args.backend, "--sample", reads.sample],
+        params=params,
+        inputs=(reads.reads_1, reads.reads_2),
+        reference_sets=[database, *reference_sets],
+    )
+    try:
+        assembled = assembly_step.assemble_local(
+            reads, params, ctx, tools=tools, database=database, machine=machine
+        )
+    except (assembly_step.BackendUnavailable, ToolError) as error:
+        message = f"assemble: {error}\n{_assembly_route(args)}"
+        return _fail(manifest, layout, ctx, assembly_step.MODULE_VERSION, message, EXIT_TOOL)
+    except (AssemblyError, OSError) as error:
+        return _fail(manifest, layout, ctx, assembly_step.MODULE_VERSION, str(error), EXIT_ERROR)
+    return _assembly_outcome(assembled, params, ctx, manifest, layout, reference, reference_sha256)
+
+
+def _assembly_outcome(
+    assembled: assembly_step.Assembled,
+    params: Mapping[str, Any],
+    ctx: RunContext,
+    manifest: dict,
+    layout: RunLayout,
+    reference: Genome | None,
+    reference_sha256: str | None,
+) -> int:
+    """What both backends share: the evaluation, the tables, and the verdict for the next step."""
+    version = assembly_step.MODULE_VERSION
+    try:
+        evaluation = assembly_step.evaluate(
+            assembled, params, ctx, reference=reference, reference_sha256=reference_sha256
+        )
+    except ToolError as error:
+        return _fail(manifest, layout, ctx, version, str(error), EXIT_TOOL)
+    except (AssemblyError, OSError) as error:
+        return _fail(manifest, layout, ctx, version, str(error), EXIT_ERROR)
+    result = assembly_step.assembly_result(
+        assembled, evaluation, data_label=str(params.get(DATA_LABEL_PARAM, ""))
+    )
+    render_report = _with_data_label(
+        partial(
+            render,
+            load_template(f"{assembly_step.MODULE_ID}.en.md"),
+            citations=load_citations(),
+        ),
+        dict(params),
+    )
+    files = write_payload(ctx, export_files(result, render_report))
+    assembly_step.clean_work(ctx, keep=params["keep_work"])
+    manifest["files"] = [
+        {
+            "path": str(path.relative_to(layout.run_dir)),
+            "module": assembly_step.MODULE_ID,
+            "sha256": _sha256_file(path),
+            "bytes": path.stat().st_size,
+        }
+        for path in files
+    ]
+    usable = evaluation.usable
+    if usable:
+        manifest["artifacts"] = [
+            describe_artifact(
+                ctx.out("assembly", "fasta"),
+                relative_to=layout.run_dir,
+                sample_id=assembled.sample,
+                topology="circular",
+                status="ok",
+                frame="assembler",
+                format="fasta",
+            )
+        ]
+    manifest["modules"].append(
+        {
+            "id": assembly_step.MODULE_ID,
+            "version": version,
+            "status": "ok" if usable else "incomplete",
+            "backend": assembled.backend,
+            "where": assembled.where,
+            "assembly_status": assembled.status,
+            "read_support": evaluation.support,
+            "tools": [asdict(record) for record in ctx.tools],
+            "files": [str(path.relative_to(layout.run_dir)) for path in files],
+        }
+    )
+    manifest["status"] = "ok" if usable else "incomplete"
+    code = _finish(manifest, layout, ctx, version, EXIT_OK if usable else EXIT_ERROR)
+    if not usable:
+        print(
+            f"assemble: {assembled.sample}: the assembler says {assembled.status_text!r}, read "
+            f"support is {evaluation.support}: no artifact for the next step — {layout.run_dir}",
+            file=sys.stderr,
+        )
+    return code
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -3290,6 +3693,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "editing-reference":
         return _cmd_editing_reference(args)
+
+    if args.command == "assemble":
+        return _cmd_assemble(args)
 
     # Unreachable: argparse rejects unknown subcommands before this point.
     return EXIT_USAGE

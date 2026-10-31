@@ -8,11 +8,12 @@ decides which environment file carries it:
 | Role | Means | Where it is installed |
 |---|---|---|
 | `active-runtime` | called by a module, a figure or a CLI step during a normal run | `environment.yml` (or obtained separately, with the line in its own page) |
+| `assembly-runtime` | called by `plastid assemble`, and by nothing an analysis needs | `environment-assembly.yml` |
 | `cross-check` | **no module calls it**; it exists so a published number can be compared with a second program using the same definition | `environment-check.yml`, or its own page |
 | `future` | belongs to a deferred branch (assembly, dating) with no module yet | `environment-future.yml` |
 | `survey-only` | tried while choosing an engine and not chosen; kept named so a later scope decision is not mistaken for a discovery | `environment-future.yml` |
 
-`tests/unit/test_tool_inventory.py` reads this table and checks it against the code and the three
+`tests/unit/test_tool_inventory.py` reads this table and checks it against the code and the four
 environment files, in both directions: an adapter with no row fails; an `active-runtime` adapter no
 product file imports fails; a `cross-check` adapter a product file *does* import fails; and a conda
 package in any environment file that no row claims — or that sits in a file for a different role —
@@ -38,6 +39,11 @@ failure, not a placeholder.
 | `misa` | active-runtime | — (obtained separately) | 2.1 | `external/misa.py` ← `modules/ssr.py` | [misa](misa.md) |
 | `table2asn` | active-runtime | — (NCBI binary) | 1.29.324 | `modules/submission.py` (`_build_sqn`, optional `.sqn` step) | [table2asn](table2asn.md) |
 | `cpjsdraw` | active-runtime | — (obtained separately) | 0.0.1 | `external/cpjsdraw.py` ← `cli.py` (`ir-junction`) | [cpjsdraw](cpjsdraw.md) |
+| `getorganelle` | assembly-runtime | `getorganelle` | 1.7.7.1 | `external/getorganelle.py` ← `modules/assembly.py` (`plastid assemble`) | [getorganelle](getorganelle.md) |
+| `bowtie2` | assembly-runtime | `bowtie2` | 2.5.5 | run by GetOrganelle to recruit reads; located in `external/getorganelle.py` | [getorganelle](getorganelle.md) |
+| `blastn-assembly` | assembly-runtime | `blast` | 2.5.0 | run by GetOrganelle to label contigs, and resolved by the solver below the analyses' 2.17.0; located in `external/getorganelle.py` | [getorganelle](getorganelle.md) |
+| `fastp` | assembly-runtime | `fastp` | 1.4.0 | `external/fastp.py` ← `modules/assembly.py` | [fastp](fastp.md) |
+| `minimap2` | assembly-runtime | `minimap2` | 2.31 | `external/minimap2.py` ← `modules/assembly.py` | [minimap2](minimap2.md) |
 | `vmatch` | cross-check | `vmatch` | 2.3.1 | **none** — `external/vmatch.py` is called only by `tests/golden/test_tier_b.py` | [vmatch](vmatch.md) |
 | `cpstools` | cross-check | `cpstools` | 3.0 | **none** — compared by hand, recorded in its page | [cpstools](cpstools.md) |
 | `kakscalculator` | cross-check | `kakscalculator2` | 2.0.1 | **none** — reached only through cpstools' KaKs sub-command | [cpstools](cpstools.md) |
@@ -50,25 +56,24 @@ failure, not a placeholder.
 | `mcmctree` | survey-only | — (ships inside the runtime `paml` package) | 4.10.10 | **none** — the program is not a module; the package is runtime because of `yn00` | [paml](paml.md) |
 | `mreps` | survey-only | `mreps` | not recorded | **none** — a tandem-repeat finder, a class the toolkit does not publish | — |
 | `trf` | survey-only | `trf` | not recorded | **none** — same class as `mreps`; absent from this machine's PATH | — |
-| `getorganelle` | future | `getorganelle` | 1.7.7.1 | deferred — Phase 7 assembly, `docs/pipeline.md` box [1] | — |
-| `spades` | future | `spades` | 4.3.0 | deferred — Phase 7 assembly | — |
+| `spades` | assembly-runtime | `spades` | 4.3.0 | run by GetOrganelle; its version is checked in `external/getorganelle.py` | [getorganelle](getorganelle.md) |
 | `bandage` | future | `bandage` | 0.9.0 | deferred — M7.2 graph check; drawing the graph is not checking the assembly | — |
 | `oatk` | future | `oatk` | 1.0 | deferred — M7.6 long reads | — |
 | `raven` | future | `raven-assembler` | 1.8.3 | deferred — M7.6 long reads | — |
 | `novoplasty` | future | `novoplasty` | not recorded | deferred — Phase 7 assembly | — |
-| `minimap2` | future | `minimap2` | not recorded | deferred — M7.1 map-back | — |
-| `samtools` | future | `samtools` | not recorded | deferred — M7.1 map-back | — |
+| `samtools` | future | `samtools` | not recorded | deferred — the map-back reads minimap2's SAM directly and does not call it; no milestone owns it yet | — |
 | `wgsim` | future | `wgsim` | not recorded | deferred — survey of read simulation; no milestone owns it | — |
 
 **`future` is the honest word for assembly, not a promise.** Phase 7 opens on M11.4/M11.8
 acceptance; until then these tools are listed so nobody mistakes their presence for a pipeline box
 that works.
 
-## The three environments, and what each is for
+## The four environments, and what each is for
 
 | File | Contents | Who installs it |
 |---|---|---|
 | `environment.yml` | the runtime scope: every `active-runtime` tool that conda can supply | anyone running the analyses that need a tool |
+| `environment-assembly.yml` | the `assembly-runtime` tools, about 3 GB installed | anyone assembling from reads on their own machine; a run elsewhere needs only fastp and minimap2 here |
 | `environment-check.yml` | `cross-check` engines that conda can supply | someone verifying a published number |
 | `environment-future.yml` | `future` and `survey-only` tools | nobody, for this release — it is the written state of a deferred branch |
 

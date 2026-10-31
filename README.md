@@ -23,7 +23,7 @@ toolkit can call, with its role — runtime, cross-check, deferred or survey-onl
 [docs/tools/](docs/tools/).
 
 The [canonical pipeline](docs/pipeline.md) shows reference preparation, annotation, analysis and
-outputs, including deferred assembly, RNA editing (predicted, PREP-Cp-compatible) and the
+outputs, including assembly from short reads, RNA editing (predicted, PREP-Cp-compatible) and the
 integration still missing.
 
 ## Install
@@ -47,10 +47,11 @@ docker run --rm -v "$PWD:/work" plastid-suite plastid --version
 Some analyses need external tools (MAFFT, MISA, BLAST+, MUMmer, PAML…). The toolkit never bundles
 them, and never silently skips one: a missing tool stops the run and names it. What each tool is
 and how to install it: [docs/tools/](docs/tools/) — its front page lists every tool with its role
-(runtime · cross-check · deferred · survey-only). The runtime environment is `environment.yml`
-(`conda env create -f environment.yml`); the cross-check engines and the deferred assembly tools
-are in `environment-check.yml` and `environment-future.yml`, so installing the analyses never
-pulls in an assembler.
+(runtime · assembly · cross-check · deferred · survey-only). The runtime environment is
+`environment.yml` (`conda env create -f environment.yml`). The assembly tools are in
+`environment-assembly.yml`, and the cross-check engines and deferred tools in
+`environment-check.yml` and `environment-future.yml`, so installing the analyses never pulls in an
+assembler.
 
 ## Use
 
@@ -73,6 +74,21 @@ Every run gets its own directory, named by time and input, so two runs never mix
   00_run_info/           run_info.md (Materials & Methods) + the logs of every tool call
   01_genome_stats/       tables/*.csv · result.json · report.md (draft — needs human review)
 ```
+
+From paired short reads to a checked sequence (`conda env create -f environment-assembly.yml`, and
+[docs/tools/getorganelle.md](docs/tools/getorganelle.md) for the database it needs once):
+
+```bash
+plastid assemble run -1 reads_1.fastq.gz -2 reads_2.fastq.gz --sample my_sample --out .runs \
+                     --reference a_published_record.gb
+plastid annotate -i .runs/my_sample/<run>/01_assembly/assembly.fasta --out .runs
+```
+
+The reads are mapped back and every join of the circle is read: `assembly.fasta` is declared for
+the next step only when the sequence closed and the reads cross every join, and exit `1` says it
+was not. When this machine cannot run the assembly, the command stops with the reason and the
+route: `plastid assemble prepare`, the same run on a service or a cluster of your choice, and
+`--backend import` to bring the result back. The toolkit never sends reads anywhere by itself.
 
 **Exit codes**, so a script can tell the difference: `0` fine · `1` an analysis failed · `2` the run
 was refused *before* any position-based work — a wrong command line, the **IR gate** (the two

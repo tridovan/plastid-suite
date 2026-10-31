@@ -11,14 +11,15 @@
 #
 # WHAT IS AND IS NOT IN THIS FILE (M11.19, G-04). `environment.yml` is the runtime scope: every
 # entry is called by a module or a CLI step, and the role of each is in `docs/tools/README.md`.
-# Two other files carry everything else, so that installing the analyses never drags in an
+# Three other files carry everything else, so that installing the analyses never drags in an
 # assembly pipeline:
 #
-#   environment-check.yml   cross-check engines — no module calls them
-#   environment-future.yml  deferred branches (assembly, dating) and survey-only tools
+#   environment-assembly.yml  the tools `plastid assemble` runs
+#   environment-check.yml     cross-check engines — no module calls them
+#   environment-future.yml    deferred branches and survey-only tools
 #
 # A package installed in an environment is not a feature. `tests/unit/test_tool_inventory.py`
-# keeps the three files and that inventory in step, both directions.
+# keeps the four files and that inventory in step, both directions.
 #
 # Installing:  conda env create -f environment.yml
 # Windows users run the toolkit through docker/ instead.

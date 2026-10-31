@@ -13,7 +13,7 @@ golden:
 	$(UV) run pytest -q tests/golden -rs -m "not panel" --durations=25
 
 # Every test that reads `.panel/` — 80 RefSeq plastomes in 10 families, 30 PGA re-annotations,
-# rotated FASTA, the pinned reference sets. `.panel/` is gitignored, so CI never runs this tier;
+# rotated FASTA, the pinned reference sets, the assembly read sets. `.panel/` is gitignored, so CI never runs this tier;
 # run it when closing a milestone. A skip is not acceptance, so a missing panel or tool fails here.
 acceptance:
 	@test -d .panel || { echo "make acceptance: .panel/ is not in this tree"; exit 1; }

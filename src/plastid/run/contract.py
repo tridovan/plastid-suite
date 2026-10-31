@@ -37,7 +37,7 @@ ARTIFACT_SCHEMA_VERSION = 1
 EXTERNAL_RESULT_SCHEMA_VERSION = 1
 EXTERNAL_RESULT_STATUSES = ("ok", "no_result")
 
-ARTIFACT_FORMATS = ("genbank",)
+ARTIFACT_FORMATS = ("genbank", "fasta")
 ARTIFACT_STATUSES = ("ok", "cached")
 
 

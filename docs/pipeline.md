@@ -47,13 +47,12 @@ pipeline.
                       │                         │
                       │                         ▼
                       │       ┌─────────────────────────────────────┐
-                      │       │ [1] ASSEMBLY + QC  [DEFERRED]       │
+                      │       │ [1] ASSEMBLY + QC  plastid assemble │
                       │       │ short: GetOrganelle + SPAdes         │
-                      │       │ long: OATK / raven, to validate      │
                       │       │ fastp: QC short reads                │
-                      │       │ BWA/minimap2: map-back               │
-                      │       │ Bandage: graph; check joins/reads    │
+                      │       │ minimap2: map-back, read support     │
                       │       │ local first · import: web/cluster    │
+                      │       │ long reads, graph check: not yet     │
                       │       └─────────────────┬───────────────────┘
                       │                         │ FASTA + QC results
                       │                         │
@@ -166,7 +165,7 @@ pipeline.
 | 0 — reference level | `panel refresh/propose/pin`, `reference verify/loo` | Taxonomy/source cache; external data; checksum and provenance across conversion steps |
 | 0b — audit/choose ★ | `reference audit`, `annotate --audit-only`, audit exceptions by digest | Default set audits with 0 blocked (H-21 fixed: partial flags reported, annotation-first IR reported with the sequence path named); the **IR gene-mirror rule** is reported per record (a gene inside one IR copy must have its copy in the other on the opposite strand; 0/34 reference records violate it, 23/80 validation-panel records do — measured 29/10/2026); the ★ choice still enters the artifact/manifest only when the user passes it |
 | 0c — normalise DB | `gene_normalize mode=normalize`, blastp for protein ranking, GenBank artifact and pairing tables | Artifact retains sequence/locations/translations/qualifiers outside naming, has its own digest in the manifest, and leaves the pin untouched (`tests/golden/test_reference_flow.py`); audit exceptions are bound to the old file digest and do not carry over |
-| 1 — assembly/QC | Only tool survey and declaration of some dependencies | No module yet (Phase 7); designed as one step with a local and an import backend and one output artifact; real reads, seed/HMM, map-back, graph, junction support and the resource budget that decides between the two all need integration |
+| 1 — assembly/QC | `plastid assemble`: fastp → GetOrganelle → map-back with minimap2, on paired short reads, through a local backend or an import of a run made elsewhere, into one output contract. A join the reads do not cross is undetermined, and only a closed, supported sequence is declared as an artifact ([specification](tools/getorganelle.md)) | Long reads (M7.6); a graph check beyond the assembler's own (M7.2); a memory estimate from a sample's plastid share (M7.5), today a floor plus SPAdes' limit. The import route has one real run behind it, on usegalaxy.eu, on one sample |
 | 2 — annotate | `plastid annotate` calls `plastid_annotate`, batch one run per sample | The normalised DB is not yet joined automatically; feature/locus/IR length discrepancies and validation outside the family need fixing |
 | 3 — verify/ORF | `gene_normalize mode=verify`, `orf` | Verify currently reports would-change, does not write a new GenBank itself; needs stop/accept rules in the workflow and annotation preservation |
 | 4 — analyses | The modules listed below | Need a data contract per module and validation before aggregation; do not accept only through IR/gene count |

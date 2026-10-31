@@ -110,3 +110,31 @@ naming:
   # (53.76–100 % against up to 73.97 %), so identity decides nothing at that length. The name and
   # the flanking genes are what a person can check.
   trna_sequence_decides: false
+
+assembly:
+  # The settings of the published comparison this step is judged against (Jin et al. 2020,
+  # `-R 10 -k 21,55,91,127`), which closed 39 of 50 plastomes with them, and 8 more with settings
+  # chosen per sample. A k-mer longer than the reads is dropped by the assembler. The seed is its
+  # own default, stated so it travels in the argv.
+  rounds: 10
+  kmers: [21, 55, 91, 127]
+  random_seed: 12345
+  threads: 4
+  memory_gb: null # the limit given to SPAdes; null means the machine's physical memory
+  trim: yes # fastp before the assembler
+  tools: null # a directory holding the assembly tools, when they are not on PATH
+  database: null # GetOrganelle's database directory; null means GETORG_PATH, then ~/.GetOrganelle
+  keep_work: no # the assembler's working directory, tens of times the size of the result
+  extension: 1000 # bases of the sequence's start repeated after its end, in bp; must exceed a read
+  # A machine below this cannot be expected to finish even a good sample: the median peak of the
+  # 50 published runs was 4.4 GB. It is a floor and not a prediction (docs/tools/getorganelle.md).
+  min_ram_gb: 4
+  disk_factor: 7 # working disk per compressed input byte, measured on real runs
+  # The rule was measured on six sequences of known state (docs/tools/getorganelle.md): with two
+  # reads required, every correct sequence is clean, down to 22x, and every wrong join shows. Three
+  # already flags a correct plastome at 22x; a share of the depth flagged a correct one at 780x.
+  support:
+    flank: 30 # bp a read must align on each side of a boundary to count as crossing it
+    min_spanning: 2 # reads that must cross a boundary for it to count as supported
+    min_clip: 10 # read bases left unaligned before a read counts as stopping, for the report
+    clip_window: 3 # bp either side summed for the report, as a clip lands around a break

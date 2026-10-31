@@ -1,0 +1,29 @@
+# The tools `plastid assemble` runs — short reads to a plastome (Phase 7).
+#
+# A file of its own because the analyses need none of it: this environment is about 3 GB and 200
+# packages, and `environment.yml` must stay installable by someone who starts from a finished
+# genome. A user who assembles on a service or a cluster needs only fastp and minimap2 here, for the
+# reads that go out and the check of what comes back (`plastid assemble prepare`).
+#
+# VERSIONS ARE PART OF THE RESULT. Every line is the build the acceptance numbers were measured with
+# (docs/tools/getorganelle.md). `blast` sits at 2.5.0 because the solver picks that build beside
+# GetOrganelle's `tbb<=2020.2`; it only labels contigs here, and the analyses keep their own 2.17.0.
+# Python is pinned because the solver otherwise takes the newest interpreter, which GetOrganelle
+# 1.7.7.1 was never tested on.
+#
+# GetOrganelle also needs its database, fetched once:
+#   get_organelle_config.py -a embplant_pt,embplant_mt --config-dir <dir>
+#
+# Installing:  conda env create -f environment-assembly.yml
+name: plastid-suite-assembly
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - getorganelle=1.7.7.1
+  - spades=4.3.0
+  - bowtie2=2.5.5
+  - blast=2.5.0
+  - fastp=1.4.0
+  - minimap2=2.31

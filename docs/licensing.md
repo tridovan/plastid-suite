@@ -55,6 +55,11 @@ by us* — which is **none of them**.
 | **IQ-TREE** | 2.3.6 | `external/iqtree.py` (`phylogeny`, M11.21) | GPL-2.0-or-later | the IQ-TREE repository's licence, bioconda metadata | no |
 | **MACSE** | 2.07 | `external/macse.py` (`phylogeny` with `aligner=macse`, opt-in, M11.21) | **CeCILL 2.1** | the bioconda package's `info/index.json`, 28/10/2026 | no — a Java jar obtained from the bioconda package; both hashes in `docs/tools/macse.md` |
 | **PAML** (`yn00`) | 4.10.10 | `external/paml.py` (module `kaks`) | GPL-3.0-or-later | bioconda metadata (+ academic-free upstream, `docs/tools/paml.md`) | no |
+| **GetOrganelle** | 1.7.7.1 | `external/getorganelle.py` (`plastid assemble`) | GPL-3.0-or-later | bioconda metadata | no |
+| **SPAdes** | 4.3.0 | run by GetOrganelle | GPL-2.0-only | bioconda metadata | no |
+| **Bowtie2** | 2.5.5 | run by GetOrganelle | GPL-3.0-or-later | bioconda metadata | no |
+| **fastp** | 1.4.0 | `external/fastp.py` (`plastid assemble`) | MIT | bioconda metadata | no |
+| **minimap2** | 2.31 | `external/minimap2.py` (`plastid assemble`) | MIT | bioconda metadata | no |
 | **Vmatch** | 2.3.1 | `external/vmatch.py` — the *second engine* for the repeats count; never required | **academic use only** (upstream); conda metadata says `Unknown` | `docs/tools/vmatch.md` + bioconda metadata | no |
 | **table2asn** | 1.29.324 | module `submission` | NCBI converter — U.S. Government work, as BLAST+ | `docs/tools/table2asn.md`; **not independently measured** (no licence file ships with the binary) | no |
 | **perl** | 5.32.1 | runs `misa.pl` | GPL-1.0+ or Artistic-1.0-Perl | conda-forge metadata | no |

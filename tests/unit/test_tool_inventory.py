@@ -7,8 +7,8 @@ pipeline checking that an output file exists, and the same mistake at the enviro
 "the toolkit can assemble a plastome" inferred from `getorganelle=` in a dependency list.
 
 **The claim that replaces it.** `docs/tools/README.md` gives every tool one role —
-`active-runtime` · `cross-check` · `future` · `survey-only` — and a role decides which environment
-file carries it. These checks hold that claim from four directions:
+`active-runtime` · `assembly-runtime` · `cross-check` · `future` · `survey-only` — and a role
+decides which environment file carries it. These checks hold that claim from four directions:
 
 * an adapter in `src/plastid/external/` with no row fails;
 * a `cross-check` row whose adapter some module imports fails — cross-check means *nothing calls
@@ -35,17 +35,20 @@ README = ROOT / "docs" / "tools" / "README.md"
 
 ENVIRONMENTS = {
     "active-runtime": ROOT / "environment.yml",
+    "assembly-runtime": ROOT / "environment-assembly.yml",
     "cross-check": ROOT / "environment-check.yml",
     "future": ROOT / "environment-future.yml",
     "survey-only": ROOT / "environment-future.yml",
 }
-ROLES = ("active-runtime", "cross-check", "future", "survey-only")
+ROLES = ("active-runtime", "assembly-runtime", "cross-check", "future", "survey-only")
+# A runtime row is a promise that a product path calls the tool, whichever environment carries it.
+RUNTIME_ROLES = ("active-runtime", "assembly-runtime")
 
 # A package a program ships inside another conda package (PAML's `mcmctree`) is not a separate
 # line, so the package cell may only name what an environment file can actually install.
 _CONDA_NAME = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
 _ROW = re.compile(r"^\|\s*`([^`]+)`\s*\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|")
-_ADAPTER = re.compile(r"external/([a-z_]+)\.py")
+_ADAPTER = re.compile(r"external/([a-z0-9_]+)\.py")
 _NONE = ("—", "-", "none", "")
 
 
@@ -117,11 +120,11 @@ def _problems(
     for name, row in rows.items():
         if row["role"] not in ROLES:
             problems.append(f"{name}: role {row['role']!r} is not one of {ROLES}")
-        if row["role"] == "active-runtime":
+        if row["role"] in RUNTIME_ROLES:
             call_site = row["call_site"]
             if call_site in _NONE or call_site.startswith("—"):
                 problems.append(
-                    f"{name}: claims active-runtime but names no call site — either a module "
+                    f"{name}: claims {row['role']} but names no call site — either a module "
                     f"calls it and the row says where, or it is not runtime"
                 )
 
@@ -229,7 +232,7 @@ def test_every_active_runtime_adapter_is_actually_imported() -> None:
     rows = _inventory(README.read_text(encoding="utf-8"))
     missing: list[str] = []
     for name, row in rows.items():
-        if row["role"] != "active-runtime":
+        if row["role"] not in RUNTIME_ROLES:
             continue
         for adapter in _ADAPTER.findall(row["call_site"]):
             if not _importers(adapter):
