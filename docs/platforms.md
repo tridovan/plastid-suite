@@ -106,7 +106,14 @@ does not offer figures or Word reports until their extras are there. The server 
 and **115 MB** with every extra, after showing a run's figures. The work runs in a `plastid` process of
 its own, at the costs in this file. The memory, cores and free disk the page shows are what the
 assembly step measures. Under WSL2 the free disk is the virtual disk's ceiling, not what drive C: has
-left, so read that one on Windows.
+left; in the Windows image it is the drive that holds your folder.
+
+**One table depends on the Python.** On four genomes, 29 of 31 tables were identical byte for byte
+between Python 3.11 here and Python 3.12 in the image. The two `stats` tables differ because the lock
+resolves SciPy 1.17 for the first and 1.18 for the second. Where every observation in a test is
+identical, 1.17 answers p = 1.0 and 1.18 answers `nan`, which the table reports as not computable:
+307 tests with a p-value against 231, and the corrected p-values follow that count. Neither is a
+wrong number, and a run records the versions it used.
 
 The last row is the deliberate difference: `--figures` is the user asking for figures, so a missing
 plotting library stops the command; `figures` is a collection step and carries what it can, with
