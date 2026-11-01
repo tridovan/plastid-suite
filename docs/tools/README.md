@@ -13,6 +13,9 @@ decides which environment file carries it:
 | `future` | belongs to a deferred branch (assembly, dating) with no module yet | `environment-future.yml` |
 | `survey-only` | tried while choosing an engine and not chosen; kept named so a later scope decision is not mistaken for a discovery | `environment-future.yml` |
 
+`plastid tools` says which of these this machine has: it asks each tool's own adapter, so `ok` means
+a run with nothing passed by `--set` would find the tool and accept its version.
+
 `tests/unit/test_tool_inventory.py` reads this table and checks it against the code and the four
 environment files, in both directions: an adapter with no row fails; an `active-runtime` adapter no
 product file imports fails; a `cross-check` adapter a product file *does* import fails; and a conda

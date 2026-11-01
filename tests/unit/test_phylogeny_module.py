@@ -69,7 +69,7 @@ def test_a_two_genome_input_is_refused_by_name(tmp_path: Path) -> None:
             str(tmp_path),
         ]
     )
-    assert code == 1
+    assert code == 2
 
 
 def test_a_three_genome_input_is_refused_because_iqtree_cannot_bootstrap_it(tmp_path: Path) -> None:

@@ -18,8 +18,11 @@ neither, so it still refuses to load rather than being read as "no artifacts".
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
+
+from plastid.run.state import host_name
 
 __all__ = [
     "MANIFEST_SCHEMA_VERSION",
@@ -72,6 +75,9 @@ def build_manifest(
     it was: measured 09/10/2026 (P3B-09), where a failed sample's manifest named the module and
     the reason and nothing that identified the sample itself. Optional, so the manifests written
     before this key existed still validate (schema 2, unchanged — the key is additive).
+
+    ``pid`` and ``host`` let a reader tell a run in progress from one whose process died, because
+    a run killed outright cannot write that down itself. Additive too.
     """
     return {
         "schema_version": MANIFEST_SCHEMA_VERSION,
@@ -81,6 +87,8 @@ def build_manifest(
         "started_at": started_at,
         "finished_at": None,
         "status": "running",
+        "pid": os.getpid(),
+        "host": host_name(),
         "dataset": dataset,
         "params": params,
         "inputs": list(inputs),
@@ -108,7 +116,11 @@ def validate(manifest: dict[str, Any]) -> None:
 
 
 def write_manifest(path: str | Path, manifest: dict[str, Any]) -> None:
+    """Replace the manifest whole: it is rewritten while a run lasts, and read at the same time."""
     validate(manifest)
-    Path(path).write_text(
+    target = Path(path)
+    temporary = target.with_name(f"{target.name}.tmp")
+    temporary.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
+    os.replace(temporary, target)

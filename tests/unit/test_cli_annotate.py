@@ -89,7 +89,7 @@ def test_a_mito_sample_is_refused_by_name_and_nothing_is_annotated(tmp_path: Pat
             "annotate",
             "-i",
             str(sample),
-            "--reference",
+            "--reference-set",
             str(tmp_path),
             "-o",
             str(out),
@@ -107,7 +107,7 @@ def test_a_mito_fasta_is_refused_by_name_when_the_path_serves_plastids(tmp_path:
     reference.mkdir()
     _write(reference, "SYN_MITO.1.gb", MITO_RECORD)
     out = tmp_path / "runs"
-    code = main(["annotate", "-i", str(sample), "--reference", str(reference), "-o", str(out)])
+    code = main(["annotate", "-i", str(sample), "--reference-set", str(reference), "-o", str(out)])
     assert code == 2
     assert not _artifacts(out)
 
@@ -127,12 +127,12 @@ def test_a_reference_set_that_is_not_there_says_how_to_supply_one(
         reference.mkdir()
     out = tmp_path / "runs"
 
-    code = main(["annotate", "-i", str(sample), "--reference", str(reference), "-o", str(out)])
+    code = main(["annotate", "-i", str(sample), "--reference-set", str(reference), "-o", str(out)])
 
     message = capsys.readouterr().err
     assert code == 3
     assert str(reference) in message
-    assert "--reference" in message
+    assert "--reference-set" in message
     assert "plastid panel pin" in message
     assert "run directory" not in message
     assert not out.exists()
@@ -141,16 +141,16 @@ def test_a_reference_set_that_is_not_there_says_how_to_supply_one(
 def test_an_audit_of_a_reference_set_that_is_not_there_says_the_same(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """`--audit-only` reads the same directory, so it owes the same answer."""
+    """`plastid reference audit` reads the same directory, so it owes the same answer."""
     reference = tmp_path / "reference"
 
     code = main(
-        ["annotate", "--audit-only", "--reference", str(reference), "-o", str(tmp_path / "runs")]
+        ["reference", "audit", "--reference-set", str(reference), "-o", str(tmp_path / "runs")]
     )
 
     message = capsys.readouterr().err
     assert code == 3
-    assert "--reference" in message
+    assert "--reference-set" in message
     assert "plastid panel pin" in message
 
 
@@ -169,7 +169,7 @@ def test_a_batch_that_mixes_two_organelles_stops_before_annotating_any_of_them(
             str(plastid),
             "-i",
             str(mito),
-            "--reference",
+            "--reference-set",
             str(tmp_path),
             "-o",
             str(out),
@@ -180,12 +180,11 @@ def test_a_batch_that_mixes_two_organelles_stops_before_annotating_any_of_them(
     assert not _artifacts(out)
 
 
-def test_audit_only_needs_no_sample_and_a_batch_needs_one(
+def test_the_audit_needs_no_sample_and_annotation_needs_one(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """``--audit-only`` is the flag P3B-03 left for this command: fix and re-check the set
-    **without annotating anything** (D5-08) — so it must not demand a sample. Without it, a run
-    with no sample is a usage error rather than an empty success.
+    """Fixing and re-checking a set annotates nothing, so `plastid reference audit` takes no
+    sample. Without one, `plastid annotate` is a usage error rather than an empty success.
 
     The set is named here rather than left to the checkout's default: a tree without the pinned
     panel must still answer the question this test asks (measured on CI, 27/10/2026: the default
@@ -197,10 +196,10 @@ def test_audit_only_needs_no_sample_and_a_batch_needs_one(
 
     audit = main(
         [
-            "annotate",
-            "--audit-only",
+            "reference",
+            "audit",
             "--no-confirm",
-            "--reference",
+            "--reference-set",
             str(reference),
             "-o",
             str(tmp_path / "runs"),
@@ -208,11 +207,12 @@ def test_audit_only_needs_no_sample_and_a_batch_needs_one(
     )
     message = capsys.readouterr()
     assert audit == 2  # this synthetic record blocks the audit; the run is not a usage refusal
-    assert "input is required" not in message.err
     assert "reference audit" in message.out + message.err
 
-    assert main(["annotate", "-o", str(tmp_path / "runs2")]) == 2
-    assert "input is required" in capsys.readouterr().err
+    with pytest.raises(SystemExit) as stopped:
+        main(["annotate", "-o", str(tmp_path / "runs2")])
+    assert stopped.value.code == 2
+    assert "--input" in capsys.readouterr().err
 
 
 def _stub(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -283,7 +283,7 @@ def test_a_failed_sample_is_marked_and_named_without_killing_the_batch(
             str(good),
             "-i",
             str(broken),
-            "--reference",
+            "--reference-set",
             str(references),
             "-o",
             str(out),
@@ -326,7 +326,7 @@ def test_every_sample_of_a_batch_gets_its_own_run_directory_and_artifact(
                 str(first),
                 "-i",
                 str(second),
-                "--reference",
+                "--reference-set",
                 str(references),
                 "-o",
                 str(out),
@@ -361,7 +361,7 @@ def test_the_run_records_the_artifact_and_the_reference_set_it_searched(
     _write(references, "REF.1.gb", PLASTID_RECORD)
     out = tmp_path / "runs"
 
-    code = main(["annotate", "-i", str(sample), "--reference", str(references), "-o", str(out)])
+    code = main(["annotate", "-i", str(sample), "--reference-set", str(references), "-o", str(out)])
 
     assert code == 0
     manifest = json.loads(next(out.glob("**/manifest.json")).read_text(encoding="utf-8"))
@@ -397,7 +397,7 @@ def test_a_reference_set_that_excludes_everything_is_refused_not_recorded_empty(
             "annotate",
             "-i",
             str(sample),
-            "--reference",
+            "--reference-set",
             str(references),
             "--exclude",
             "REF.1",
@@ -449,7 +449,7 @@ def test_reannotate_yes_makes_replacing_an_external_annotation_explicit(
             "annotate",
             "-i",
             str(sample),
-            "--reference",
+            "--reference-set",
             str(references),
             "--set",
             "reannotate=yes",

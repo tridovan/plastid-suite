@@ -343,8 +343,6 @@ def _import(bench: Bench, prepared: Path, result: Path) -> int:
     return main(
         [
             "assemble",
-            "run",
-            "--backend",
             "import",
             "--prepared",
             str(prepared),
@@ -389,7 +387,7 @@ def test_an_import_with_no_log_is_refused(bench: Bench, capsys: pytest.CaptureFi
     prepared = _prepare(bench)
     result = _result(bench)
     (result / "oatk.log").unlink()
-    assert _import(bench, prepared, result) == 1
+    assert _import(bench, prepared, result) == 2
     assert "keep Oatk's stderr" in capsys.readouterr().err
 
 
@@ -398,5 +396,5 @@ def test_an_import_of_changed_reads_is_refused(
 ) -> None:
     prepared = _prepare(bench)
     bench.reads.write_bytes(gzip.compress(b"@r\nC\n+\nI\n"))
-    assert _import(bench, prepared, _result(bench)) == 1
+    assert _import(bench, prepared, _result(bench)) == 2
     assert "not the input the imported result was asked for" in capsys.readouterr().err

@@ -43,7 +43,7 @@ def _stub(directory: Path, output: str = STUB_OUTPUT) -> Path:
 def _run(tmp_path: Path, ir: IRResult | None, tools: Path, genome: Genome | None = None):
     layout = RunLayout.create(tmp_path / "run", "unit", fingerprint="test")
     layout.make_dirs()
-    params = {"repeats": str(tools)}
+    params = {"mummer": str(tools)}
     context = RunContext(layout=layout, params=params, module_id="repeats", module_order=1, ir=ir)
     return repeats.run(genome or read_genbank(DATA / "NC_050833.1.gb"), params, context)
 
@@ -88,7 +88,7 @@ def test_the_floor_reaches_the_tool_and_the_label(tmp_path: Path, golden_ir: IRR
     layout = RunLayout.create(tmp_path / "run", "unit", fingerprint="test")
     layout.make_dirs()
     stub = _stub(tmp_path / "bin", output="  83128  153724r  26214\n")
-    params = {"repeats": str(stub), "min_length_bp": 50}
+    params = {"mummer": str(stub), "min_length_bp": 50}
     context = RunContext(
         layout=layout, params=params, module_id="repeats", module_order=1, ir=golden_ir
     )

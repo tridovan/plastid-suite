@@ -65,15 +65,15 @@ def annotated(
     assert (
         main(
             [
-                "run",
-                "-m",
-                "plastid_annotate",
+                "annotate",
                 "-i",
                 str(data_dir / f"{GOLDEN}.gb"),
                 "-o",
                 str(out / "runs"),
+                "--reference-set",
+                str(PANEL),
                 "--set",
-                f"reference={PANEL}",
+                "reannotate=yes",
                 # The whole pinned set is searched: H-21 was fixed in M11.10, so NC_024936.1 —
                 # whose rps19 carries an inverted-repeat partial flag over a complete 92 aa
                 # translation — is REPORTed by the audit instead of blocked. The target's own
@@ -193,7 +193,7 @@ def test_the_audit_gate_stops_the_run_on_a_record_it_blocks(
             "annotate",
             "-i",
             str(data_dir / f"{GOLDEN}.gb"),
-            "--reference",
+            "--reference-set",
             str(reference_dir),
             "--set",
             "reannotate=yes",

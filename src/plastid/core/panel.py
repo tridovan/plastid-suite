@@ -5,8 +5,8 @@ records. The user picks the final list; pinning downloads the chosen genomes and
 their checksums, so every later run works offline and stays reproducible.
 
 Tiers: 0 same species · 1 same genus · 2 same family (different genus) · 3 same order
-(different family). Mode A takes everything at one level (family by default); mode B takes
-up to ``per_tier`` representatives per tier.
+(different family). Mode ``all`` takes everything at one level (family by default); mode ``tiers``
+takes up to ``per_tier`` representatives per tier.
 """
 
 from __future__ import annotations
@@ -23,10 +23,13 @@ from plastid.core.ir import IRDetectionError, IRGateError, detect_ir, enforce_ir
 from plastid.core.model import Genome, count_genes
 
 __all__ = [
+    "DEFAULT_PROPOSAL_MODE",
     "IndexSnapshot",
     "PanelCandidate",
     "PanelEntry",
     "PanelProposal",
+    "PROPOSAL_LEVELS",
+    "PROPOSAL_MODES",
     "PinnedGenome",
     "entries_from_summaries",
     "load_index",
@@ -36,6 +39,10 @@ __all__ = [
     "save_index",
     "tier_of",
 ]
+
+PROPOSAL_MODES = ("all", "tiers")
+DEFAULT_PROPOSAL_MODE = "tiers"
+PROPOSAL_LEVELS = ("species", "genus", "family", "order")
 
 TIER_LABELS = {
     0: "same species",
@@ -79,8 +86,8 @@ class PanelCandidate:
 @dataclass(frozen=True, slots=True)
 class PanelProposal:
     target: PanelEntry
-    mode: str  # "A" | "B"
-    level: str  # the level used by mode A
+    mode: str  # one of PROPOSAL_MODES
+    level: str  # the level used by mode `all`
     candidates: tuple[PanelCandidate, ...]
     notes: tuple[str, ...] = ()
 
@@ -181,7 +188,7 @@ def tier_of(target: PanelEntry, entry: PanelEntry) -> int | None:
 
 
 def _passes_quality(entry: PanelEntry, min_length: int) -> bool:
-    """The three manual criteria of mode A: RefSeq · complete genome · annotated."""
+    """The three manual criteria of mode `all`: RefSeq · complete genome · annotated."""
     return entry.refseq and entry.length >= min_length and entry.annotated
 
 
@@ -189,7 +196,7 @@ def propose(
     snapshot: IndexSnapshot,
     target_accession: str,
     *,
-    mode: str = "B",
+    mode: str = DEFAULT_PROPOSAL_MODE,
     level: str = "family",
     per_tier: int = 3,
     min_length: int = DEFAULT_MIN_LENGTH,
@@ -210,16 +217,16 @@ def propose(
     if dropped:
         notes.append(f"{dropped} candidate(s) dropped: not RefSeq, too short, or unannotated")
 
-    if mode == "A":
+    if mode == "all":
         ceiling = {"species": 0, "genus": 1, "family": 2, "order": 3}.get(level)
         if ceiling is None:
-            raise ValueError(f"mode A needs level in species/genus/family/order, got {level!r}")
+            raise ValueError(f"mode all needs level in species/genus/family/order, got {level!r}")
         # "Everything at family level" includes same-genus and same-species records.
         candidates = [candidate for candidate in scored if candidate.tier <= ceiling]
         notes.append(
-            f"mode A: everything at {level} level or closer ({len(candidates)} candidate(s))"
+            f"mode all: everything at {level} level or closer ({len(candidates)} candidate(s))"
         )
-    elif mode == "B":
+    elif mode == "tiers":
         candidates = []
         for tier in sorted({candidate.tier for candidate in scored}):
             in_tier = sorted(
@@ -227,9 +234,9 @@ def propose(
                 key=lambda candidate: candidate.entry.accession,
             )
             candidates.extend(in_tier[:per_tier])
-        notes.append(f"mode B: up to {per_tier} representatives per tier")
+        notes.append(f"mode tiers: up to {per_tier} representatives per tier")
     else:
-        raise ValueError(f"unknown mode {mode!r} — use 'A' or 'B'")
+        raise ValueError(f"unknown mode {mode!r} — use 'all' or 'tiers'")
 
     candidates.sort(key=lambda candidate: (candidate.tier, candidate.entry.accession))
     return PanelProposal(

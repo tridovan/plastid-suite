@@ -64,7 +64,7 @@ def cpjsdraw_script(explicit: str | Path | None = None) -> Path:
     if explicit is not None:
         path = Path(explicit)
         if not path.is_file():
-            raise ToolError(f"cpjsdraw: --set cpjsdraw={explicit} is not a file — {CPJSDRAW_DOC}")
+            raise ToolError(f"cpjsdraw: --cpjsdraw {explicit} is not a file — {CPJSDRAW_DOC}")
         return path
     found = which(_SCRIPT_NAME)
     if found is None:
@@ -72,7 +72,7 @@ def cpjsdraw_script(explicit: str | Path | None = None) -> Path:
             f"cpjsdraw: {_SCRIPT_NAME} not found — CPJSdraw is not bundled with this toolkit, "
             f"because its source states no licence. Clone it and apply the two patches with the "
             f"lines in {CPJSDRAW_DOC}, put it on PATH, or pass "
-            f"--set cpjsdraw=/path/to/{_SCRIPT_NAME}"
+            f"--cpjsdraw /path/to/{_SCRIPT_NAME}"
         )
     return Path(found)
 

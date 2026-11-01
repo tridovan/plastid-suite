@@ -26,7 +26,7 @@ both the seed and the label database. The run checks each FASTA against the sha2
 ## The step
 
 ```sh
-plastid assemble run -1 R1.fastq.gz -2 R2.fastq.gz --sample NAME --out .runs [--reference REF.gb]
+plastid assemble run -1 R1.fastq.gz -2 R2.fastq.gz --sample NAME --out .runs [--compare-to REF.gb]
 ```
 
 | Stage | Tool | Output |
@@ -35,7 +35,7 @@ plastid assemble run -1 R1.fastq.gz -2 R2.fastq.gz --sample NAME --out .runs [--
 | Assembly | GetOrganelle, driving Bowtie2, SPAdes and BLAST+ | paths, graph, log |
 | Read support | minimap2 ([page](minimap2.md)) on the raw reads, read by `core/assembly.py` | `junction_support`, `weak_regions` |
 | The graph | `core/assembly_graph.py`, no external tool | `assembly_graph`, `graph_segments` |
-| Comparison, with `--reference` | `core/assembly.py`, no external tool | `reference_comparison`, `reference_differences` |
+| Comparison, with `--compare-to` | `core/assembly.py`, no external tool | `reference_comparison`, `reference_differences` |
 
 The assembler's invocation, with the defaults from `src/plastid/data/defaults.yaml`:
 
@@ -65,7 +65,7 @@ person to read.
 
 **Two paths are the normal result.** A plastome with an inverted repeat has two isomers, because the
 small single-copy region recombines between the copies, and reads shorter than the repeat cannot
-tell them apart. Both are kept. `assembly.fasta` is the first, and when `--reference` is given
+tell them apart. Both are kept. `assembly.fasta` is the first, and when `--compare-to` is given
 `reference_comparison` says which path is that record. More than two is a different state, and is
 what [the graph](#the-graph) is read for.
 
@@ -232,13 +232,13 @@ swapped order, so the published orientation is path 2 there, and the comparison 
 
 ## Local first, import second
 
-`--backend auto` runs here when the tools, the database and the machine allow it. Otherwise it stops
-with the reason and the route, and nothing has run or been sent anywhere:
+`plastid assemble run` runs here when the tools, the database and the machine allow it. Otherwise it
+stops with the reason and the route, and nothing has run or been sent anywhere:
 
 ```sh
 plastid assemble prepare -1 R1.fastq.gz -2 R2.fastq.gz --sample NAME --out .runs
 # run the printed command on a service or a cluster, on the reads it wrote, then:
-plastid assemble run --backend import --prepared prepared.json --result DIR \
+plastid assemble import --prepared prepared.json --result DIR \
     --source-name usegalaxy.eu --retrieved-at YYYY-MM-DD --out .runs
 ```
 
@@ -326,8 +326,8 @@ half minutes.
 On the first, 20 M words left it open and 30 and 35 M closed it, so the limit can decide the result on
 a sample like these. 32 of the 50 published runs never reach this machine's limit. A run that stays
 open at its limit needs more memory, or the import route, whose prepared command sets no limit because
-a service has its own memory. `--backend auto` still checks a floor (`min_ram_gb`) and disk
-(`disk_factor`). One published run of the 50, `SRR5602577`, peaked above 7 GB in a stage this limit
+a service has its own memory. `plastid assemble run` still checks a floor (`min_ram_gb`) and disk
+(`disk_factor`), unless `--skip-resource-check` is given. One published run of the 50, `SRR5602577`, peaked above 7 GB in a stage this limit
 does not touch: grouping reads, 8.4 GB.
 
 Citation: Jin J-J, Yu W-B, Yang J-B, Song Y, dePamphilis CW, Yi T-S, Li D-Z. *Genome Biology* 21:241

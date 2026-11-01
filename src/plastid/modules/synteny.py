@@ -28,10 +28,11 @@ from plastid.core.model import Genome
 from plastid.core.normalize import normalize
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mummer import run_nucmer
-from plastid.modules.registry import ParamSpec, module
+from plastid.modules.registry import GROUP_LABELS, ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
+from plastid.run.params import check_window
 
 MODULE_ID = "synteny"
 MODULE_VERSION = "0.1.0"
@@ -46,14 +47,15 @@ MODULE_VERSION = "0.1.0"
     arity=2,
     citations=("mummer",),
     params=(
-        ParamSpec("window", "int", "window length in bp for the %identity series"),
-        ParamSpec("step", "int", "window step in bp"),
-        ParamSpec("min_match", "int", "nucmer -l: minimum exact match length"),
-        ParamSpec("min_cluster", "int", "nucmer -c: minimum cluster length"),
-        ParamSpec("filter", "str", "delta-filter mode (the toolkit default is -1)"),
-        ParamSpec("mummer", "str", "directory holding nucmer/delta-filter/show-coords"),
-        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+        ParamSpec("window", "int", "window length in bp for the %identity series", default=600),
+        ParamSpec("step", "int", "window step in bp", default=200),
+        ParamSpec("min_match", "int", "nucmer -l: minimum exact match length", default=20),
+        ParamSpec("min_cluster", "int", "nucmer -c: minimum cluster length", default=65),
+        ParamSpec("filter", "str", "delta-filter mode", default="-1"),
+        ParamSpec("mummer", "dir", "directory holding nucmer, delta-filter and show-coords"),
+        GROUP_LABELS,
     ),
+    tools=("mummer4",),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
@@ -63,6 +65,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     defaults = load_defaults()["synteny"]
     window = int(params.get("window", defaults["window_bp"]))
     step = int(params.get("step", defaults["step_bp"]))
+    check_window(window, step)
     min_match = int(params.get("min_match", defaults["min_match"]))
     min_cluster = int(params.get("min_cluster", defaults["min_cluster"]))
     filter_mode = str(params.get("filter", defaults["filter"]))

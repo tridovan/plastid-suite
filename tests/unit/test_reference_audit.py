@@ -687,12 +687,14 @@ def test_the_cli_blocks_a_set_and_the_manifest_carries_the_reason(tmp_path: Path
     (panel / "Iris_hermona_pga.gb").write_bytes(PGA_HERMONA.read_bytes())
     out = tmp_path / "runs"
 
-    code = main(["reference", "audit", "--panel", str(panel), "--out", str(out), "--no-confirm"])
+    code = main(
+        ["reference", "audit", "--reference-set", str(panel), "--out", str(out), "--no-confirm"]
+    )
 
     assert code == EXIT_USAGE
     run_dir = next((out / "refs").iterdir())
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["status"] == "failed"
+    assert manifest["status"] == "refused"
     assert "no /translation" in manifest["modules"][0]["error"]
     assert manifest["modules"][0]["status"] == "failed"
     assert (
@@ -712,7 +714,9 @@ def test_the_cli_audits_a_clean_set_and_writes_the_report(tmp_path: Path) -> Non
     (panel / "golden.gb").write_bytes(GOLDEN.read_bytes())
     out = tmp_path / "runs"
 
-    code = main(["reference", "audit", "--panel", str(panel), "--out", str(out), "--no-confirm"])
+    code = main(
+        ["reference", "audit", "--reference-set", str(panel), "--out", str(out), "--no-confirm"]
+    )
 
     assert code == EXIT_OK
     run_dir = next((out / "refs").iterdir())
@@ -735,7 +739,7 @@ def test_the_confirm_exception_door_pins_a_digest_the_person_never_types(tmp_pat
         [
             "reference",
             "audit",
-            "--panel",
+            "--reference-set",
             str(panel),
             "--confirm-exception",
             "record.gb:orientation",

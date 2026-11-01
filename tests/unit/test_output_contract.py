@@ -416,7 +416,12 @@ def test_a_figure_refresh_drops_a_manifest_entry_whose_file_is_gone(
         "_render_output_figures",
         lambda *args, **kwargs: cli.OutputFigures((), (), (), ()),
     )
-    assert cli._cmd_figures(SimpleNamespace(run=str(run), figure=None, sets=[])) == cli.EXIT_ERROR
+    assert (
+        cli._cmd_figures(
+            SimpleNamespace(run=str(run), figure=None, sets=[], list=False, json=False)
+        )
+        == cli.EXIT_ERROR
+    )
 
     written = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
     assert written["files"] == []
@@ -463,7 +468,12 @@ def test_a_figure_refresh_updates_the_manifest_digest_of_a_rewritten_file(
         "_render_output_figures",
         lambda *args, **kwargs: cli.OutputFigures((figure,), (), (), ()),
     )
-    assert cli._cmd_figures(SimpleNamespace(run=str(run), figure=None, sets=[])) == cli.EXIT_OK
+    assert (
+        cli._cmd_figures(
+            SimpleNamespace(run=str(run), figure=None, sets=[], list=False, json=False)
+        )
+        == cli.EXIT_OK
+    )
 
     written = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
     (entry,) = written["files"]

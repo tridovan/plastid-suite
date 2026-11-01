@@ -78,10 +78,11 @@ ALIGNER = f"MAFFT {mafft.MAFFT_VERSION} {' '.join(mafft.PROTEIN_ARGV)} --add"
         ParamSpec(
             "cutoff",
             "float",
-            "PREP cutoff C in [0, 1]: a site is reported when its edited state scores >= C "
-            "(default 0.8, Mower 2009's optimum for seed-plant chloroplasts)",
+            "PREP cutoff C in [0, 1]: a site is reported when its edited state scores at least C",
+            default=DEFAULT_CUTOFF,
         ),
     ),
+    tools=("mafft",),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     try:

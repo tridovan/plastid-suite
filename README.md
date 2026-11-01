@@ -83,13 +83,13 @@ From paired short reads to a checked sequence (`conda env create -f environment-
 
 ```bash
 plastid assemble run -1 reads_1.fastq.gz -2 reads_2.fastq.gz --sample my_sample --out .runs \
-                     --reference a_published_record.gb
+                     --compare-to a_published_record.gb
 plastid annotate -i .runs/my_sample/<run>/01_assembly/assembly.fasta --out .runs \
-                 --reference a_directory_of_genbank_records
+                 --reference-set a_directory_of_genbank_records
 ```
 
 The toolkit ships no plastid records: `annotate` transfers from a directory of GenBank records you
-supply, same family first, and `plastid panel pin --accessions A,B,C --out that_directory` fetches
+supply, same family first, and `plastid panel pin --accessions A,B,C --to that_directory` fetches
 and pins one.
 
 PacBio HiFi reads take `--hifi reads.fastq.gz` in place of `-1`/`-2`
@@ -99,14 +99,35 @@ The reads are mapped back and every join of the circle is read: `assembly.fasta`
 the next step only when the sequence closed and the reads cross every join, and exit `1` says it
 was not. When this machine cannot run the assembly, the command stops with the reason and the
 route: `plastid assemble prepare`, the same run on a service or a cluster of your choice, and
-`--backend import` to bring the result back. The toolkit never sends reads anywhere by itself.
+`plastid assemble import` to bring the result back. The toolkit never sends reads anywhere by itself.
 
-**Exit codes**, so a script can tell the difference: `0` fine · `1` an analysis failed · `2` the run
-was refused *before* any position-based work — a wrong command line, the **IR gate** (the two
-inverted-repeat copies are not ≥ 99.9 % identical: see
-[docs/things_we_do_not_do.md](docs/things_we_do_not_do.md)) or the reference-set audit · `3` a tool
-or an optional package is missing, and the message names it · `4` a naming conflict — the data
-disagrees with the chosen naming reference. A refused run still leaves its directory, saying why.
+The command line can tell you what it has, without the documents:
+
+```bash
+plastid modules          # every analysis; `plastid modules ssr` shows one, with its parameters
+plastid tools            # which external tools this machine has, and their versions
+plastid runs             # what has been run, and how each run ended
+```
+
+Add `--json` to any of the three for a script. A run is on disk from its first moment: its
+`manifest.json` says `running`, moves with each step and holds the command that was typed, so the
+same run can be repeated from it. Ctrl-C or a terminate signal stops the run and every tool it
+started, and the directory says `cancelled` and keeps what had finished. A run that died without
+warning reads as `interrupted` in `plastid runs`.
+
+**Exit codes**, so a script can tell the difference. The status is the word in `manifest.json`:
+
+| Code | Status | Meaning |
+|---|---|---|
+| `0` | `ok` | finished |
+| `1` | `failed` | the work started and did not finish, or a check found a problem |
+| `2` | `refused` | nothing was computed: a wrong command line, an input that cannot be read, the **IR gate** (the two inverted-repeat copies are not ≥ 99.9 % identical: see [docs/things_we_do_not_do.md](docs/things_we_do_not_do.md)) or the reference-set audit |
+| `3` | `tool_error` | a tool or an optional package is missing or failed, and the message names it |
+| `4` | `conflict` | the data disagrees with the chosen naming reference |
+| `130` | `cancelled` | stopped on request; what had finished stays in the run directory |
+
+A refused run that reached its directory leaves it, saying why. An assembly that leaves no usable
+sequence exits `1` with the status `incomplete`.
 
 ## Verify
 

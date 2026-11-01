@@ -12,8 +12,19 @@ the refused value.
 
 from __future__ import annotations
 
-__all__ = ["ParamValueError"]
+__all__ = ["ParamValueError", "check_window"]
 
 
 class ParamValueError(ValueError):
     """A declared parameter was given a value the module cannot honour."""
+
+
+def check_window(window: int, step: int) -> None:
+    """A sliding window may overlap itself but may not skip sequence between two windows."""
+    if window <= 0 or step <= 0:
+        raise ParamValueError(f"window and step must be positive, got {window} and {step}")
+    if step > window:
+        raise ParamValueError(
+            f"step {step} exceeds window {window} — sequence between windows would be skipped; "
+            f"set a smaller step or a larger window"
+        )

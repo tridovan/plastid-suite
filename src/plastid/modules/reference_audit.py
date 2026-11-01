@@ -5,7 +5,7 @@ This file sits in ``modules/`` because that is where this project turns an analy
 module registry and does not follow ``run(genome, params, ctx)``. The audit's input is a *set of
 files*, not a genome: a record it cannot parse is one of the things it has to report, so it can
 never be handed to the reader that would refuse it first. Its driver is ``plastid reference
-audit`` (and, from P3B-09, ``plastid annotate --audit-only``), which owns the run directory and
+audit``, which owns the run directory and
 hands the audit a context for the aligner call.
 
 Nothing here decides anything: every verdict is :mod:`plastid.core.reference_audit`'s, and the

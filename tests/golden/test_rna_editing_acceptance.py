@@ -164,9 +164,9 @@ def test_reference_b_prime_rebuilds_byte_for_byte(
             "build",
             "--records",
             str(B_PRIME_RECORDS),
-            "--out",
+            "--to",
             str(out),
-            "--runs",
+            "--out",
             str(tmp_path / "runs"),
         ]
     )

@@ -30,7 +30,7 @@ from plastid.core.model import Genome, coding_sequence
 from plastid.core.normalize import normalize
 from plastid.core.organelle import GROUP_SHARED
 from plastid.external.mafft import align
-from plastid.modules.registry import ParamSpec, module
+from plastid.modules.registry import GROUP_LABELS, MAFFT_STRATEGY, ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -57,15 +57,17 @@ DEFAULT_SCOPE = "whole"
     citations=("mafft",),
     params=(
         ParamSpec(
-            "scope", "str", "cds (shared annotated genes) or whole (the entire aligned plastome)"
-        ),
-        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
-        ParamSpec(
-            "mafft_strategy",
+            "scope",
             "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
+            "cds reads the annotated genes the genomes share; whole reads the entire aligned "
+            "plastome",
+            default=DEFAULT_SCOPE,
+            choices=("whole", "cds"),
         ),
+        GROUP_LABELS,
+        MAFFT_STRATEGY,
     ),
+    tools=("mafft",),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     reference = genomes[0]
@@ -248,7 +250,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             "Ts/Tv is blank when no transversion was found: it is undefined, not infinite.",
             "The golden Ts/Tv has the narrower scope: CDS only, shared genes, IR excluded.",
             "substitutions_by_type holds the twelve directed changes the transitions and "
-            "transversions totals are summed from; a manuscript's six complementary pairs "
+            "transversions totals are summed from; a paper's six complementary pairs "
             "(A↔G, C↔T, A↔C, T↔G, C↔G, A↔T) are two rows each.",
         ),
         citations=("mafft",),
@@ -433,7 +435,7 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
         "CDS scope: the genes the genomes share, one copy each (the inverted repeat is "
         "therefore counted once), aligned gene by gene — the scope fixed for the golden Ts/Tv.",
         "A gene one genome does not carry is not in this table: this scope compares shared "
-        "coding sequence, and a missing gene is a different finding (Phase 3's).",
+        "coding sequence, and a missing gene is a different finding.",
         "Ts/Tv is blank when no transversion was found: it is undefined, not infinite.",
     ]
     if unannotated:

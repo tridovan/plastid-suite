@@ -40,7 +40,7 @@ def test_cli_panel_pin_needs_accessions_or_groups() -> None:
 def test_cli_panel_pin_reports_a_missing_groups_file(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["panel", "pin", "--groups", str(tmp_path / "nope.yaml")]) == 1
+    assert main(["panel", "pin", "--groups", str(tmp_path / "nope.yaml")]) == 2
     assert "nope.yaml" in capsys.readouterr().err
 
 
@@ -55,7 +55,7 @@ def test_cli_panel_pin_reports_malformed_groups_yaml(
 ) -> None:
     path = tmp_path / "groups.yaml"
     path.write_text("a: [\n", encoding="utf-8")
-    assert main(["panel", "pin", "--groups", str(path)]) == 1
+    assert main(["panel", "pin", "--groups", str(path)]) == 2
     assert "invalid YAML" in capsys.readouterr().err
 
 
@@ -72,7 +72,7 @@ def test_cli_panel_pin_fails_when_a_record_cannot_be_read(
             return "this is not a GenBank file"
 
     monkeypatch.setattr("plastid.cli.NcbiClient", FakeClient)
-    code = main(["panel", "pin", "--accessions", "XX_000000.1", "--out", str(tmp_path)])
+    code = main(["panel", "pin", "--accessions", "XX_000000.1", "--to", str(tmp_path)])
 
     assert code == 1
     captured = capsys.readouterr()
@@ -181,7 +181,7 @@ def test_cli_run_reports_an_input_with_no_group_label(
             "ir_source=sequence",
         ]
     )
-    assert code == 1
+    assert code == 2
     assert "no group for NC_024936.1" in capsys.readouterr().err
 
 
@@ -225,7 +225,7 @@ def test_cli_panel_pin_resolves_an_accession_the_index_cannot_hold(
             return golden
 
     monkeypatch.setattr("plastid.cli.NcbiClient", FakeClient)
-    code = main(["panel", "pin", "--accessions", "PX923121.1", "--out", str(tmp_path)])
+    code = main(["panel", "pin", "--accessions", "PX923121.1", "--to", str(tmp_path)])
 
     assert code == 0
     assert "resolved live" in capsys.readouterr().out
@@ -278,5 +278,5 @@ def test_cli_run_refuses_an_empty_input(tmp_path: Path, capsys: pytest.CaptureFi
     error must say that, not name whichever reader a default would have picked."""
     empty = tmp_path / "empty.fasta"
     empty.write_text("\n\n", encoding="utf-8")
-    assert main(["run", "-m", "genome_stats", "-i", str(empty), "--out", str(tmp_path)]) == 1
+    assert main(["run", "-m", "genome_stats", "-i", str(empty), "--out", str(tmp_path)]) == 2
     assert "empty file" in capsys.readouterr().err

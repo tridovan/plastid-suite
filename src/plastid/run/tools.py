@@ -7,7 +7,10 @@ CGAS's failure mode was six different call styles and tool versions thrown away.
 
 from __future__ import annotations
 
+import contextlib
+import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -17,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-__all__ = ["ToolError", "ToolRecord", "run_tool", "tool_version", "which"]
+__all__ = ["RunCancelled", "ToolError", "ToolRecord", "run_tool", "tool_version", "which"]
 
 # Flags tried in order. ``-version`` was added 03/10/2026 after measuring BLAST+: it accepts only
 # the single-dash spelling and exits 1 for ``--version``, ``-v`` and ``-V`` — so the version of the
@@ -25,10 +28,20 @@ __all__ = ["ToolError", "ToolRecord", "run_tool", "tool_version", "which"]
 # failing. The probe runs in a throwaway directory for exactly this class of surprise.
 _VERSION_FLAGS = ("--version", "-version", "-v", "-V")
 _TAIL_LINES = 20
+# How long a stopped tool gets to finish on its own before it is killed, in seconds.
+_STOP_GRACE_S = 5
 
 
 class ToolError(Exception):
     """An external tool exited outside its expected codes."""
+
+
+class RunCancelled(BaseException):
+    """Someone asked the run to stop.
+
+    A ``BaseException``, like ``KeyboardInterrupt``: a module's ``except Exception`` must not be
+    able to record a cancel as a failed analysis and carry on.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +137,28 @@ def tool_version(
     return None, "unknown"
 
 
+def _stop(process: subprocess.Popen[str]) -> None:
+    """Stop a tool and everything it started, then collect it.
+
+    A tool here is often a wrapper: ``mafft`` is a shell script waiting on the program that does
+    the work. ``subprocess.run`` kills the wrapper alone, so the program went on computing with
+    nobody to read its output. ``run_tool`` gives each tool its own session, which makes the
+    process tree one target.
+    """
+    for sent, grace in ((signal.SIGTERM, _STOP_GRACE_S), (signal.SIGKILL, None)):
+        try:
+            os.killpg(process.pid, sent)
+        except ProcessLookupError:
+            break
+        try:
+            process.wait(timeout=grace)
+        except subprocess.TimeoutExpired:
+            continue
+    # Something that left the session may still hold the pipes, and a stop does not wait on it.
+    with contextlib.suppress(subprocess.TimeoutExpired):
+        process.communicate(timeout=_STOP_GRACE_S)
+
+
 def run_tool(
     name: str,
     argv: Sequence[str],
@@ -150,14 +185,19 @@ def run_tool(
 
     started = datetime.now()
     clock = time.monotonic()
-    result = subprocess.run(
+    process = subprocess.Popen(
         list(argv),
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        timeout=timeout,
-        check=False,
         cwd=workdir,
+        start_new_session=True,
     )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except BaseException:
+        _stop(process)
+        raise
     duration = time.monotonic() - clock
 
     safe_name = "".join(
@@ -172,10 +212,10 @@ def run_tool(
     index = len(list(log_dir.glob(f"*__{safe_name}__stdout.log"))) + 1
     stdout_file = log_dir / f"{index:03d}__{safe_name}__stdout.log"
     stderr_file = log_dir / f"{index:03d}__{safe_name}__stderr.log"
-    stdout_file.write_text(result.stdout or "", encoding="utf-8")
-    stderr_file.write_text(result.stderr or "", encoding="utf-8")
+    stdout_file.write_text(stdout or "", encoding="utf-8")
+    stderr_file.write_text(stderr or "", encoding="utf-8")
 
-    tail = "\n".join((result.stdout or "").splitlines()[-_TAIL_LINES:])
+    tail = "\n".join((stdout or "").splitlines()[-_TAIL_LINES:])
     record = ToolRecord(
         name=name,
         kind=kind,
@@ -185,17 +225,17 @@ def run_tool(
         argv=tuple(str(argument) for argument in argv),
         cwd=workdir,
         interpreter=interpreter,
-        rc=result.returncode,
+        rc=process.returncode,
         started_at=started.isoformat(timespec="seconds"),
         duration_s=round(duration, 3),
         stdout_file=str(stdout_file),
         stderr_file=str(stderr_file),
         stdout_tail=tail,
     )
-    if result.returncode not in expect:
-        detail = tail or (result.stderr or "").strip()
+    if process.returncode not in expect:
+        detail = tail or (stderr or "").strip()
         raise ToolError(
-            f"{name} exited {result.returncode} (expected {list(expect)}): {detail[:300]}"
+            f"{name} exited {process.returncode} (expected {list(expect)}): {detail[:300]}"
         )
     return record
 

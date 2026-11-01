@@ -28,7 +28,7 @@ records each file's digest in the manifest under `reference_sets`, role `assembl
 ## The step
 
 ```sh
-plastid assemble run --hifi HIFI.fastq.gz --sample NAME --out .runs [--reference REF.gb]
+plastid assemble run --hifi HIFI.fastq.gz --sample NAME --out .runs [--compare-to REF.gb]
 ```
 
 | Stage | Tool | Output |
@@ -36,7 +36,7 @@ plastid assemble run --hifi HIFI.fastq.gz --sample NAME --out .runs [--reference
 | Assembly | Oatk, driving HMMER's `nhmmscan` | paths, graph, log |
 | Read support | minimap2 (`map-hifi`) on every read given | `junction_support`, `weak_regions` |
 | The graph | `core/assembly_graph.py`, no external tool | `assembly_graph`, `graph_segments` |
-| Comparison, with `--reference` | `core/assembly.py`, no external tool | `reference_comparison`, `reference_differences` |
+| Comparison, with `--compare-to` | `core/assembly.py`, no external tool | `reference_comparison`, `reference_differences` |
 
 There is no quality control stage: a HiFi read is already a consensus. The invocation, with the
 defaults from `src/plastid/data/defaults.yaml`:

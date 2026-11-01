@@ -40,7 +40,9 @@ def test_bundled_third_party_code_states_a_licence() -> None:
 def test_every_external_adapter_is_named_in_the_licence_inventory() -> None:
     """Every tool the code calls has a row: its licence, and whether we redistribute it."""
     adapters = sorted(
-        path.stem for path in (SRC / "external").glob("*.py") if path.stem != "__init__"
+        path.stem
+        for path in (SRC / "external").glob("*.py")
+        if path.stem not in ("__init__", "inventory")
     )
     assert adapters, "no adapters found — the path moved, and this check would pass vacuously"
     text = INVENTORY.read_text(encoding="utf-8")

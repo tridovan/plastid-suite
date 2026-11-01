@@ -20,6 +20,7 @@ from plastid.core.sequence import gc_percent, gc_skew
 from plastid.modules.registry import ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
+from plastid.run.params import check_window
 
 MODULE_ID = "structure"
 MODULE_VERSION = "0.2.0"
@@ -36,20 +37,15 @@ DEFAULT_STEP_BP = 1000
     requires_ir=True,
     citations=("biopython",),
     params=(
-        ParamSpec("window", "int", "GC-skew window length in bp"),
-        ParamSpec("step", "int", "GC-skew window step in bp"),
+        ParamSpec("window", "int", "GC-skew window length in bp", default=DEFAULT_WINDOW_BP),
+        ParamSpec("step", "int", "GC-skew window step in bp", default=DEFAULT_STEP_BP),
     ),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
     window = int(params.get("window", DEFAULT_WINDOW_BP))
     step = int(params.get("step", DEFAULT_STEP_BP))
-    if window <= 0 or step <= 0:
-        raise ValueError(f"window and step must be positive, got window={window}, step={step}")
-    if step > window:
-        raise ValueError(
-            f"step {step} exceeds window {window} — sequence between windows is skipped"
-        )
+    check_window(window, step)
 
     frame = normalize(genome, ir)
     region_rows: list[dict[str, Any]] = []

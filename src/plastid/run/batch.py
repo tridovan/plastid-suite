@@ -11,13 +11,16 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.figures import read_run_results
+from plastid.run.state import host_name
 
 __all__ = [
     "BATCH_SCHEMA_VERSION",
@@ -25,6 +28,8 @@ __all__ = [
     "aggregate_rows",
     "read_batch_results",
     "read_sample",
+    "record_sample",
+    "start_batch",
     "write_batch",
 ]
 
@@ -98,7 +103,7 @@ class SampleRecord:
     accession: str
     input: str
     sha256: str
-    status: str  # "ok" | "failed" | "skipped"
+    status: str  # "ok" | "failed" | "cancelled"
     exit_code: int
     run_dir: Path | None = None
     ir_source: str = "not required"  # the requested path: annotation | sequence
@@ -151,7 +156,11 @@ def read_sample(
         record.error = "the sample's run wrote no manifest"
         return record
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    record.status = "ok" if manifest.get("status") == "ok" and exit_code == 0 else "failed"
+    record.status = (
+        "cancelled"
+        if manifest.get("status") == "cancelled"
+        else ("ok" if manifest.get("status") == "ok" and exit_code == 0 else "failed")
+    )
     record.modules = [
         {"id": entry.get("id"), "status": entry.get("status"), "error": entry.get("error", "")}
         for entry in manifest.get("modules", [])
@@ -252,6 +261,60 @@ def _write_csv(path: Path, columns: Sequence[str], rows: Iterable[Mapping[str, A
             writer.writerow({column: row.get(column, "") for column in columns})
 
 
+def _write_record(run_dir: Path, payload: Mapping[str, Any]) -> None:
+    """Replace ``batch.json`` whole: it is rewritten after each sample and read meanwhile."""
+    temporary = run_dir / "batch.json.tmp"
+    temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(temporary, run_dir / "batch.json")
+
+
+def start_batch(
+    *,
+    run_dir: Path,
+    dataset: str,
+    params: Mapping[str, Any],
+    command: Sequence[str],
+    inputs: Sequence[str],
+) -> dict[str, Any]:
+    """Put the batch on disk before its first sample, because a batch can run for hours.
+
+    The record says how many samples are planned and grows by one line per sample, so a viewer
+    knows how far it has got and a stopped batch still says what it was. ``pid`` and ``host`` do
+    what they do in a run's manifest.
+    """
+    payload: dict[str, Any] = {
+        "schema_version": BATCH_SCHEMA_VERSION,
+        "run_id": run_dir.name,
+        "dataset": dataset,
+        "data_label": str(params.get("data_label", "")),
+        "status": "running",
+        "pid": os.getpid(),
+        "host": host_name(),
+        "started_at": datetime.now().isoformat(timespec="seconds"),
+        "finished_at": None,
+        "params": dict(params),
+        "command": list(command),
+        "inputs": list(inputs),
+        "samples_total": len(inputs),
+        "samples": [],
+    }
+    _write_record(run_dir, payload)
+    return payload
+
+
+def record_sample(run_dir: Path, payload: dict[str, Any], record: SampleRecord) -> None:
+    """One more finished sample in the running record. `write_batch` writes the full row."""
+    payload["samples"].append(
+        {
+            "sample_id": record.sample_id,
+            "status": record.status,
+            "exit_code": record.exit_code,
+            "run_dir": "" if record.run_dir is None else str(record.run_dir),
+        }
+    )
+    _write_record(run_dir, payload)
+
+
 def write_batch(
     *,
     run_dir: Path,
@@ -261,8 +324,14 @@ def write_batch(
     params: Mapping[str, Any],
     command: Sequence[str],
     inputs: Sequence[str],
+    started: Mapping[str, Any] | None = None,
+    exit_code: int = 0,
 ) -> Path:
-    """Write ``batch.json``, ``samples.csv`` and ``aggregate.csv`` into one batch run directory."""
+    """Write ``batch.json``, ``samples.csv`` and ``aggregate.csv`` into one batch run directory.
+
+    A cancelled batch writes the same three files from the samples it finished, and ``not_run``
+    names the inputs it never reached.
+    """
     run_dir.mkdir(parents=True, exist_ok=True)
     data_label = str(params.get("data_label", ""))
     rows = aggregate_rows(records, results, data_label=data_label)
@@ -281,14 +350,29 @@ def write_batch(
     _write_csv(run_dir / "samples.csv", SAMPLES_COLUMNS, samples)
     _write_csv(run_dir / "aggregate.csv", AGGREGATE_COLUMNS, rows)
     ok = sum(1 for record in records if record.status == "ok")
+    cancelled = any(record.status == "cancelled" for record in records) or len(records) < len(
+        inputs
+    )
     payload = {
+        **(started or {}),
         "schema_version": BATCH_SCHEMA_VERSION,
+        "run_id": run_dir.name,
         "dataset": dataset,
         "data_label": data_label,
-        "status": "ok" if ok == len(records) else ("partial" if ok else "failed"),
+        "status": (
+            "cancelled"
+            if cancelled
+            else "ok"
+            if ok == len(records)
+            else ("partial" if ok else "failed")
+        ),
+        "exit_code": exit_code,
+        "finished_at": datetime.now().isoformat(timespec="seconds"),
         "params": dict(params),
         "command": list(command),
         "inputs": list(inputs),
+        "samples_total": len(inputs),
+        "not_run": list(inputs[len(records) :]),
         "samples": [
             {
                 "sample_id": record.sample_id,
@@ -323,9 +407,7 @@ def write_batch(
         "cells": len(rows),
         "not_measured_cells": sum(1 for row in rows if row["measurement_status"] != "measured"),
     }
-    (run_dir / "batch.json").write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+    _write_record(run_dir, payload)
     return run_dir
 
 

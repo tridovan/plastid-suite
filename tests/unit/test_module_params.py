@@ -109,7 +109,7 @@ def test_a_parameter_declares_a_type_and_says_what_it_does() -> None:
     """A declaration without a type cannot be validated; one without a reason is not a contract."""
     for spec in registry.all_modules().values():
         for param in spec.params:
-            assert param.type in {"int", "float", "str", "bool"}, (
+            assert param.type in registry.PARAM_TYPES, (
                 f"{spec.id}.{param.name}: type {param.type!r} is not one the CLI can validate"
             )
             assert param.help.strip(), f"{spec.id}.{param.name}: declared with no description"
@@ -232,3 +232,175 @@ def test_a_bad_ssr_threshold_is_a_usage_error_before_misa_runs(
     )
     assert code == 2
     assert "unit_repeats" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------- what a form is built from
+
+
+def _declared_defaults_in_source(path: Path) -> dict[str, list[str]]:
+    """Every default the module's source passes to ``params.get``, as written there."""
+    import ast
+
+    found: dict[str, list[str]] = {}
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "params"
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and len(node.args) > 1
+        ):
+            found.setdefault(str(node.args[0].value), []).append(ast.unparse(node.args[1]))
+    return found
+
+
+def _evaluate(expression: str, module_id: str) -> object:
+    """A default as the running module sees it: its own names, and its part of defaults.yaml."""
+    import importlib
+
+    from plastid.run.defaults import load_defaults
+
+    section = {"barcodes": "diversity", "plastid_annotate": "plastid", "synteny": "synteny"}
+    names = dict(vars(importlib.import_module(f"plastid.modules.{module_id}")))
+    names["defaults"] = load_defaults().get(section.get(module_id, ""), {})
+    return eval(expression, names)  # noqa: S307 — a literal or a name from the module's own source
+
+
+def _same(declared: object, used: object) -> bool:
+    """A list parameter is written once as text on the command line and once as a tuple."""
+    if isinstance(declared, str) and isinstance(used, tuple):
+        return tuple(declared.split(",")) == used
+    return declared == used
+
+
+def test_a_declared_default_is_the_one_the_code_uses() -> None:
+    """A form shows the declared default, so a wrong one would misstate what a run does."""
+    source_dir = Path(registry.__file__).parent
+    checked = 0
+    for spec in registry.all_modules().values():
+        if spec.group == "mito":
+            continue  # frozen: declared without defaults
+        path = source_dir / f"{spec.id}.py"
+        written = _declared_defaults_in_source(path)
+        for param in spec.params:
+            for expression in written.get(param.name, ()):
+                if param.flag or expression in ("()", "{}", "None"):
+                    continue
+                used = _evaluate(expression, spec.id)
+                assert _same(param.default, used), (
+                    f"{spec.id}: {param.name} declares {param.default!r}, the source uses {used!r}"
+                )
+                checked += 1
+    assert checked > 30, "the check found almost nothing — the source moved"
+
+
+def test_a_tool_parameter_with_a_default_is_read_with_that_default() -> None:
+    """A parameter the source reads with no default has none to declare, unless it is a bool."""
+    source_dir = Path(registry.__file__).parent
+    for spec in registry.all_modules().values():
+        if spec.group == "mito":
+            continue
+        written = _declared_defaults_in_source(source_dir / f"{spec.id}.py")
+        for param in spec.params:
+            if param.flag or param.type == "bool" or param.name in written:
+                continue
+            assert param.default is None, f"{spec.id}: {param.name} has no default in the source"
+
+
+def test_a_declared_choice_includes_its_default() -> None:
+    for spec in registry.all_modules().values():
+        for param in spec.params:
+            if param.choices:
+                assert param.default in param.choices, (spec.id, param.name)
+
+
+def test_the_tools_a_module_declares_are_the_ones_it_imports() -> None:
+    """`plastid tools` and a form say what a module needs, so that has to be what it calls."""
+    import re
+
+    adapters = {
+        "aragorn": "aragorn",
+        "blast": "blast",
+        "iqtree": "iqtree",
+        "macse": "macse",
+        "mafft": "mafft",
+        "misa": "misa",
+        "mummer": "mummer4",
+        "paml": "paml",
+        "repeatmatch": "repeat-match",
+    }
+    source_dir = Path(registry.__file__).parent
+    for spec in registry.all_modules().values():
+        text = (source_dir / f"{spec.id}.py").read_text(encoding="utf-8")
+        imported = {
+            adapters[name]
+            for name in re.findall(r"^from plastid\.external\.(\w+) import", text, re.MULTILINE)
+            + re.findall(r"^from plastid\.external import (\w+)", text, re.MULTILINE)
+            if name in adapters
+        }
+        # perl runs misa.pl, and table2asn is the one tool called without an adapter of its own.
+        declared = {*spec.tools, *spec.optional_tools} - {"perl", "table2asn"}
+        assert imported == declared, (spec.id, imported, declared)
+
+
+# --------------------------------------------------------------------- a value is checked too
+
+
+@pytest.mark.parametrize(
+    ("module", "key", "value", "named"),
+    [
+        ("structure", "window", "abc", "whole number"),
+        ("structure", "window", 10.5, "whole number"),
+        ("rna_editing", "cutoff", "high", "must be a number"),
+        ("substitutions", "scope", "everything", "whole, cds"),
+        ("phylogeny", "bnni", "maybe", "must be one of"),
+        ("phylogeny", "matrix", "genes", "cds, introns, igs, all"),
+        ("gene_normalize", "on_conflict", "report", "stop, continue"),
+    ],
+)
+def test_a_value_a_declaration_rules_out_is_refused(
+    module: str, key: str, value: object, named: str
+) -> None:
+    problems = registry.refused_values([module], {key: value})
+    assert len(problems) == 1
+    assert key in problems[0]
+    assert named in problems[0]
+
+
+@pytest.mark.parametrize(
+    ("module", "key", "value"),
+    [
+        ("structure", "window", 500),
+        ("rna_editing", "cutoff", 1),
+        ("substitutions", "scope", "cds"),
+        ("phylogeny", "bnni", "no"),
+        ("phylogeny", "threads", 4),
+        ("gene_normalize", "on_conflict", "continue"),
+        ("synteny", "filter", -1),
+        ("kaks", "yn00_weighting", 1),
+        ("structure", "ir_source", "sequence"),
+    ],
+)
+def test_a_value_a_declaration_allows_is_accepted(module: str, key: str, value: object) -> None:
+    assert registry.refused_values([module], {key: value}) == []
+
+
+def test_a_key_two_modules_declare_has_to_fit_both() -> None:
+    assert registry.refused_values(["structure", "diversity"], {"window": "abc"})
+
+
+def test_several_measures_can_be_chosen_on_the_command_line() -> None:
+    """Text from `--set` was iterated one letter at a time, so every choice was refused."""
+    from plastid.core.model import Genome
+    from plastid.modules import stats
+
+    groups = {"A": "one", "B": "two"}
+    genomes = (
+        Genome(name="a", accession="A", sequence="ACGT"),
+        Genome(name="b", accession="B", sequence="ACGT"),
+    )
+    with pytest.raises(ValueError, match="no CDS|nothing to compare|no observation"):
+        stats.run(genomes, {"groups": groups, "measures": "gc_pct,enc"}, None)

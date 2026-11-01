@@ -19,6 +19,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -124,6 +125,11 @@ class Cache:
         if binary:
             # A .docx is a zip: JSON has no bytes, and a cache hit must restore it unchanged.
             payload["binary"] = binary
-        self._path(key).write_text(
+        # Replaced whole: an entry cut short by a stop would be read by every later run, and two
+        # runs of one input can finish at the same moment.
+        target = self._path(key)
+        temporary = target.with_name(f"{target.name}.{os.getpid()}.tmp")
+        temporary.write_text(
             json.dumps(payload, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
         )
+        os.replace(temporary, target)

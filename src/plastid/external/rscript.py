@@ -82,8 +82,8 @@ def rscript_binary(explicit: str | Path | None = None) -> str:
     found = which("Rscript")
     if found is None:
         raise ToolError(
-            f"rscript: Rscript not found — R is the plotting engine behind the manuscript's "
-            f"figures and is not bundled with this toolkit. Install it, or pass "
+            f"rscript: Rscript not found — R draws the R figures and is not bundled with this "
+            f"toolkit. Install it, or pass "
             f"--set rscript=/path/to/Rscript ({RSCRIPT_DOC})"
         )
     return found

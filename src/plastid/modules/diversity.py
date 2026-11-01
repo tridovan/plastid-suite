@@ -36,9 +36,10 @@ from plastid.core.normalize import NormalizedFrame, normalize
 from plastid.core.organelle import GROUP_SHARED
 from plastid.core.spans import IntronSpan, SpacerSet, introns_of, spacers_of
 from plastid.external.mafft import align
-from plastid.modules.registry import ParamSpec, module
+from plastid.modules.registry import MAFFT_STRATEGY, ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
+from plastid.run.params import check_window
 
 MODULE_ID = "diversity"
 MODULE_VERSION = "0.2.0"  # 0.2.0: π per intron and per intergenic spacer (P2B-01)
@@ -56,18 +57,16 @@ DEFAULT_STEP_BP = 200
     arity=2,
     citations=("mafft",),
     params=(
-        ParamSpec("window", "int", "sliding window length in bp"),
-        ParamSpec("step", "int", "window step in bp"),
-        ParamSpec(
-            "mafft_strategy",
-            "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
-        ),
+        ParamSpec("window", "int", "sliding window length in bp", default=DEFAULT_WINDOW_BP),
+        ParamSpec("step", "int", "window step in bp", default=DEFAULT_STEP_BP),
+        MAFFT_STRATEGY,
     ),
+    tools=("mafft",),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     window = int(params.get("window", DEFAULT_WINDOW_BP))
     step = int(params.get("step", DEFAULT_STEP_BP))
+    check_window(window, step)
     raw_reference = genomes[0]
     ir = ctx.require_ir()  # seam 4: the gate runs first, and it is the run's IR, not a re-detect
     # The reference is aligned in its **normalized** frame, because every position this module

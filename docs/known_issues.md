@@ -1,7 +1,7 @@
 # Known correctness and integration issues
 
 K-01 to K-06 were reproduced during the 26 October 2026 review, and the later entries were found by
-running the toolkit. **K-01 to K-18 are all fixed.** Documenting a defect did not fix it, and a fixed
+running the toolkit. **K-01 to K-23 are all fixed.** Documenting a defect did not fix it, and a fixed
 entry says which test now holds it. The "observed" columns below are the before-fix measurements;
 they are kept as the reproduction record, not as current behaviour.
 
@@ -412,6 +412,65 @@ assemble prepare` without fastp exited 1, where 3 is a missing tool. Held by
 `tests/unit/test_cli_annotate.py`, `test_a_module_that_does_not_exist_is_a_wrong_command_line` in
 `tests/unit/test_cli_batch.py`, and `test_prepare_without_fastp_exits_as_a_missing_tool` in
 `tests/unit/test_assembly_step.py`.
+
+## K-19 — A stopped run left no record, and its tool went on running — **fixed (01/11/2026)**
+
+Found by interrupting a real run. A run wrote `manifest.json` as its last act, and `run_tool` used
+`subprocess.run`, which kills only the process it started. On the golden pair, with `plastid run -m
+substitutions --set scope=whole --set ir_source=sequence`, SIGTERM during the alignment left
+`00_run_info/` and `report/`, no manifest, and both MAFFT processes alive a second later; SIGINT left
+`disttbfast` alive. `mafft` is a wrapper script, and `disttbfast` does the work. So a run in progress,
+a killed run and an empty directory could not be told apart, and a stopped run kept a core busy.
+
+The manifest now exists from the first moment, names the process, its host and the step in progress,
+moves with each step and is replaced whole; a batch keeps `batch.json` the same way. Every tool runs
+in its own session, and a cancel or a timeout stops everything it started. Ctrl-C, SIGTERM and SIGHUP
+end a run as `cancelled` with exit 130, keeping what had finished. A signal already ignored stays
+ignored, so `nohup` still protects a run. A process killed outright cannot write anything, and
+`plastid runs` reads its directory as `interrupted`. The cache wrote its entries in place, so a stop
+during a write would have left cut JSON for every later run to read; an entry is now replaced whole.
+Held by `tests/unit/test_run_state.py`.
+
+## K-20 — `plastid run -m plastid_annotate` went around the annotate command — **fixed (01/11/2026)**
+
+`plastid annotate` refuses a record that already carries an annotation unless `--set reannotate=yes`
+says otherwise, and records the reference set it searched. The same module reached through `plastid
+run` or `plastid batch` did neither: on the golden record it exited 0 with 121 loci and
+`reference_sets: []`, so one module left two kinds of run behind. The reference-set audit sits inside
+the module and ran on both routes. The module now declares its command, and `run` and `batch` refuse
+it by name. Held by `test_annotation_has_one_door` in `tests/unit/test_cli_surface.py`.
+
+## K-21 — The command a run recorded could not repeat it — **fixed (01/11/2026)**
+
+`manifest.command` was rebuilt by hand in each command, and each list lost something. `plastid run`
+dropped `--set`, `--out`, `--dataset`, `--groups`, `--docx` and the cache flag, so a run with `--set
+scope=whole` recorded a command for a different analysis. `plastid ir-junction` recorded its own name
+twice, and read `sys.argv` rather than what it was given. Every command now records what was typed.
+Held by `test_the_manifest_records_the_command_that_was_typed` in `tests/unit/test_run_state.py`.
+
+## K-22 — A `--set` value was not checked — **fixed (01/11/2026)**
+
+`ParamSpec.type` was declared and never read. `--set ir_source=seq` ended in a Python traceback, and
+`--set window=abc` and `--set scope=everything` in a `ValueError` with exit 1. `--set sqn=nope` was
+read as no: the run exited 0 without the `.sqn` it was asked for. `assemble --set trim=1` turned
+quality control off, because only `yes` and `true` counted as yes. `stats --set measures=gc_pct` read
+the text one letter at a time and refused `['g', 'c', '_', …]`. `plastid figures --set wdth=4`
+accepted a key nothing reads. The help of `on_conflict` named `report`, a value the module refuses;
+the value is `continue`. A parameter now declares its type, default and choices, `--set` is checked
+against them before anything runs, a wrong value exits 2 by name, and `plastid figures` refuses a key
+no figure reads. Tests compare each declared default with the one the code runs with. Held by
+`tests/unit/test_module_params.py`, `tests/unit/test_cli_surface.py` and
+`tests/unit/test_assembly_step.py`.
+
+## K-23 — An input that could not be read counted as a failed analysis — **fixed (01/11/2026)**
+
+A missing file, an unreadable groups file, a path that is not a run directory and a tree that cannot
+be parsed all exited 1, which the README keeps for an analysis that failed, though nothing had run. A
+module's refusal of a value its user could fix did the same: too few genomes for `phylogeny`, a
+`step` larger than its `window`, no groups for `popgen`. They exit 2 now. The rule is in
+`plastid.run.state.EXIT_STATES`, and each code has one name, which is also the status in the manifest:
+`refused` for 2, `tool_error` for 3, `conflict` for 4, `cancelled` for 130. The status used to read
+`failed` for all of them. Held by `tests/unit/test_cli_surface.py` and `tests/unit/test_run_state.py`.
 
 ## Other current limitations
 

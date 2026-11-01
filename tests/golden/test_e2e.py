@@ -129,7 +129,7 @@ def test_failed_gate_stops_the_run_with_exit_2(tmp_path: Path, data_dir: Path) -
     assert _run(tmp_path, single, dataset="diverged") == 2
     run_dir = _only_run_dir(tmp_path, "diverged")
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["status"] == "failed"
+    assert manifest["status"] == "refused"
     assert not (run_dir / "01_genome_stats").exists(), "no module output after a failed gate"
 
 
@@ -200,7 +200,7 @@ def test_the_annotation_source_is_refused_with_the_way_out(
     assert "--set ir_source=sequence" in stderr
     run_dir = _only_run_dir(tmp_path, "iris_gatesii_refused")
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["status"] == "failed"
+    assert manifest["status"] == "refused"
     assert manifest["ir"]["gate_passed"] is False
     assert manifest["ir"]["requested_source"] == "annotation"
     assert manifest["ir"]["status"] == "annotation"
@@ -240,7 +240,7 @@ def test_only_the_diverged_ir_genome_stops_after_gap_aware_measurement(
     failed_manifest = json.loads(
         (_only_run_dir(tmp_path, "nc_063921") / "manifest.json").read_text(encoding="utf-8")
     )
-    assert failed_manifest["status"] == "failed"
+    assert failed_manifest["status"] == "refused"
     assert not (_only_run_dir(tmp_path, "nc_063921") / "01_genome_stats").exists()
 
 

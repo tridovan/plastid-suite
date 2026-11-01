@@ -3,12 +3,7 @@
 This module is the only place allowed to terminate the process (directly or by returning an
 exit code to the console-script wrapper). Library code raises exceptions instead.
 
-Exit codes:
-    0 — success
-    1 — general error (bad input, unknown module, internal failure)
-    2 — usage error, or a failed gate (e.g. the IR gate, the reference audit)
-    3 — missing or failed external tool, or a missing optional dependency
-    4 — a naming conflict stopped the step (gene_normalize, D5-09)
+Exit codes and what each one means: ``plastid.run.state.EXIT_STATES``.
 """
 
 from __future__ import annotations
@@ -16,8 +11,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import signal
 import sys
-from collections.abc import Mapping, Sequence
+import threading
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from functools import partial
@@ -50,6 +48,9 @@ from plastid.core.junctions import JunctionError
 from plastid.core.model import Genome
 from plastid.core.normalize import normalize
 from plastid.core.panel import (
+    DEFAULT_PROPOSAL_MODE,
+    PROPOSAL_LEVELS,
+    PROPOSAL_MODES,
     IndexSnapshot,
     PanelEntry,
     entries_from_summaries,
@@ -99,24 +100,93 @@ from plastid.run.runner import (
     export_files,
     write_payload,
 )
-from plastid.run.tools import ToolError, tool_version, which
+from plastid.run.state import EXIT_STATES, exit_state, list_runs, read_state
+from plastid.run.tools import RunCancelled, ToolError, tool_version, which
 
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_USAGE = 2
 EXIT_TOOL = 3
-# 4 — a naming conflict stopped the step (D5-09). Its own number, because it is not a usage
-# error and not a missing tool: the run was well-formed and the data disagrees with the reference.
+# 4 — a naming conflict stopped the step. Its own number, because it is not a usage error and not a
+# missing tool: the run was well-formed and the data disagrees with the reference.
 EXIT_CONFLICT = 4
+# 130 — what a shell reports for a job stopped by Ctrl-C, here for every way of stopping a run.
+EXIT_CANCELLED = 130
+
+_OUT_HELP = "directory that holds every run (default: .runs)"
+_LABEL_HELP = "where the data came from, printed with every table, e.g. 'NCBI RefSeq, 2026-10'"
+_NO_CACHE_HELP = "compute every step again instead of reusing a stored result"
+_SET_HELP = "a module parameter, repeatable; `plastid modules <module>` lists them"
+_JSON_HELP = "print JSON instead of text"
+_RUN_DIR_HELP = "a run directory, as `plastid runs` lists them"
+_REFERENCE_SET_HELP = "directory of pinned GenBank records (default: .panel/plastid-reference)"
+
+# The tools no module calls: which command does.
+_TOOL_COMMANDS = {"R": "plastid figures", "cpjsdraw": "plastid ir-junction", "perl": "ssr"}
+
+_STOP_SIGNALS = tuple(
+    getattr(signal, name) for name in ("SIGINT", "SIGTERM", "SIGHUP") if hasattr(signal, name)
+)
+
+
+def _epilog() -> str:
+    states = "\n".join(
+        f"  {state.code:<4} {state.status:<11} {state.meaning}" for state in EXIT_STATES
+    )
+    return (
+        "start here:\n"
+        "  plastid modules                what can be run\n"
+        "  plastid modules ssr            one module and its parameters\n"
+        "  plastid tools                  which external tools this machine has\n"
+        "  plastid run -m genome_stats -i my_plastome.gb\n"
+        "  plastid runs                   what has been run, and how each run ended\n\n"
+        f"exit codes:\n{states}\n"
+    )
+
+
+def _add_run_directory(
+    parser: argparse.ArgumentParser, dataset_default: str, *, fixed: str | None = None
+) -> None:
+    """The three flags of every command that makes a run: where it goes and what it is."""
+    parser.add_argument("-o", "--out", default=".runs", help=_OUT_HELP)
+    parser.add_argument(
+        "--dataset",
+        default=fixed,
+        metavar="NAME",
+        help=f"name of this run's directory inside --out (default: {dataset_default})",
+    )
+    parser.add_argument("--label", metavar="TEXT", help=_LABEL_HELP)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="plastid",
-        description="PlastidToolSuite — plastid and mitochondrial genome analysis.",
+        description=(
+            "PlastidToolSuite: plastid genome analysis, from reads or records to tables, figures "
+            "and reports."
+        ),
+        epilog=_epilog(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="store_true", help="print the version and exit")
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
+
+    modules_parser = subparsers.add_parser(
+        "modules", help="list the analysis modules, or one module with its parameters"
+    )
+    modules_parser.add_argument(
+        "module", nargs="?", metavar="MODULE", help="the module to describe"
+    )
+    modules_parser.add_argument("--json", action="store_true", help=_JSON_HELP)
+
+    tools_parser = subparsers.add_parser(
+        "tools", help="list the external tools, and whether this machine has each one"
+    )
+    tools_parser.add_argument("--json", action="store_true", help=_JSON_HELP)
+
+    runs_parser = subparsers.add_parser("runs", help="list the runs in a directory, newest first")
+    runs_parser.add_argument("root", nargs="?", metavar="DIR", help="default: .runs")
+    runs_parser.add_argument("--json", action="store_true", help=_JSON_HELP)
 
     run_parser = subparsers.add_parser(
         "run", help="run one or more analysis modules on one genome, or on several to compare"
@@ -126,150 +196,404 @@ def build_parser() -> argparse.ArgumentParser:
         "--module",
         required=True,
         action="append",
-        help="module id (e.g. genome_stats); repeat the flag to run several in one run",
+        help="module to run, repeatable; `plastid modules` lists them",
     )
     run_parser.add_argument(
         "-i",
         "--input",
         required=True,
         action="append",
-        help="GenBank or FASTA file (one record); repeat the flag for a multi-genome module. "
-        "A bare FASTA is a genome with no features yet — what `plastid annotate` takes",
+        help="GenBank or FASTA file holding one record; repeat it for a module that compares "
+        "genomes",
     )
-    run_parser.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
-    run_parser.add_argument("--dataset", default=None, help="dataset label (default: accession)")
+    _add_run_directory(run_parser, "the accession")
     run_parser.add_argument(
         "--groups",
         default=None,
         metavar="FILE",
-        help="sample-group YAML ({group: [accessions]}) — labels every input (P2-11)",
+        help="YAML file of sample groups, {group: [accessions]}, labelling every input",
     )
     run_parser.add_argument(
         "--docx",
         action="store_true",
-        help=(
-            "also write report.docx in each module directory, and a combined one in the run's "
-            "report directory (needs the 'docx' extra)"
-        ),
+        help="also write a Word report for each module and one for the run (needs the 'docx' "
+        "extra)",
     )
     run_parser.add_argument(
         "--figures",
         action="store_true",
-        help=(
-            "also collect the figures whose source tables this run produces — the toolkit's "
-            "matplotlib figures and the manuscript's R figures — into the run's figures "
-            "directory (needs the 'figures' extra; R figures are skipped by name when R is absent)"
-        ),
+        help="also draw every figure this run's tables can feed, into the run's figures directory "
+        "(needs the 'figures' extra; an R figure is skipped by name when R is absent)",
     )
+    run_parser.add_argument("--no-cache", action="store_true", help=_NO_CACHE_HELP)
     run_parser.add_argument(
-        "--label",
-        default=None,
-        metavar="TEXT",
-        help=(
-            "data-provenance label written into every exported table's scope — a stand-in "
-            "dataset never travels unlabelled (e.g. --label stand-in)"
-        ),
-    )
-    run_parser.add_argument("--force", action="store_true", help="ignore the cache and re-run")
-    run_parser.add_argument(
-        "--set",
-        action="append",
-        default=[],
-        metavar="KEY=VALUE",
-        help="module parameter (repeatable)",
+        "--set", action="append", default=[], metavar="KEY=VALUE", help=_SET_HELP
     )
 
     batch_parser = subparsers.add_parser(
         "batch",
-        help="run one or more single-sample modules over N genomes and aggregate their tables",
+        help="run single-genome modules on many genomes, one run each, with one table for all",
     )
     batch_parser.add_argument(
         "-m",
         "--module",
         required=True,
         action="append",
-        help="arity-1 module id (e.g. genome_stats); repeat the flag to run several",
+        help="single-genome module to run on every sample, repeatable",
     )
     batch_parser.add_argument(
         "-i",
         "--input",
         required=True,
         action="append",
-        help="GenBank or FASTA sample, one record; repeat the flag for one run per sample",
+        help="GenBank or FASTA file holding one record; repeat it, one run per sample",
     )
-    batch_parser.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
-    batch_parser.add_argument(
-        "--dataset", default=None, help="batch dataset label (default: 'batch')"
-    )
-    batch_parser.add_argument(
-        "--label",
-        default=None,
-        metavar="TEXT",
-        help="data-provenance label written into every exported table's scope",
-    )
+    _add_run_directory(batch_parser, "batch")
     batch_parser.add_argument(
         "--docx",
         action="store_true",
-        help="also write report.docx in each sample's module directories (needs the 'docx' extra)",
+        help="also write a Word report in each sample's run (needs the 'docx' extra)",
     )
-    batch_parser.add_argument("--force", action="store_true", help="ignore the cache and re-run")
     batch_parser.add_argument(
         "--figures",
         action="store_true",
-        help=(
-            "after the aggregate, draw the multi-sample R figures from it (needs R; "
-            "the same pass as `plastid figures <batch-dir>`)"
-        ),
+        help="after the combined table, draw the multi-sample R figures from it (needs R)",
     )
+    batch_parser.add_argument("--no-cache", action="store_true", help=_NO_CACHE_HELP)
     batch_parser.add_argument(
-        "--set", action="append", default=[], metavar="KEY=VALUE", help="module parameter"
+        "--set", action="append", default=[], metavar="KEY=VALUE", help=_SET_HELP
     )
 
-    package_parser = subparsers.add_parser(
-        "package",
-        help=(
-            "regenerate the Supplementary package from a run directory "
-            "(tables + figures + reports + index); missing extras/R are recorded, not fatal"
-        ),
+    annotate_parser = subparsers.add_parser(
+        "annotate", help="annotate plastomes by transfer from a set of reference records"
     )
-    package_parser.add_argument("run", metavar="RUN_DIR", help="a run directory")
+    annotate_parser.add_argument(
+        "-i",
+        "--input",
+        required=True,
+        action="append",
+        help="FASTA or GenBank file holding one record; repeat it, one run per sample",
+    )
+    annotate_parser.add_argument(
+        "--reference-set",
+        default=None,
+        metavar="DIR",
+        help="directory of GenBank records to transfer from (default: .panel/plastid-reference)",
+    )
+    annotate_parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        metavar="ACCESSION",
+        help="leave this record out of the search, repeatable; the run names what it left out",
+    )
+    _add_run_directory(annotate_parser, "each sample's accession")
+    annotate_parser.add_argument(
+        "--docx",
+        action="store_true",
+        help="also write a Word report in each run (needs the 'docx' extra)",
+    )
+    annotate_parser.add_argument("--no-cache", action="store_true", help=_NO_CACHE_HELP)
+    annotate_parser.add_argument(
+        "--set", action="append", default=[], metavar="KEY=VALUE", help=_SET_HELP
+    )
 
-    qc_parser = subparsers.add_parser(
-        "qc",
-        help=(
-            "write the technical QC report for a run (what ran, versions, inputs, audits, "
-            "figure catalogue); it needs neither the plotting extra nor R"
-        ),
+    assemble = subparsers.add_parser(
+        "assemble", help="assemble a plastome from short or HiFi reads, here or elsewhere"
     )
-    qc_parser.add_argument("run", metavar="RUN_DIR", help="a run directory")
+    assemble_actions = assemble.add_subparsers(dest="action", metavar="ACTION")
+    assemble_run = assemble_actions.add_parser(
+        "run", help="assemble on this machine, and check the result against the reads"
+    )
+    assemble_prepare = assemble_actions.add_parser(
+        "prepare",
+        help="quality-control and hash the reads for a run elsewhere; nothing leaves this machine",
+    )
+    assemble_import = assemble_actions.add_parser(
+        "import",
+        help="read an assembly made elsewhere, and check it against the reads the same way",
+    )
+    for action in (assemble_run, assemble_prepare):
+        action.add_argument("-1", "--reads-1", default=None, help="first reads (FASTQ, gzipped ok)")
+        action.add_argument("-2", "--reads-2", default=None, help="second reads")
+        action.add_argument(
+            "--hifi",
+            default=None,
+            metavar="FASTQ",
+            help="PacBio HiFi reads (gzipped ok), in place of -1 and -2; assembled with Oatk",
+        )
+        action.add_argument("--sample", default=None, help="sample name for the run and outputs")
+        _add_run_directory(action, "the sample")
+    _add_run_directory(assemble_import, "the sample")
+    for action in (assemble_run, assemble_prepare, assemble_import):
+        action.add_argument(
+            "--set",
+            action="append",
+            default=[],
+            metavar="KEY=VALUE",
+            help="step parameter, repeatable; `plastid modules assembly` lists them",
+        )
+    assemble_run.add_argument(
+        "--skip-resource-check",
+        action="store_true",
+        help="run even when this machine looks too small for the input. Nothing is ever sent to "
+        "a service by this command",
+    )
+    for action in (assemble_run, assemble_import):
+        action.add_argument(
+            "--compare-to",
+            default=None,
+            metavar="FILE",
+            help="GenBank or FASTA sequence to compare every assembled path with",
+        )
+    assemble_import.add_argument(
+        "--prepared",
+        required=True,
+        metavar="FILE",
+        help="the prepared.json of `plastid assemble prepare`",
+    )
+    assemble_import.add_argument(
+        "--result",
+        required=True,
+        metavar="DIR",
+        help="the directory holding the assembler's output",
+    )
+    assemble_import.add_argument(
+        "--source-name", required=True, help="where it ran, e.g. usegalaxy.eu"
+    )
+    assemble_import.add_argument(
+        "--retrieved-at", required=True, help="the date it was retrieved, YYYY-MM-DD"
+    )
+    assemble_import.add_argument(
+        "--source-url", default=None, help="a link to the run, such as a history"
+    )
+
+    panel = subparsers.add_parser("panel", help="find, propose and fetch reference genomes")
+    panel_actions = panel.add_subparsers(dest="action", metavar="ACTION")
+    refresh = panel_actions.add_parser(
+        "refresh", help="rebuild the list of RefSeq plastomes for a taxon, from NCBI"
+    )
+    refresh.add_argument("--taxon", required=True, help='taxon name, e.g. "Iridaceae"')
+    refresh.add_argument(
+        "--index",
+        default=".panel/index.json",
+        metavar="FILE",
+        help="where to write the list (default: .panel/index.json)",
+    )
+    refresh.add_argument(
+        "--max-records",
+        type=int,
+        default=200,
+        help="the most records to ask NCBI for (default: 200)",
+    )
+    propose_parser = panel_actions.add_parser(
+        "propose", help="list candidate genomes for a target from that list, without the network"
+    )
+    propose_parser.add_argument(
+        "--index",
+        default=".panel/index.json",
+        metavar="FILE",
+        help="the list `plastid panel refresh` wrote (default: .panel/index.json)",
+    )
+    propose_parser.add_argument(
+        "--target", required=True, metavar="ACCESSION", help="accession of the target genome"
+    )
+    propose_parser.add_argument(
+        "--mode",
+        choices=PROPOSAL_MODES,
+        default=DEFAULT_PROPOSAL_MODE,
+        help="all: every genome at --level or closer; tiers: up to --per-tier genomes from each "
+        "taxonomic tier (default: tiers)",
+    )
+    propose_parser.add_argument(
+        "--level",
+        choices=PROPOSAL_LEVELS,
+        default="family",
+        help="with --mode all: how far from the target to go (default: family)",
+    )
+    propose_parser.add_argument(
+        "--per-tier",
+        type=int,
+        default=3,
+        help="with --mode tiers: how many genomes to take from each tier (default: 3)",
+    )
+    pin_parser = panel_actions.add_parser(
+        "pin", help="download the chosen genomes and record their checksums"
+    )
+    pin_parser.add_argument(
+        "--index",
+        default=None,
+        metavar="FILE",
+        help="list to take entries from; without it every accession is resolved from NCBI",
+    )
+    wanted = pin_parser.add_mutually_exclusive_group(required=True)
+    wanted.add_argument("--accessions", help="comma-separated accessions")
+    wanted.add_argument(
+        "--groups",
+        metavar="FILE",
+        help="YAML file of sample groups, {group: [accessions]}; pins every accession in it",
+    )
+    wanted.add_argument(
+        "--file",
+        action="append",
+        metavar="PATH",
+        help="pin a record produced elsewhere, such as a web service or a cluster, repeatable",
+    )
+    pin_parser.add_argument(
+        "--note",
+        default=None,
+        help="with --file: which service produced it and when, e.g. 'PMGA web, 2026-10-03'",
+    )
+    pin_parser.add_argument(
+        "--to",
+        default=".panel/genomes",
+        metavar="DIR",
+        help="directory to pin into (default: .panel/genomes)",
+    )
+
+    reference = subparsers.add_parser(
+        "reference", help="check a set of reference records before annotating from it"
+    )
+    reference_actions = reference.add_subparsers(dest="action", metavar="ACTION")
+    ref_verify = reference_actions.add_parser(
+        "verify", help="hash every pinned record again and name every file that changed"
+    )
+    ref_verify.add_argument(
+        "--reference-set",
+        default=".panel/plastid-reference",
+        metavar="DIR",
+        help=_REFERENCE_SET_HELP,
+    )
+    ref_audit = reference_actions.add_parser(
+        "audit", help="audit a set: block what cannot be used, report what a person must know"
+    )
+    ref_audit.add_argument(
+        "--reference-set",
+        default=".panel/plastid-reference",
+        metavar="DIR",
+        help=_REFERENCE_SET_HELP,
+    )
+    ref_audit.add_argument("-o", "--out", default=".runs", help=_OUT_HELP)
+    ref_audit.add_argument(
+        "--exceptions",
+        default=None,
+        metavar="FILE",
+        help="the pinned exceptions (default: AUDIT_EXCEPTIONS.json in the set); an exception is "
+        "bound to the file's digest, so editing the file voids it",
+    )
+    ref_audit.add_argument(
+        "--no-confirm",
+        action="store_true",
+        help="skip the second reading (the aligner call); the report then says not measured",
+    )
+    ref_audit.add_argument(
+        "--confirm-exception",
+        default=None,
+        metavar="FILE:CHECK",
+        help="pin a confirmed exception for one reported check, then stop; the digest is taken "
+        "from the file as it is now",
+    )
+    ref_audit.add_argument("--confirmed-by", default=None, help="with --confirm-exception: who")
+    ref_audit.add_argument(
+        "--reason", default=None, help="with --confirm-exception: why the finding is accepted"
+    )
+    ref_loo = reference_actions.add_parser(
+        "leave-one-out",
+        help="write which records may annotate which target, each one left out of its own set",
+    )
+    ref_loo.add_argument(
+        "--reference-set",
+        default=".panel/plastid-reference",
+        metavar="DIR",
+        help=_REFERENCE_SET_HELP,
+    )
+    ref_loo.add_argument(
+        "--family",
+        required=True,
+        help='the family the set was chosen at, e.g. "Iridaceae"',
+    )
+    ref_loo.add_argument(
+        "--rule", default="same family first", help="the sentence the set was chosen by"
+    )
+    ref_loo.add_argument(
+        "--to",
+        default=None,
+        metavar="PATH",
+        help="file or directory to write to (default: REFERENCE_SET.json in the set)",
+    )
+
+    editing = subparsers.add_parser(
+        "editing-reference", help="the reference of the RNA-editing predictor: rebuild or verify it"
+    )
+    editing_actions = editing.add_subparsers(dest="action", metavar="ACTION")
+    editing_build = editing_actions.add_parser(
+        "build", help="rebuild it from its pinned records, the sourced edit list and pinned MAFFT"
+    )
+    editing_build.add_argument(
+        "--records",
+        default=".panel/rna_editing",
+        metavar="DIR",
+        help="directory holding the seven pinned records as <accession>.gb (default: "
+        ".panel/rna_editing); `plastid panel pin` fetches them, and any other bytes are refused",
+    )
+    editing_build.add_argument(
+        "--to", required=True, metavar="FILE", help="where to write the reference JSON"
+    )
+    editing_build.add_argument("-o", "--out", default=".runs", help=_OUT_HELP)
+    editing_verify = editing_actions.add_parser(
+        "verify", help="check it against its digest, and the records against their pins"
+    )
+    editing_verify.add_argument(
+        "--reference-file",
+        default=None,
+        metavar="FILE",
+        help="a reference JSON (default: the packaged one)",
+    )
+    editing_verify.add_argument(
+        "--records",
+        default=None,
+        metavar="DIR",
+        help="also hash the pinned records in this directory again",
+    )
 
     figures_parser = subparsers.add_parser(
-        "figures",
-        help=(
-            "re-render a run's figures from the tables it stored — both catalogues, no analysis "
-            "re-run; a batch directory draws its multi-sample R figures"
-        ),
+        "figures", help="redraw a run's figures from its stored tables, without running anything"
     )
-    figures_parser.add_argument("run", metavar="RUN_DIR", help="a run directory")
+    figures_parser.add_argument("run", metavar="RUN_DIR", help=_RUN_DIR_HELP)
     figures_parser.add_argument(
         "--figure",
         action="append",
         default=None,
         metavar="ID",
-        help="render only this figure (repeatable; default: every figure the run's tables feed)",
+        help="draw only this figure, repeatable (default: every figure the run's tables can feed)",
     )
+    figures_parser.add_argument(
+        "--list",
+        action="store_true",
+        help="list every figure, whether this run can draw it, and the drawing options, then stop",
+    )
+    figures_parser.add_argument("--json", action="store_true", help="with --list: " + _JSON_HELP)
     figures_parser.add_argument(
         "--set",
         action="append",
         default=[],
         metavar="KEY=VALUE",
         dest="sets",
-        help="parameter for the R figures, e.g. --set rscript=/usr/bin/Rscript (docs/tools/r.md)",
+        help="drawing option, repeatable; --list names them",
     )
 
+    package_parser = subparsers.add_parser(
+        "package", help="rebuild a run's Supplementary package: tables, figures, reports, index"
+    )
+    package_parser.add_argument("run", metavar="RUN_DIR", help=_RUN_DIR_HELP)
+
+    qc_parser = subparsers.add_parser(
+        "qc", help="write a run's technical QC report: what ran, versions, inputs, audits, figures"
+    )
+    qc_parser.add_argument("run", metavar="RUN_DIR", help=_RUN_DIR_HELP)
+
     junction_parser = subparsers.add_parser(
-        "ir-junction",
-        help="draw the IR junctions (JLB/JSB/JSA/JLA) of one or more records, with CPJSdraw",
+        "ir-junction", help="draw the IR junctions (JLB, JSB, JSA, JLA) of records, with CPJSdraw"
     )
     junction_parser.add_argument(
         "-i",
@@ -277,14 +601,9 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         action="append",
         metavar="GENBANK",
-        help="a GenBank record with its IR annotated; repeat the flag for one record per species",
+        help="a GenBank record with its IR annotated; repeat it, one record per species",
     )
-    junction_parser.add_argument(
-        "-o", "--out", default=".runs", help="output root (default: .runs)"
-    )
-    junction_parser.add_argument(
-        "--dataset", default="ir-junction", help="dataset label (default: ir-junction)"
-    )
+    _add_run_directory(junction_parser, "ir-junction", fixed="ir-junction")
     junction_parser.add_argument(
         "--tag",
         default="ir_junction",
@@ -297,83 +616,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--tree",
         default=None,
         metavar="NEWICK",
-        help="order the species by distance from --reference on this tree (default: input order)",
+        help="a tree that sets the species order (default: the order of -i)",
     )
     junction_parser.add_argument(
-        "--reference", default=None, metavar="NAME", help="the species --tree measures from"
+        "--order-from",
+        default=None,
+        metavar="NAME",
+        help="the species on --tree the others are ordered by distance from",
     )
     junction_parser.add_argument(
         "--cpjsdraw",
         default=None,
         metavar="PATH",
-        help="the patched CPJSdraw.pl (default: on PATH — see docs/tools/cpjsdraw.md)",
+        help="the patched CPJSdraw.pl when it is not on PATH (docs/tools/cpjsdraw.md)",
     )
     junction_parser.add_argument(
-        "--drop-pseudo", action="store_true", help="pass -p to CPJSdraw (drop pseudo genes)"
-    )
-    junction_parser.add_argument(
-        "--label",
-        default=None,
-        metavar="TEXT",
-        help="data-provenance label, recorded in the run — output made from someone else's "
-        "records must carry one (e.g. --label stand-in)",
+        "--drop-pseudo", action="store_true", help="leave pseudogenes out of the figure"
     )
 
-    annotate_parser = subparsers.add_parser(
-        "annotate",
-        help="annotate plastomes by transfer from the pinned plastid reference set",
-    )
-    annotate_parser.add_argument(
-        "-i",
-        "--input",
-        action="append",
-        default=[],
-        help="FASTA or GenBank sample, one record — repeat the flag to annotate a batch, "
-        "one run directory and one artifact per sample (not needed with --audit-only)",
-    )
-    annotate_parser.add_argument(
-        "--reference",
-        default=None,
-        help="directory of GenBank records to transfer from (default: the pinned plastid set)",
-    )
-    annotate_parser.add_argument(
-        "--exclude",
-        action="append",
-        default=[],
-        metavar="ACCESSION",
-        help=(
-            "leave this reference record out of the search (repeatable) — the mechanical form of "
-            "D5-08's 'fix or drop the bad file': the run names what it did not search"
-        ),
-    )
-    annotate_parser.add_argument(
-        "--audit-only",
-        action="store_true",
-        help="audit the reference set and stop — nothing is annotated (P3B-03's flag)",
-    )
-    annotate_parser.add_argument(
-        "--no-confirm",
-        action="store_true",
-        help="with --audit-only: skip the second reading; the report then says not measured",
-    )
-    annotate_parser.add_argument(
-        "-o", "--out", default=".runs", help="output root (default: .runs)"
-    )
-    annotate_parser.add_argument(
-        "--dataset", default=None, help="dataset label (default: each sample's accession)"
-    )
-    annotate_parser.add_argument(
-        "--docx",
-        action="store_true",
-        help="also write report.docx in each run's module directory (needs the 'docx' extra)",
-    )
-    annotate_parser.add_argument("--force", action="store_true", help="ignore the cache and re-run")
-    annotate_parser.add_argument(
-        "--set", action="append", default=[], metavar="KEY=VALUE", help="module parameter"
-    )
-
-    mito = subparsers.add_parser("mito", help="mitochondrial annotation (Phase 3A prototype)")
-    mito_actions = mito.add_subparsers(dest="mito_action", metavar="ACTION")
+    mito = subparsers.add_parser("mito", help="mitochondrial annotation (prototype)")
+    mito_actions = mito.add_subparsers(dest="action", metavar="ACTION")
     annotate = mito_actions.add_parser(
         "annotate",
         help="annotate a mitogenome by transferring a gene model from a reference set",
@@ -387,216 +649,14 @@ def build_parser() -> argparse.ArgumentParser:
     annotate.add_argument(
         "--reference",
         default=None,
-        help=(
-            "directory of GenBank references to transfer from (default: the packaged mito "
-            "reference set built in P3A-02)"
-        ),
+        help="directory of GenBank references to transfer from (default: the packaged mito "
+        "reference set)",
     )
-    annotate.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
+    annotate.add_argument("-o", "--out", default=".runs", help=_OUT_HELP)
     annotate.add_argument("--dataset", default=None, help="dataset label (default: accession)")
     annotate.add_argument("--force", action="store_true", help="ignore the cache and re-run")
     annotate.add_argument(
         "--set", action="append", default=[], metavar="KEY=VALUE", help="module parameter"
-    )
-
-    panel = subparsers.add_parser("panel", help="Reference Panel: propose and pin genomes")
-    panel_actions = panel.add_subparsers(dest="panel_action", metavar="ACTION")
-    refresh = panel_actions.add_parser("refresh", help="rebuild the RefSeq index from NCBI")
-    refresh.add_argument("--taxon", required=True, help='e.g. "Iridaceae"')
-    refresh.add_argument("--out", default=".panel", help="index directory (default: .panel)")
-    refresh.add_argument("--retmax", type=int, default=200)
-    propose_parser = panel_actions.add_parser("propose", help="list candidates (no network)")
-    propose_parser.add_argument("--index", default=".panel/index.json")
-    propose_parser.add_argument("--target", required=True, help="accession of the target genome")
-    propose_parser.add_argument("--mode", choices=["A", "B"], default="B")
-    propose_parser.add_argument("--level", default="family")
-    propose_parser.add_argument("--per-tier", type=int, default=3)
-    pin_parser = panel_actions.add_parser("pin", help="download and checksum the chosen genomes")
-    pin_parser.add_argument(
-        "--index",
-        default=None,
-        help="panel index to take entries from; without it every accession is resolved from NCBI",
-    )
-    wanted = pin_parser.add_mutually_exclusive_group(required=True)
-    wanted.add_argument("--accessions", help="comma-separated accessions")
-    wanted.add_argument(
-        "--groups",
-        metavar="FILE",
-        help="sample-group YAML ({group: [accessions]}) — pins every accession in it",
-    )
-    wanted.add_argument(
-        "--file",
-        action="append",
-        metavar="PATH",
-        help="pin a record produced elsewhere (a web service, a cluster) — repeat for several; "
-        "the answer of a heavy tool is a file, and a file that is not pinned cannot be reproduced",
-    )
-    pin_parser.add_argument(
-        "--note",
-        default=None,
-        help="with --file: which service produced it and when, e.g. 'PMGA web, 2026-10-03'",
-    )
-    pin_parser.add_argument("--out", default=".panel/genomes")
-
-    reference = subparsers.add_parser(
-        "reference",
-        help="the plastid reference set: re-verify its pin, write its leave-one-out design",
-    )
-    reference_actions = reference.add_subparsers(dest="reference_action", metavar="ACTION")
-    ref_verify = reference_actions.add_parser(
-        "verify", help="re-hash every pinned record and name every file that changed"
-    )
-    ref_verify.add_argument(
-        "--panel",
-        default=".panel/plastid-reference",
-        help="the pinned reference set (default: .panel/plastid-reference)",
-    )
-    ref_loo = reference_actions.add_parser(
-        "loo", help="write the leave-one-out manifest: which records may annotate which target"
-    )
-    ref_loo.add_argument("--panel", default=".panel/plastid-reference")
-    ref_loo.add_argument(
-        "--family",
-        required=True,
-        help='the family the taxonomy rule was applied at, e.g. "Iridaceae"',
-    )
-    ref_loo.add_argument(
-        "--rule", default="same family first (D-b)", help="the sentence the set was chosen by"
-    )
-    ref_audit = reference_actions.add_parser(
-        "audit",
-        help="audit the reference set: block what cannot be used, report what a person must know",
-    )
-    ref_audit.add_argument("--panel", default=".panel/plastid-reference")
-    ref_audit.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
-    ref_audit.add_argument(
-        "--exceptions",
-        default=None,
-        help=(
-            "the pinned exceptions (default: <panel>/AUDIT_EXCEPTIONS.json); an exception is "
-            "bound to the file's digest, so editing the file voids it"
-        ),
-    )
-    ref_audit.add_argument(
-        "--no-confirm",
-        action="store_true",
-        help="skip the second reading (the aligner call); the report then says not measured",
-    )
-    ref_audit.add_argument(
-        "--confirm-exception",
-        default=None,
-        metavar="FILE:CHECK",
-        help=(
-            "pin a confirmed exception for one reported check and exit — the digest is written "
-            "from the file as it is now, never typed"
-        ),
-    )
-    ref_audit.add_argument("--confirmed-by", default=None, help="with --confirm-exception: who")
-    ref_audit.add_argument(
-        "--reason", default=None, help="with --confirm-exception: why the finding is accepted"
-    )
-    ref_loo.add_argument(
-        "--out",
-        default=None,
-        help="where to write it (default: <panel>/REFERENCE_SET.json; point it at "
-        "src/plastid/data/ to commit the offline copy)",
-    )
-
-    editing = subparsers.add_parser(
-        "editing-reference",
-        help="reference B′ of the RNA-editing predictor: rebuild it, or verify it",
-    )
-    editing_actions = editing.add_subparsers(dest="editing_action", metavar="ACTION")
-    editing_build = editing_actions.add_parser(
-        "build",
-        help="rebuild B′ from its pinned records, the sourced edit list and the pinned MAFFT",
-    )
-    editing_build.add_argument(
-        "--records",
-        default=".panel/rna_editing",
-        help="directory holding the seven pinned records as <accession>.gb (default: "
-        ".panel/rna_editing; `plastid panel pin --accessions … --out .panel/rna_editing` fetches "
-        "them, and the build refuses any bytes other than their pins in taxa.yaml)",
-    )
-    editing_build.add_argument("--out", required=True, help="where to write the reference JSON")
-    editing_build.add_argument(
-        "--runs", default=".runs", help="output root for the build's own run (default: .runs)"
-    )
-    editing_verify = editing_actions.add_parser(
-        "verify", help="check B′ against its digest, and the records against their pins"
-    )
-    editing_verify.add_argument(
-        "--reference", default=None, help="a reference JSON (default: the packaged B′)"
-    )
-    editing_verify.add_argument(
-        "--records", default=None, help="also re-hash the pinned records in this directory"
-    )
-    assemble = subparsers.add_parser(
-        "assemble",
-        help="assemble a plastome from short reads or HiFi reads: here, or imported from elsewhere",
-    )
-    assemble_actions = assemble.add_subparsers(dest="assemble_action", metavar="ACTION")
-    assemble_run = assemble_actions.add_parser(
-        "run",
-        help="assemble on this machine, or read an assembly made elsewhere; both are checked "
-        "against the reads the same way",
-    )
-    assemble_prepare = assemble_actions.add_parser(
-        "prepare",
-        help="quality-control and hash the reads for a run elsewhere; nothing leaves this machine",
-    )
-    for action in (assemble_run, assemble_prepare):
-        action.add_argument("-1", "--reads-1", default=None, help="first reads (FASTQ, gzipped ok)")
-        action.add_argument("-2", "--reads-2", default=None, help="second reads")
-        action.add_argument(
-            "--hifi",
-            default=None,
-            metavar="FASTQ",
-            help="PacBio HiFi reads (gzipped ok), in place of -1 and -2; assembled with Oatk",
-        )
-        action.add_argument("--sample", default=None, help="sample name for the run and outputs")
-        action.add_argument("-o", "--out", default=".runs", help="output root (default: .runs)")
-        action.add_argument("--dataset", default=None, help="dataset label (default: the sample)")
-        action.add_argument(
-            "--label",
-            default=None,
-            metavar="TEXT",
-            help="data-provenance label written into every table's scope",
-        )
-        action.add_argument(
-            "--set",
-            action="append",
-            default=[],
-            metavar="KEY=VALUE",
-            help=f"step parameter, repeatable: {', '.join(assembly_step.ASSEMBLY_PARAMS)}",
-        )
-    assemble_run.add_argument(
-        "--backend",
-        choices=("auto", "local", "import"),
-        default="auto",
-        help="auto runs here when the tools and the machine allow it and otherwise stops with "
-        "the reason; local skips the resource check; import reads a run made elsewhere. "
-        "Nothing is ever sent to a service by this command",
-    )
-    assemble_run.add_argument(
-        "--reference",
-        default=None,
-        help="GenBank or FASTA sequence to compare every assembled path with",
-    )
-    assemble_run.add_argument(
-        "--prepared", default=None, help="import: the prepared.json of `plastid assemble prepare`"
-    )
-    assemble_run.add_argument(
-        "--result", default=None, help="import: the directory holding the assembler's output"
-    )
-    assemble_run.add_argument(
-        "--source-name", default=None, help="import: where it ran, e.g. usegalaxy.eu"
-    )
-    assemble_run.add_argument(
-        "--retrieved-at", default=None, help="import: the date it was retrieved, YYYY-MM-DD"
-    )
-    assemble_run.add_argument(
-        "--source-url", default=None, help="import: a link to the run, such as a history"
     )
     return parser
 
@@ -611,20 +671,39 @@ def _parse_sets(pairs: list[str]) -> dict:
     return params
 
 
-def _accept_params(module_ids: Sequence[str], params: Mapping[str, Any]) -> bool:
-    """Refuse a ``--set`` key no module in this run declares (M11.20).
+def _checked_sets(pairs: Sequence[str], module_ids: Sequence[str]) -> dict | None:
+    """The ``--set`` values of a run, or None after saying what is wrong with every one of them.
 
     Measured before this check: ``--set this_key_does_not_exist=42`` ran and exited 0, so a
     misspelt ``min_length_bp`` looked like a successful override. A key a module accepts but
-    ignores is the same failure from the other side, which is why each module now declares what
-    it reads and a test compares that declaration with its source.
-
-    Returns False after printing every offending key, so the caller can return the usage code.
+    ignores is the same failure from the other side, which is why each module declares what it
+    reads and a test compares that declaration with its source. A value is checked here too, so
+    a wrong one is a refused command line and not a Python error from inside a module.
     """
-    problems = registry.unknown_params(module_ids, params)
+    try:
+        params = _parse_sets(list(pairs))
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return None
+    problems = [
+        *registry.unknown_params(module_ids, params),
+        *registry.refused_values(module_ids, params),
+    ]
     for problem in problems:
         print(problem, file=sys.stderr)
-    return not problems
+    return None if problems else params
+
+
+def _refused_for_own_command(specs: Sequence[registry.ModuleSpec]) -> bool:
+    """Whether any of these modules has to run through a command of its own, saying which."""
+    for spec in specs:
+        if spec.command:
+            print(
+                f"{spec.id} runs through `{spec.command}`, which checks the input and records "
+                f"the reference set — `plastid modules {spec.id}` shows how",
+                file=sys.stderr,
+            )
+    return any(spec.command for spec in specs)
 
 
 def _coerce(raw: str) -> object:
@@ -647,12 +726,15 @@ def _sha256_file(path: Path) -> str:
 def _finish(manifest: dict, layout: RunLayout, ctx: RunContext, version: str, code: int) -> int:
     """Write the manifest and run info whatever happened — a failed run stays traceable."""
     manifest["finished_at"] = datetime.now().isoformat(timespec="seconds")
+    manifest["exit_code"] = code
+    manifest.pop("current", None)
     write_manifest(layout.run_dir / "manifest.json", manifest)
     (layout.run_info_dir / "run_info.md").write_text(
         render_run_info(manifest, ctx.tools), encoding="utf-8"
     )
     if code == EXIT_OK:
-        print(f"{ctx.module_id}: {manifest['modules'][-1]['status']} — {layout.run_dir}")
+        steps = ", ".join(f"{entry['id']}: {entry['status']}" for entry in manifest["modules"])
+        print(f"{steps} — {layout.run_dir}")
     return code
 
 
@@ -698,8 +780,42 @@ def _fail(
                 "files": [],
             }
         )
-    manifest["status"] = "failed"
+    manifest["status"] = exit_state(code).status
     return _finish(manifest, layout, ctx, version, code)
+
+
+def _cancelled(
+    manifest: dict,
+    layout: RunLayout,
+    ctx: RunContext,
+    steps: Sequence[tuple[str, str]],
+) -> int:
+    """Close a run that was asked to stop. ``steps`` is every ``(id, version)`` the run planned.
+
+    The first step with no entry is the one the signal reached. Its tool calls so far stay on the
+    record, and what had finished stays in the directory, because a long run stopped near its end
+    still holds work somebody may want to read.
+    """
+    print(f"cancelled — what had finished is in {layout.run_dir}", file=sys.stderr)
+    done = {entry["id"] for entry in manifest["modules"]}
+    waiting = [step for step in steps if step[0] not in done]
+    for position, (step_id, version) in enumerate(waiting):
+        manifest["modules"].append(
+            {
+                "id": step_id,
+                "version": version,
+                "status": "skipped" if position else "cancelled",
+                "reason": (
+                    "skipped: the run was cancelled before this step"
+                    if position
+                    else "cancelled while this step ran"
+                ),
+                "tools": [] if position else [asdict(record) for record in ctx.tools],
+                "files": [],
+            }
+        )
+    manifest["status"] = exit_state(EXIT_CANCELLED).status
+    return _finish(manifest, layout, ctx, "", EXIT_CANCELLED)
 
 
 def _with_data_label(renderer, params: dict):
@@ -786,20 +902,18 @@ def _cmd_run(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return EXIT_USAGE
+    if _refused_for_own_command(specs):
+        return EXIT_USAGE
+    params = _checked_sets(args.set or [], [spec.id for spec in specs])
+    if params is None:
+        return EXIT_USAGE
+    if args.label:
+        params[DATA_LABEL_PARAM] = args.label
 
     try:
         genomes = tuple(_read_input(path) for path in args.input)
     except (OSError, ValueError) as error:
         print(f"cannot read the input: {error}", file=sys.stderr)
-        return EXIT_ERROR
-    try:
-        params = _parse_sets(args.set or [])
-    except ValueError as error:
-        print(str(error), file=sys.stderr)
-        return EXIT_USAGE
-    if args.label:
-        params[DATA_LABEL_PARAM] = args.label
-    if not _accept_params([spec.id for spec in specs], params):
         return EXIT_USAGE
 
     if args.groups:
@@ -809,7 +923,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             groups = load_groups(args.groups)
         except (OSError, ValueError) as error:
             print(f"cannot read {args.groups}: {error}", file=sys.stderr)
-            return EXIT_ERROR
+            return EXIT_USAGE
         labels: dict[str, str] = {}
         unlabelled = []
         for item in genomes:
@@ -825,14 +939,14 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 f"or the comparison output would carry an unlabelled row",
                 file=sys.stderr,
             )
-            return EXIT_ERROR
+            return EXIT_USAGE
         params["groups"] = labels
 
     try:
         reference, genomes, inputs = _resolve_reference(specs, params, genomes, list(args.input))
     except (OSError, ValueError, KeyError) as error:
         print(str(error), file=sys.stderr)
-        return EXIT_ERROR
+        return EXIT_USAGE
     for spec in specs:
         # API v0.2: arity ≥ 2 means *at least* that many genomes — an estimate over N accessions
         # wants all of them. arity 1 still takes exactly one. The runner enforces "at least"
@@ -860,17 +974,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
         params=params,
         out=args.out,
         dataset=args.dataset,
-        force=args.force,
+        force=args.no_cache,
         docx=args.docx,
         figures=args.figures,
-        command=[
-            "plastid",
-            "run",
-            *[part for spec in specs for part in ("--module", spec.id)],
-            *[part for text in args.input for part in ("--input", text)],
-            *(["--label", args.label] if args.label else []),
-            *(["--figures"] if args.figures else []),
-        ],
+        command=args.typed,
         inputs=inputs,
         references=reference,
     )
@@ -893,6 +1000,8 @@ def _cmd_batch(args: argparse.Namespace) -> int:
     except registry.UnknownModuleError as error:
         print(str(error), file=sys.stderr)
         return EXIT_USAGE
+    if _refused_for_own_command(specs):
+        return EXIT_USAGE
     multi = [spec.id for spec in specs if spec.arity != 1]
     if multi:
         print(
@@ -902,104 +1011,56 @@ def _cmd_batch(args: argparse.Namespace) -> int:
         )
         return EXIT_USAGE
 
-    try:
-        params = _parse_sets(args.set or [])
-    except ValueError as error:
-        print(str(error), file=sys.stderr)
+    params = _checked_sets(args.set or [], [spec.id for spec in specs])
+    if params is None:
         return EXIT_USAGE
     if args.label:
         params[DATA_LABEL_PARAM] = args.label
-    if not _accept_params([spec.id for spec in specs], params):
-        return EXIT_USAGE
 
-    records: list[batch_run.SampleRecord] = []
-    results: dict[str, dict] = {}
-    codes: list[int] = []
-    for text in args.input:
-        try:
-            genome = _read_input(text)
-        except (OSError, ValueError) as error:
-            print(f"{text} — {error}", file=sys.stderr)
-            records.append(
-                batch_run.SampleRecord(
-                    sample_id=Path(text).stem,
-                    species="",
-                    accession="",
-                    input=text,
-                    sha256="",
-                    status="failed",
-                    exit_code=EXIT_ERROR,
-                    error=str(error),
-                )
-            )
-            codes.append(EXIT_ERROR)
-            continue
-        species = genome.name
-        accession = genome.accession or genome.name
-        label = accession
-        taken = {record.sample_id for record in records}
-        suffix = 2
-        while label in taken:
-            label = f"{accession}#{suffix}"
-            suffix += 1
-        layout = RunLayout.create(args.out, label, fingerprint=_run_fingerprint((genome,), params))
-        code = _execute_run(
-            genomes=(genome,),
-            specs=tuple(specs),
-            params=dict(params),
-            out=args.out,
-            dataset=label,
-            force=args.force,
-            docx=args.docx,
-            command=[
-                "plastid",
-                "batch",
-                *[part for spec in specs for part in ("--module", spec.id)],
-                *[part for value in args.input for part in ("--input", value)],
-                *(["--dataset", args.dataset] if args.dataset else []),
-            ],
-            inputs=[text],
-            layout=layout,
-        )
-        record = batch_run.read_sample(
-            sample_id=label,
-            species=species,
-            accession=accession,
-            input_path=text,
-            sha256=_sha256_file(Path(text)),
-            exit_code=code,
-            run_dir=layout.run_dir,
-        )
-        records.append(record)
-        results[label] = dict(batch_run.read_results(record))
-        codes.append(code)
-
-    if not records:
-        print("batch: no input was readable — nothing was aggregated", file=sys.stderr)
-        return EXIT_USAGE
     batch_label = args.dataset or "batch"
     fingerprint = hashlib.sha256(
-        json.dumps(
-            {"samples": [record.sample_id for record in records], "params": params},
-            sort_keys=True,
-        ).encode()
+        json.dumps({"inputs": list(args.input), "params": params}, sort_keys=True).encode()
     ).hexdigest()
     layout = RunLayout.create(args.out, batch_label, fingerprint=fingerprint)
     layout.make_dirs()
+    started = batch_run.start_batch(
+        run_dir=layout.run_dir,
+        dataset=batch_label,
+        params=params,
+        command=args.typed,
+        inputs=list(args.input),
+    )
+    records: list[batch_run.SampleRecord] = []
+    results: dict[str, dict] = {}
+    codes: list[int] = []
+    try:
+        for position, text in enumerate(args.input, start=1):
+            print(f"sample {position}/{len(args.input)}: {text}", file=sys.stderr, flush=True)
+            record, sample_results = _batch_sample(text, specs, params, records, args)
+            records.append(record)
+            results[record.sample_id] = sample_results
+            codes.append(record.exit_code)
+            batch_run.record_sample(layout.run_dir, started, record)
+            if record.exit_code == EXIT_CANCELLED:
+                break
+    except RunCancelled:
+        print(f"cancelled — what had finished is in {layout.run_dir}", file=sys.stderr)
+        codes.append(EXIT_CANCELLED)
+    failed = [code for code in codes if code != EXIT_OK]
+    code = EXIT_CANCELLED if EXIT_CANCELLED in failed else (failed[0] if failed else EXIT_OK)
     batch_run.write_batch(
         run_dir=layout.run_dir,
         dataset=batch_label,
         records=records,
         results=results,
         params=params,
-        command=[
-            "plastid",
-            "batch",
-            *[part for spec in specs for part in ("--module", spec.id)],
-            *[part for text in args.input for part in ("--input", text)],
-        ],
+        command=args.typed,
         inputs=list(args.input),
+        started=started,
+        exit_code=code,
     )
+    if code == EXIT_CANCELLED:
+        return code
     if args.figures:
         # The multi-sample figures read the aggregate, not the per-sample results: the same pass
         # `plastid figures <batch-dir>` runs, kept here so one command can finish the batch.
@@ -1058,9 +1119,63 @@ def _cmd_batch(args: argparse.Namespace) -> int:
         for figure_id, reason in outcome.skipped:
             print(f"skipped {figure_id}: {reason}", file=sys.stderr)
 
-    failed = [code for code in codes if code != EXIT_OK]
     print(f"batch: {len(records) - len(failed)} of {len(records)} sample(s) ok — {layout.run_dir}")
-    return failed[0] if failed else EXIT_OK
+    return code
+
+
+def _batch_sample(
+    text: str,
+    specs: Sequence[registry.ModuleSpec],
+    params: dict,
+    records: Sequence[batch_run.SampleRecord],
+    args: argparse.Namespace,
+) -> tuple[batch_run.SampleRecord, dict]:
+    """One sample through the same body as `plastid run`, read back from what its run wrote."""
+    try:
+        genome = _read_input(text)
+    except (OSError, ValueError) as error:
+        print(f"{text} — {error}", file=sys.stderr)
+        record = batch_run.SampleRecord(
+            sample_id=Path(text).stem,
+            species="",
+            accession="",
+            input=text,
+            sha256="",
+            status="failed",
+            exit_code=EXIT_USAGE,
+            error=str(error),
+        )
+        return record, {}
+    accession = genome.accession or genome.name
+    label = accession
+    taken = {record.sample_id for record in records}
+    suffix = 2
+    while label in taken:
+        label = f"{accession}#{suffix}"
+        suffix += 1
+    layout = RunLayout.create(args.out, label, fingerprint=_run_fingerprint((genome,), params))
+    code = _execute_run(
+        genomes=(genome,),
+        specs=tuple(specs),
+        params=dict(params),
+        out=args.out,
+        dataset=label,
+        force=args.no_cache,
+        docx=args.docx,
+        command=args.typed,
+        inputs=[text],
+        layout=layout,
+    )
+    record = batch_run.read_sample(
+        sample_id=label,
+        species=genome.name,
+        accession=accession,
+        input_path=text,
+        sha256=_sha256_file(Path(text)),
+        exit_code=code,
+        run_dir=layout.run_dir,
+    )
+    return record, dict(batch_run.read_results(record))
 
 
 def _resolve_reference(
@@ -1317,6 +1432,48 @@ def _execute_run(
         dataset=label,
         reference_sets=list(reference_sets or []),
     )
+    write_manifest(layout.run_dir / "manifest.json", manifest)
+    contexts = [ctx]
+    try:
+        return _run_steps(
+            genomes=genomes,
+            specs=specs,
+            params=params,
+            manifest=manifest,
+            layout=layout,
+            contexts=contexts,
+            label=label,
+            force=force,
+            docx=docx,
+            figures=figures,
+            references=references,
+        )
+    except RunCancelled:
+        return _cancelled(
+            manifest, layout, contexts[-1], [(spec.id, spec.version) for spec in specs]
+        )
+
+
+def _run_steps(
+    *,
+    genomes: Sequence[Genome],
+    specs: Sequence[registry.ModuleSpec],
+    params: dict,
+    manifest: dict,
+    layout: RunLayout,
+    contexts: list[RunContext],
+    label: str,
+    force: bool,
+    docx: bool,
+    figures: bool,
+    references: dict | None,
+) -> int:
+    """The gate, then each module in order. ``contexts`` tells the caller which step a stop reached.
+
+    The manifest on disk moves with the run, so a viewer sees which step it is in and what the
+    finished steps wrote.
+    """
+    ctx = contexts[-1]
     # A module that computes against a packaged reference (M4.5: the RNA-editing reference B′)
     # names it in the manifest by its digest, and the digest enters the step's parameters so the
     # cache key carries it explicitly. A reference that fails its own digest stops the run here.
@@ -1382,10 +1539,19 @@ def _execute_run(
     citations = load_citations()
     gated_ir = gated[0] if any(spec.requires_ir for spec in specs) else None
     documents: list[Path] = []
-    files: list[dict] = []
+    files: list[dict] = manifest["files"]
     for order, spec in enumerate(specs, start=1):
         ctx = RunContext(layout=layout, params=params, module_id=spec.id, module_order=order)
         ctx.ir = gated_ir
+        contexts.append(ctx)
+        manifest["current"] = {
+            "module": spec.id,
+            "order": order,
+            "of": len(specs),
+            "started_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        write_manifest(layout.run_dir / "manifest.json", manifest)
+        print(f"[{order}/{len(specs)}] {spec.id}", file=sys.stderr, flush=True)
         try:
             template = load_template(f"{spec.id}.en.md")
         except FileNotFoundError:
@@ -1463,7 +1629,7 @@ def _execute_run(
                 layout,
                 ctx,
                 spec.version,
-                f"{error}\n`plastid annotate --audit-only` re-checks the set without annotating "
+                f"{error}\n`plastid reference audit` re-checks the set without annotating "
                 f"anything; `--exclude <accession>` drops a record from the search, and the run "
                 f"says which records it did not search",
                 EXIT_USAGE,
@@ -1562,7 +1728,7 @@ def _execute_run(
             except ContractError as error:
                 return _fail(manifest, layout, ctx, spec.version, str(error), EXIT_ERROR)
 
-    manifest["files"] = files
+    write_manifest(layout.run_dir / "manifest.json", manifest)
     if len(documents) > 1:
         # One run, one report: the modules' own documents are joined rather than re-rendered,
         # because a cache hit restores files and not results (see result/docx_export).
@@ -1630,12 +1796,30 @@ def _combine_documents(
     return path
 
 
+def _stored_results(run_dir: Path) -> dict[str, Result]:
+    """What a run stored. A run stopped or refused before its first step finished holds nothing."""
+    return read_run_results(run_dir) if any(run_dir.glob("*/result.json")) else {}
+
+
+def _nothing_finished(run_dir: Path) -> bool:
+    """Whether this run finished no step, saying so: it is a state of the run, not a wrong path."""
+    if any(run_dir.glob("*/result.json")):
+        return False
+    status = read_state(run_dir).status
+    print(f"{run_dir} finished no step (status {status}), so it holds no tables", file=sys.stderr)
+    return True
+
+
 def _run_dir_or_error(path: str, *, allow_batch: bool = False) -> Path | None:
     """A run directory (or, where the caller can use one, a batch directory)."""
     run_dir = Path(path)
-    if (run_dir / "manifest.json").is_file():
-        return run_dir
-    if allow_batch and (run_dir / "batch.json").is_file():
+    is_run = (run_dir / "manifest.json").is_file()
+    is_batch = allow_batch and (run_dir / "batch.json").is_file()
+    if (is_run or is_batch) and read_state(run_dir).status == "running":
+        # The run is rewriting its record, and what its tables hold so far is not a result.
+        print(f"{run_dir} is still running — wait for it, or stop it, first", file=sys.stderr)
+        return None
+    if is_run or is_batch:
         return run_dir
     print(
         f"{run_dir} is not a run directory — no manifest.json"
@@ -1706,8 +1890,8 @@ def _cmd_package(args: argparse.Namespace) -> int:
     still exists (M11.18).
     """
     run_dir = _run_dir_or_error(args.run)
-    if run_dir is None:
-        return EXIT_ERROR
+    if run_dir is None or _nothing_finished(run_dir):
+        return EXIT_USAGE
     manifest_path = run_dir / "manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -1888,10 +2072,10 @@ def _cmd_qc(args: argparse.Namespace) -> int:
     """The technical QC report — manifest, figure catalogue, and the number audit of reports."""
     run_dir = _run_dir_or_error(args.run)
     if run_dir is None:
-        return EXIT_ERROR
+        return EXIT_USAGE
     try:
         manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-        results = read_run_results(run_dir)
+        results = _stored_results(run_dir)
         records, missing = _figure_inventory(run_dir, results, manifest)
         _, target = render_qc_for_run(run_dir, figure_records=records, missing_renderers=missing)
     except (OSError, ValueError, KeyError) as error:
@@ -1913,24 +2097,24 @@ def _cmd_ir_junction(args: argparse.Namespace) -> int:
         path = Path(item)
         if not path.is_file():
             print(f"no such record: {path}", file=sys.stderr)
-            return EXIT_ERROR
+            return EXIT_USAGE
         try:
             records.append((path, read_genbank(path)))
         except (OSError, ValueError) as error:
             print(f"cannot read {path}: {error}", file=sys.stderr)
-            return EXIT_ERROR
+            return EXIT_USAGE
 
     try:
-        order = _junction_order(records, args.tree, args.reference)
+        order = _junction_order(records, args.tree, args.order_from)
     except (OSError, ValueError) as error:
         print(f"cannot read the tree: {error}", file=sys.stderr)
-        return EXIT_ERROR
+        return EXIT_USAGE
 
     params: dict[str, Any] = {
         "tag": args.tag,
         "width": args.width,
         "tree": args.tree,
-        "reference": args.reference,
+        "order_from": args.order_from,
         "drop_pseudo": args.drop_pseudo,
     }
     if args.label:
@@ -1948,7 +2132,7 @@ def _cmd_ir_junction(args: argparse.Namespace) -> int:
     manifest_path = layout.run_dir / "manifest.json"
     manifest = build_manifest(
         run_id=layout.run_id,
-        command=["ir-junction", *sys.argv[1:]],
+        command=args.typed,
         package_version=__version__,
         started_at=datetime.now().isoformat(timespec="seconds"),
         params=params,
@@ -1963,6 +2147,7 @@ def _cmd_ir_junction(args: argparse.Namespace) -> int:
         },
         dataset=args.dataset,
     )
+    write_manifest(manifest_path, manifest)
 
     # The drawing is wired here rather than in `run/junction.py`: the `run` layer may not import
     # `external/`, and this is where every other non-module step that calls a tool is wired.
@@ -1984,13 +2169,21 @@ def _cmd_ir_junction(args: argparse.Namespace) -> int:
             drop_pseudo=args.drop_pseudo,
         )
         png = svg_to_png(ctx, svg, figures / f"{args.tag}.png", width=args.width)
+    except RunCancelled:
+        print(f"cancelled — what had finished is in {layout.run_dir}", file=sys.stderr)
+        _finish_manifest(manifest, manifest_path, EXIT_CANCELLED)
+        return EXIT_CANCELLED
     except ToolError as error:
         print(str(error), file=sys.stderr)
-        _finish_manifest(manifest, manifest_path, "failed")
+        _finish_manifest(manifest, manifest_path, EXIT_TOOL)
         return EXIT_TOOL
-    except (JunctionError, OSError, ValueError) as error:
+    except JunctionError as error:
         print(f"cannot draw the junction figure: {error}", file=sys.stderr)
-        _finish_manifest(manifest, manifest_path, "failed")
+        _finish_manifest(manifest, manifest_path, EXIT_USAGE)
+        return EXIT_USAGE
+    except (OSError, ValueError) as error:
+        print(f"cannot draw the junction figure: {error}", file=sys.stderr)
+        _finish_manifest(manifest, manifest_path, EXIT_ERROR)
         return EXIT_ERROR
 
     for path in (config, table, svg, png):
@@ -2007,13 +2200,14 @@ def _cmd_ir_junction(args: argparse.Namespace) -> int:
     for row in rows:
         if row.warning:
             print(f"warning: {row.warning}", file=sys.stderr)
-    _finish_manifest(manifest, manifest_path, "ok")
+    _finish_manifest(manifest, manifest_path, EXIT_OK)
     return EXIT_OK
 
 
-def _finish_manifest(manifest: dict[str, Any], path: Path, status: str) -> None:
+def _finish_manifest(manifest: dict[str, Any], path: Path, code: int) -> None:
     """Close a manifest — a run that failed still says what it was and what it wrote."""
-    manifest["status"] = status
+    manifest["status"] = exit_state(code).status
+    manifest["exit_code"] = code
     manifest["finished_at"] = datetime.now().isoformat(timespec="seconds")
     write_manifest(path, manifest)
 
@@ -2081,11 +2275,27 @@ def _cmd_figures(args: argparse.Namespace) -> int:
     """
     run_dir = _run_dir_or_error(args.run, allow_batch=True)
     if run_dir is None:
-        return EXIT_ERROR
+        return EXIT_USAGE
     batch_path = run_dir / "batch.json"
     is_batch = batch_path.is_file()
     manifest_path = batch_path if is_batch else run_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    try:
+        sets = _parse_sets(args.sets)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return EXIT_USAGE
+    declared = {option.name: [option] for option in FIGURE_OPTIONS}
+    problems = [
+        f"--set {key}: no figure reads it (accepted: {', '.join(sorted(declared))})"
+        for key in sorted(sets)
+        if key not in declared
+    ]
+    problems += registry.value_problems(declared, sets)
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    if problems:
+        return EXIT_USAGE
 
     records: list[FigureRecord] = []
     batch_results = None
@@ -2093,6 +2303,11 @@ def _cmd_figures(args: argparse.Namespace) -> int:
         from plastid.run.batch import read_batch_results
 
         batch_results = read_batch_results(run_dir)
+    if args.list:
+        return _list_figures(run_dir, batch_results, as_json=args.json)
+    if not is_batch and _nothing_finished(run_dir):
+        return EXIT_USAGE
+    if is_batch:
         chosen = None if args.figure is None else set(args.figure)
         for spec in all_figures():
             if chosen is not None and spec.id not in chosen:
@@ -2218,6 +2433,89 @@ def _cmd_figures(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+_R_SCRIPT_OPTIONS: dict[str, tuple[str, ...]] = {
+    "tree": (
+        "tag",
+        "root",
+        "outgroup",
+        "drop-tips",
+        "outgroup-label",
+        "plot-type",
+        "legend",
+        "width",
+        "height",
+        "dpi",
+        "title",
+    ),
+    "rscu": ("species-order", "exclude-species", "width", "height"),
+    "amino_acid": ("species-order", "exclude-species", "width", "height"),
+    "diversity": ("width", "height", "dpi"),
+}
+
+
+# Every key `plastid figures --set` can reach: a script's option, a file a script reads, or R.
+FIGURE_OPTIONS: tuple[registry.ParamSpec, ...] = (
+    registry.ParamSpec("rscript", "file", "path to Rscript when it is not on PATH"),
+    registry.ParamSpec("tree", "file", "the Newick tree r_tree draws"),
+    registry.ParamSpec("tag", "str", "r_tree: base name of its files", default="phylo"),
+    registry.ParamSpec(
+        "root",
+        "str",
+        "r_tree: midpoint, outgroup or none",
+        default="midpoint",
+        choices=("midpoint", "outgroup", "none"),
+    ),
+    registry.ParamSpec("outgroup", "str", "r_tree: the taxa that root the tree"),
+    registry.ParamSpec("drop-tips", "str", "r_tree: the tips to leave out"),
+    registry.ParamSpec("outgroup-label", "str", "r_tree: the label of the outgroup clade"),
+    registry.ParamSpec("plot-type", "str", "r_tree: which plots to draw", default="both"),
+    registry.ParamSpec("legend", "str", "r_tree: where the legend goes", default="bottom"),
+    registry.ParamSpec("title", "str", "r_tree: the figure title"),
+    registry.ParamSpec("species-order", "str", "RSCU and amino-acid figures: column order"),
+    registry.ParamSpec("exclude-species", "str", "RSCU and amino-acid figures: columns to drop"),
+    registry.ParamSpec("width", "float", "drawing width, in the script's own unit"),
+    registry.ParamSpec("height", "float", "drawing height, in the script's own unit"),
+    registry.ParamSpec("dpi", "int", "drawing resolution"),
+)
+
+
+def _list_figures(
+    run_dir: Path, batch_results: Mapping[str, Result] | None, *, as_json: bool
+) -> int:
+    """Both catalogues as this run stands, without drawing anything."""
+    manifest_path = run_dir / ("batch.json" if batch_results is not None else "manifest.json")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    results = batch_results if batch_results is not None else _stored_results(run_dir)
+    records, _missing = _figure_inventory(run_dir, results, manifest)
+    if as_json:
+        _print_json(
+            {
+                "figures": [
+                    {
+                        "id": record.figure_id,
+                        "renderer": record.renderer,
+                        "drawn": bool(record.files),
+                        "reason": record.reason,
+                    }
+                    for record in records
+                ],
+                "options": [_param_record(option) for option in FIGURE_OPTIONS],
+            }
+        )
+        return EXIT_OK
+    _print_table(
+        ("FIGURE", "DRAWN WITH", "STATE"),
+        [
+            (record.figure_id, record.renderer, "drawn" if record.files else record.reason)
+            for record in records
+        ],
+    )
+    print("\ndrawing options (--set KEY=VALUE):")
+    for option in FIGURE_OPTIONS:
+        _describe_param(option)
+    return EXIT_OK
+
+
 @dataclass(frozen=True, slots=True)
 class OutputFigures:
     """One figure pass over both catalogues, with every absence accounted for (M11.18).
@@ -2237,8 +2535,8 @@ class OutputFigures:
     def as_manifest(self) -> dict[str, Any]:
         return {
             "policy": (
-                "the toolkit's matplotlib figures and the manuscript's R figures are collected "
-                "in one pass; a missing renderer is a named skip, never a silent absence"
+                "the toolkit's matplotlib figures and its R figures are collected in one pass; "
+                "a missing renderer is a named skip, never a silent absence"
             ),
             "rendered": [path.name for path in self.files],
             "skipped": [
@@ -2391,25 +2689,7 @@ def _render_r_figures(
         # value in an argv nothing reads. F3/F4 order and exclude species themselves (`--set
         # species-order`/`exclude-species`), F6 takes the drawing size, the tree takes its own
         # (K-06). Measured 27/10/2026: these were reachable only by calling R by hand.
-        options = {
-            "tree": (
-                "tag",
-                "root",
-                "outgroup",
-                "drop-tips",
-                "outgroup-label",
-                "plot-type",
-                "legend",
-                "width",
-                "height",
-                "dpi",
-                "title",
-            ),
-            "rscu": ("species-order", "exclude-species", "width", "height"),
-            "amino_acid": ("species-order", "exclude-species", "width", "height"),
-            "diversity": ("width", "height", "dpi"),
-        }
-        for key in options.get(script, ()):
+        for key in _R_SCRIPT_OPTIONS.get(script, ()):
             if key in params:
                 extra += [f"--{key}", str(params[key])]
         return run_figure(
@@ -2471,50 +2751,18 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
         print(str(error), file=sys.stderr)
         return EXIT_ERROR
 
-    try:
-        params = _parse_sets(args.set or [])
-    except ValueError as error:
-        print(str(error), file=sys.stderr)
+    params = _checked_sets(args.set or [], [spec.id])
+    if params is None:
         return EXIT_USAGE
-    if args.reference:
-        params["reference"] = args.reference
-    if not _accept_params([spec.id], params):
-        return EXIT_USAGE
-    planted = params.get("exclude")
-    exclusions = [planted] if isinstance(planted, str) else list(planted or ())
+    if args.reference_set:
+        params["reference"] = args.reference_set
+    if args.label:
+        params[DATA_LABEL_PARAM] = args.label
     if args.exclude:
-        exclusions.extend(args.exclude)
-    if exclusions:
-        params["exclude"] = exclusions
+        params["exclude"] = list(args.exclude)
 
     directory = plastid_reference.resolve_directory(params.get("reference"))
     missing = plastid_reference.missing_set(directory)
-    if args.audit_only:
-        if missing is not None:
-            print(f"annotate: {missing}", file=sys.stderr)
-            return EXIT_TOOL
-        return _audit_reference_directory(
-            panel=directory,
-            out=args.out,
-            no_confirm=args.no_confirm,
-            exceptions_path=directory / reference_audit.EXCEPTIONS_FILENAME,
-            command=[
-                "plastid",
-                "annotate",
-                "--audit-only",
-                "--reference",
-                str(directory),
-                *(["--no-confirm"] if args.no_confirm else []),
-            ],
-        )
-
-    if not args.input:
-        print(
-            "annotate: --input is required unless --audit-only is asked for — one sample per "
-            "-i, repeated for a batch",
-            file=sys.stderr,
-        )
-        return EXIT_USAGE
 
     # Every sample is read and checked *before* anything is annotated: a batch that mixed two
     # organelles would otherwise have written half its runs before saying so (D5-06 — one run,
@@ -2526,7 +2774,7 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
             samples.append((text, _read_input(text)))
         except (OSError, ValueError) as error:
             print(f"{text} — {error}", file=sys.stderr)
-            codes.append(EXIT_ERROR)
+            codes.append(EXIT_USAGE)
     if samples:
         try:
             organelle.check_set(
@@ -2567,9 +2815,10 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
         return EXIT_TOOL
 
     for text, genome in samples:
-        codes.append(
-            _annotate_sample(text=text, genome=genome, spec=spec, params=params, args=args)
-        )
+        code = _annotate_sample(text=text, genome=genome, spec=spec, params=params, args=args)
+        if code == EXIT_CANCELLED:
+            return code
+        codes.append(code)
 
     failed = [code for code in codes if code != EXIT_OK]
     if failed:
@@ -2614,29 +2863,16 @@ def _annotate_sample(
         params=dict(params),
         out=args.out,
         dataset=args.dataset or genome.accession or genome.name,
-        force=args.force,
+        force=args.no_cache,
         docx=args.docx,
-        command=[
-            "plastid",
-            "annotate",
-            "-i",
-            text,
-            *(["--reference", args.reference] if args.reference else []),
-            *[part for name in args.exclude for part in ("--exclude", name)],
-            *(["--dataset", args.dataset] if args.dataset else []),
-            *(["--docx"] if args.docx else []),
-        ],
+        command=args.typed,
         inputs=[text],
         reference_sets=reference_sets,
     )
 
 
 def _cmd_mito(args: argparse.Namespace) -> int:
-    action = getattr(args, "mito_action", None)
-    if action == "annotate":
-        return _cmd_mito_annotate(args)
-    print("mito: choose an action — annotate", file=sys.stderr)
-    return EXIT_USAGE
+    return _cmd_mito_annotate(args)
 
 
 def _cmd_mito_annotate(args: argparse.Namespace) -> int:
@@ -2662,17 +2898,13 @@ def _cmd_mito_annotate(args: argparse.Namespace) -> int:
         genome = read_fasta(args.input)
     except (OSError, ValueError) as error:
         print(f"cannot read the input: {error}", file=sys.stderr)
-        return EXIT_ERROR
+        return EXIT_USAGE
 
-    try:
-        params = _parse_sets(args.set or [])
-    except ValueError as error:
-        print(str(error), file=sys.stderr)
+    params = _checked_sets(args.set or [], [spec.id])
+    if params is None:
         return EXIT_USAGE
     if args.reference:
         params["reference"] = args.reference
-    if not _accept_params([spec.id], params):
-        return EXIT_USAGE
 
     return _execute_run(
         genomes=(genome,),
@@ -2682,43 +2914,35 @@ def _cmd_mito_annotate(args: argparse.Namespace) -> int:
         dataset=args.dataset,
         force=args.force,
         docx=False,
-        command=[
-            "plastid",
-            "mito",
-            "annotate",
-            "--input",
-            args.input,
-            *(["--reference", args.reference] if args.reference else []),
-        ],
+        command=args.typed,
         inputs=[args.input],
     )
 
 
 def _cmd_reference(args: argparse.Namespace) -> int:
-    action = getattr(args, "reference_action", None)
-    if action == "audit":
+    if args.action == "audit":
         return _reference_audit(args)
-    if action == "verify":
+    if args.action == "verify":
         return _reference_verify(args)
-    if action == "loo":
-        return _reference_loo(args)
-    print("reference: choose an action — verify | loo", file=sys.stderr)
-    return EXIT_USAGE
+    return _reference_loo(args)
 
 
 def _reference_verify(args: argparse.Namespace) -> int:
     """Re-hash the pin. Every problem is ``file — reason``; a set that changed is not the set."""
     try:
-        problems = plastid_reference.verify_pin(args.panel)
+        problems = plastid_reference.verify_pin(args.reference_set)
     except (OSError, ValueError, KeyError) as error:
-        print(f"{args.panel}: {error} — is this a pinned reference set?", file=sys.stderr)
-        return EXIT_ERROR
+        print(f"{args.reference_set}: {error} — is this a pinned reference set?", file=sys.stderr)
+        return EXIT_USAGE
     for problem in problems:
         print(problem, file=sys.stderr)
     if problems:
-        print(f"reference verify: {len(problems)} problem(s) in {args.panel}", file=sys.stderr)
+        print(
+            f"reference verify: {len(problems)} problem(s) in {args.reference_set}",
+            file=sys.stderr,
+        )
         return EXIT_ERROR
-    print(f"reference verify: {args.panel} — every record matches its pin")
+    print(f"reference verify: {args.reference_set} — every record matches its pin")
     return EXIT_OK
 
 
@@ -2731,7 +2955,11 @@ def _reference_audit(args: argparse.Namespace) -> int:
     Blocking findings stop here with exit 2 and nothing is annotated; reporting findings are named
     and the run proceeds, because the classes they cover are real published data.
     """
-    panel = Path(args.panel)
+    panel = Path(args.reference_set)
+    missing = plastid_reference.missing_set(panel)
+    if missing is not None:
+        print(f"reference audit: {missing}", file=sys.stderr)
+        return EXIT_TOOL
     exceptions_path = (
         Path(args.exceptions) if args.exceptions else panel / reference_audit.EXCEPTIONS_FILENAME
     )
@@ -2744,14 +2972,7 @@ def _reference_audit(args: argparse.Namespace) -> int:
         out=args.out,
         no_confirm=args.no_confirm,
         exceptions_path=exceptions_path,
-        command=[
-            "plastid",
-            "reference",
-            "audit",
-            "--panel",
-            str(panel),
-            *(["--no-confirm"] if args.no_confirm else []),
-        ],
+        command=args.typed,
     )
 
 
@@ -2763,24 +2984,19 @@ def _audit_reference_directory(
     exceptions_path: Path | None,
     command: Sequence[str],
 ) -> int:
-    """The audit as a run — its own directory, manifest and tool record (P3B-03, P3B-09).
-
-    Shared by ``plastid reference audit`` and by ``plastid annotate --audit-only``: the flag the
-    design gives the user to fix and re-check a set **without annotating anything** (D5-08) is the
-    same audit, so it is the same code. Two entry points, one gate.
-    """
+    """The audit as a run — its own directory, manifest and tool record (P3B-03, P3B-09)."""
     from plastid.modules import reference_audit as audit_module
 
     paths = sorted(panel.glob("*.gb"))
     if not paths:
         print(f"{panel}: no *.gb record to audit", file=sys.stderr)
-        return EXIT_ERROR
+        return EXIT_USAGE
 
     try:
         pins = reference_audit.read_exceptions(exceptions_path)
     except (OSError, ValueError, KeyError) as error:
         print(f"{exceptions_path}: {error}", file=sys.stderr)
-        return EXIT_ERROR
+        return EXIT_USAGE
 
     digests = "".join(f"{_sha256_file(path)}\x00" for path in paths)
     layout = RunLayout.create(
@@ -2805,12 +3021,16 @@ def _audit_reference_directory(
         },
         dataset=layout.dataset,
     )
+    write_manifest(layout.run_dir / "manifest.json", manifest)
 
     confirmer, note = _audit_aligner(no_confirm)
     try:
         report = reference_audit.audit_files(
             paths, ctx=ctx, exceptions=pins, confirm=confirmer, confirm_note=note
         )
+    except RunCancelled:
+        steps = [(audit_module.MODULE_ID, audit_module.MODULE_VERSION)]
+        return _cancelled(manifest, layout, ctx, steps)
     except (OSError, ValueError) as error:
         return _fail(manifest, layout, ctx, audit_module.MODULE_VERSION, str(error), EXIT_ERROR)
 
@@ -2854,13 +3074,15 @@ def _audit_reference_directory(
             "files": [str(path.relative_to(layout.run_dir)) for path in files],
         }
     )
-    manifest["status"] = "ok" if report.ok else "failed"
+    code = EXIT_OK if report.ok else EXIT_USAGE
+    manifest["status"] = exit_state(code).status
+    manifest["exit_code"] = code
     manifest["finished_at"] = datetime.now().isoformat(timespec="seconds")
     write_manifest(layout.run_dir / "manifest.json", manifest)
     (layout.run_info_dir / "run_info.md").write_text(
         render_run_info(manifest, ctx.tools), encoding="utf-8"
     )
-    return EXIT_OK if report.ok else EXIT_USAGE
+    return code
 
 
 def _audit_aligner(no_confirm: bool):
@@ -2963,40 +3185,38 @@ def _reference_loo(args: argparse.Namespace) -> int:
     """Write the leave-one-out manifest — the design, as data a run can read."""
     try:
         reference_set = plastid_reference.build_manifest(
-            args.panel, family=args.family, rule=args.rule
+            args.reference_set, family=args.family, rule=args.rule
         )
     except (OSError, ValueError, KeyError) as error:
-        print(f"reference loo: {error}", file=sys.stderr)
-        return EXIT_ERROR
-    out = Path(args.out) if args.out else Path(args.panel) / plastid_reference.MANIFEST_FILENAME
+        print(f"reference leave-one-out: {error}", file=sys.stderr)
+        return EXIT_USAGE
+    out = (
+        Path(args.to) if args.to else Path(args.reference_set) / plastid_reference.MANIFEST_FILENAME
+    )
     if out.is_dir():
         out = out / plastid_reference.MANIFEST_FILENAME
     plastid_reference.write_manifest(reference_set, out)
     n = len(reference_set.records)
-    print(f"reference loo: {n} record(s) · family {reference_set.family} → {out}")
+    print(f"reference leave-one-out: {n} record(s) · family {reference_set.family} → {out}")
     print(f"  every target is annotated by the same {n - 1} record(s), minus itself")
     return EXIT_OK
 
 
 def _cmd_panel(args: argparse.Namespace) -> int:
-    action = getattr(args, "panel_action", None)
-    if action == "refresh":
+    if args.action == "refresh":
         return _panel_refresh(args)
-    if action == "propose":
+    if args.action == "propose":
         return _panel_propose(args)
-    if action == "pin":
-        return _panel_pin(args)
-    print("panel: choose an action — refresh | propose | pin", file=sys.stderr)
-    return EXIT_USAGE
+    return _panel_pin(args)
 
 
 def _panel_pin_files(args: argparse.Namespace) -> int:
     """Pin records produced outside this machine — the other half of the backend rule (P1-12)."""
     try:
-        pinned = pin_files(args.file, args.out, note=args.note)
+        pinned = pin_files(args.file, args.to, note=args.note)
     except OSError as error:
         print(f"panel pin: {error}", file=sys.stderr)
-        return EXIT_ERROR
+        return EXIT_USAGE
     problems = []
     for record in pinned:
         digest = record.sha256[:12]
@@ -3021,10 +3241,10 @@ def _panel_pin_files(args: argparse.Namespace) -> int:
 
 def _panel_refresh(args: argparse.Namespace) -> int:
     client = NcbiClient()
-    out_dir = Path(args.out)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    index = Path(args.index)
+    index.parent.mkdir(parents=True, exist_ok=True)
     try:
-        ids = client.search_refseq_plastomes(args.taxon, retmax=args.retmax)
+        ids = client.search_refseq_plastomes(args.taxon, retmax=args.max_records)
         summaries = client.summaries(ids)
         lineages = client.lineages([str(record.get("taxid", "")) for record in summaries])
     except (NcbiError, OSError) as error:
@@ -3039,8 +3259,8 @@ def _panel_refresh(args: argparse.Namespace) -> int:
     snapshot = IndexSnapshot(
         retrieved_at=datetime.now().isoformat(timespec="seconds"), entries=tuple(entries)
     )
-    save_index(out_dir / "index.json", snapshot)
-    print(f"panel: {len(entries)} RefSeq genome(s) for {args.taxon} → {out_dir / 'index.json'}")
+    save_index(index, snapshot)
+    print(f"panel: {len(entries)} RefSeq genome(s) for {args.taxon} → {index}")
     return EXIT_OK
 
 
@@ -3052,14 +3272,14 @@ def _panel_propose(args: argparse.Namespace) -> int:
             f"cannot read {args.index}: {error} — run 'plastid panel refresh' first",
             file=sys.stderr,
         )
-        return EXIT_ERROR
+        return EXIT_USAGE
     try:
         proposal = propose(
             snapshot, args.target, mode=args.mode, level=args.level, per_tier=args.per_tier
         )
     except (ValueError, KeyError) as error:
         print(str(error), file=sys.stderr)
-        return EXIT_ERROR
+        return EXIT_USAGE
 
     print(
         f"target: {proposal.target.accession} ({proposal.target.organism}) — mode {proposal.mode}"
@@ -3095,7 +3315,7 @@ def _panel_pin(args: argparse.Namespace) -> int:
             wanted = [a for group in load_groups(args.groups) for a in group.accessions]
         except (OSError, ValueError) as error:
             print(f"cannot read {args.groups}: {error}", file=sys.stderr)
-            return EXIT_ERROR
+            return EXIT_USAGE
     else:
         wanted = [a.strip() for a in args.accessions.split(",") if a.strip()]
     duplicates = sorted({a for a in wanted if wanted.count(a) > 1})
@@ -3113,7 +3333,7 @@ def _panel_pin(args: argparse.Namespace) -> int:
             snapshot = load_index(args.index)
         except (OSError, KeyError) as error:
             print(f"cannot read {args.index}: {error}", file=sys.stderr)
-            return EXIT_ERROR
+            return EXIT_USAGE
         by_accession = {entry.accession: entry for entry in snapshot.entries}
         retrieved_at = snapshot.retrieved_at
 
@@ -3143,7 +3363,7 @@ def _panel_pin(args: argparse.Namespace) -> int:
         print("panel pin: nothing resolved, nothing pinned", file=sys.stderr)
         return EXIT_ERROR
     try:
-        pinned = pin(entries, client.fetch_genbank, args.out, retrieved_at=retrieved_at)
+        pinned = pin(entries, client.fetch_genbank, args.to, retrieved_at=retrieved_at)
     except (NcbiError, OSError) as error:
         print(f"NCBI: {error}", file=sys.stderr)
         return EXIT_ERROR
@@ -3177,13 +3397,9 @@ def _panel_pin(args: argparse.Namespace) -> int:
 
 
 def _cmd_editing_reference(args: argparse.Namespace) -> int:
-    action = getattr(args, "editing_action", None)
-    if action == "build":
+    if args.action == "build":
         return _editing_reference_build(args)
-    if action == "verify":
-        return _editing_reference_verify(args)
-    print("editing-reference: choose an action — build | verify", file=sys.stderr)
-    return EXIT_USAGE
+    return _editing_reference_verify(args)
 
 
 def _editing_reference_build(args: argparse.Namespace) -> int:
@@ -3224,15 +3440,12 @@ def _editing_reference_build(args: argparse.Namespace) -> int:
         )
         return EXIT_TOOL
 
-    layout = RunLayout.create(
-        args.runs, "editing-reference", fingerprint=_sha256_text(str(digests))
-    )
+    layout = RunLayout.create(args.out, "editing-reference", fingerprint=_sha256_text(str(digests)))
     layout.make_dirs()
     ctx = RunContext(layout=layout, params={}, module_id="editing_reference", module_order=1)
-    command = ["plastid", "editing-reference", "build", "--records", str(records_dir)]
     manifest = build_manifest(
         run_id=layout.run_id,
-        command=[*command, "--out", str(args.out)],
+        command=args.typed,
         package_version=__version__,
         started_at=datetime.now().isoformat(timespec="seconds"),
         params={},
@@ -3247,6 +3460,7 @@ def _editing_reference_build(args: argparse.Namespace) -> int:
         coordinate_system={"name": "genbank", "rotation_offset": 0, "note": "records as pinned"},
         dataset="editing-reference",
     )
+    write_manifest(layout.run_dir / "manifest.json", manifest)
     try:
         payload = rna_editing.build_reference(
             records=records,
@@ -3264,12 +3478,14 @@ def _editing_reference_build(args: argparse.Namespace) -> int:
             },
             label=rna_editing.REFERENCE_LABEL,
         )
+    except RunCancelled:
+        return _cancelled(manifest, layout, ctx, [("editing_reference", "1")])
     except rna_editing.EditingReferenceError as error:
         return _fail(manifest, layout, ctx, "1", str(error), EXIT_ERROR)
     except ToolError as error:
         return _fail(manifest, layout, ctx, "1", str(error), EXIT_TOOL)
     text = json.dumps(payload, ensure_ascii=False, indent=1, sort_keys=True) + "\n"
-    out = Path(args.out)
+    out = Path(args.to)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
     copy = layout.run_dir / "reference_b_prime.json"
@@ -3304,10 +3520,10 @@ def _editing_reference_verify(args: argparse.Namespace) -> int:
     from plastid.core import rna_editing
 
     try:
-        reference = rna_editing.load_reference(args.reference)
+        reference = rna_editing.load_reference(args.reference_file)
     except (OSError, ValueError, KeyError) as error:
         print(f"editing-reference verify: {error}", file=sys.stderr)
-        return EXIT_ERROR
+        return EXIT_USAGE
     problems = []
     if args.records:
         for taxon in reference.payload["taxa"]:
@@ -3328,6 +3544,15 @@ def _sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+ASSEMBLY_STEPS = ((assembly_step.MODULE_ID, assembly_step.MODULE_VERSION),)
+
+
+_IMPORT_LINE = (
+    "plastid assemble import --prepared {prepared} --result <dir> --source-name <service> "
+    "--retrieved-at <YYYY-MM-DD> -o {out}"
+)
+
+
 def _assembly_params(args: argparse.Namespace) -> dict | None:
     """The step's parameters, or None when a key was refused. A misspelling never takes effect."""
     try:
@@ -3340,6 +3565,12 @@ def _assembly_params(args: argparse.Namespace) -> dict | None:
         accepted = ", ".join(assembly_step.ASSEMBLY_PARAMS)
         for key in unknown:
             print(f"--set {key}: assemble does not take it (accepted: {accepted})", file=sys.stderr)
+        return None
+    declared = {param.name: [param] for param in assembly_step.ASSEMBLY_PARAM_SPECS}
+    problems = registry.value_problems(declared, params)
+    for problem in problems:
+        print(problem, file=sys.stderr)
+    if problems:
         return None
     if args.label:
         params[DATA_LABEL_PARAM] = args.label
@@ -3389,8 +3620,7 @@ def _assembly_route(args: argparse.Namespace) -> str:
         "cluster of your choice:\n"
         f"  plastid assemble prepare {reads}\n"
         "  (run the command it prints there, on the reads it wrote)\n"
-        f"  plastid assemble run --backend import --prepared <prepared.json> --result <dir> "
-        f"--source-name <service> --retrieved-at <YYYY-MM-DD> -o {args.out}"
+        f"  {_IMPORT_LINE.format(prepared='<prepared.json>', out=args.out)}"
     )
 
 
@@ -3433,12 +3663,11 @@ def _assembly_layout(out: str, dataset: str, digests: Sequence[str]) -> RunLayou
 
 
 def _cmd_assemble(args: argparse.Namespace) -> int:
-    if args.assemble_action == "run":
+    if args.action == "run":
         return _assemble_run(args)
-    if args.assemble_action == "prepare":
-        return _assemble_prepare(args)
-    print("assemble: choose an action: run or prepare", file=sys.stderr)
-    return EXIT_USAGE
+    if args.action == "import":
+        return _assemble_import(args)
+    return _assemble_prepare(args)
 
 
 def _assemble_prepare(args: argparse.Namespace) -> int:
@@ -3447,7 +3676,6 @@ def _assemble_prepare(args: argparse.Namespace) -> int:
     reads = _read_pair(args)
     if params is None or reads is None:
         return EXIT_USAGE
-    command = ["plastid", "assemble", "prepare", "--sample", reads.sample]
     layout = _assembly_layout(
         args.out,
         args.dataset or reads.sample,
@@ -3461,13 +3689,16 @@ def _assemble_prepare(args: argparse.Namespace) -> int:
     )
     manifest = _assembly_manifest(
         layout=layout,
-        command=command,
+        command=args.typed,
         params=params,
         inputs=reads.files,
         reference_sets=(),
     )
+    write_manifest(layout.run_dir / "manifest.json", manifest)
     try:
         payload = assembly_step.prepare(reads, params, ctx)
+    except RunCancelled:
+        return _cancelled(manifest, layout, ctx, ASSEMBLY_STEPS)
     except ToolError as error:
         return _fail(manifest, layout, ctx, assembly_step.MODULE_VERSION, str(error), EXIT_TOOL)
     except (AssemblyError, OSError) as error:
@@ -3493,80 +3724,82 @@ def _assemble_prepare(args: argparse.Namespace) -> int:
     print("The assembler's settings, for the service's form or your cluster's command line:")
     print(f"  {' '.join(payload['tool']['command'])}")
     print("Then bring the output directory back:")
-    print(
-        f"  plastid assemble run --backend import --prepared {prepared} --result <dir> "
-        f"--source-name <service> --retrieved-at <YYYY-MM-DD> -o {args.out}"
-    )
+    print(f"  {_IMPORT_LINE.format(prepared=prepared, out=args.out)}")
     return code
 
 
-def _assemble_run(args: argparse.Namespace) -> int:
-    """One step, two backends: everything after the assembly is the same code for both."""
+def _comparison_sequence(args: argparse.Namespace) -> tuple[Genome, str, dict] | None:
+    """The record ``--compare-to`` names, its digest and manifest entry; None when unreadable."""
+    try:
+        reference = _read_input(args.compare_to)
+    except (OSError, ValueError) as error:
+        print(f"{args.compare_to} — {error}", file=sys.stderr)
+        return None
+    digest = _sha256_file(Path(args.compare_to))
+    return (
+        reference,
+        digest,
+        {
+            "role": "comparison_reference",
+            "path": args.compare_to,
+            "accession": reference.accession or reference.name,
+            "digest": digest,
+        },
+    )
+
+
+def _assemble_import(args: argparse.Namespace) -> int:
+    """An assembly made elsewhere: everything after the assembly is the code a local run uses."""
     params = _assembly_params(args)
     if params is None:
         return EXIT_USAGE
-    reference: Genome | None = None
-    reference_sha256: str | None = None
-    reference_sets: list[dict] = []
-    if args.reference:
-        try:
-            reference = _read_input(args.reference)
-        except (OSError, ValueError) as error:
-            print(f"{args.reference} — {error}", file=sys.stderr)
-            return EXIT_USAGE
-        reference_sha256 = _sha256_file(Path(args.reference))
-        reference_sets.append(
-            {
-                "role": "comparison_reference",
-                "path": args.reference,
-                "accession": reference.accession or reference.name,
-                "digest": reference_sha256,
-            }
+    comparison = _comparison_sequence(args) if args.compare_to else None
+    if args.compare_to and comparison is None:
+        return EXIT_USAGE
+    reference, reference_sha256, entry = comparison or (None, None, None)
+    try:
+        assembled = assembly_step.assemble_imported(
+            args.prepared,
+            args.result,
+            source_name=args.source_name,
+            retrieved_at=args.retrieved_at,
+            source_url=args.source_url,
         )
+    except (AssemblyError, OSError, ValueError) as error:
+        print(f"assemble: {error}", file=sys.stderr)
+        return EXIT_USAGE
+    layout = _assembly_layout(
+        args.out,
+        args.dataset or assembled.sample,
+        [_sha256_file(Path(args.prepared)), args.source_name],
+    )
+    ctx = RunContext(
+        layout=layout,
+        params=params,
+        module_id=assembly_step.MODULE_ID,
+        module_order=1,
+    )
+    manifest = _assembly_manifest(
+        layout=layout,
+        command=args.typed,
+        params=params,
+        inputs=(Path(args.prepared), *assembled.mapping_reads),
+        reference_sets=[entry] if entry else [],
+    )
+    write_manifest(layout.run_dir / "manifest.json", manifest)
+    return _assembly_outcome(assembled, params, ctx, manifest, layout, reference, reference_sha256)
 
-    if args.backend == "import":
-        required = (
-            ("--prepared", args.prepared),
-            ("--result", args.result),
-            ("--source-name", args.source_name),
-            ("--retrieved-at", args.retrieved_at),
-        )
-        missing = [flag for flag, value in required if not value]
-        if missing:
-            print(f"assemble: --backend import needs {' '.join(missing)}", file=sys.stderr)
-            return EXIT_USAGE
-        try:
-            assembled = assembly_step.assemble_imported(
-                args.prepared,
-                args.result,
-                source_name=args.source_name,
-                retrieved_at=args.retrieved_at,
-                source_url=args.source_url,
-            )
-        except (AssemblyError, OSError, ValueError) as error:
-            print(f"assemble: {error}", file=sys.stderr)
-            return EXIT_ERROR
-        layout = _assembly_layout(
-            args.out,
-            args.dataset or assembled.sample,
-            [_sha256_file(Path(args.prepared)), args.source_name],
-        )
-        ctx = RunContext(
-            layout=layout,
-            params=params,
-            module_id=assembly_step.MODULE_ID,
-            module_order=1,
-        )
-        manifest = _assembly_manifest(
-            layout=layout,
-            command=["plastid", "assemble", "run", "--backend", "import"],
-            params=params,
-            inputs=(Path(args.prepared), *assembled.mapping_reads),
-            reference_sets=reference_sets,
-        )
-        return _assembly_outcome(
-            assembled, params, ctx, manifest, layout, reference, reference_sha256
-        )
+
+def _assemble_run(args: argparse.Namespace) -> int:
+    """Assemble on this machine, or stop with the reason and the route to a run elsewhere."""
+    params = _assembly_params(args)
+    if params is None:
+        return EXIT_USAGE
+    comparison = _comparison_sequence(args) if args.compare_to else None
+    if args.compare_to and comparison is None:
+        return EXIT_USAGE
+    reference, reference_sha256, entry = comparison or (None, None, None)
+    reference_sets = [entry] if entry else []
 
     reads = _read_pair(args)
     if reads is None:
@@ -3574,7 +3807,7 @@ def _assemble_run(args: argparse.Namespace) -> int:
     machine = assembly_step.measure_machine(Path(args.out))
     try:
         tools, database = assembly_step.preflight(
-            reads, params, machine=machine, check_resources=args.backend == "auto"
+            reads, params, machine=machine, check_resources=not args.skip_resource_check
         )
     except assembly_step.BackendUnavailable as error:
         print(f"assemble: cannot run here: {error}", file=sys.stderr)
@@ -3593,15 +3826,18 @@ def _assemble_run(args: argparse.Namespace) -> int:
     )
     manifest = _assembly_manifest(
         layout=layout,
-        command=["plastid", "assemble", "run", "--backend", args.backend, "--sample", reads.sample],
+        command=args.typed,
         params=params,
         inputs=reads.files,
         reference_sets=[database, *reference_sets],
     )
+    write_manifest(layout.run_dir / "manifest.json", manifest)
     try:
         assembled = assembly_step.assemble_local(
             reads, params, ctx, tools=tools, database=database, machine=machine
         )
+    except RunCancelled:
+        return _cancelled(manifest, layout, ctx, ASSEMBLY_STEPS)
     except (assembly_step.BackendUnavailable, ToolError) as error:
         message = f"assemble: {error}\n{_assembly_route(args)}"
         return _fail(manifest, layout, ctx, assembly_step.MODULE_VERSION, message, EXIT_TOOL)
@@ -3625,6 +3861,8 @@ def _assembly_outcome(
         evaluation = assembly_step.evaluate(
             assembled, params, ctx, reference=reference, reference_sha256=reference_sha256
         )
+    except RunCancelled:
+        return _cancelled(manifest, layout, ctx, ASSEMBLY_STEPS)
     except ToolError as error:
         return _fail(manifest, layout, ctx, version, str(error), EXIT_TOOL)
     except (AssemblyError, OSError) as error:
@@ -3697,10 +3935,264 @@ def _assembly_outcome(
     return code
 
 
+def _print_json(payload: Any) -> None:
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+def _print_table(header: Sequence[str], rows: Sequence[Sequence[str]]) -> None:
+    widths = [max(len(row[i]) for row in (header, *rows)) for i in range(len(header) - 1)]
+    for row in (header, *rows):
+        cells = [cell.ljust(width) for cell, width in zip(row, widths, strict=False)]
+        print("  ".join((*cells, row[-1])).rstrip())
+
+
+def _param_record(param: registry.ParamSpec) -> dict[str, Any]:
+    return {
+        "name": param.name,
+        "type": param.type,
+        "help": param.help,
+        "default": param.default,
+        "choices": list(param.choices),
+        "flag": param.flag or None,
+    }
+
+
+def _module_record(spec: registry.ModuleSpec) -> dict[str, Any]:
+    """One module as data: what a person reads, and what a form is built from."""
+    return {
+        "id": spec.id,
+        "version": spec.version,
+        "title": spec.title,
+        "group": spec.group,
+        "genomes": {"min": spec.arity, "max": 1 if spec.arity == 1 else None},
+        "ir_gate": spec.requires_ir,
+        "tools": list(spec.tools),
+        "optional_tools": list(spec.optional_tools),
+        "command": spec.command or "plastid run",
+        "in_batch": spec.arity == 1 and spec.command is None,
+        "reference_param": spec.reference_param,
+        "params": [_param_record(param) for param in spec.params],
+    }
+
+
+def _assembly_record() -> dict[str, Any]:
+    """The assembly step in the shape of a module: `plastid assemble` is not a registered one."""
+    return {
+        "id": assembly_step.MODULE_ID,
+        "version": assembly_step.MODULE_VERSION,
+        "title": "Plastome assembly from short or HiFi reads, checked against the reads",
+        "group": "plastid",
+        "tools": ["getorganelle", "fastp", "minimap2"],
+        "optional_tools": ["oatk"],
+        "command": "plastid assemble run",
+        "params": [_param_record(param) for param in assembly_step.ASSEMBLY_PARAM_SPECS],
+    }
+
+
+def _describe_param(param: registry.ParamSpec) -> None:
+    if param.flag:
+        setting = f"set with {param.flag}"
+    else:
+        default = "not set" if param.default is None else param.default
+        choices = f" · one of {', '.join(str(c) for c in param.choices)}" if param.choices else ""
+        setting = f"{param.type} · default {default}{choices}"
+    print(f"  {param.name}: {setting}")
+    print(f"      {param.help}")
+
+
+def _describe_module(spec: registry.ModuleSpec) -> None:
+    usage = (spec.command or f"plastid run -m {spec.id}") + " -i <file>"
+    genomes = "one" if spec.arity == 1 else f"at least {spec.arity}"
+    print(f"{spec.id} {spec.version}: {spec.title}")
+    print(f"  run with: {usage}")
+    print(f"  genomes:  {genomes}")
+    print(f"  IR gate:  {'yes' if spec.requires_ir else 'no'}")
+    print(f"  tools:    {', '.join(spec.tools) or 'none'}")
+    if spec.optional_tools:
+        print(f"  if asked: {', '.join(spec.optional_tools)}")
+    if spec.params:
+        print("\nparameters (--set KEY=VALUE):")
+        for param in spec.params:
+            _describe_param(param)
+    print("\nalso accepted on any run:")
+    for param in registry.SHARED_PARAMS:
+        _describe_param(param)
+
+
+def _cmd_modules(args: argparse.Namespace) -> int:
+    if args.module == assembly_step.MODULE_ID:
+        record = _assembly_record()
+        if args.json:
+            _print_json(record)
+            return EXIT_OK
+        print(f"{record['id']} {record['version']}: {record['title']}")
+        print(f"  run with: {record['command']}")
+        print(f"  tools:    {', '.join(record['tools'])}; for HiFi reads, oatk")
+        print("\nparameters (--set KEY=VALUE):")
+        for param in assembly_step.ASSEMBLY_PARAM_SPECS:
+            _describe_param(param)
+        return EXIT_OK
+    if args.module:
+        try:
+            spec = registry.get(args.module)
+        except registry.UnknownModuleError as error:
+            print(str(error), file=sys.stderr)
+            return EXIT_USAGE
+        if args.json:
+            _print_json(_module_record(spec))
+        else:
+            _describe_module(spec)
+        return EXIT_OK
+    specs = [spec for _name, spec in sorted(registry.all_modules().items())]
+    if args.json:
+        _print_json(
+            {
+                "modules": [_module_record(spec) for spec in specs],
+                "assembly": _assembly_record(),
+                "shared_params": [_param_record(param) for param in registry.SHARED_PARAMS],
+                "exit_states": [asdict(state) for state in EXIT_STATES],
+            }
+        )
+        return EXIT_OK
+    _print_table(
+        ("MODULE", "GENOMES", "IR GATE", "TOOLS", "WHAT IT DOES"),
+        [
+            (
+                spec.id,
+                "1" if spec.arity == 1 else f"{spec.arity}+",
+                "yes" if spec.requires_ir else "no",
+                ", ".join(spec.tools) or "-",
+                spec.title,
+            )
+            for spec in specs
+        ],
+    )
+    print(
+        "\n`plastid modules <module>` shows one module and its parameters; "
+        "`plastid modules assembly` shows the assembly step."
+    )
+    return EXIT_OK
+
+
+def _cmd_tools(args: argparse.Namespace) -> int:
+    """What a run on this machine would find: a report, so a missing tool is not a failure here."""
+    from plastid.external.inventory import check_tools
+
+    needed_by: dict[str, list[str]] = {}
+    for name, spec in sorted(registry.all_modules().items()):
+        for tool in (*spec.tools, *spec.optional_tools):
+            needed_by.setdefault(tool, []).append(name)
+    statuses = check_tools()
+    records = [
+        {
+            **status.as_dict(),
+            "used_by": needed_by.get(status.name)
+            or (
+                ["plastid assemble"] if status.role == "assembly" else [_TOOL_COMMANDS[status.name]]
+            ),
+        }
+        for status in statuses
+    ]
+    if args.json:
+        _print_json({"tools": records})
+        return EXIT_OK
+    _print_table(
+        ("TOOL", "STATUS", "VERSION", "PINNED", "NEEDED BY"),
+        [
+            (
+                record["name"],
+                record["status"],
+                record["version"] or "-",
+                record["pinned"],
+                ", ".join(record["used_by"]),
+            )
+            for record in records
+        ],
+    )
+    for record in records:
+        if record["status"] != "ok":
+            print(f"\n{record['message']}")
+    return EXIT_OK
+
+
+def _cmd_runs(args: argparse.Namespace) -> int:
+    root = Path(args.root or ".runs")
+    if args.root and not root.is_dir():
+        print(f"{root}: no such directory", file=sys.stderr)
+        return EXIT_USAGE
+    runs = list_runs(root) if root.is_dir() else []
+    if args.json:
+        _print_json({"runs": [state.as_dict() for state in runs]})
+        return EXIT_OK
+    if not runs:
+        print(f"no runs in {root}")
+        return EXIT_OK
+    _print_table(
+        ("STATUS", "DONE", "STARTED", "DATASET", "RUN"),
+        [
+            (
+                state.status,
+                f"{state.done}/{state.total}" if state.total is not None else "-",
+                (state.started_at or "-").replace("T", " "),
+                state.dataset,
+                state.run_id,
+            )
+            for state in runs
+        ],
+    )
+    return EXIT_OK
+
+
+def _raise_cancelled(signum: int, _frame: object) -> None:
+    # Once only: the run is now writing down that it stopped, and must be left to finish doing so.
+    for sent in _STOP_SIGNALS:
+        signal.signal(sent, signal.SIG_IGN)
+    raise RunCancelled(signal.Signals(signum).name)
+
+
+@contextmanager
+def _signals_cancel() -> Iterator[None]:
+    """For one command, a signal to stop means the run stops in good order.
+
+    A signal already ignored stays ignored: that is how `nohup` keeps a long run alive after its
+    terminal closes, and a run started that way has asked not to be stopped by it. SIGHUP is here
+    because every tool runs in its own session, so a closing terminal reaches this process alone.
+    """
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    previous = {sent: signal.getsignal(sent) for sent in _STOP_SIGNALS}
+    for sent, handler in previous.items():
+        if handler != signal.SIG_IGN:
+            signal.signal(sent, _raise_cancelled)
+    try:
+        yield
+    finally:
+        for sent, handler in previous.items():
+            if handler is not None:
+                signal.signal(sent, handler)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    # What was typed, so a run's record can repeat it. Each command takes it from here rather than
+    # rebuilding it, because a list rebuilt by hand is a list that loses a flag.
+    args.typed = ["plastid", *(sys.argv[1:] if argv is None else argv)]
+    with _signals_cancel():
+        try:
+            return _dispatch(parser, args)
+        except RunCancelled:
+            print("cancelled", file=sys.stderr)
+            return EXIT_CANCELLED
 
+
+def _subcommands(parser: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:
+    found = [a for a in parser._actions if isinstance(a, argparse._SubParsersAction)]
+    return dict(found[0].choices) if found else {}
+
+
+def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     if args.version:
         print(f"plastid {__version__}")
         return EXIT_OK
@@ -3708,6 +4200,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return EXIT_OK
+
+    actions = _subcommands(_subcommands(parser)[args.command])
+    if actions and args.action is None:
+        print(f"{args.command}: choose an action — {' | '.join(actions)}", file=sys.stderr)
+        return EXIT_USAGE
+
+    if args.command == "modules":
+        return _cmd_modules(args)
+
+    if args.command == "tools":
+        return _cmd_tools(args)
+
+    if args.command == "runs":
+        return _cmd_runs(args)
 
     if args.command == "run":
         return _cmd_run(args)

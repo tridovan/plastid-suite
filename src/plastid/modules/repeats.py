@@ -46,16 +46,20 @@ DEFAULT_MIN_LENGTH_BP = MIN_LENGTH_BP
     citations=("mummer",),
     params=(
         ParamSpec(
-            "min_length_bp", "int", "shortest exact match published, passed to repeat-match as -n"
+            "min_length_bp",
+            "int",
+            "shortest exact match published, passed to repeat-match as -n",
+            default=DEFAULT_MIN_LENGTH_BP,
         ),
-        ParamSpec("repeats", "str", "directory holding repeat-match when it is not on PATH"),
+        ParamSpec("mummer", "dir", "directory holding repeat-match when it is not on PATH"),
     ),
+    tools=("repeat-match",),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
     frame = normalize(genome, ir)
     min_length = int(params.get("min_length_bp", DEFAULT_MIN_LENGTH_BP))
-    found = run_repeat_match(genome, ctx, min_length=min_length, directory=params.get("repeats"))
+    found = run_repeat_match(genome, ctx, min_length=min_length, directory=params.get("mummer"))
 
     # Longest first: a manuscript table reads that way, and the order is fixed here rather than
     # inherited from the tool, so two runs of two builds can be diffed.

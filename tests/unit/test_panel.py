@@ -95,7 +95,7 @@ def test_tier_of() -> None:
 
 
 def test_quality_filter_drops_short_and_unannotated() -> None:
-    proposal = propose(_index(), TARGET.accession, mode="A", level="genus")
+    proposal = propose(_index(), TARGET.accession, mode="all", level="genus")
     assert [candidate.entry.accession for candidate in proposal.candidates] == [
         "NC_111111.1",
         "NC_222222.1",
@@ -103,15 +103,15 @@ def test_quality_filter_drops_short_and_unannotated() -> None:
     assert any("dropped" in note for note in proposal.notes)
 
 
-def test_mode_a_takes_one_level() -> None:
-    proposal = propose(_index(), TARGET.accession, mode="A", level="family")
-    assert proposal.mode == "A"
+def test_mode_all_takes_one_level() -> None:
+    proposal = propose(_index(), TARGET.accession, mode="all", level="family")
+    assert proposal.mode == "all"
     assert [candidate.tier for candidate in proposal.candidates] == [0, 1, 2]
-    assert any("mode A" in note for note in proposal.notes)
+    assert any("mode all" in note for note in proposal.notes)
 
 
 def test_mode_b_takes_representatives_per_tier() -> None:
-    proposal = propose(_index(), TARGET.accession, mode="B", per_tier=1)
+    proposal = propose(_index(), TARGET.accession, mode="tiers", per_tier=1)
     assert [candidate.tier for candidate in proposal.candidates] == [0, 1, 2, 3]
     assert [candidate.entry.accession for candidate in proposal.candidates] == [
         "NC_111111.1",
@@ -125,7 +125,7 @@ def test_unknown_mode_and_level_raise() -> None:
     with pytest.raises(ValueError, match="mode"):
         propose(_index(), TARGET.accession, mode="C")
     with pytest.raises(ValueError, match="level"):
-        propose(_index(), TARGET.accession, mode="A", level="kingdom")
+        propose(_index(), TARGET.accession, mode="all", level="kingdom")
     with pytest.raises(KeyError, match="refresh"):
         propose(_index(), "NC_999999.9")
 
@@ -351,7 +351,7 @@ def test_the_cli_pins_a_file_with_its_note(tmp_path: Path, data_dir: Path, capsy
             str(source),
             "--note",
             "PMGA web service, 2026-10-03",
-            "--out",
+            "--to",
             str(tmp_path / "panel"),
         ]
     )

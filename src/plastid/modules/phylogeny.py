@@ -76,7 +76,7 @@ from plastid.core.spans import introns_of, spacers_of
 from plastid.external.iqtree import run_iqtree
 from plastid.external.macse import align_cds, resolve_macse
 from plastid.external.mafft import align
-from plastid.modules.registry import ParamSpec, module
+from plastid.modules.registry import GROUP_LABELS, IR_SOURCE, MAFFT_STRATEGY, ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.params import ParamValueError
@@ -108,59 +108,73 @@ ALIGNERS = ("mafft", "macse")
     arity=2,
     citations=("mafft", "iqtree"),
     params=(
+        MAFFT_STRATEGY,
+        ParamSpec("iqtree", "dir", "directory holding the pinned iqtree2 binary"),
+        ParamSpec("model", "str", "substitution model, or MFP for ModelFinder Plus", default="MFP"),
         ParamSpec(
-            "mafft_strategy",
-            "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
+            "ultrafast_bootstrap",
+            "int",
+            "ultrafast bootstrap replicates (at least 1000)",
+            default=1000,
         ),
-        ParamSpec("iqtree", "str", "directory holding the pinned iqtree2 binary"),
-        ParamSpec("model", "str", "substitution model or MFP for ModelFinder Plus"),
-        ParamSpec("ultrafast_bootstrap", "int", "ultrafast bootstrap replicates (at least 1000)"),
-        ParamSpec("alrt", "int", "SH-aLRT replicates"),
-        ParamSpec("bnni", "bool", "optimise the bootstrap trees by NNI"),
+        ParamSpec("alrt", "int", "SH-aLRT replicates", default=1000),
+        ParamSpec("bnni", "bool", "optimise the bootstrap trees by NNI", default=True),
         ParamSpec(
             "threads",
             "str",
-            "IQ-TREE threads: 1 (default, reproducible) or a number / AUTO "
-            "(faster, not bit-reproducible)",
+            "IQ-TREE threads: 1 is reproducible; a number or AUTO is faster and not "
+            "bit-reproducible",
+            default=DEFAULT_THREADS,
         ),
-        ParamSpec("seed", "int", "IQ-TREE random seed, so the same input gives the same tree"),
         ParamSpec(
-            "include_partial", "bool", "include CDS marked partial instead of excluding them"
+            "seed",
+            "int",
+            "IQ-TREE random seed, so the same input gives the same tree",
+            default=DEFAULT_SEED,
+        ),
+        ParamSpec(
+            "include_partial",
+            "bool",
+            "include CDS marked partial instead of excluding them",
+            default=False,
         ),
         ParamSpec(
             "matrix",
             "str",
-            "which loci the supermatrix holds: cds (default), introns, igs, or all (the three "
-            "concatenated into one complete matrix)",
+            "which loci the supermatrix holds; all joins the three into one complete matrix",
+            default=DEFAULT_MATRIX,
+            choices=("cds", "introns", "igs", "all"),
         ),
         ParamSpec(
             "partition",
             "str",
-            "IQ-TREE partitioning: none (default), gene, or codon (alignment columns 1/2/3)",
+            "IQ-TREE partitioning; codon splits alignment columns 1, 2 and 3",
+            default="none",
+            choices=("none", "gene", "codon"),
         ),
         ParamSpec(
             "aligner",
             "str",
-            "per-gene aligner: mafft (default) or macse (codon-aware, opt-in)",
+            "per-gene aligner; macse is codon-aware",
+            default="mafft",
+            choices=("mafft", "macse"),
         ),
-        ParamSpec("macse", "str", "path to macse_v2.07.jar or the `macse` wrapper"),
+        ParamSpec("macse", "file", "path to macse_v2.07.jar or the `macse` wrapper"),
         ParamSpec(
             "macse_timeout",
             "int",
-            "seconds allowed per gene for MACSE (default 600; a 34-genome matrix needs more)",
+            "seconds allowed per gene for MACSE; a 34-genome matrix needs more than the default",
+            default=MACSE_TIMEOUT,
         ),
-        ParamSpec(
-            "ir_source",
-            "str",
-            "annotation or sequence: which IR path matrix=introns/igs/all reads (M11.17)",
-        ),
-        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
+        IR_SOURCE,
+        GROUP_LABELS,
     ),
+    tools=("mafft", "iqtree"),
+    optional_tools=("macse",),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     if len(genomes) < 4:
-        raise ValueError(
+        raise ParamValueError(
             f"phylogeny takes at least 4 genomes, got {len(genomes)} — IQ-TREE 2.3.6 refuses "
             f'ultrafast bootstrap with fewer than 4 sequences ("It makes no sense to perform '
             f'bootstrap with less than 4 sequences"), and this module publishes a supported '

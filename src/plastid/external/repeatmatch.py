@@ -137,7 +137,7 @@ def repeat_match_version(binary: str) -> str:
 
 
 def resolve_repeat_match(directory: str | Path | None = None) -> str:
-    """The binary to run — from ``--set repeats=<directory>``, or from ``PATH``."""
+    """The binary to run — from ``--set mummer=<directory>``, or from ``PATH``."""
     if directory is not None:
         candidate = Path(directory) / PROGRAM
         if not candidate.is_file():
@@ -147,7 +147,7 @@ def resolve_repeat_match(directory: str | Path | None = None) -> str:
     if found is None:
         raise ToolError(
             f"{PROGRAM} not found — install the pinned MUMmer {REPEAT_MATCH_VERSION}, or point "
-            f"the run at one with --set repeats=<directory>. See docs/tools/mummer4.md."
+            f"the run at one with --set mummer=<directory>. See docs/tools/mummer4.md."
         )
     return found
 

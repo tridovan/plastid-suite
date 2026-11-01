@@ -29,7 +29,7 @@ from plastid.core.gene_names import (
 )
 from plastid.core.model import GENE_KINDS, Gene, Genome
 from plastid.core.organelle import GROUP_SHARED
-from plastid.modules.registry import module
+from plastid.modules.registry import ParamValueError, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -41,7 +41,7 @@ SCOPE_LABEL = "every counted gene of every record in the run"
 _RULE_MEANING = {
     IDENTICAL_RULE: "already canonical",
     SYNTAX_RULE: "the same name, written differently",
-    SEMANTIC_RULE: "one locus under two nomenclatures (D3-02)",
+    SEMANTIC_RULE: "one locus under two nomenclatures",
     SEQUENCE_RULE: "bare tRNA name resolved by 100 % sequence identity",
 }
 
@@ -139,7 +139,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     notes = [
         "A name is only changed by the normalizer in core/gene_names.py — no module renames one.",
         "A canonical name is the one this toolkit compares and prints; the other name of the "
-        "same locus is printed in parentheses beside it (D3-02).",
+        "same locus is printed in parentheses beside it.",
     ]
     total_unresolved = sum(len(names.unresolved) for names in normalized)
     if total_unresolved:
@@ -170,7 +170,7 @@ def _reject_repeated_keys(keys: Sequence[str]) -> None:
     seen: set[str] = set()
     for key in keys:
         if key in seen:
-            raise ValueError(
+            raise ParamValueError(
                 f"two records in this run share the key {key!r} — every row of the panel report "
                 f"is addressed by accession, so pass each record once"
             )

@@ -12,12 +12,18 @@ from typing import Any
 
 from plastid.core.model import Genome
 from plastid.core.organelle import GROUP_SHARED, GROUPS
+from plastid.external.mafft import DEFAULT_STRATEGY, MAFFT_STRATEGIES
 from plastid.result.result import Result
 from plastid.run.context import RunContext
 from plastid.run.params import ParamValueError
 
 __all__ = [
+    "BOOLEAN_WORDS",
+    "GROUP_LABELS",
+    "IR_SOURCE",
+    "MAFFT_STRATEGY",
     "ModuleSpec",
+    "PARAM_TYPES",
     "ParamSpec",
     "ParamValueError",
     "SHARED_PARAMS",
@@ -25,12 +31,19 @@ __all__ = [
     "all_modules",
     "get",
     "module",
+    "refused_values",
     "unknown_params",
+    "value_problems",
 ]
 
 SingleGenomeFn = Callable[[Genome, dict[str, Any], RunContext], Result]
 MultiGenomeFn = Callable[[Sequence[Genome], dict[str, Any], RunContext], Result]
 ModuleFn = SingleGenomeFn | MultiGenomeFn
+
+PARAM_TYPES = ("str", "int", "float", "bool", "file", "dir")
+# The words a `bool` parameter takes on the command line. Two modules read them with their own
+# `_flag`, which treats anything else as no, so a typo would quietly turn an option off.
+BOOLEAN_WORDS = ("1", "0", "true", "false", "yes", "no", "on", "off")
 
 
 class UnknownModuleError(KeyError):
@@ -75,11 +88,19 @@ class ModuleSpec:
     # the keys the module's source actually reads. Do not add a key here without a code path
     # that honours it: a recorded parameter that does not reach the tool states something false.
     params: tuple[ParamSpec, ...] = ()
+    # The external tools a run of this module calls, by their rows in docs/tools/README.md, and
+    # the ones only a parameter asks for. A test compares these with the adapters the source
+    # imports, so `plastid tools` and a form can say what a module needs before it runs.
+    tools: tuple[str, ...] = ()
+    optional_tools: tuple[str, ...] = ()
+    # The command that runs this module, when `plastid run` would leave out what that command does
+    # around it. Both `run` and `batch` then refuse the module and name the command.
+    command: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class ParamSpec:
-    """One parameter a module accepts: its name, the type the CLI validates it as, and why.
+    """One parameter a module accepts, stated fully enough to check a value and to build a form.
 
     The declaration exists so the command line can refuse a key the module does not read
     (M11.20). Before it, ``--set min_lengh_bp=60`` was accepted, recorded in the manifest and
@@ -88,13 +109,43 @@ class ParamSpec:
     would work.
 
     ``type`` is a *name*, not a Python callable, because the registry is data a CLI reads and a
-    callable would make ``ModuleSpec`` harder to compare in tests. The CLI owns the conversion.
+    callable would make ``ModuleSpec`` harder to compare in tests: one of :data:`PARAM_TYPES`.
+    ``file`` and ``dir`` are paths a person picks, which a text field would not say.
+
+    ``default`` is what applies when the key is not set. ``None`` means nothing is passed, and
+    ``help`` says what happens then. A test evaluates each module's ``params.get(key, default)``
+    and compares it with this value, so the statement cannot drift from what the code does.
+
+    ``flag`` names the command-line flag that sets this key, for a parameter ``--set`` cannot give
+    the right shape: ``groups`` is a table built from a file, for instance.
     """
 
     name: str
     type: str
     help: str
+    default: Any = None
+    choices: tuple[Any, ...] = ()
+    flag: str = ""
 
+
+# Declared once because each is read the same way by every module that takes it.
+GROUP_LABELS = ParamSpec(
+    "groups", "str", "the group of each input, read from the --groups file", flag="--groups"
+)
+MAFFT_STRATEGY = ParamSpec(
+    "mafft_strategy",
+    "str",
+    "MAFFT algorithm",
+    default=DEFAULT_STRATEGY,
+    choices=tuple(sorted(MAFFT_STRATEGIES)),
+)
+IR_SOURCE = ParamSpec(
+    "ir_source",
+    "str",
+    "where the inverted repeat is read from: the record's annotation, or the sequence",
+    default="annotation",
+    choices=("annotation", "sequence"),
+)
 
 # The parameters every module sees, declared once here rather than repeated in twenty specs.
 # They are run-level: `data_label` puts the run's provenance on every table (CLAUDE.md: every
@@ -104,13 +155,10 @@ SHARED_PARAMS: tuple[ParamSpec, ...] = (
     ParamSpec(
         name="data_label",
         type="str",
-        help="provenance label written into every table's scope (--label on the command line)",
+        help="where the data came from, printed with every table",
+        flag="--label",
     ),
-    ParamSpec(
-        name="ir_source",
-        type="str",
-        help="which IR path the run uses before any module runs: annotation (default) or sequence",
-    ),
+    IR_SOURCE,
     # Read by the CLI, not by a module: `annotate` refuses an already-annotated GenBank unless
     # reannotate=yes, and `figures`/`package` take the R binary path. They are declared here
     # because the CLI is also a place a --set key is consumed, and a key the CLI reads but
@@ -118,12 +166,13 @@ SHARED_PARAMS: tuple[ParamSpec, ...] = (
     ParamSpec(
         name="reannotate",
         type="bool",
-        help="annotate: yes to re-annotate a GenBank that already carries an annotation",
+        help="annotate: yes replaces the annotation a GenBank record already carries",
+        default=False,
     ),
     ParamSpec(
         name="rscript",
-        type="str",
-        help="figures/package: path to Rscript when it is not on PATH",
+        type="file",
+        help="path to Rscript when it is not on PATH",
     ),
 )
 _SHARED_NAMES = frozenset(param.name for param in SHARED_PARAMS)
@@ -163,6 +212,52 @@ def unknown_params(module_ids: Sequence[str], params: dict[str, Any]) -> list[st
     return problems
 
 
+def _value_problem(param: ParamSpec, value: Any) -> str | None:
+    """Why ``value`` cannot be this parameter, or None. The value is as `--set` parsed it."""
+    if param.choices and str(value) not in {str(choice) for choice in param.choices}:
+        listed = ", ".join(str(choice) for choice in param.choices)
+        return f"must be one of {listed}"
+    if param.type == "int" and (isinstance(value, bool) or not isinstance(value, int)):
+        return "must be a whole number"
+    if param.type == "float" and (isinstance(value, bool) or not isinstance(value, int | float)):
+        return "must be a number"
+    if param.type == "bool" and str(value).strip().lower() not in BOOLEAN_WORDS:
+        return f"must be one of {', '.join(BOOLEAN_WORDS)}"
+    return None
+
+
+def value_problems(declared: dict[str, list[ParamSpec]], params: dict[str, Any]) -> list[str]:
+    """Every value in ``params`` a declaration rules out, as one readable line each."""
+    problems: list[str] = []
+    for key in sorted(params):
+        for param in declared.get(key, ()):
+            problem = (
+                f"set it with {param.flag}" if param.flag else _value_problem(param, params[key])
+            )
+            if problem:
+                problems.append(f"--set {key}={params[key]}: {problem}")
+                break
+    return problems
+
+
+def refused_values(module_ids: Sequence[str], params: dict[str, Any]) -> list[str]:
+    """Every value in ``params`` a declaration rules out, as one readable line each.
+
+    This runs before anything is computed, so a wrong value is a refused command line and not a
+    Python error from deep inside a module. A key declared by two modules of the run has to fit
+    both. A key set through its own flag is refused here when `--set` carries it, because the
+    module expects what that flag builds.
+    """
+    declared: dict[str, list[ParamSpec]] = {}
+    for module_id in module_ids:
+        spec = _REGISTRY.get(module_id)
+        if spec is None:
+            continue
+        for param in (*spec.params, *SHARED_PARAMS):
+            declared.setdefault(param.name, []).append(param)
+    return value_problems(declared, params)
+
+
 _REGISTRY: dict[str, ModuleSpec] = {}
 
 
@@ -178,6 +273,9 @@ def module(
     reference_param: str | None = None,
     reference_set: Callable[[], dict[str, Any]] | None = None,
     params: tuple[ParamSpec, ...] = (),
+    tools: tuple[str, ...] = (),
+    optional_tools: tuple[str, ...] = (),
+    command: str | None = None,
 ) -> Callable[[ModuleFn], ModuleFn]:
     """Register a module's ``run`` function.
 
@@ -211,6 +309,9 @@ def module(
             reference_param=reference_param,
             reference_set=reference_set,
             params=params,
+            tools=tools,
+            optional_tools=optional_tools,
+            command=command,
         )
         return run_fn
 

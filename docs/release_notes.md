@@ -15,7 +15,10 @@ migration table below is for anyone who ran an earlier checkout, because some nu
   or PacBio HiFi reads (Oatk), maps the reads back with an aligner the assembler does not use, reads
   the graph for every structure that closes, and declares a sequence only when the reads cross every
   join and the graph is resolved. It runs here, or on a service of your choice through `prepare` and
-  `--backend import`; it never sends reads anywhere by itself.
+  `import`; it never sends reads anywhere by itself.
+- **What is there.** `plastid modules`, `plastid tools` and `plastid runs` list the analyses with their
+  parameters, the tools this machine has, and the runs made, in text or JSON. A run is on disk from
+  its first moment, and stopping one stops its tools and leaves a directory that says so.
 - **Sequence to annotated record.** `plastid annotate` transfers from a directory of GenBank records
   you supply, after auditing them.
 - **Records to tables.** Twenty-four modules ([the list, with what each costs](platforms.md)), among
@@ -60,6 +63,34 @@ what each comparison shows, in both directions, is in [cgas.md](tools/cgas.md) a
 | `plastid panel pin` into a panel that already held records (K-16) | It used to replace the manifest. Check `PINNED.json` of any panel pinned twice |
 | A script that reads exit codes (K-18) | An unknown module name now exits 2. A missing reference set and a missing fastp in `assemble prepare` now exit 3 |
 | The R tree figure (K-06) | No tip is dropped and no outgroup is chosen unless the run names them; the default is a midpoint root |
+| A script that reads exit codes or `manifest.status` (K-23) | An input that cannot be read now exits 2, not 1. The status is `refused`, `tool_error` or `conflict` where it read `failed`, and a cancelled run exits 130 |
+| A script that reads `manifest.command` (K-21) | It now holds what was typed, whole |
+| `plastid run -m plastid_annotate` or `plastid batch -m plastid_annotate` (K-20) | Refused by name. Use `plastid annotate`, with `--set reannotate=yes` for a record that carries an annotation |
+| `--set` with a misspelt word for a yes/no value (K-22) | It used to read as no. It is refused now |
+
+The command line was reviewed before the first release, and names that meant two things were changed
+without keeping the old ones, because nothing had been released under them:
+
+| Command | Was | Now |
+|---|---|---|
+| `run`, `batch`, `annotate` | `--force` | `--no-cache`: it skips the stored results, and no check |
+| `annotate` | `--reference DIR` | `--reference-set DIR` |
+| `annotate` | `--audit-only`, `--no-confirm` | `plastid reference audit` |
+| `reference verify`, `audit` | `--panel` | `--reference-set` |
+| `reference loo` | `--panel`, `--out` | `reference leave-one-out`, `--reference-set`, `--to` |
+| `assemble run` | `--reference` | `--compare-to` |
+| `assemble run` | `--backend import` and its flags | `plastid assemble import` |
+| `assemble run` | `--backend local` | `--skip-resource-check` |
+| `ir-junction` | `--reference NAME` | `--order-from NAME` |
+| `editing-reference build` | `--out FILE`, `--runs DIR` | `--to FILE`, `--out DIR` |
+| `editing-reference verify` | `--reference` | `--reference-file` |
+| `panel refresh` | `--out DIR`, `--retmax` | `--index FILE`, `--max-records` |
+| `panel pin` | `--out` | `--to` |
+| `panel propose` | `--mode A`, `--mode B` | `--mode all`, `--mode tiers` |
+| `repeats` | `--set repeats=DIR` | `--set mummer=DIR` |
+
+`--out` is now always the folder that holds runs. `plastid modules`, `plastid tools` and `plastid
+runs` are new, and `annotate` takes `--label` like every other command that makes a run.
 
 ### What it does not do
 

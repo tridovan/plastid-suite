@@ -1150,7 +1150,7 @@ class RecordedReference:
         if not candidate.is_file():
             raise FileNotFoundError(
                 f"the recorded naming reference is not at {candidate} — the standard this "
-                f"project prints is a file that has to be there (D5-09). If you installed "
+                f"project prints is a file that has to be there. If you installed "
                 f"the toolkit rather than cloning it, that file is yours to choose: pass it with "
                 f"--set naming_reference=<file>"
             )

@@ -448,7 +448,7 @@ def test_comparison_names_the_isomer_that_is_the_reference(bench: Bench) -> None
     # The reference is the second isomer, on another origin and the other strand.
     rotated = reverse_complement(ISOMER[777:] + ISOMER[:777])
     reference.write_text(f">ref\n{rotated}\n", encoding="utf-8")
-    assert bench.run("--reference", str(reference)) == 0
+    assert bench.run("--compare-to", str(reference)) == 0
     rows = {row["path"]: row for row in bench.table(bench.run_dir(), "reference_comparison")}
     second = "embplant_pt.K127.complete.graph1.2"
     assert rows[second]["identical"] == "yes"
@@ -462,7 +462,7 @@ def test_a_disagreement_with_the_reference_measures_both_sides(bench: Bench) -> 
     # sequences, so the two measurements must come out equal; the point is that both exist.
     changed = SEQUENCE[:5_000] + ("A" if SEQUENCE[5_000] != "A" else "C") + SEQUENCE[5_001:]
     reference.write_text(f">ref\n{changed}\n", encoding="utf-8")
-    assert bench.run("--reference", str(reference)) == 0
+    assert bench.run("--compare-to", str(reference)) == 0
     run = bench.run_dir()
     rows = bench.table(run, "reference_read_support")
     assert [row["sequence"] for row in rows] == ["assembly", "ref"]
@@ -478,7 +478,7 @@ def test_an_assembly_identical_to_the_reference_is_not_measured_twice(bench: Ben
     _canned_complete(bench.tools)
     reference = bench.root / "reference.fasta"
     reference.write_text(f">ref\n{SEQUENCE}\n", encoding="utf-8")
-    assert bench.run("--reference", str(reference)) == 0
+    assert bench.run("--compare-to", str(reference)) == 0
     payload = json.loads((bench.run_dir() / "01_assembly" / "result.json").read_text("utf-8"))
     assert "reference_read_support" not in payload["tables"]
 
@@ -531,7 +531,7 @@ def test_an_open_assembly_still_measures_the_reference_it_was_given(bench: Bench
     _canned_scaffolds(bench.tools)
     reference = bench.root / "reference.fasta"
     reference.write_text(f">ref\n{SEQUENCE}\n", encoding="utf-8")
-    assert bench.run("--reference", str(reference)) == 1
+    assert bench.run("--compare-to", str(reference)) == 1
     rows = {row["sequence"]: row for row in bench.table(bench.run_dir(), "reference_read_support")}
     assert rows["assembly"]["read_support"] == "not measured"
     assert rows["assembly"]["mean_depth"] == "not measured"
@@ -558,7 +558,7 @@ def test_a_missing_tool_is_named_with_the_route_and_starts_no_run(
     assert "cannot run here" in error
     assert "spades.py not found" in error
     assert "plastid assemble prepare" in error
-    assert "--backend import" in error
+    assert "plastid assemble import" in error
     assert "nothing was sent" in error
     assert not bench.out.exists()
 
@@ -586,7 +586,7 @@ def test_a_failure_the_assembler_exits_zero_on_is_named_with_the_route(
     assert "Assembling failed" in error
     assert "plastid assemble prepare" in error
     manifest = bench.manifest(bench.run_dir())
-    assert manifest["status"] == "failed"
+    assert manifest["status"] == "tool_error"
     assert manifest["artifacts"] == []
 
 
@@ -596,7 +596,7 @@ def test_a_machine_below_the_floor_stops_auto_but_not_local(
     _canned_complete(bench.tools)
     assert bench.run("--set", "min_ram_gb=100000") == 3
     assert "the machine has" in capsys.readouterr().err
-    assert bench.run("--set", "min_ram_gb=100000", "--backend", "local") == 0
+    assert bench.run("--set", "min_ram_gb=100000", "--skip-resource-check") == 0
 
 
 def test_a_disk_too_small_for_the_input_stops_auto(
@@ -637,8 +637,6 @@ def _import(bench: Bench, prepared: Path, result: Path, *extra: str) -> int:
     return main(
         [
             "assemble",
-            "run",
-            "--backend",
             "import",
             "--prepared",
             str(prepared),
@@ -666,7 +664,7 @@ def test_prepare_hashes_what_it_hands_over_and_names_no_upload(
         assert hashlib.sha256(file.read_bytes()).hexdigest() == entry["sha256"]
     assert payload["tool"]["version"] == getorganelle.GETORGANELLE_VERSION
     assert payload["tool"]["command"][0] == "get_organelle_from_reads.py"
-    assert "--backend import" in capsys.readouterr().out
+    assert "plastid assemble import" in capsys.readouterr().out
     assert not (prepared.parent / "work").exists()
 
 
@@ -746,7 +744,7 @@ def test_a_path_its_graph_cannot_spell_is_refused(
     edited = SEQUENCE[:5_000] + changed + SEQUENCE[5_001:]
     path.write_text(f">lsc+,ir+,ssc+,ir-(circular)\n{edited}\n", encoding="utf-8")
     prepared = _prepare(bench)
-    assert _import(bench, prepared, bench.tools / "canned") == 1
+    assert _import(bench, prepared, bench.tools / "canned") == 2
     assert "not the sequence its walk spells" in capsys.readouterr().err
 
 
@@ -757,7 +755,7 @@ def test_a_walk_over_a_link_the_graph_lacks_is_refused(
     path = bench.tools / "canned" / "embplant_pt.K127.complete.graph1.1.path_sequence.fasta"
     path.write_text(f">lsc+,ssc+,ir+,ir-(circular)\n{SEQUENCE}\n", encoding="utf-8")
     prepared = _prepare(bench)
-    assert _import(bench, prepared, bench.tools / "canned") == 1
+    assert _import(bench, prepared, bench.tools / "canned") == 2
     assert "not a link" in capsys.readouterr().err
 
 
@@ -839,7 +837,7 @@ def test_paths_of_a_graph_that_is_not_there_are_refused(
     extra = canned / "embplant_pt.K127.complete.graph2.1.path_sequence.fasta"
     extra.write_text(f">lsc+,ir+,ssc+,ir-(circular)\n{SEQUENCE}\n", encoding="utf-8")
     prepared = _prepare(bench)
-    assert _import(bench, prepared, canned) == 1
+    assert _import(bench, prepared, canned) == 2
     assert "no selected graph for its paths: graph" in capsys.readouterr().err
 
 
@@ -851,7 +849,7 @@ def test_a_graph_no_path_came_from_is_refused(
     source = canned / "embplant_pt.K127.complete.graph1.selected_graph.gfa"
     source.rename(canned / "embplant_pt.K127.complete.graph2.selected_graph.gfa")
     prepared = _prepare(bench)
-    assert _import(bench, prepared, canned) == 1
+    assert _import(bench, prepared, canned) == 2
     assert "no selected graph for its paths: graph" in capsys.readouterr().err
 
 
@@ -882,7 +880,7 @@ def test_an_import_of_changed_raw_reads_is_refused(
     _canned_complete(bench.tools)
     prepared = _prepare(bench)
     bench.reads_1.write_bytes(b"other reads")
-    assert _import(bench, prepared, bench.tools / "canned") == 1
+    assert _import(bench, prepared, bench.tools / "canned") == 2
     assert "not the input the imported result was asked for" in capsys.readouterr().err
 
 
@@ -892,7 +890,7 @@ def test_an_import_whose_raw_reads_are_gone_says_so(
     _canned_complete(bench.tools)
     prepared = _prepare(bench)
     bench.reads_2.unlink()
-    assert _import(bench, prepared, bench.tools / "canned") == 1
+    assert _import(bench, prepared, bench.tools / "canned") == 2
     assert "are gone" in capsys.readouterr().err
 
 
@@ -949,7 +947,7 @@ def test_an_import_of_changed_reads_is_refused(
     prepared = _prepare(bench)
     payload = json.loads(prepared.read_text(encoding="utf-8"))
     (prepared.parent / payload["input_reads"][0]["path"]).write_bytes(b"other reads")
-    assert _import(bench, prepared, bench.tools / "canned") == 1
+    assert _import(bench, prepared, bench.tools / "canned") == 2
     assert "not the input the imported result was asked for" in capsys.readouterr().err
 
 
@@ -960,7 +958,7 @@ def test_an_import_with_more_reads_than_prepared_is_refused(
     log = bench.tools / "canned" / "get_org.log.txt"
     log.write_text(log.read_text().replace("295+295", "3000+3000"), encoding="utf-8")
     prepared = _prepare(bench)
-    assert _import(bench, prepared, bench.tools / "canned") == 1
+    assert _import(bench, prepared, bench.tools / "canned") == 2
     assert "it did not run on the prepared input" in capsys.readouterr().err
 
 
@@ -975,10 +973,12 @@ def test_an_import_without_its_provenance_is_refused(
         "--retrieved-at": "2026-10-31",
     }
     del values[missing]
-    argv = ["assemble", "run", "--backend", "import", "-o", str(bench.out)]
+    argv = ["assemble", "import", "-o", str(bench.out)]
     for flag, value in values.items():
         argv += [flag, value]
-    assert main(argv) == 2
+    with pytest.raises(SystemExit) as stopped:
+        main(argv)
+    assert stopped.value.code == 2
     assert missing in capsys.readouterr().err
 
 
@@ -990,8 +990,6 @@ def test_an_import_with_a_bad_date_is_refused_by_the_contract(
     code = main(
         [
             "assemble",
-            "run",
-            "--backend",
             "import",
             "--prepared",
             str(prepared),
@@ -1005,7 +1003,7 @@ def test_an_import_with_a_bad_date_is_refused_by_the_contract(
             str(bench.out),
         ]
     )
-    assert code == 1
+    assert code == 2
     assert "not an ISO date" in capsys.readouterr().err
 
 
@@ -1111,3 +1109,37 @@ def test_a_longer_read_holds_fewer_words_in_the_same_memory() -> None:
 
 def test_a_machine_under_the_reserve_still_gets_a_limit() -> None:
     assert assembly.word_limit(0.5, 150, _word_params()) > 0
+
+
+# --- the declaration ------------------------------------------------------------------------------
+
+
+def test_every_assembly_parameter_declares_the_default_it_runs_with() -> None:
+    from plastid.modules.assembly import ASSEMBLY_PARAM_SPECS, resolve_params
+
+    resolved = resolve_params({})
+    for param in ASSEMBLY_PARAM_SPECS:
+        if param.flag:
+            continue
+        expected = resolved[param.name]
+        declared = param.default
+        if param.name == "kmers":
+            declared = tuple(int(part) for part in declared.split(","))
+        assert declared == expected, (param.name, declared, expected)
+
+
+@pytest.mark.parametrize(("word", "expected"), [("1", True), ("on", True), ("0", False)])
+def test_a_yes_or_no_reads_the_same_as_everywhere_else(word: str, expected: bool) -> None:
+    """`--set trim=1` turned quality control off: only `yes` and `true` counted as yes."""
+    from plastid.cli import _coerce
+    from plastid.modules.assembly import resolve_params
+
+    assert resolve_params({"trim": _coerce(word)})["trim"] is expected
+
+
+def test_a_wrong_value_is_refused_before_anything_runs(
+    bench: Bench, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert bench.run("--set", "threads=many") == 2
+    assert "whole number" in capsys.readouterr().err
+    assert not bench.out.exists()

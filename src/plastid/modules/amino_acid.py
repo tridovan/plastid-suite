@@ -119,7 +119,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
         module_version=MODULE_VERSION,
         tables={"amino_acid": summary, "amino_acid_composition": table},
         notes=(
-            f"Translation table: {table_label} (decision D2-03). Table 1 and the plastid table 11 "
+            f"Translation table: {table_label}. Table 1 and the plastid table 11 "
             f"share every amino-acid assignment (they differ only in initiation codons), and the "
             f"initiator codon is read as its own amino acid — a CDS starting GTG/ACG/ATC "
             f"contributes V/T/I where its published protein begins with M.",

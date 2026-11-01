@@ -93,7 +93,7 @@ listed as unscored.
 
 **Taxa.** The seven PREP-Cp training taxa, one record each, pinned by SHA-256 in
 `src/plastid/data/rna_editing/taxa.yaml`. The files are kept out of git:
-`plastid panel pin --accessions <the seven> --out .panel/rna_editing` re-creates them byte for byte,
+`plastid panel pin --accessions <the seven> --to .panel/rna_editing` re-creates them byte for byte,
 and the build refuses any other bytes. Mower 2009
 names the last two only by genus; the species are the ones whose plastid editing had been surveyed
 by then. These taxa belong to the method; they are not a toolkit default for any other analysis.
@@ -150,7 +150,7 @@ parameters, so the cache key changes when B′ does. The packaged file is
 `src/plastid/data/rna_editing/reference_b_prime.json`; a file edited after its build is refused.
 
 ```sh
-plastid panel pin --accessions NC_000932.1,NC_001879.2,NC_004561.1,NC_001666.2,NC_001320.1,NC_007499.1,NC_001631.1 --out .panel/rna_editing
+plastid panel pin --accessions NC_000932.1,NC_001879.2,NC_004561.1,NC_001666.2,NC_001320.1,NC_007499.1,NC_001631.1 --to .panel/rna_editing
 plastid editing-reference verify --records .panel/rna_editing
 plastid editing-reference build --out <file>
 ```

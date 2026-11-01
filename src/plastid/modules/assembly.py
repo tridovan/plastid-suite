@@ -88,6 +88,7 @@ from plastid.external.oatk import assemble as run_oatk
 from plastid.external.oatk import read_output as read_oatk_output
 from plastid.external.oatk import resolve_database as resolve_oatk_database
 from plastid.external.oatk import resolve_tools as resolve_oatk_tools
+from plastid.modules.registry import ParamSpec
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.contract import (
@@ -140,36 +141,106 @@ PREPARED_SCHEMA_VERSION = 1
 _BYTES_PER_GB = 1_000_000_000
 _FASTA_WIDTH = 70
 
-# Every key `--set` may carry on this step, so a misspelling is refused rather than recorded.
-ASSEMBLY_PARAMS: tuple[str, ...] = (
-    "rounds",
-    "kmers",
-    "random_seed",
-    "threads",
-    "memory_gb",
-    "max_words",
-    "syncmer",
-    "min_coverage",
-    "max_bases",
-    "oatk_db",
-    "long_extension",
-    "memory_reserve_gb",
-    "word_bytes",
-    "word_bytes_per_base",
-    "word_size_share",
-    "trim",
-    "tools",
-    "database",
-    "keep_work",
-    "flank",
-    "min_clip",
-    "min_spanning",
-    "clip_window",
-    "extension",
-    "min_ram_gb",
-    "disk_factor",
-    "data_label",
+# Every key `--set` may carry on this step, so a misspelling is refused rather than recorded. A
+# step is not a registered module, so the command line reads this table where it reads a module's
+# parameters. The defaults are the packaged ones; a test compares them with `resolve_params`.
+ASSEMBLY_PARAM_SPECS: tuple[ParamSpec, ...] = (
+    ParamSpec("rounds", "int", "GetOrganelle extension rounds", default=10),
+    ParamSpec("kmers", "str", "SPAdes k-mer sizes, comma-separated", default="21,55,91,127"),
+    ParamSpec("random_seed", "int", "the assembler's random seed", default=12345),
+    ParamSpec("threads", "int", "threads the tools may use", default=4),
+    ParamSpec(
+        "memory_gb",
+        "float",
+        "memory the assembler may use, in GB; unset means the machine's physical memory",
+    ),
+    ParamSpec(
+        "max_words",
+        "float",
+        "the assembler's word limit; unset sets it from memory_gb and the read length",
+    ),
+    ParamSpec("trim", "bool", "run fastp on the reads before the assembler", default=True),
+    ParamSpec("tools", "dir", "directory holding the assembly tools when they are not on PATH"),
+    ParamSpec(
+        "database",
+        "dir",
+        "GetOrganelle's database directory; unset means GETORG_PATH, then ~/.GetOrganelle",
+    ),
+    ParamSpec(
+        "keep_work",
+        "bool",
+        "keep the assembler's working directory, tens of times the size of the result",
+        default=False,
+    ),
+    ParamSpec(
+        "extension",
+        "int",
+        "bases of the sequence's start repeated after its end, in bp; must exceed a read",
+        default=1000,
+    ),
+    ParamSpec(
+        "min_ram_gb",
+        "float",
+        "memory below which `plastid assemble run` stops, in GB",
+        default=4.0,
+    ),
+    ParamSpec("disk_factor", "float", "working disk per compressed input byte", default=7.0),
+    ParamSpec(
+        "memory_reserve_gb",
+        "float",
+        "memory left out of the word limit, in GB",
+        default=1.0,
+    ),
+    ParamSpec("word_bytes", "float", "bytes per word held in memory", default=108.0),
+    ParamSpec("word_bytes_per_base", "float", "bytes per base of a word", default=0.89),
+    ParamSpec(
+        "word_size_share",
+        "float",
+        "the word size planned for, as a share of the read length",
+        default=0.6,
+    ),
+    ParamSpec("syncmer", "int", "Oatk syncmer size, for HiFi reads", default=1001),
+    ParamSpec("min_coverage", "int", "Oatk minimum coverage, for HiFi reads", default=30),
+    ParamSpec("max_bases", "float", "the most HiFi bases Oatk reads", default=1_500_000_000.0),
+    ParamSpec("oatk_db", "dir", "directory holding OatkDB's profiles; unset means OATK_DB"),
+    ParamSpec(
+        "long_extension",
+        "int",
+        "as extension, for reads that can be this long, in bp",
+        default=100_000,
+    ),
+    ParamSpec(
+        "flank",
+        "int",
+        "bases a read must align on each side of a boundary to count as crossing it",
+        default=30,
+    ),
+    ParamSpec(
+        "min_spanning",
+        "int",
+        "reads that must cross a boundary for it to count as supported",
+        default=2,
+    ),
+    ParamSpec(
+        "min_clip",
+        "int",
+        "read bases left unaligned before a read counts as stopping, for the report",
+        default=10,
+    ),
+    ParamSpec(
+        "clip_window",
+        "int",
+        "bases either side summed for the report, as a clip lands around a break",
+        default=3,
+    ),
+    ParamSpec(
+        "data_label",
+        "str",
+        "where the data came from, printed with every table",
+        flag="--label",
+    ),
 )
+ASSEMBLY_PARAMS: tuple[str, ...] = tuple(param.name for param in ASSEMBLY_PARAM_SPECS)
 
 
 class BackendUnavailable(Exception):
@@ -337,7 +408,9 @@ def resolve_params(params: Mapping[str, Any]) -> dict[str, Any]:
         merged["max_words"] = int(float(merged["max_words"]))
     for key in ("trim", "keep_work"):
         value = merged[key]
-        merged[key] = value if isinstance(value, bool) else str(value).lower() in ("yes", "true")
+        merged[key] = (
+            value if isinstance(value, bool) else str(value).lower() in ("1", "true", "yes", "on")
+        )
     return merged
 
 

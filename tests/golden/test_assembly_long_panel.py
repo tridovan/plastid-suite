@@ -73,8 +73,6 @@ def imported(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, int]:
     code = main(
         [
             "assemble",
-            "run",
-            "--backend",
             "import",
             "--prepared",
             str(prepared),
@@ -84,7 +82,7 @@ def imported(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, int]:
             "panel: Oatk 1.0 on the development machine",
             "--retrieved-at",
             "2026-10-31",
-            "--reference",
+            "--compare-to",
             str(RECORD),
             "-o",
             str(root / "runs"),

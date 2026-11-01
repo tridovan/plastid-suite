@@ -1,10 +1,11 @@
 # Development handoff
 
-**State:** 01/11/2026 — `main` holds phases M11, M4.5 and the assembly of Phase 7 (M7.1, M7.2, M7.5,
-M7.6: short reads and HiFi reads, the graph read, the memory limited), merged and acceptance-tested
-(`make acceptance` 291 passed, 0 skipped). The open work is the release (M9.6). RNA editing is the
-module `rna_editing` (`docs/tools/prep_cp.md`); its reference B′'s seven records live in
-`.panel/rna_editing/`, pinned in `src/plastid/data/rna_editing/taxa.yaml`. Product documentation,
+**State:** 01/11/2026 — `main` holds phases M11, M4.5, the assembly of Phase 7 (M7.1, M7.2, M7.5,
+M7.6: short reads and HiFi reads, the graph read, the memory limited) and the review of the command
+line (M9.8), merged and acceptance-tested (`make acceptance` 291 passed, 0 skipped). The open work is
+a local interface (M9.7), then the release (M9.6). RNA editing is the module `rna_editing` (`docs/tools/prep_cp.md`); its reference B′'s seven
+records live in `.panel/rna_editing/`, pinned in `src/plastid/data/rna_editing/taxa.yaml`. Product
+documentation,
 requirements and shared method live in this repository. Maintainer planning — the active task, the
 milestones and their Definition of Done, and the dated evidence records — lives in `.dev/`, which
 is not part of the product repository.
@@ -17,9 +18,10 @@ is not part of the product repository.
 `diversity`, `barcodes`, `kaks`, `popgen`, `stats`, `synteny`, `phylogeny`, `submission`,
 `rna_editing` (predicted C-to-U sites, PREP-Cp-compatible), plus the reference path
 `panel`/`reference`/`annotate`, `editing-reference` (rebuild or verify the RNA-editing reference) and
-the export path `figures`/`package`/`qc`. `plastid assemble run|prepare` takes paired short reads or
-HiFi reads to a checked plastome through a local or an imported run
-([short reads](docs/tools/getorganelle.md), [HiFi](docs/tools/oatk.md)).
+the export path `figures`/`package`/`qc`. `plastid assemble run|prepare|import` takes paired short
+reads or HiFi reads to a checked plastome through a local or an imported run
+([short reads](docs/tools/getorganelle.md), [HiFi](docs/tools/oatk.md)). `plastid modules`, `tools`
+and `runs` list what is there, in text or JSON.
 The mito modules are a frozen prototype: keep them passing, do not extend them.
 
 Reproduced defects are in [known issues](docs/known_issues.md). A documentation change does not
@@ -51,6 +53,8 @@ pipeline. Do not invent a replacement task list.
   the install from a clean copy (`docs/release.md`, "A new user's checkout"), not from this tree.
 - The Docker image has not been built since 29/10/2026, before the assembly work. Each build leaves
   about 1.3 GB on C:, so build once, on the release revision.
+- The `PTS_*` variables are read by the tests only. The product finds a tool on `PATH` or through
+  `--set`, and `plastid tools` says what it found.
 - `PTS_IQTREE_DIR` points at the directory holding `iqtree2`, not at the shared bin directory.
 - MACSE is installed from bioconda (`macse=2.07`) and resolved through `PTS_MACSE_JAR` or `PATH`;
   the bioconda wrapper needs a JDK, so the jar path is the reliable one.

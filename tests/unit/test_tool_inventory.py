@@ -205,7 +205,12 @@ def _cross_check_calls(rows: dict[str, dict[str, str]], src: Path = SRC) -> list
 def test_every_adapter_and_environment_package_has_one_role() -> None:
     rows = _inventory(README.read_text(encoding="utf-8"))
     assert rows, "the inventory table moved and this check would pass over nothing"
-    adapters = {path.stem for path in (SRC / "external").glob("*.py") if path.stem != "__init__"}
+    # `inventory` is the table of the adapters, not one of them.
+    adapters = {
+        path.stem
+        for path in (SRC / "external").glob("*.py")
+        if path.stem not in ("__init__", "inventory")
+    }
     assert adapters, "no adapters found — the path moved, and this check would pass vacuously"
     problems = _problems(rows, adapters, ENVIRONMENTS)
     assert not problems, "tool inventory disagrees with the code/environment:\n" + "\n".join(

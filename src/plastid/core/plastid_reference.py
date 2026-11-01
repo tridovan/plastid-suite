@@ -145,7 +145,7 @@ def verify_pin(directory: str | Path) -> tuple[str, ...]:
 def _pinned_file(root: Path, recorded: str) -> Path | None:
     """Where a pinned record actually is, from the path the pin recorded.
 
-    ``pin_files`` writes the path it was given, so a pin made with a relative ``--out`` records
+    ``pin_files`` writes the path it was given, so a pin made with a relative ``--to`` records
     a path relative to *that* shell's working directory. The record's home is the panel either
     way — the recorded path is tried first so a pin that points somewhere else is honoured, and
     the panel itself is the fallback that keeps ``plastid reference verify`` working from any
@@ -211,7 +211,7 @@ def resolve_directory(given: str | Path | None) -> Path:
     """Where the reference records are: what the run was told, or the recorded set's own directory.
 
     One source of truth for the default, because two callers need it and they must not disagree:
-    the annotator (which searches the records) and ``plastid annotate --audit-only`` (which audits
+    the annotator (which searches the records) and ``plastid reference audit`` (which audits
     them without annotating anything) — a flag that audited a *different* directory than the run
     would be worse than no flag.
     """
@@ -232,8 +232,8 @@ def missing_set(directory: Path) -> str | None:
     return (
         f"no reference set at {directory}: the toolkit ships no plastid records, so annotation "
         f"transfers from a directory of GenBank records (*.gb) you supply, same family first. "
-        f"Pass it with --reference <directory> (--set reference=<directory> under `plastid "
-        f"run`); `plastid panel pin --accessions A,B,C --out <directory>` fetches and pins one"
+        f"Pass it with --reference-set <directory>; `plastid panel pin --accessions A,B,C --to "
+        f"<directory>` fetches and pins one"
     )
 
 

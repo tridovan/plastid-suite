@@ -15,8 +15,7 @@ coordinates carry their marker into the table: dropping one would turn "this gen
 contig" into "this gene starts here", a different claim about the same sequence.
 
 Each gene keeps the name it arrived with. A submission describes a record, and renaming a gene
-would change what is submitted; the naming decision recorded for the manuscripts concerns what
-they print.
+would change what is submitted.
 
 The record's own source feature leads the table — the organism, the organelle and whatever else
 the record says about the sample. A submission has to state what the sequence is, and this

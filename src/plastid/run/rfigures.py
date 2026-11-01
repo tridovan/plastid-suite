@@ -100,9 +100,10 @@ def render_run_rfigures(
             continue
         source = _source_file(spec, settings)
         if source is _NO_SOURCE:
-            reason = (
-                f"needs --set {spec.source_param}=<file> — "
-                f"{settings.get(spec.source_param)!r} is not a file"
+            reason = f"needs --set {spec.source_param}=<file>" + (
+                f" — {settings[spec.source_param]!r} is not a file"
+                if settings.get(spec.source_param)
+                else ""
             )
             _discard(target, spec.id)
             skipped.append((spec.id, reason))

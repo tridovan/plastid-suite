@@ -154,11 +154,11 @@ def test_the_command_refuses_a_record_it_cannot_cut_into_four_regions(tmp_path: 
     """A record with no IR annotation is refused by name, not drawn empty."""
     bare = Genome(name="no IR", accession="XX_100004.1", sequence="ACGT" * 5_000)
     record = _write(tmp_path, bare, "bare.gb")
-    assert main(["ir-junction", "-i", str(record), "-o", str(tmp_path / "runs")]) == 1
+    assert main(["ir-junction", "-i", str(record), "-o", str(tmp_path / "runs")]) == 2
 
 
 def test_the_command_refuses_a_missing_input(tmp_path: Path) -> None:
-    assert main(["ir-junction", "-i", str(tmp_path / "absent.gb"), "-o", str(tmp_path / "r")]) == 1
+    assert main(["ir-junction", "-i", str(tmp_path / "absent.gb"), "-o", str(tmp_path / "r")]) == 2
 
 
 @pytest.mark.tier_b

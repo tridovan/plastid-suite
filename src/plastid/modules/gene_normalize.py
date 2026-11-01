@@ -62,7 +62,7 @@ from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, 
 from plastid.core.model import GENE_KINDS, Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_PLASTID
 from plastid.external.blast import MAX_HSPS, NAMING_EVALUE
-from plastid.modules.registry import ParamSpec, module
+from plastid.modules.registry import IR_SOURCE, ParamSpec, ParamValueError, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -78,7 +78,7 @@ MODES = (MODE_NORMALIZE, MODE_VERIFY)
 ON_CONFLICT_STOP = "stop"
 ON_CONFLICT_CONTINUE = "continue"
 
-SCOPE_LABEL = "one record against the project's naming reference (D5-09, vocabulary A)"
+SCOPE_LABEL = "one record against the project's naming reference (vocabulary A)"
 
 # How many nucleotide candidates the evidence column keeps. The ranking never decides for a tRNA,
 # so the tail past the first handful is not read by anything.
@@ -94,19 +94,33 @@ _NUCLEOTIDE_CANDIDATES = 8
     arity=2,  # the naming reference plus at least one record to normalize
     reference_param="naming_reference",  # D5-09: recorded, not spelled `reference`,
     params=(
-        ParamSpec("mode", "str", "normalize (rename to the reference) or verify (report only)"),
         ParamSpec(
-            "on_conflict", "str", "stop or report when the data disagrees with the naming reference"
+            "mode",
+            "str",
+            "normalize renames to the reference; verify only reports",
+            default=MODE_NORMALIZE,
+            choices=MODES,
         ),
-        ParamSpec("ir_source", "str", "annotation or sequence: which IR path the step reads"),
-        ParamSpec("tools", "str", "directory holding blastp when it is not on PATH"),
-        ParamSpec("evalue", "float", "blastp E-value ceiling for the naming search"),
+        ParamSpec(
+            "on_conflict",
+            "str",
+            "when the data disagrees with the naming reference: stop, or continue and report it",
+            default=ON_CONFLICT_STOP,
+            choices=(ON_CONFLICT_STOP, ON_CONFLICT_CONTINUE),
+        ),
+        IR_SOURCE,
+        ParamSpec("tools", "dir", "directory holding blastp when it is not on PATH"),
+        ParamSpec(
+            "evalue", "float", "blastp E-value ceiling for the naming search", default=NAMING_EVALUE
+        ),
         ParamSpec(
             "max_hsps",
             "int",
             "blastp HSPs kept per query-subject pair; a pair returning exactly this is capped",
+            default=MAX_HSPS,
         ),
     ),
+    tools=("blast",),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     reference, records = genomes[0], tuple(genomes[1:])
@@ -127,7 +141,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     evalue = float(params.get("evalue", NAMING_EVALUE))
     max_hsps = int(params.get("max_hsps", MAX_HSPS))
     if max_hsps < 1:
-        raise ValueError(
+        raise ParamValueError(
             f"gene_normalize: max_hsps must be at least 1, got {max_hsps} — blastp would "
             f"return no hit at all"
         )
@@ -144,14 +158,14 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             notes.append(
                 f"{_label(record)} already carries more than one gene under {_names(already)} "
                 f"— reported, not stopped on: the record arrived that way, and a duplicate the "
-                f"normalization did not create is a finding about the record (D5-09)"
+                f"normalization did not create is a finding about the record"
             )
     duplicates = duplicate_names(reference, reference_ir)
     if duplicates:
         notes.append(
             f"the naming reference spells more than one gene with {_names(duplicates)} — a "
             f"pairing for a duplicated name points at the first of them, and a rename that would "
-            f"copy the duplicate into a record is a conflict, not a merge (D5-09)"
+            f"copy the duplicate into a record is a conflict, not a merge"
         )
 
     queries = _protein_queries(records)

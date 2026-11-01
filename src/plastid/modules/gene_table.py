@@ -131,7 +131,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     aliased = sorted({names.label(row.gene) for row in rows if names.normalized(row.gene).synonyms})
     if aliased:
         notes.append(
-            "A name printed with a synonym is one locus under two nomenclatures (D3-02); the "
+            "A name printed with a synonym is one locus under two nomenclatures; the "
             f"canonical name leads: {', '.join(aliased)}"
         )
     if unclassified_labels:

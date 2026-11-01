@@ -93,12 +93,12 @@ inside, so nothing has to be left out.
 ```
 # 1. pin the records (source: the corpus already in the tree)
 plastid panel pin $(for f in .panel/iridaceae-34/*.gb; do printf -- "--file %s " "$f"; done) \
-  --out .panel/plastid-reference --note "…"
+  --to .panel/plastid-reference --note "…"
 # 2. re-verify every sha256 — `file — reason` per problem, exit 1 when the set changed
-plastid reference verify --panel .panel/plastid-reference
+plastid reference verify --reference-set .panel/plastid-reference
 # 3. write the leave-one-out manifest (and the committed offline copy)
-plastid reference loo --panel .panel/plastid-reference --family Iridaceae \
-  --out src/plastid/data/plastid_reference.json
+plastid reference leave-one-out --reference-set .panel/plastid-reference --family Iridaceae \
+  --to src/plastid/data/plastid_reference.json
 ```
 
 The checks that the committed manifest still describes the pin, and that every sha256 of the pin

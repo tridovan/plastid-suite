@@ -153,9 +153,9 @@ def test_the_cli_reports_a_broken_pin_and_exits_nonzero(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     panel = _pinned_pair(tmp_path)
-    assert main(["reference", "verify", "--panel", str(panel)]) == 0
-    again = main(["reference", "verify", "--panel", str(tmp_path / "nothing-here")])
-    assert again == 1
+    assert main(["reference", "verify", "--reference-set", str(panel)]) == 0
+    again = main(["reference", "verify", "--reference-set", str(tmp_path / "nothing-here")])
+    assert again == 2
     assert "is this a pinned reference set?" in capsys.readouterr().err
 
 
@@ -177,20 +177,20 @@ def test_the_committed_manifest_is_what_the_pinned_set_builds(tmp_path: Path) ->
     assert built.leave_one_out == committed.leave_one_out
 
     # the same conclusion through the CLI, which is the door a person actually uses
-    assert main(["reference", "verify", "--panel", str(PANEL)]) == 0
+    assert main(["reference", "verify", "--reference-set", str(PANEL)]) == 0
     copied = tmp_path / "REFERENCE_SET.json"
     assert (
         main(
             [
                 "reference",
-                "loo",
-                "--panel",
+                "leave-one-out",
+                "--reference-set",
                 str(PANEL),
                 "--family",
                 "Iridaceae",
                 "--rule",
                 committed.rule,
-                "--out",
+                "--to",
                 str(copied),
             ]
         )

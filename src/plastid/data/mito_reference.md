@@ -66,7 +66,7 @@ every mito record and needs its own tests.
 
 ```
 plastid panel pin --accessions NC_023209.1,NC_023103.1,NC_049064.1,NC_006581.1,NC_037304.1,\
-NC_011033.1,NC_066984.1,NC_057654.1 --out .panel/mito-reference
+NC_011033.1,NC_066984.1,NC_057654.1 --to .panel/mito-reference
 ```
 
 then `build_proteins` / `build_rrna` / `render_fasta` from `plastid.core.mito_reference`. The check

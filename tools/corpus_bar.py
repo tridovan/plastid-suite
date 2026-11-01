@@ -283,7 +283,7 @@ def annotate(panel: Panel, source: Path) -> tuple[str, int]:
         "annotate",
         "-i",
         str(source),
-        "--reference",
+        "--reference-set",
         str(panel.reference),
         "--dataset",
         accession,

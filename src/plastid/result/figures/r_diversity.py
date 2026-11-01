@@ -50,7 +50,7 @@ class DiversityFrame:
             f"reference annotation, π over {self.n_genomes} aligned genomes "
             f"({self.window_bp} bp windows for the summary's own number). "
             "Panel A is the reference's genes, panel B its introns then its intergenic spacers — "
-            "the manuscript's own split. Panel B's labels are the tables' own keys: an intron is "
+            "the conventional split. Panel B's labels are the tables' own keys: an intron is "
             "`gene.copy.n`, so the two inverted-repeat copies of one intron are two rows and a "
             "gene with two introns has two, and only the key tells those two cases apart."
         )

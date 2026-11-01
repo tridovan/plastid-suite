@@ -29,7 +29,7 @@ from plastid.core.codon import codon_counts, enc
 from plastid.core.gene_names import load_gene_aliases, normalize_name
 from plastid.core.model import Gene, Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
-from plastid.modules.registry import ParamSpec, module
+from plastid.modules.registry import GROUP_LABELS, ParamSpec, ParamValueError, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -132,7 +132,7 @@ def measure(
     for genome in genomes:
         key = genome.accession or genome.name
         if key not in groups:
-            raise ValueError(
+            raise ParamValueError(
                 f"stats: no group for {key!r} — every genome needs one, or the comparison "
                 f"would mix labelled and unlabelled observations"
             )
@@ -248,23 +248,31 @@ def _below(value: float | None, alpha: float) -> bool:
     arity=2,
     citations=("biopython",),
     params=(
-        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
-        ParamSpec("alpha", "float", "significance level after FDR correction"),
-        ParamSpec("measures", "str", "which measurements the group comparison reads"),
+        GROUP_LABELS,
+        ParamSpec(
+            "alpha", "float", "significance level after FDR correction", default=DEFAULT_ALPHA
+        ),
+        ParamSpec(
+            "measures",
+            "str",
+            "which measurements the group comparison reads, comma-separated",
+            default=",".join(MEASURES),
+        ),
     ),
 )
 def run(genomes: Sequence[Genome], params: dict, ctx: RunContext) -> Result:
     groups = params.get("groups")
     if not groups:
-        raise ValueError(
+        raise ParamValueError(
             "stats: no groups — this module compares groups of genomes, so pass "
             "--groups FILE (a YAML mapping {group: [accessions]})"
         )
     alpha = float(params.get("alpha", DEFAULT_ALPHA))
-    measures = tuple(params.get("measures", MEASURES))
+    chosen = params.get("measures", MEASURES)
+    measures = tuple(chosen.split(",")) if isinstance(chosen, str) else tuple(chosen)
     unknown = [name for name in measures if name not in MEASURES]
     if unknown:
-        raise ValueError(f"stats: unknown measure(s) {unknown} — have {list(MEASURES)}")
+        raise ParamValueError(f"stats: unknown measure(s) {unknown} — have {list(MEASURES)}")
 
     observations, collapsed, unannotated = measure(genomes, groups)
     if not observations:

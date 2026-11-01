@@ -132,6 +132,7 @@ def _reference_set(params: dict[str, Any], vocabulary: Sequence[str]) -> Iterato
 @module(
     MODULE_ID,
     group=GROUP_MITO,
+    tools=("blast", "aragorn"),
     version=MODULE_VERSION,
     title="Mitochondrial annotation (reference transfer, prototype)",
     requires_ir=False,  # deliberate: see NO_IR_NOTE,

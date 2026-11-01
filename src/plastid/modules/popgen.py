@@ -32,7 +32,7 @@ from plastid.core.model import Genome, coding_sequence
 from plastid.core.organelle import GROUP_SHARED
 from plastid.core.popgen import fst_gst, summarise
 from plastid.external.mafft import align
-from plastid.modules.registry import ParamSpec, module
+from plastid.modules.registry import GROUP_LABELS, MAFFT_STRATEGY, ParamValueError, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
@@ -49,25 +49,22 @@ MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs
     arity=2,
     citations=("mafft",),
     params=(
-        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
-        ParamSpec(
-            "mafft_strategy",
-            "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
-        ),
+        GROUP_LABELS,
+        MAFFT_STRATEGY,
     ),
+    tools=("mafft",),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     labels: dict[str, str] = dict(params.get("groups") or {})
     keys = [genome.accession or genome.name for genome in genomes]
     if not labels:
-        raise ValueError(
+        raise ParamValueError(
             "popgen compares groups and no groups were given — pass --groups with a sample-group "
             "file, or run a module that does not need groups"
         )
     unlabelled = [key for key in keys if key not in labels]
     if unlabelled:
-        raise ValueError(
+        raise ParamValueError(
             f"every genome needs a group, {', '.join(unlabelled)} has none — an unlabelled "
             f"sequence would be silently left out of every group statistic"
         )

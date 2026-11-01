@@ -53,14 +53,15 @@ _GENE_KINDS = ("CDS", "tRNA", "rRNA")
     requires_ir=True,
     citations=("misa",),
     params=(
-        ParamSpec("misa", "str", "path to misa.pl 2.1 (MISA is not bundled; docs/tools/misa.md)"),
+        ParamSpec("misa", "file", "path to misa.pl 2.1 when it is not on PATH"),
         ParamSpec(
             "unit_repeats",
             "str",
-            "MISA unit/min-repeat thresholds, e.g. '1-12 2-8 3-7 4-6 5-5 6-5' "
-            "(default: the shipped data/misa.ini)",
+            "MISA unit/min-repeat thresholds, e.g. '1-12 2-8 3-7 4-6 5-5 6-5'; unset uses the "
+            "shipped misa.ini",
         ),
     ),
+    tools=("misa", "perl"),
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()

@@ -429,7 +429,7 @@ def test_the_sample_nobody_has_annotated_is_annotated_pinned_and_read_offline(
                 str(produced[0]),
                 "--note",
                 "prototype mito annotate, test",
-                "--out",
+                "--to",
                 str(pinned),
             ]
         )

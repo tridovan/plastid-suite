@@ -97,7 +97,7 @@ from plastid.external.blast import (
     run_blastn_trace,
     run_blastx,
 )
-from plastid.modules.registry import ParamSpec, module
+from plastid.modules.registry import ParamSpec, ParamValueError, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.defaults import load_defaults
@@ -167,7 +167,7 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
     the module did not call the audit at all, so a record the audit BLOCKs was still a candidate
     in a run on the golden.
 
-    A record may be left out of the search **by name** (``--set exclude=ACC``), which is the
+    A record may be left out of the search **by name** (``--exclude ACC``), which is the
     mechanical form of D5-08's "fix or drop the bad file → run again": the file is not searched
     and the run says so, in the label and in the notes. It is not a way past the gate — the verdict
     on that file stands (``core/reference_audit``: a pin may never waive a BLOCK check), and the
@@ -175,9 +175,9 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
     """
     directory, allowed = _reference_directory(params, target)
     paths = sorted(directory.glob("*.gb"))
-    # A name, or several separated by commas: `--set exclude=A` and `--set exclude=A,B` are the
-    # same request, and neither may be read as a set of characters (which is what iterating the
-    # string would silently give).
+    # A name, or several separated by commas: `--exclude A` and `--exclude A,B` are the same
+    # request, and neither may be read as a set of characters (which is what iterating the string
+    # would silently give).
     raw_exclusions = params.get("exclude", ())
     if isinstance(raw_exclusions, str):
         raw_exclusions = (raw_exclusions,)
@@ -211,7 +211,7 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
         # the run searched it. The same rule the audit's own exceptions follow — a pin that
         # applies to nothing is reported, never implied (measured 08/10/2026).
         raise ReferenceSetMissing(
-            f"plastid_annotate: --set exclude={', '.join(unmatched)} matches no record in "
+            f"plastid_annotate: --exclude {', '.join(unmatched)} matches no record in "
             f"{directory} — nothing was left out, and a run that silently searched it anyway "
             f"would disagree with the command that asked for it"
         )
@@ -461,19 +461,44 @@ def _trna_naming_notes(namings: Sequence[TrnaNaming]) -> tuple[str, ...]:
     title="Plastid annotation (reference transfer)",
     requires_ir=True,
     params=(
-        ParamSpec("reference", "str", "directory of GenBank records to transfer from"),
-        ParamSpec("exclude", "str", "accession to leave out of the search (repeatable)"),
-        ParamSpec("min_identity", "float", "minimum TBLASTN identity for a transferred call"),
-        ParamSpec("min_coverage", "float", "minimum query coverage for a transferred call"),
-        ParamSpec("evalue", "float", "maximum BLAST E-value"),
+        ParamSpec(
+            "reference",
+            "dir",
+            "folder of GenBank records to transfer from",
+            flag="--reference-set",
+        ),
+        ParamSpec(
+            "exclude", "str", "accession to leave out of the search (repeatable)", flag="--exclude"
+        ),
+        ParamSpec(
+            "min_identity",
+            "float",
+            "minimum TBLASTN identity for a transferred call, in percent",
+            default=50.0,
+        ),
+        ParamSpec(
+            "min_coverage",
+            "float",
+            "minimum query coverage for a transferred call, as a fraction",
+            default=0.7,
+        ),
+        ParamSpec("evalue", "float", "maximum BLAST E-value", default=1.0e-5),
         ParamSpec(
             "max_hsps",
             "int",
             "BLAST HSPs kept per query-subject pair; a pair returning exactly this is capped",
+            default=MAX_HSPS,
         ),
-        ParamSpec("transl_table", "int", "translation table stamped on called CDS"),
-        ParamSpec("tools", "str", "directory holding BLAST+/ARAGORN when they are not on PATH"),
+        ParamSpec(
+            "transl_table",
+            "int",
+            "translation table stamped on called CDS",
+            default=11,
+        ),
+        ParamSpec("tools", "dir", "directory holding BLAST+ and ARAGORN when they are not on PATH"),
     ),
+    tools=("blast", "aragorn"),
+    command="plastid annotate",
 )
 def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     ir = ctx.require_ir()
@@ -487,7 +512,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     evalue = float(params.get("evalue", defaults.get("evalue", 1.0e-5)))
     max_hsps = int(params.get("max_hsps", MAX_HSPS))
     if max_hsps < 1:
-        raise ValueError(
+        raise ParamValueError(
             f"plastid_annotate: max_hsps must be at least 1, got {max_hsps} — BLAST would "
             f"return no hit at all"
         )
@@ -851,7 +876,7 @@ def _verify_round_trip(text: str, annotated: Genome, seq_id: str) -> None:
         raise ValueError(
             f"plastid_annotate: the artifact re-reads without /organelle={ORGANELLE} "
             f"(source={back.source!r}) — the record this run wrote has to say which organelle it "
-            f"is (H-11)"
+            f"is"
         )
 
 
@@ -1143,7 +1168,7 @@ def _truncated_notes(truncated: Sequence[TruncatedAnnotation]) -> tuple[str, ...
     return tuple(
         f"{row.accession} annotates {row.locus} twice: the {row.kept}-residue feature is used "
         f"and its {row.dropped}-residue copy ({row.ratio:.0%} of it) is not searched — structure "
-        f"decides before any score (D5-08)"
+        f"decides before any score"
         for row in truncated
     )
 
@@ -1193,7 +1218,7 @@ def _dropped_notes(dropped: Sequence[tuple[str, str]]) -> tuple[str, ...]:
     two runs cannot tell why they differ.
     """
     return tuple(
-        f"{accession} was not searched — {reason} (D5-08: fix or drop, then run again)"
+        f"{accession} was not searched — {reason} (fix or drop it, then run again)"
         for accession, reason in dropped
     )
 

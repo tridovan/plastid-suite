@@ -157,7 +157,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
 
     notes = [
         f"CAI · CBI · Fop reference: {REFERENCE_LABEL}.",
-        f"Translation table: {table_label} (decision D2-03). Table 1 and the plastid table 11 "
+        f"Translation table: {table_label}. Table 1 and the plastid table 11 "
         f"share every amino-acid assignment (they differ only in initiation codons), and the "
         f"initiator codon is read as its own amino acid — a CDS starting GTG/ACG/ATC contributes "
         f"V/T/I where its published protein begins with M.",

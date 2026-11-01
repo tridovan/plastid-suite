@@ -733,14 +733,14 @@ def test_a_conflict_stops_the_run_with_its_own_exit_code(tmp_path: Path) -> None
     import json
 
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["status"] == "failed"
+    assert manifest["status"] == "conflict"
     assert "conflict" in manifest["modules"][0]["error"]
     assert "(50001..50500+)" in manifest["modules"][0]["error"]  # the coordinates it names
 
 
 def test_a_reference_that_cannot_be_used_is_refused_by_its_audit(tmp_path: Path) -> None:
     """D5-08's gate, at the one place where a bad reference makes every name wrong the same way."""
-    from plastid.cli import EXIT_ERROR, main
+    from plastid.cli import EXIT_USAGE, main
     from plastid.core.genbank import to_genbank
 
     bad = tmp_path / "bad_reference.gb"
@@ -764,7 +764,7 @@ def test_a_reference_that_cannot_be_used_is_refused_by_its_audit(tmp_path: Path)
         ]
     )
 
-    assert code == EXIT_ERROR
+    assert code == EXIT_USAGE
     assert not (tmp_path / "runs").exists()  # nothing was written at all
 
 

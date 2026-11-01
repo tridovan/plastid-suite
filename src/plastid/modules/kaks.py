@@ -35,7 +35,7 @@ from plastid.external.paml import (
     run_yn00,
     yn00_version,
 )
-from plastid.modules.registry import ParamSpec, module
+from plastid.modules.registry import GROUP_LABELS, MAFFT_STRATEGY, ParamSpec, module
 from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError
@@ -68,20 +68,24 @@ STATUS_TOOL_FAILED = "yn00 refused the pair"
     arity=2,
     citations=("paml", "yang_nielsen", "mafft"),
     params=(
-        ParamSpec("groups", "str", "sample-group label for each input (supplied by --groups)"),
-        ParamSpec("paml", "str", "directory holding yn00 when it is not on PATH"),
-        ParamSpec("yn00_icode", "int", "PAML genetic code passed to yn00 (0 = universal)"),
+        GROUP_LABELS,
+        ParamSpec("paml", "dir", "directory holding yn00 when it is not on PATH"),
+        ParamSpec(
+            "yn00_icode",
+            "int",
+            "PAML genetic code passed to yn00 (0 = universal)",
+            default=DEFAULT_ICODE,
+        ),
         ParamSpec(
             "yn00_weighting",
             "int",
-            "yn00 pathway weighting: 0 equal (default) or 1 weighted",
+            "yn00 pathway weighting: 0 equal, 1 weighted",
+            default=DEFAULT_WEIGHTING,
+            choices=(0, 1),
         ),
-        ParamSpec(
-            "mafft_strategy",
-            "str",
-            "MAFFT algorithm: auto (default), einsi, linsi, ginsi, fftns",
-        ),
+        MAFFT_STRATEGY,
     ),
+    tools=("mafft", "paml"),
 )
 def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> Result:
     reference = genomes[0]
