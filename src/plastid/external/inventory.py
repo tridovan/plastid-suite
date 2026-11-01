@@ -63,11 +63,16 @@ class ToolStatus:
         return asdict(self)
 
 
-def _on_path(name: str) -> str:
-    found = which(name)
-    if found is None:
-        raise ToolError(f"{name} not found on PATH")
-    return found
+def _on_path(name: str, how: str) -> Callable[[], str]:
+    """The finder of a tool no adapter resolves on its own; `how` says how to get it."""
+
+    def find() -> str:
+        found = which(name)
+        if found is None:
+            raise ToolError(f"{name} not found — {how}")
+        return found
+
+    return find
 
 
 def _reported(name: str, kind: str = "binary") -> Callable[[str], str | None]:
@@ -80,7 +85,11 @@ TOOL_CHECKS: tuple[ToolCheck, ...] = (
         "mafft",
         "analysis",
         mafft.MAFFT_VERSION,
-        lambda: _on_path("mafft"),
+        _on_path(
+            "mafft",
+            f"install the pinned {mafft.MAFFT_VERSION} with environment.yml, or put it on PATH "
+            "(docs/tools/README.md)",
+        ),
         _reported("mafft", "mafft"),
         page="README",
     ),
@@ -121,15 +130,19 @@ TOOL_CHECKS: tuple[ToolCheck, ...] = (
         "macse",
         "analysis",
         macse.MACSE_VERSION,
-        lambda: _on_path("macse"),
-        lambda binary: macse.macse_version((binary,)),
+        lambda: macse.resolve_macse().argv_prefix[-1],
+        lambda _found: macse.MACSE_VERSION,
     ),
     ToolCheck("misa", "analysis", misa.MISA_VERSION, misa.misa_script, misa.misa_version),
     ToolCheck(
         "perl",
         "analysis",
         "5.32.1",
-        lambda: _on_path("perl"),
+        _on_path(
+            "perl",
+            "MISA is a Perl script. Install perl with environment.yml, or put it on PATH "
+            "(docs/tools/README.md)",
+        ),
         _reported("perl", "perl"),
         page="README",
     ),
@@ -145,7 +158,11 @@ TOOL_CHECKS: tuple[ToolCheck, ...] = (
         "table2asn",
         "analysis",
         "1.29.324",
-        lambda: _on_path("table2asn"),
+        _on_path(
+            "table2asn",
+            "only the .sqn step of `submission` needs it. Get it with docs/tools/table2asn.md, "
+            "put it on PATH, or pass --set table2asn=/path/to/table2asn",
+        ),
         _reported("table2asn"),
     ),
     ToolCheck(

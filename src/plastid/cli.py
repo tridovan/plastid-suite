@@ -4135,8 +4135,10 @@ def _cmd_tools(args: argparse.Namespace) -> int:
 
     needed_by: dict[str, list[str]] = {}
     for name, spec in sorted(registry.all_modules().items()):
-        for tool in (*spec.tools, *spec.optional_tools):
+        for tool in spec.tools:
             needed_by.setdefault(tool, []).append(name)
+        for tool in spec.optional_tools:
+            needed_by.setdefault(tool, []).append(f"{name} (if asked)")
     statuses = check_tools()
     records = [
         {
