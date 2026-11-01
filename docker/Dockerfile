@@ -91,13 +91,17 @@ RUN micromamba create -y -n assembly -f /tmp/environment-assembly.yml \
 ENV PATH=$PATH:/opt/conda/envs/assembly/bin:/opt/conda/envs/table2asn/bin
 ENV GETORG_PATH=/home/mambauser/db/getorganelle
 ENV OATK_DB=/home/mambauser/db/oatk/v20230921
-RUN mkdir -p "$GETORG_PATH" /home/mambauser/db/oatk \
-    && get_organelle_config.py -a embplant_pt,embplant_mt --config-dir "$GETORG_PATH" \
-    && curl -sSL --retry 3 --max-time 300 \
+# The assembly environment first, so this database is built by the BLAST that reads it. The archive
+# holds every clade, 210 MB; the plant profiles are the 61 MB a plastome needs.
+RUN mkdir -p "$GETORG_PATH" "$OATK_DB" \
+    && PATH=/opt/conda/envs/assembly/bin:$PATH \
+       get_organelle_config.py -a embplant_pt,embplant_mt --config-dir "$GETORG_PATH" \
+    && curl -sSL --retry 3 --max-time 300 -o /tmp/oatkdb.tar.gz \
          https://github.com/c-zhou/OatkDB/archive/75e8db0ac4a7d508a9a518d900876003ceb70737.tar.gz \
-       | tar -xz -C /tmp \
-    && mv /tmp/OatkDB-75e8db0ac4a7d508a9a518d900876003ceb70737/v20230921 "$OATK_DB" \
-    && rm -rf /tmp/OatkDB-*
+    && tar -xzf /tmp/oatkdb.tar.gz -C "$OATK_DB" --strip-components=2 \
+         --wildcards '*/v20230921/embryophyta_*' \
+    && rm /tmp/oatkdb.tar.gz \
+    && ls "$OATK_DB"
 
 # What CPJSdraw needs to run. CPJSdraw itself is not here: its source states no licence and the
 # figure needs a patched build (docs/tools/cpjsdraw.md), so the user names their own copy in the

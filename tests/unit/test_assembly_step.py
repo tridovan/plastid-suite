@@ -1042,6 +1042,21 @@ def test_a_status_this_step_does_not_know_is_refused(tmp_path: Path) -> None:
         getorganelle.read_output(tmp_path)
 
 
+def test_the_assembler_keeps_its_own_blast_when_another_comes_first_on_path(
+    bench: Bench, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The analyses' BLAST 2.17.0 comes first in the image, and the step was measured with 2.5.0."""
+    analyses = tmp_path / "analyses"
+    analyses.mkdir()
+    newer = analyses / "blastn"
+    newer.write_text("#!/bin/sh\necho 'blastn: 2.17.0+'\n", encoding="utf-8")
+    newer.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{analyses}:{bench.tools}")
+    tools = getorganelle.resolve_tools()
+    assert Path(tools.blastn).parent == bench.tools
+    assert Path(tools.bowtie2).parent == bench.tools
+
+
 def test_a_wrong_assembler_version_is_refused(bench: Bench) -> None:
     path = bench.tools / "get_organelle_from_reads.py"
     path.write_text(path.read_text().replace("1.7.7.1", "1.6.2"), encoding="utf-8")

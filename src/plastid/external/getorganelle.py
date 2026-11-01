@@ -266,12 +266,22 @@ def _find(name: str, directory: str | Path | None) -> str:
 
 
 def resolve_tools(directory: str | Path | None = None) -> GetOrganelleTools:
-    """Find the assembler and its three dependencies, and check the two pinned versions."""
+    """Find the assembler and its three dependencies, and check the two pinned versions.
+
+    A dependency comes from the assembler's own environment first. An analysis environment can
+    stand earlier on PATH with a newer BLAST, and this step was measured with the one beside it.
+    """
+    assembler = _find(ENTRY_POINT, directory)
+    beside = Path(assembler).parent
+
+    def dependency(name: str) -> str:
+        return str(beside / name) if (beside / name).is_file() else _find(name, directory)
+
     tools = GetOrganelleTools(
-        assembler=_find(ENTRY_POINT, directory),
-        spades=_find("spades.py", directory),
-        bowtie2=_find("bowtie2", directory),
-        blastn=_find("blastn", directory),
+        assembler=assembler,
+        spades=dependency("spades.py"),
+        bowtie2=dependency("bowtie2"),
+        blastn=dependency("blastn"),
     )
     line, _ = tool_version("getorganelle", "binary", tools.assembler)
     if line is None or GETORGANELLE_VERSION not in line.split()[-1]:
