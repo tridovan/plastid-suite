@@ -14,7 +14,7 @@ passing their tests, but do not extend them.
   test whose tool is missing skips with a printed reason; `PTS_REQUIRE_TOOLS=1` turns that skip
   into a failure. The tools are in `environment.yml` and `docs/tools/`.
 - `make acceptance`: every test marked `panel`, which reads the private `.panel/` data that CI never
-  has (~40 min). Run it when closing a milestone; a missing tool or panel fails it.
+  has (~75 min). Run it when closing a milestone; a missing tool or panel fails it.
 - `make lint` and `make fmt`: ruff. `make check` runs lint, test and golden (~11 min).
 
 ## Context and scope
