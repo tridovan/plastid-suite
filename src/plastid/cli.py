@@ -4308,7 +4308,9 @@ def _cmd_ui(args: argparse.Namespace) -> int:
         return EXIT_USAGE
     print(f"PlastidToolSuite is open at {session.link()}", flush=True)
     print(
-        "Keep this window open while you work. Ctrl-C closes it; runs already started go on.",
+        "Keep this window open while you work. Stopping the toolkit stops any run still going."
+        if os.environ.get("PLASTID_IN_CONTAINER")
+        else "Keep this window open while you work. Ctrl-C closes it; runs already started go on.",
         flush=True,
     )
     if not args.no_browser:

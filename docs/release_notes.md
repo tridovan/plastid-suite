@@ -66,6 +66,12 @@ what each comparison shows, in both directions, is in [cgas.md](tools/cgas.md) a
 | `plastid panel pin` into a panel that already held records (K-16) | It used to replace the manifest. Check `PINNED.json` of any panel pinned twice |
 | A script that reads exit codes (K-18) | An unknown module name now exits 2. A missing reference set and a missing fastp in `assemble prepare` now exit 3 |
 | The R tree figure (K-06) | No tip is dropped and no outgroup is chosen unless the run names them; the default is a midpoint root |
+| An outgroup or `drop-tips` for the R tree figure (K-28) | A name that is not a tip stops the figure and lists the tips; it used to be passed over. One outgroup tip roots the tree, and a named outgroup is the root without `--set root=outgroup` |
+| The R figures of a run | They name genomes by species, from the records. The tables keep accessions, and the caption says which is which |
+| `run --figures` on a run with `rna_editing` (K-24) | The RSCU, amino-acid and SSR figures are drawn. They used to be lost |
+| A script that reads the exit code of a run with figures (K-25) | A figure that could be fed and was not drawn exits 3. It used to exit 0 |
+| `phylogeny --figures` (K-26) | The run draws its own tree, without `--set tree=` |
+| `--figures` with no plotting extra (K-29) | The analyses stay `ok`, and the error is in the run's `figures` section. It used to add a failed entry for the last analysis |
 | A script that reads exit codes or `manifest.status` (K-23) | An input that cannot be read now exits 2, not 1. The status is `refused`, `tool_error` or `conflict` where it read `failed`, and a cancelled run exits 130 |
 | A script that reads `manifest.command` (K-21) | It now holds what was typed, whole |
 | `plastid run -m plastid_annotate` or `plastid batch -m plastid_annotate` (K-20) | Refused by name. Use `plastid annotate`, with `--set reannotate=yes` for a record that carries an annotation |
@@ -92,8 +98,8 @@ without keeping the old ones, because nothing had been released under them:
 | `panel propose` | `--mode A`, `--mode B` | `--mode all`, `--mode tiers` |
 | `repeats` | `--set repeats=DIR` | `--set mummer=DIR` |
 
-`--out` is now always the folder that holds runs. `plastid modules`, `plastid tools` and `plastid
-runs` are new, and `annotate` takes `--label` like every other command that makes a run.
+`--out` is now always the folder that holds runs. `plastid modules`, `plastid tools`, `plastid runs`
+and `plastid ui` are new, and `annotate` takes `--label` like every other command that makes a run.
 
 ### What it does not do
 
@@ -101,8 +107,8 @@ The full list, with the reason for each, is in [things_we_do_not_do.md](things_w
 ones a new user meets first:
 
 - **Windows** runs through Docker only, and **macOS** has never been tested.
-- **The Docker image** carries the runtime analyses. It has no assembly tools and no table2asn, so
-  `plastid assemble` and the `.sqn` step need a Linux environment.
+- **The Docker image** is built on your own computer and carries every tool but CPJSdraw, whose source
+  states no licence: for IR junctions you name your own patched copy.
 - **Nanopore reads** have no assembly route.
 - **`rna_editing` is a prediction**, labelled PREP-Cp-compatible. It is not output of the original
   PREP-Cp, which ended in 2022, and it does not call editing from RNA-seq.

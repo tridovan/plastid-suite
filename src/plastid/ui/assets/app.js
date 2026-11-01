@@ -742,6 +742,23 @@ async function drawMaps(run, box) {
   if (drawn.length) { box.replaceChildren(...drawn); box.hidden = false; }
 }
 
+async function filesView(run) {
+  const where = el('pre', { class: 'command' }, run.path);
+  const list = el('ul', { class: 'picks' });
+  const show = async (path) => {
+    const listing = await get('/api/browse', { path });
+    where.textContent = listing.path;
+    list.replaceChildren(
+      ...(listing.path === run.path ? [] : [el('li', null, el('button', { class: 'link', type: 'button', onclick: () => show(listing.path.replace(/\/[^/]*$/, '')) }, '.. up one folder'))]),
+      ...listing.entries.map((item) => el('li', { class: 'mono small' }, item.folder
+        ? el('button', { class: 'link', type: 'button', onclick: () => show(item.path) }, `${item.name}/`)
+        : [el('a', { href: `/api/file?${new URLSearchParams({ path: item.path, download: 1 })}` }, item.name), ` ${number(item.bytes)} bytes`])));
+  };
+  await show(run.path);
+  return el('section', { class: 'card' }, el('h2', null, 'Files'),
+    el('p', { class: 'small' }, 'A run directory is never overwritten. This is the same folder the command line writes.'), where, list);
+}
+
 async function runPage(dataset, runId, open) {
   const run = await get(`/api/run/${dataset}/${runId}`);
   if (!session.modules) session.modules = await get('/api/modules');
@@ -759,6 +776,7 @@ async function runPage(dataset, runId, open) {
     run.steps.length ? el('h3', null, 'Analyses') : null, ...run.steps.map((step) => entry(step.id, titled(step.id))),
     el('h3', null, 'This run'), entry('figures', 'Figures'), entry('how', 'How this was made'), entry('files', 'Files'),
   ].filter(Boolean));
+  const faults = [run.reason, ...run.steps.map((step) => step.error), run.figures.error].filter(Boolean);
   const tiles = el('section', { class: 'grid tiles', 'aria-label': 'Key numbers' });
   const maps = el('section', { class: 'card', 'aria-label': 'Plastome maps', hidden: true });
   page('runs',
@@ -770,7 +788,7 @@ async function runPage(dataset, runId, open) {
         el('a', { class: 'btn', href: `#/export?run=${dataset}/${runId}` }, 'Export'),
         run.status === 'running' ? el('button', { class: 'btn stop-run', type: 'button', onclick: () => post(`/api/run/${dataset}/${runId}/cancel`) }, 'Cancel run') : null)),
     maps, tiles, goOn(run),
-    run.status === 'refused' || run.status === 'failed' ? el('div', { class: 'note-warn' }, run.steps.map((step) => step.error).filter(Boolean).join(' ')) : null,
+    faults.length ? el('div', { class: 'note-warn' }, faults.join(' ')) : null,
     el('div', { class: 'columns' }, nav, body));
   if (run.status === 'running') {
     every(3000, async () => {
@@ -804,13 +822,7 @@ async function runPage(dataset, runId, open) {
         })))))));
     return;
   }
-  if (open === 'files') {
-    const listing = await get('/api/browse', { path: run.path });
-    body.append(el('section', { class: 'card' }, el('h2', null, 'Files'),
-      el('p', { class: 'small' }, 'A run directory is never overwritten. This is the same folder the command line writes.'),
-      el('pre', { class: 'command' }, run.path), el('ul', null, listing.entries.map((item) => el('li', { class: 'mono small' }, item.folder ? `${item.name}/` : item.name)))));
-    return;
-  }
+  if (open === 'files') { body.append(await filesView(run)); return; }
   const step = run.steps.find((item) => item.id === open) || run.steps[0];
   if (!step) { body.append(el('div', { class: 'card empty' }, 'This run finished no step.')); return; }
   body.append(el('h2', null, titled(step.id)));
