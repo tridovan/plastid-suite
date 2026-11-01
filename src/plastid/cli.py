@@ -4302,7 +4302,12 @@ def _cmd_ui(args: argparse.Namespace) -> int:
     token = os.environ.get("PLASTID_UI_TOKEN")
     session = Session(args.port, token) if token else Session(args.port)
     try:
-        server = serve(App(workspace, version=__version__), session, host=args.host)
+        app = App(workspace, version=__version__, shown_as=os.environ.get("PLASTID_HOST_FOLDER"))
+    except OSError as error:
+        print(f"--workspace: cannot write to {workspace}: {error}", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        server = serve(app, session, host=args.host)
     except PortBusy:
         print(
             f"port {args.port} is in use: stop what holds it, or choose another with --port",

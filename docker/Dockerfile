@@ -112,6 +112,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 USER $MAMBA_USER
 
+# `PTS_MISA_DIR` is for the tests. A run finds MISA on PATH, and only with its execute bit.
+RUN chmod a+x "$PTS_MISA_DIR/misa.pl"
+ENV PATH=$PATH:$PTS_MISA_DIR
+
 WORKDIR /work
 COPY --chown=$MAMBA_USER:$MAMBA_USER . /work
 # `pytest` is named explicitly: pip does not read PEP 735 dependency-groups (dev). The optional
@@ -133,6 +137,12 @@ RUN mafft --version \
     && oatk --version \
     && table2asn -version \
     && plastid tools
+
+# A tool that a test can find and a run cannot does not show in the numbers below, so it is asked
+# here the way a run asks. CPJSdraw alone may be missing: the user names their own copy.
+RUN test "$(plastid tools --json | python -c 'import json, sys; \
+print(" ".join(tool["name"] for tool in json.load(sys.stdin)["tools"] if tool["status"] != "ok"))')" \
+    = cpjsdraw
 
 # The golden numbers, inside the container. `PTS_REQUIRE_TOOLS=1` turns a missing tool from a
 # printed skip into a failure, the whole point of checking in here.

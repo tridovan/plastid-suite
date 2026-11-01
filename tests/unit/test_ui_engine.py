@@ -223,6 +223,14 @@ def test_a_run_says_what_it_gives_the_next_step(tmp_path: Path, data_dir: Path) 
     ]
 
 
+def test_the_page_names_the_folder_the_person_knows(tmp_path: Path) -> None:
+    """In the image the workspace is /work, which means nothing to someone on Windows."""
+    plain = App(tmp_path / "plain", version="test")
+    assert plain.about()["workspace"] == str(plain.workspace)
+    mounted = App(tmp_path / "work", version="test", shown_as="C:\\Users\\a\\Documents\\PTS")
+    assert mounted.about()["workspace"] == "C:\\Users\\a\\Documents\\PTS"
+
+
 def test_a_refused_form_starts_nothing(tmp_path: Path, data_dir: Path) -> None:
     app = _workspace(tmp_path, data_dir)
     with pytest.raises(Refused, match="at least one analysis"):

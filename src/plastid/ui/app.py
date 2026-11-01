@@ -65,9 +65,10 @@ class _Job:
 
 
 class App:
-    def __init__(self, workspace: Path, *, version: str = "") -> None:
+    def __init__(self, workspace: Path, *, version: str = "", shown_as: str | None = None) -> None:
         self.workspace = workspace.resolve()
         self.version = version
+        self.shown_as = shown_as or str(self.workspace)  # the name of the folder outside an image
         self.runs_dir = self.workspace / "runs"
         for place in _PLACES:
             (self.workspace / place).mkdir(parents=True, exist_ok=True)
@@ -115,7 +116,7 @@ class App:
     def about(self) -> dict[str, Any]:
         return {
             "version": self.version,
-            "workspace": str(self.workspace),
+            "workspace": self.shown_as,
             "runs": self.relative(self.runs_dir),
             "pages": PAGES,
             "exit_states": [

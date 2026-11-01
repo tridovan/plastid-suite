@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from plastid.cli import main
 from plastid.ui.app import App, Refused
 from plastid.ui.server import LOOPBACK, PortBusy, Session, serve
 
@@ -195,3 +196,17 @@ def test_the_gate_answer_is_the_engines(running) -> None:
     assert gate["status"] == "passed" and gate["length"] == 26214 and gate["identity_pct"] == 100.0
     assert [region["name"] for region in gate["regions"]] == ["LSC", "IRa", "SSC", "IRb"]
     assert record["length"] == 153724 and record["genes"]["total"] == 132
+
+
+def test_a_folder_that_cannot_be_written_is_named(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A mounted folder can refuse the user inside a container, and that is not a traceback."""
+
+    def refused(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(Path, "mkdir", refused)
+    assert main(["ui", "--workspace", str(tmp_path), "--no-browser"]) == 2
+    err = capsys.readouterr().err
+    assert "--workspace" in err and "cannot write" in err

@@ -31,7 +31,7 @@ if errorlevel 1 (
 for /f %%t in ('powershell -NoProfile -Command "[guid]::NewGuid().ToString('N')"') do set TOKEN=%%t
 rem The browser opens once the server answers: 403 without the session cookie is an answer.
 start /b powershell -NoProfile -Command "for($i=0;$i -lt 120;$i++){try{Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 'http://127.0.0.1:%PORT%/' | Out-Null; break}catch{if($_.Exception.Response){break}; Start-Sleep 1}}; Start-Process 'http://127.0.0.1:%PORT%/?token=%TOKEN%'"
-docker run --rm --init --name %NAME% -p 127.0.0.1:%PORT%:%PORT% -e PLASTID_UI_TOKEN=%TOKEN% -v "%WORKSPACE%:/work" %IMAGE%
+docker run --rm --init --name %NAME% -p 127.0.0.1:%PORT%:%PORT% -e PLASTID_UI_TOKEN=%TOKEN% -e "PLASTID_HOST_FOLDER=%WORKSPACE%" -v "%WORKSPACE%:/work" %IMAGE%
 if errorlevel 1 (
   echo The toolkit stopped. If that was not you, the lines above say why.
   pause
