@@ -43,7 +43,7 @@ pipeline.
         NORMALISED REFERENCE DB (A)
         new artifact · new checksum · traceable to the raw DB and ★
                       │
-                      │             reads (Illumina · ONT/HiFi)
+                      │             reads (Illumina · HiFi)
                       │                         │
                       │                         ▼
                       │       ┌─────────────────────────────────────┐
@@ -52,7 +52,7 @@ pipeline.
                       │       │ fastp: QC short reads                │
                       │       │ minimap2: map-back, read support     │
                       │       │ local first · import: web/cluster    │
-                      │       │ long reads, graph check: not yet     │
+                      │       │ HiFi: Oatk · every graph path counted│
                       │       └─────────────────┬───────────────────┘
                       │                         │ FASTA + QC results
                       │                         │
@@ -220,8 +220,8 @@ current plastid development scope; their existing checks are kept.
    every tool one role, `environment.yml` is the runtime scope only, and the minimum install
    (biopython + PyYAML) was measured running the pure-Python modules from a freshly built wheel
    ([platforms](platforms.md)).
-6. RNA editing (M4.5) is built and checked on its specification's evidence. Assembly and the
-   already-deferred branches still have their own DoD.
+6. RNA editing and assembly are built and checked on their specifications' evidence; the deferred
+   branches keep their own conditions.
 
-These are target criteria; the documentation update session has not implemented or run acceptance
-for the missing parts.
+These conditions are what a release is checked against; [the release steps](release.md) name the
+commands.

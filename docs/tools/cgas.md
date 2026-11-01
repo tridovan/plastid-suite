@@ -32,14 +32,14 @@ uv pip install --python /root/toolbox/env/cgas/bin/python -e .data/cgas-review
 | Python-only modules | 3, 4, 5, 6, 7, 10, 11 — these ran |
 | Modules 8, 9, 12, 13 with R absent | they **compute every number in Python and skip only the plots** (`⚠ R is not installed or not in PATH → Skipping visualization`) — measured, not assumed |
 | R on this machine | **absent** — so no CGAS figure was produced |
-| Not run | 1 (needs FASTQ reads), 2 (annotation through PGA, retired from this project). Module 14 was **run on 28/10/2026** with the now-installed MACSE and IQ-TREE — see below |
+| Not run | 1 (needs FASTQ reads), 2 (annotation through PGA, retired from this project). Module 14 was **run on 28/10/2026** with MACSE and IQ-TREE — see below |
 | Licence | MIT |
 
 ## What CGAS has that this toolkit does not
 
 | CGAS | PTS today | Status |
 |---|---|---|
-| **1 — assembly from reads**: fastp → GetOrganelle (`embplant_pt`, kmers 21–105) → bwa/samtools map-back, 15 rounds, mean quality 20 | no assembly module. GetOrganelle and samtools are declared `future` in [tools](README.md); fastp and bwa are not declared at all, because no PTS module can call them | **CGAS ahead.** Assembly is Phase 7 work here |
+| **1 — assembly from reads**: fastp → GetOrganelle (`embplant_pt`, kmers 21–105) → bwa/samtools map-back, 15 rounds, mean quality 20 | `plastid assemble` runs fastp → GetOrganelle → map-back with minimap2, reads the graph for every structure that closes, and declares a sequence only when reads cross every join; HiFi reads go through Oatk | **closed**, and module 1 has not been run beside it, so no cell is compared |
 | **2 — annotation through PGA** (identity 40 %, coverage `0.5,2`, IR 1,000 bp) | `annotate` transfers annotation with its own BLAST/ARAGORN path; PGA is **retired** here | different engine, not a gap — but CGAS's wrapper expects PGA, which this project does not use |
 | **5 / 6 / 8 / 9 / 12 — one multi-genome table and figure across every input GenBank** (merged RSCU/amino-acid/SSR wide table, heatmaps, Word gene-content document) | `batch` writes a long-format `aggregate.csv` plus per-sample runs; the multi-sample R figures (F3/F4/F5) pivot it | **mostly closed.** Still missing natively: the publication **gene-content matrix across samples** (module 6's shape). CGAS's own assembly of the manuscript's 34-species panels is the reason that shape exists |
 | **11 — tRNA introns** (`trnK-UUU` 2,617 bp, 8 on the golden) | `introns` publishes CDS and tRNA introns separately with a `kind` column since M11.15 | **closed** — this comparison is what found the gap (H-23) |
@@ -103,11 +103,18 @@ needs the flags below stated next to it.
   a cell. Module 14 **was** run on 28/10/2026 (`--macse --genes-only --iqtree --threads 1`) on the
   same 4 records PTS's MACSE run used: **same topology**, **70,101 sites in 78 gene partitions**
   against PTS's 70,110 sites in 234 codon partitions, and support **99.2/97** against **100/100**
-  on the single internal split. The 9-site and support differences are **unexplained**: the
-  extraction rules differ (`feature.extract`-style region taking versus `coding_sequence`), the
-  partition schemes differ (gene versus codon), and CGAS fixes no seed (IQ-TREE drew 670299), so
-  its tree is not byte-reproducible. Naming the difference is the whole of the finding; no PTS
-  number moved. PTS's separate intron and IGS matrices were added the same day (`matrix=introns|
+  on the single internal split. **Both differences are explained** (measured 01/11/2026, with CGAS's
+  matrix, partition file and seed reproducing 70,101 sites and 99.2/97 exactly). The two tools
+  extract identical CDS, cell for cell. The 9 sites are one MACSE setting in one gene: CGAS passes
+  `-stop 30` where MACSE's default, and PTS's, is 50, and that changes the alignment of `rpoC1`
+  alone, 2,127 columns against 2,136; taxon order changes no gene. All four `rpoC1` are intact ORFs,
+  so neither alignment is the record's doing, and neither is called right. The support is the
+  partition scheme: over 11 seeds, gene partitions give 97.4–99.3 / 95–97 on either matrix, PTS's
+  `partition=gene` included (98.7/97 at seed 1), and codon partitions give 100/100 on either, once
+  99.9. The seed alone moves UFBoot by up to 1.9 points on one matrix and scheme, which is why PTS
+  fixes one. The topology held in all 88 runs, and no PTS number moved. The `GTR+G` that CGAS writes
+  into its partition file does not run: under `-m MFP`, ModelFinder chooses per partition. PTS's
+  separate intron and IGS matrices were added the same day (`matrix=introns|
   igs`, M11.21), and the complete matrix followed on 29/10/2026 (`matrix=all`: the three kinds of
   locus concatenated into one alignment and one tree, as CGAS recommends for phylogeny). On the
   same 4-record panel it built **197 blocks / 134,962 sites** (78 CDS, 14 intron, 105 intergenic

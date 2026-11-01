@@ -1,10 +1,10 @@
 # Development handoff
 
-**State:** 31/10/2026 — `main` holds phases M11, M4.5 and the assembly of Phase 7 (M7.1, M7.2, M7.5,
+**State:** 01/11/2026 — `main` holds phases M11, M4.5 and the assembly of Phase 7 (M7.1, M7.2, M7.5,
 M7.6: short reads and HiFi reads, the graph read, the memory limited), merged and acceptance-tested
-(`make acceptance` 291 passed, 0 skipped). RNA editing is the module `rna_editing`
-(`docs/tools/prep_cp.md`); its reference B′'s seven records live in `.panel/rna_editing/`, pinned in
-`src/plastid/data/rna_editing/taxa.yaml`. Product documentation,
+(`make acceptance` 291 passed, 0 skipped). The open work is the release (M9.6). RNA editing is the
+module `rna_editing` (`docs/tools/prep_cp.md`); its reference B′'s seven records live in
+`.panel/rna_editing/`, pinned in `src/plastid/data/rna_editing/taxa.yaml`. Product documentation,
 requirements and shared method live in this repository. Maintainer planning — the active task, the
 milestones and their Definition of Done, and the dated evidence records — lives in `.dev/`, which
 is not part of the product repository.
@@ -47,6 +47,10 @@ pipeline. Do not invent a replacement task list.
 
 ## Environment notes that cost time to find
 
+- This machine hides what a new user meets: it has `.panel/`, the extras and the tools. Run a check of
+  the install from a clean copy (`docs/release.md`, "A new user's checkout"), not from this tree.
+- The Docker image has not been built since 29/10/2026, before the assembly work. Each build leaves
+  about 1.3 GB on C:, so build once, on the release revision.
 - `PTS_IQTREE_DIR` points at the directory holding `iqtree2`, not at the shared bin directory.
 - MACSE is installed from bioconda (`macse=2.07`) and resolved through `PTS_MACSE_JAR` or `PATH`;
   the bioconda wrapper needs a JDK, so the jar path is the reliable one.

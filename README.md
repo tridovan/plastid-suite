@@ -3,33 +3,36 @@
 [![CI](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/tridovan/plastid-suite/actions/workflows/ci.yml)
 
 Toolkit for **plastid (chloroplast) genome analysis**, developed for academic research and
-**MIT licensed**. Twenty-three analysis modules: genome statistics, structure (LSC/SSC/IR), gene
+**MIT licensed**. Twenty-four analysis modules: genome statistics, structure (LSC/SSC/IR), gene
 tables, codon usage, amino-acid composition, introns, SSR, repeats, substitutions (Ts/Tv),
 diversity (π), barcodes, Ka/Ks, population genetics, synteny, group statistics, ORF checks,
-gene-name unification, annotation, maximum-likelihood phylogeny and NCBI submission files. The
-existing mitochondrial path (`mito annotate` · `mito genes`) is an experimental prototype;
-current development targets plastids.
+gene-name unification, annotation, maximum-likelihood phylogeny, predicted RNA-editing sites and
+NCBI submission files, plus assembly from short or HiFi reads. The existing mitochondrial path
+(`mito annotate` · `mito genes`) is an experimental prototype; current development targets
+plastids.
 
 Every run writes its own directory with tables and a draft report. External tool calls record
 their name, version and command line. Output from a new analysis run does not overwrite an older run.
 
-**Status: v1.0.0.** This is the code version, not a claim that acceptance is complete — the
-package metadata says `Development Status :: 4 - Beta`, and that is the accurate label. Open
-[correctness issues](docs/known_issues.md) affect IR detection, caching and annotation handling;
-the toolkit is under corrective development. What it currently does **not** do is in
+**Status: v1.0.0.** This is the code version — the package metadata says
+`Development Status :: 4 - Beta`, and that is the accurate label: no one outside the project has yet
+installed it and reproduced its numbers. Every reproduced defect in
+[known issues](docs/known_issues.md) is fixed and held by a regression test, and that file also keeps
+the limits that remain. What the toolkit does **not** do is in
 [docs/things_we_do_not_do.md](docs/things_we_do_not_do.md); which modules need which tool, and how
 much memory they take, is in [docs/platforms.md](docs/platforms.md). Every external tool the
 toolkit can call, with its role — runtime, cross-check, deferred or survey-only — is listed in
-[docs/tools/](docs/tools/).
+[docs/tools/](docs/tools/). What changed, and what to expect from a number measured with an older
+checkout, is in the [release notes](docs/release_notes.md).
 
 The [canonical pipeline](docs/pipeline.md) shows reference preparation, annotation, analysis and
-outputs, including assembly from short reads, RNA editing (predicted, PREP-Cp-compatible) and the
-integration still missing.
+outputs, including assembly from short or HiFi reads, RNA editing (predicted, PREP-Cp-compatible)
+and the integration still missing.
 
 ## Install
 
-**Linux — install from a source checkout.** The minimum install supports the pure-Python analyses;
-the open correctness issues still apply. These instructions do not assume a published PyPI release:
+**Linux — install from a source checkout.** The minimum install supports the pure-Python analyses.
+These instructions do not assume a published PyPI release:
 
 ```bash
 git clone https://github.com/tridovan/plastid-suite && cd plastid-suite
@@ -81,8 +84,16 @@ From paired short reads to a checked sequence (`conda env create -f environment-
 ```bash
 plastid assemble run -1 reads_1.fastq.gz -2 reads_2.fastq.gz --sample my_sample --out .runs \
                      --reference a_published_record.gb
-plastid annotate -i .runs/my_sample/<run>/01_assembly/assembly.fasta --out .runs
+plastid annotate -i .runs/my_sample/<run>/01_assembly/assembly.fasta --out .runs \
+                 --reference a_directory_of_genbank_records
 ```
+
+The toolkit ships no plastid records: `annotate` transfers from a directory of GenBank records you
+supply, same family first, and `plastid panel pin --accessions A,B,C --out that_directory` fetches
+and pins one.
+
+PacBio HiFi reads take `--hifi reads.fastq.gz` in place of `-1`/`-2`
+([docs/tools/oatk.md](docs/tools/oatk.md)).
 
 The reads are mapped back and every join of the circle is read: `assembly.fasta` is declared for
 the next step only when the sequence closed and the reads cross every join, and exit `1` says it

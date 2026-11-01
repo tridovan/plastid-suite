@@ -12,10 +12,10 @@ the ordinary-laptop class this project targets. A RAM number without its machine
 | Level | What it means | What it is verified by |
 |---|---|---|
 | **Linux — supported development path** | Native install from a checkout: `uv sync` or `pip install .`. | Tested on WSL2 Ubuntu; CI runs fast and golden tests with its declared tools. This is not complete product acceptance; see [known correctness issues](known_issues.md) |
-| **Windows — official, through Docker** | The toolkit does **not** run natively on Windows (`docs/things_we_do_not_do.md`). Windows users build `docker/Dockerfile` and run everything inside it. | The image builds and the golden suite runs **inside** it, with `PTS_REQUIRE_TOOLS=1` so a missing tool fails rather than skipping — the same numbers as WSL and CI. Measured 28/10/2026: **64 passed / 61 skipped** before the image carried R and the optional extras; **70 passed / 55 skipped** once it did — and all 55 remaining skips are "`.panel/` is not in this tree", because the panel is third-party data and is mounted at run time, not built in. With the repository mounted (`-v "$PWD:/work"`) the image runs the whole golden |
+| **Windows — official, through Docker** | The toolkit does **not** run natively on Windows (`docs/things_we_do_not_do.md`). Windows users build `docker/Dockerfile` and run everything inside it. | The image builds and the golden suite runs **inside** it, with `PTS_REQUIRE_TOOLS=1` so a missing tool fails rather than skipping — the same numbers as WSL and CI. Measured 29/10/2026, before the assembly work: **84 passed / 193 skipped** at build time, every skip "`.panel/` is not in this tree", because the panel is third-party data and is mounted at run time, not built in. With the repository mounted (`-v "$PWD:/work"`) the image ran **306 passed / 0 skipped** |
 | **macOS — experimental, unverified** | Nothing here has ever run on a Mac. The pure-Python path should work (no platform-specific code), and every pinned tool is available from conda-forge/bioconda for osx-64/arm64 — but *should* is not *measured*. | **Nothing.** No machine, so the column stays empty rather than guessed (ROADMAP → Waiting on data/people) |
 
-## The modules — all 23, and what each costs
+## The modules — all 24, and what each costs
 
 `arity` = how many genomes one run takes. **IR** = the module needs the IR gate (the two IR copies
 ≥ 99.9 % identical), which the framework enforces for every position-based analysis. The cost
@@ -39,7 +39,7 @@ is named, because a 34-genome number and a 1-genome number are different numbers
 | `barcodes` | Barcode loci and hypervariable regions | plastid | 2 | yes | MAFFT | 34 genomes: **12 min 27 s · 138 MB** |
 | `popgen` | Fst, gene flow, diversity per gene | shared | 2 | no | MAFFT | 34 genomes: **6 min 13 s · 179 MB** (80 alignments) |
 | `kaks` | Ka/Ks per shared gene (PAML's `yn00`) | shared | 2 | no | MAFFT + PAML | 34 genomes: **8 min 26 s · 98 MB** (9,968 tool calls — call count is not what costs) |
-| `phylogeny` | ML tree from a per-locus supermatrix — CDS (default), intron, IGS, or all three in one complete matrix (`matrix=`) | shared | 2 (at least 4 genomes: IQ-TREE's ultrafast bootstrap needs 4 sequences) | no | MAFFT + IQ-TREE | 4 genomes: **~50 s · 179 MB** (78 blocks, 70,079 sites) · 34 genomes: **10 min · 179 MB** (78 blocks, 70,091 sites, IQ-TREE `-bb 1000 -alrt 1000`) · 4 genomes, `matrix=all`: **61 s** (197 blocks, 134,962 sites) |
+| `phylogeny` | ML tree from a per-locus supermatrix — CDS (default), intron, IGS, or all three in one complete matrix (`matrix=`) | shared | 2 (at least 4 genomes: IQ-TREE's ultrafast bootstrap needs 4 sequences) | no for `matrix=cds`, yes for the others | MAFFT + IQ-TREE | 4 genomes: **~50 s · 179 MB** (78 blocks, 70,079 sites) · 34 genomes: **10 min · 179 MB** (78 blocks, 70,091 sites, IQ-TREE `-bb 1000 -alrt 1000`) · 4 genomes, `matrix=all`: **61 s** (197 blocks, 134,962 sites) · 34 genomes, measured 01/11/2026: `matrix=introns` **4 min 44 s · 117 MB** (14 blocks, 12,842 sites), `igs` **22 min 54 s · 270 MB** (116 blocks, 59,118 sites), `all` **43 min 21 s · 370 MB** (208 blocks, 142,051 sites; IQ-TREE alone 32 min) |
 | `synteny` | Whole-genome alignment blocks and identity | shared | 2 | yes | MUMmer (`nucmer` → `delta-filter` → `show-coords`) | 34 genomes: **19.6 s · 145 MB** (99 calls) |
 | `rna_editing` | Predicted C-to-U RNA-editing sites, PREP-Cp-compatible (reference B′, `docs/tools/prep_cp.md`) | plastid | 1 | no | MAFFT | *Ae. tauschii* KJ614412.1, 1 run: **9.3 s · 61 MB** (37 MAFFT `--add` calls, measured 30/10/2026) |
 | `plastid_annotate` | Plastid annotation by reference transfer | plastid | 1 | yes | BLAST+ and ARAGORN | **not measured** — M8.3 names the annotation path as having no scale row, and this table does not invent one |
@@ -57,6 +57,10 @@ reading the wrong frame or another code silently would produce a different measu
 based modules keep the gate. The panel check is
 `tests/golden/test_module_ir_requirements_panel.py` (5 gate-fail, 31 ambiguous, 3 linear, 2
 reduced records).
+
+`phylogeny` needs the gate on **every** genome for `matrix=introns`, `igs` and `all`, so one record
+stops the whole run. On the 34-genome Iridaceae panel that record is `NC_024936.1`, whose annotated
+copies measure 99.80 %; with `--set ir_source=sequence`, the route the refusal names, all 34 pass.
 
 **What the table says as a whole** — the boring number worth remembering, from M8.3: single-genome
 work over a 34-genome panel is **under four minutes and under 100 MB**; the whole panel costs about

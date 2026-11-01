@@ -51,6 +51,10 @@ java -jar macse_v2.07.jar -prog alignSequences \
   -seq input.fasta -out_NT nt.fasta -out_AA aa.fasta
 ```
 
+No cost is set, so MACSE's defaults apply (`-fs 30`, `-stop 50`). They are part of the result: CGAS
+passes `-fs 30 -stop 30`, and on the four records below that one change moves the alignment of
+`rpoC1`, 2,127 columns against 2,136, and of no other gene (`docs/tools/cgas.md`).
+
 **Two characters are not DNA.** MACSE writes a frameshift as `!` and a stop codon as `*` in the
 nucleotide alignment. The adapter replaces both with `-` at the boundary, because the rest of the
 toolkit reads ACGT (plus `N`/`-`) and a column holding `!` or `*` cannot be classified. The rule is
