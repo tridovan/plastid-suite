@@ -1,11 +1,10 @@
 # Development handoff
 
 **State:** 01/11/2026 — `main` holds phases M11, M4.5, the assembly of Phase 7 (M7.1, M7.2, M7.5,
-M7.6: short reads and HiFi reads, the graph read, the memory limited) and the review of the command
-line (M9.8), merged and acceptance-tested. The local interface (M9.7) is finished on branch
-`feat/m9.7-ui`, which is not merged and not pushed: `plastid ui`, the Windows image and
-`docker/plastid-ui.bat`, with `make acceptance` 291 passed, 0 skipped, and `make check` green on that
-branch. The open work is merging it, then the release (M9.6). RNA editing is the module `rna_editing` (`docs/tools/prep_cp.md`); its reference B′'s seven
+M7.6: short reads and HiFi reads, the graph read, the memory limited), the review of the command
+line (M9.8) and the local interface (M9.7: `plastid ui`, the Windows image and
+`docker/plastid-ui.bat`), merged and acceptance-tested (`make acceptance` 291 passed, 0 skipped).
+The open work is the release (M9.6). RNA editing is the module `rna_editing` (`docs/tools/prep_cp.md`); its reference B′'s seven
 records live in `.panel/rna_editing/`, pinned in `src/plastid/data/rna_editing/taxa.yaml`. Product
 documentation,
 requirements and shared method live in this repository. Maintainer planning — the active task, the
