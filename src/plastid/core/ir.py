@@ -19,6 +19,7 @@ below it inherits the error. Rules:
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from dataclasses import dataclass, replace
 
@@ -45,6 +46,7 @@ __all__ = [
     "align_copies",
     "detect_ir",
     "enforce_ir_gate",
+    "identity_percent",
     "ir_de_novo",
     "ir_from_annotation",
     "measure_ir",
@@ -1017,6 +1019,15 @@ def detect_ir(genome: Genome, *, source: str = "annotation") -> IRResult:
     return detected
 
 
+def identity_percent(identity: float) -> float:
+    """An identity as a percentage for a reader, rounded down to two places.
+
+    Rounded to nearest, 99.896 % reads 99.90 % beside a gate that refused it for being below 99.9 %.
+    The inner round takes away the float noise of a value that sits exactly on a hundredth.
+    """
+    return math.floor(round(identity * 10_000, 6)) / 100
+
+
 def enforce_ir_gate(ir: IRResult, *, min_identity: float = IR_MIN_IDENTITY) -> IRResult:
     """Raise :class:`IRGateError` unless the two copies are identical enough, with evidence.
 
@@ -1028,7 +1039,8 @@ def enforce_ir_gate(ir: IRResult, *, min_identity: float = IR_MIN_IDENTITY) -> I
         reasons = []
         if ir.identity < min_identity:
             reasons.append(
-                f"{ir.identity * 100:.2f} % identity (need >= {min_identity * 100:.1f} %)"
+                f"{identity_percent(ir.identity):.2f} % identity "
+                f"(need >= {min_identity * 100:.1f} %)"
             )
         if ir.known_columns < minimum_known:
             reasons.append(

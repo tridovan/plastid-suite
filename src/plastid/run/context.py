@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from plastid.core.ir import IRGateError, IRResult
+from plastid.core.ir import IRGateError, IRResult, identity_percent
 from plastid.run.layout import RunLayout
 from plastid.run.tools import ToolRecord, run_tool
 
@@ -42,7 +42,8 @@ class RunContext:
             )
         if not self.ir.gate_passed:
             raise IRGateError(
-                f"{self.module_id}: IR gate failed ({self.ir.identity * 100:.2f} % identity) — "
+                f"{self.module_id}: IR gate failed "
+                f"({identity_percent(self.ir.identity):.2f} % identity) — "
                 f"position-based analysis must not run"
             )
         return self.ir

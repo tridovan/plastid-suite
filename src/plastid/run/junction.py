@@ -22,7 +22,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from plastid.core.ir import IRDetectionError, detect_ir
+from plastid.core.ir import IRDetectionError, detect_ir, identity_percent
 from plastid.core.junctions import JunctionRegions, junction_regions
 from plastid.core.model import Genome
 
@@ -82,7 +82,7 @@ class JunctionRow:
         if self.gate == "passed":
             return None
         measured = (
-            f" — the two annotated copies are {self.identity * 100:.2f} % identical"
+            f" — the two annotated copies are {identity_percent(self.identity):.2f} % identical"
             if self.identity is not None
             else ""
         )

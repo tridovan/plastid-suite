@@ -14,7 +14,7 @@ from threading import Lock
 from typing import Any
 
 from plastid.core.genbank import read_record
-from plastid.core.ir import IRDetectionError, IRResult, detect_ir
+from plastid.core.ir import IRDetectionError, IRResult, detect_ir, identity_percent
 from plastid.core.model import Genome, count_genes
 from plastid.core.normalize import normalize
 from plastid.core.sequence import gc_percent
@@ -61,7 +61,7 @@ def _gate(genome: Genome, source: str) -> dict[str, Any]:
     answer: dict[str, Any] = {
         "source": source,
         "status": "passed" if ir.gate_passed else "refused",
-        "identity_pct": round(ir.identity * 100, 2),
+        "identity_pct": identity_percent(ir.identity),
         "length": ir.length,
         "copies": [ir.ira.length, ir.irb.length],
         "annotated_lengths": list(ir.annotated_lengths),

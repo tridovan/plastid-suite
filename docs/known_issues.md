@@ -1,7 +1,7 @@
 # Known correctness and integration issues
 
 K-01 to K-06 were reproduced during the 26 October 2026 review, and the later entries were found by
-running the toolkit. **K-01 to K-30 are all fixed.** Documenting a defect did not fix it, and a fixed
+running the toolkit. **K-01 to K-31 are all fixed.** Documenting a defect did not fix it, and a fixed
 entry says which test now holds it. The "observed" columns below are the before-fix measurements;
 they are kept as the reproduction record, not as current behaviour.
 
@@ -553,6 +553,14 @@ the record said which build drew the figure, and the interface's "How this was m
 **Fix.** The run closes with one step, `ir_junction`, holding the tools with their versions, and what
 stopped them when one did. Regression: `tests/unit/test_junction_command.py`; the part that reads the
 tools needs a patched CPJSdraw, so it is tier B.
+
+## K-31 — A refusal could quote the number it was refused for reaching — **fixed (01/11/2026)**
+
+**Symptom.** `KX548222.1` measures 99.8964 %, so the gate refused it, and the message said `99.90 %
+identity (need >= 99.9 %)`. The gate was right and the sentence contradicted it.
+
+**Fix.** An identity shown to a reader is rounded down, so 99.8964 % reads 99.89 %. The tables keep
+their own precision, and no decision reads the rounded value. Regression: `tests/unit/test_ir.py`.
 
 ## Other current limitations
 

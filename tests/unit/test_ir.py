@@ -10,6 +10,7 @@ The measured failure modes this file guards (each one stays forever):
 from __future__ import annotations
 
 import random
+from dataclasses import replace
 
 import pytest
 
@@ -18,6 +19,7 @@ from plastid.core.ir import (
     align_copies,
     detect_ir,
     enforce_ir_gate,
+    identity_percent,
     ir_de_novo,
     ir_from_annotation,
     measure_ir,
@@ -349,3 +351,14 @@ def test_measure_ir_rejects_intervals_that_are_not_a_pair() -> None:
 
     with pytest.raises(ValueError, match="disjoint"):
         measure_ir("ACGT" * 10, Interval(0, 10), Interval(5, 15), source="manual")
+
+
+def test_a_refused_identity_never_reads_as_the_threshold(golden_genome: Genome) -> None:
+    """KX548222.1 measures 99.8964 %. To two places that printed 99.90 % beside its refusal."""
+    assert identity_percent(0.9989644) == 99.89
+    assert identity_percent(0.99801746) == 99.80
+    assert identity_percent(0.999) == 99.90
+    assert identity_percent(1.0) == 100.0
+    below = replace(detect_ir(golden_genome), identity=0.9989644)
+    with pytest.raises(IRGateError, match=r"99\.89 % identity"):
+        enforce_ir_gate(below)
