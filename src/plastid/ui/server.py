@@ -95,6 +95,7 @@ def _routes(app: App) -> list[tuple[str, re.Pattern[str], Route]]:
         ("POST", r"/api/tools/refresh", app.refresh_tools),
         ("GET", r"/api/records", app.records),
         ("GET", r"/api/record", app.record),
+        ("POST", r"/api/records/adopt", app.adopt),
         ("GET", r"/api/browse", app.browse),
         ("GET", r"/api/runs", app.runs),
         ("GET", r"/api/run/(?P<dataset>[^/]+)/(?P<run_id>[^/]+)", app.run),

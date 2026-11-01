@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 import pytest
+from test_ui_commands import FULL_FORMS, _leaf
 
 from plastid.cli import main
 from plastid.ui.app import App, Refused
@@ -162,6 +163,64 @@ def test_a_run_with_no_dataset_name_can_be_opened(tmp_path: Path, data_dir: Path
     row = app.runs()["runs"][0]
     assert row["dataset"] == "NC_050833.1"
     assert app.run(row["folder"], row["run_id"])["status"] == "ok"
+
+
+@pytest.mark.parametrize("command", sorted(FULL_FORMS))
+def test_every_run_lands_where_results_reads(tmp_path: Path, command: str) -> None:
+    """Left to the parser's default, a run goes to a hidden folder the page never lists."""
+    app = App(tmp_path / "work", version="test")
+    args = app.command({"command": command, "form": FULL_FORMS[command]})["args"]
+    writes_a_run = {"-o", "--out"} & {
+        option for action in _leaf(command)._actions for option in action.option_strings
+    }
+    if writes_a_run:
+        assert args[args.index("-o") + 1] == "runs"
+
+
+def test_a_record_a_run_wrote_can_join_the_records(tmp_path: Path, data_dir: Path) -> None:
+    """Annotate comes before Records on the route, so its output has to be able to get there."""
+    app = _workspace(tmp_path, data_dir)
+    written = app.runs_dir / "a" / "1" / "01_plastid_annotate" / "plastid_annotation.gb"
+    written.parent.mkdir(parents=True)
+    shutil.copy(data_dir / "NC_024936.1.gb", written)
+    path = app.relative(written)
+
+    assert app.adopt({"path": path, "name": "sample.gb"}) == {"path": "records/sample.gb"}
+    assert (app.workspace / "records" / "sample.gb").read_bytes() == written.read_bytes()
+    with pytest.raises(Refused, match="not overwritten"):
+        app.adopt({"path": path, "name": "sample.gb"})
+    with pytest.raises(Refused, match="file name"):
+        app.adopt({"path": path, "name": "../sample.gb"})
+    with pytest.raises(Refused, match="not a GenBank or FASTA"):
+        app.adopt({"path": "runs/a/1/01_plastid_annotate/plastid_annotation.gb", "name": "a.txt"})
+
+
+def test_a_run_says_what_it_gives_the_next_step(tmp_path: Path, data_dir: Path) -> None:
+    app = _workspace(tmp_path, data_dir)
+    _finished(app, app.start_job({"command": "run", "form": _form()})["id"])
+    run_id = app.runs()["runs"][0]["run_id"]
+    assert app.run("same", run_id)["artifacts"] == []
+    folder = app.runs_dir / "same" / run_id
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    manifest["artifacts"] = [
+        {"path": "01_x/x.gb", "format": "genbank", "sample_id": "S1", "status": "ok"},
+        {"path": "01_x/y.fasta", "format": "fasta", "sample_id": "S1", "status": "undetermined"},
+    ]
+    (folder / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    assert app.run("same", run_id)["artifacts"] == [
+        {
+            "path": f"runs/same/{run_id}/01_x/x.gb",
+            "format": "genbank",
+            "sample_id": "S1",
+            "status": "ok",
+        },
+        {
+            "path": f"runs/same/{run_id}/01_x/y.fasta",
+            "format": "fasta",
+            "sample_id": "S1",
+            "status": "undetermined",
+        },
+    ]
 
 
 def test_a_refused_form_starts_nothing(tmp_path: Path, data_dir: Path) -> None:

@@ -56,9 +56,9 @@ pipeline. Do not invent a replacement task list.
   about 1.3 GB on C:, so build once, on the release revision.
 - The `PTS_*` variables are read by the tests only. The product finds a tool on `PATH` or through
   `--set`, and `plastid tools` says what it found.
-- `PTS_IQTREE_DIR` points at the directory holding `iqtree2`, not at the shared bin directory.
-- MACSE is installed from bioconda (`macse=2.07`) and resolved through `PTS_MACSE_JAR` or `PATH`;
-  the bioconda wrapper needs a JDK, so the jar path is the reliable one.
+- MACSE and IQ-TREE sit in the same conda environment as the other analysis tools, as
+  `environment.yml` declares, so `PATH` alone finds them. MACSE's wrapper uses the JDK of its own
+  environment; a jar kept elsewhere takes `PTS_MACSE_JAR` in the tests and `--set macse=` in a run.
 - A run longer than a few minutes goes detached (`nohup … &`) so an interrupted shell does not
   take it down.
 - The assembly tools are in their own environment (`environment-assembly.yml`). The panel test finds

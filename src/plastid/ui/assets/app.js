@@ -695,6 +695,25 @@ async function figuresView(run) {
   return [big, grid, absent.filter(Boolean).length ? el('section', { class: 'card' }, el('h2', null, 'What this run did not draw'), el('ol', { class: 'plan' }, absent)) : null];
 }
 
+// What this run hands to the next stop on the route: a sequence to annotate, a record to analyse.
+function goOn(run) {
+  const usable = run.artifacts.filter((artifact) => artifact.status === 'ok');
+  if (!usable.length) return null;
+  const rows = usable.map((artifact) => {
+    const name = `${artifact.sample_id} (${artifact.path.split('/').pop()})`;
+    if (artifact.format === 'fasta') return el('div', { class: 'row between' }, el('span', { class: 'small' }, `The sequence of ${name}.`), el('a', { class: 'btn', href: `#/annotate?input=${encodeURIComponent(artifact.path)}` }, 'Annotate it'));
+    const add = el('button', { class: 'btn', type: 'button', onclick: async () => {
+      if (add.nextElementSibling) add.nextElementSibling.remove();
+      try {
+        await post('/api/records/adopt', { path: artifact.path, name: `${artifact.sample_id}.gb` });
+        location.hash = '#/records';
+      } catch (error) { add.after(fail(error)); }
+    } }, 'Add to Records');
+    return el('div', { class: 'row between' }, el('span', { class: 'small' }, `The annotated record of ${name}.`), add);
+  });
+  return el('section', { class: 'card', 'aria-label': 'What comes next' }, el('h2', null, 'Go on from here'), rows);
+}
+
 function samplesView(run) {
   return el('section', { class: 'card' }, el('h2', null, 'Samples'),
     el('p', { class: 'small' }, 'One run each. A failed sample is listed with its reason and adds no number to the table for all.'),
@@ -750,7 +769,7 @@ async function runPage(dataset, runId, open) {
         el('a', { class: 'btn', href: `#/run/${dataset}/${runId}/figures` }, 'All figures'),
         el('a', { class: 'btn', href: `#/export?run=${dataset}/${runId}` }, 'Export'),
         run.status === 'running' ? el('button', { class: 'btn stop-run', type: 'button', onclick: () => post(`/api/run/${dataset}/${runId}/cancel`) }, 'Cancel run') : null)),
-    maps, tiles,
+    maps, tiles, goOn(run),
     run.status === 'refused' || run.status === 'failed' ? el('div', { class: 'note-warn' }, run.steps.map((step) => step.error).filter(Boolean).join(' ')) : null,
     el('div', { class: 'columns' }, nav, body));
   if (run.status === 'running') {

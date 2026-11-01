@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import signal
 import time
 from collections.abc import Mapping
@@ -34,6 +35,16 @@ _LOG_TAIL = 4_000  # characters of a command's output kept on the run page
 _PREVIEW_WIDTH = 1600  # px; an R figure's PNG can be 20,000 px wide
 _SEEN_LIMIT_S = 5  # a run started this close to a command is that command's run
 _ON_A_RUN = ("figures", "package", "qc")  # commands that write into a run, not a new directory
+_WRITES_A_RUN = (
+    "run",
+    "annotate",
+    "assemble run",
+    "assemble prepare",
+    "assemble import",
+    "reference audit",
+    "editing-reference build",
+    "ir-junction",
+)
 
 
 class NotFound(LookupError):
@@ -156,6 +167,16 @@ class App:
         except ValueError as error:
             return {"path": path, "unreadable": str(error)}
 
+    def adopt(self, form: Mapping[str, Any]) -> dict[str, str]:
+        """Copy a record a run wrote into the records, so the route can go on from it."""
+        source = self.readable(str(form.get("path", "")))
+        name = str(form.get("name", ""))
+        if Path(name).suffix.lower() not in RECORD_SUFFIXES:
+            raise Refused(f"{name} is not a GenBank or FASTA record")
+        target = self.upload_target(name, "records")
+        shutil.copyfile(source, target)
+        return {"path": self.relative(target)}
+
     def browse(self, path: str = "") -> dict[str, Any]:
         """One folder of the workspace, for the file picker: the server reads the disk."""
         folder = self._inside(path)
@@ -251,14 +272,7 @@ class App:
 
     def _with_defaults(self, command: str, form: Mapping[str, Any]) -> dict[str, Any]:
         filled = dict(form)
-        if command in (
-            "run",
-            "annotate",
-            "assemble run",
-            "assemble import",
-            "reference audit",
-            "ir-junction",
-        ):
+        if command in _WRITES_A_RUN:
             filled.setdefault("out", self.relative(self.runs_dir))
         return filled
 

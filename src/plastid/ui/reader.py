@@ -130,6 +130,16 @@ def _sample(entry: dict[str, Any], root: Path) -> dict[str, Any]:
     }
 
 
+def _artifact(entry: dict[str, Any], run_dir: Path, root: Path) -> dict[str, Any]:
+    """A file a run hands to the next step, with its path from the workspace."""
+    return {
+        "path": (run_dir / str(entry.get("path"))).relative_to(root).as_posix(),
+        "format": entry.get("format"),
+        "sample_id": entry.get("sample_id"),
+        "status": entry.get("status"),
+    }
+
+
 def run_detail(run_dir: Path, root: Path) -> dict[str, Any]:
     """Everything the run page shows, with paths relative to the workspace."""
     state = read_state(run_dir)
@@ -152,6 +162,7 @@ def run_detail(run_dir: Path, root: Path) -> dict[str, Any]:
         "steps": [_step(run_dir, entry, root) for entry in record.get("modules") or []],
         "samples": [_sample(entry, root) for entry in record.get("samples") or []],
         "aggregate": aggregate.relative_to(root).as_posix() if aggregate.is_file() else None,
+        "artifacts": [_artifact(entry, run_dir, root) for entry in record.get("artifacts") or []],
         "figures": _figures(run_dir, record, root),
     }
 
