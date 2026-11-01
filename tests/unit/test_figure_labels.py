@@ -151,3 +151,9 @@ def test_a_tree_the_user_named_is_drawn_as_it_is(tmp_path: Path) -> None:
         run_dir, runner=_runner(seen), figures=["r_tree"], params={"tree": str(mine)}
     )
     assert seen["text"] == "(NC_050833.1:1,NC_024936.1:2);\n"
+
+
+def test_a_name_newick_cannot_hold_stays_out_of_the_tree_syntax() -> None:
+    """A bracket or a colon in an organism name would read as the tree's own structure."""
+    names = {"A.1": "Cyperus sp. (Thailand: 3)"}
+    assert relabelled_tree("(A.1:0.1,B.1:0.2);", names) == "(Cyperus_sp._Thailand_3:0.1,B.1:0.2);"

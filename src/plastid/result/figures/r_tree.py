@@ -19,11 +19,12 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from plastid.result.figures.r_common import genome_labels, species_column
+from plastid.result.figures.r_common import genome_labels
 from plastid.result.result import Result
 from plastid.result.rfigure import RFigureSpec
 
 _TIP = re.compile(r"(?<=[(,])[^(),:;]+(?=[:,);])")
+_NEWICK_RESERVED = re.compile(r"[\s(),:;\[\]']+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +56,7 @@ def relabelled_tree(newick: str, names: Mapping[str, str]) -> str:
 
     def named(match: re.Match[str]) -> str:
         tip = match.group(0)
-        return species_column(labels[tip]) if tip in names else tip
+        return _NEWICK_RESERVED.sub("_", labels[tip]).strip("_") if tip in names else tip
 
     return _TIP.sub(named, newick)
 
