@@ -28,7 +28,8 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python>=3.10
+  - python=3.12 # the interpreter CI's tool job and the Docker image use. Unpinned, the solver took
+                # 3.15 on 29/10/2026, a release nothing else here runs on
 
   # --- SSR and alignment ----------------------------------------------------------------
   - perl=5.32.1 # MISA 2.1 is a Perl script, and it is NOT bundled (its zip states no licence:

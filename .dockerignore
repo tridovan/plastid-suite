@@ -1,6 +1,7 @@
 # The build context: the source, the fixtures and the docs — nothing a run produced, and nothing
 # that is somebody's private copy. `.panel/` alone is hundreds of MB and is gitignored anyway.
 .git
+.dev
 .venv
 .runs
 .panel

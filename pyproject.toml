@@ -5,16 +5,15 @@ build-backend = "hatchling.build"
 [project]
 name = "plastid-suite"
 version = "1.0.0"
-description = "Toolkit for plastid and mitochondrial genome analysis (academic, non-commercial)"
+description = "Toolkit for plastid (chloroplast) genome analysis, from reads or records to checked tables"
 readme = "README.md"
 keywords = ["plastome", "chloroplast", "mitochondrial genome", "bioinformatics", "genomics"]
 classifiers = [
-    # Development Status :: 4 - Beta, not 5 - Production/Stable (M11.9): the whole-pipeline
-    # input/output acceptance completed 29/10/2026 (M11.8, host + full golden) and RNA editing
-    # (M4.5) was built on 30/10/2026, but docs/known_issues.md still lists reproduced defects.
-    # The version number is the code's, not a readiness claim; a classifier that says "stable"
-    # while the code says otherwise is the kind of plausible-looking untruth this project exists
-    # to avoid.
+    # Development Status :: 4 - Beta, not 5 - Production/Stable: acceptance has run on this
+    # project's own machine and panels, and no one outside it has yet installed the package and
+    # reproduced its numbers. The version number is the code's, not a readiness claim; a classifier
+    # that says "stable" before that has happened is the kind of plausible-looking untruth this
+    # project exists to avoid.
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Operating System :: POSIX :: Linux",
