@@ -18,6 +18,7 @@ const ROUTE = [
   ['runs', 'Results', 'tables, figures, reports'],
   ['export', 'Export', 'package, submission'],
 ];
+const MAPS_SHOWN = 6;  // a run of 34 genomes is not read as 34 strips
 // The order a person reads analyses in: the genome first, its parts next, comparisons by question.
 const ORDER = ['structure', 'genome_stats', 'gene_table', 'introns', 'orf', 'codon_usage', 'amino_acid',
   'ssr', 'repeats', 'rna_editing', 'submission', 'diversity', 'substitutions', 'barcodes', 'kaks', 'popgen',
@@ -647,6 +648,18 @@ async function figuresView(run) {
   return [big, grid, absent.length ? el('section', { class: 'card' }, el('h2', null, 'What this run did not draw'), el('ol', { class: 'plan' }, absent)) : null];
 }
 
+// A run's records on the same scale. A record that has left the workspace is simply not drawn.
+async function drawMaps(run, box) {
+  const answers = await Promise.all(run.inputs.slice(0, MAPS_SHOWN).map((input) => get('/api/record', { path: input.path }).catch(() => null)));
+  const source = run.params.ir_source === 'sequence' ? 'sequence' : 'annotation';
+  const drawn = answers.filter(Boolean).map((record) => {
+    const gate = record.gates ? (record.gates[source] || record.gates.sequence) : null;
+    if (!gate || !gate.regions) return null;
+    return el('div', null, el('div', { class: 'small' }, species(record.organism), ` ${number(record.length)} bp`), strip(gate, { bracket: answers.length === 1 }));
+  }).filter(Boolean);
+  if (drawn.length) { box.replaceChildren(...drawn); box.hidden = false; }
+}
+
 async function runPage(dataset, runId, open) {
   const run = await get(`/api/run/${dataset}/${runId}`);
   if (run.status === 'running') { every(3000, () => runPage(dataset, runId, open)); }
@@ -663,6 +676,7 @@ async function runPage(dataset, runId, open) {
     el('h3', null, 'This run'), entry('figures', 'Figures'), entry('how', 'How this was made'), entry('files', 'Files'),
   ].filter(Boolean));
   const tiles = el('section', { class: 'grid tiles', 'aria-label': 'Key numbers' });
+  const maps = el('section', { class: 'card', 'aria-label': 'Plastome maps', hidden: true });
   page('runs',
     el('nav', { class: 'crumb', 'aria-label': 'Breadcrumb' }, el('a', { href: '#/runs' }, 'Results'), ` / ${dataset} / `, el('code', null, runId)),
     el('header', { class: 'page-head' },
@@ -671,9 +685,10 @@ async function runPage(dataset, runId, open) {
         el('a', { class: 'btn', href: `#/run/${dataset}/${runId}/figures` }, 'All figures'),
         el('a', { class: 'btn', href: `#/export?run=${dataset}/${runId}` }, 'Export'),
         run.status === 'running' ? el('button', { class: 'btn stop-run', type: 'button', onclick: () => post(`/api/run/${dataset}/${runId}/cancel`) }, 'Cancel run') : null)),
-    tiles,
+    maps, tiles,
     run.status === 'refused' || run.status === 'failed' ? el('div', { class: 'note-warn' }, run.steps.map((step) => step.error).filter(Boolean).join(' ')) : null,
     el('div', { class: 'columns' }, nav, body));
+  drawMaps(run, maps);
   for (const [file, column, label, noteWords] of HIGHLIGHTS) {
     const table = tables.find((candidate) => candidate.name === file);
     if (!table) continue;
