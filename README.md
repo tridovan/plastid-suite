@@ -81,8 +81,9 @@ The toolkit runs on Windows through Docker. You need no command line:
    and takes a long while. After that it starts in seconds, and your browser opens by itself.
 
 Your work goes in `Documents\PlastidToolSuite`. Keep the black window open while you work; closing
-it stops the interface. For IR junctions, put your own patched CPJSdraw in that folder and choose
-it on the Export page: it is not bundled, because its source states no licence.
+it stops the interface. Every tool is in the image you built except CPJSdraw: for IR junctions, put
+your own patched copy in that folder and choose it on the Export page. It is not bundled, because
+its source states no licence.
 
 ### A first run, step by step
 
@@ -99,8 +100,12 @@ it on the Export page: it is not bundled, because its source states no licence.
    and come back.
 6. **Read the results.** **Results** lists every run, including runs started at a prompt. A run shows
    its tables with their scope, its figures, and how it was made.
-7. **Export.** **Export** draws figures, builds the Supplementary package and the QC report, and draws IR
-   junctions across species.
+7. **Export.** **Export** draws figures again with your choices, such as the root of a tree, builds the
+   Supplementary package and the QC report, and draws IR junctions across species.
+
+From reads, start at **Assemble**. From a sequence with no genes, start at **Annotate**, with reference
+records you found and audited on **References**, where you also choose the record that names the genes.
+**Tools** says what this computer has and how to get what it lacks.
 
 ## Use
 

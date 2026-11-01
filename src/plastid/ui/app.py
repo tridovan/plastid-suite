@@ -19,7 +19,7 @@ from typing import Any
 from uuid import uuid4
 
 from plastid.run.state import EXIT_STATES, exit_state, list_runs, read_state
-from plastid.run.tools import plastid_output, start_plastid
+from plastid.run.tools import ToolError, plastid_output, start_plastid
 from plastid.ui import commands, reader
 from plastid.ui.catalogue import PAGES
 from plastid.ui.records import RECORD_SUFFIXES, RecordBook
@@ -211,11 +211,11 @@ class App:
         folder = self._inside(run)
         if not folder.is_dir():
             raise NotFound(f"no run {run}")
-        return json.loads(
-            plastid_output(
-                ("figures", self.relative(folder), "--list", "--json"), cwd=self.workspace
-            )
-        )
+        args = ("figures", self.relative(folder), "--list", "--json")
+        try:
+            return json.loads(plastid_output(args, cwd=self.workspace))
+        except ToolError as error:
+            raise Refused(str(error)) from None
 
     def table(self, path: str) -> dict[str, Any]:
         return reader.table(self.readable(path))
@@ -293,7 +293,8 @@ class App:
         of its samples is a run under the same process.
         """
         if job.argv[0] in _ON_A_RUN:
-            return dict(zip(("dataset", "run_id"), Path(job.argv[1]).parts[-2:], strict=True))
+            parts = Path(job.argv[1]).parts[-2:]
+            return {"dataset": parts[0], "run_id": parts[1]} if len(parts) == 2 else None
         if not self.runs_dir.is_dir():
             return None
         for name in ("batch.json", "manifest.json"):

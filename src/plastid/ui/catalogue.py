@@ -51,7 +51,7 @@ COMMANDS: dict[str, str] = {
 }
 
 # No form, by decision: these keep passing their tests and take no new surface.
-FROZEN = ("mito annotate", "mito genes")
+FROZEN = ("mito annotate",)
 _FROZEN_MODULES = ("mito_annotate", "mito_genes")
 # A module whose form lives on a page of its own rather than in the list on Analyse.
 _OWN_PAGE = {"plastid_annotate": "annotate"}

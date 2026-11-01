@@ -813,13 +813,13 @@ async function exportPage(query) {
   const current = finished.find((run) => address(run) === initial);
   const runPath = `${session.about.runs}/${initial}`;
   const action = (title, text, command, words) => el('div', { class: 'card' }, el('h2', null, title), el('p', { class: 'small' }, text),
-    current && current.kind === 'batch'
-      ? el('p', { class: 'small' }, 'This works on one run: open a sample of this batch, then export it.')
-      : jobButton(command, () => ({ run: runPath }), words));
+    (!current && el('p', { class: 'small' }, 'No run has finished yet.'))
+      || (current.kind === 'batch' && el('p', { class: 'small' }, 'This works on one run: open a sample of this batch, then export it.'))
+      || jobButton(command, () => ({ run: runPath }), words));
   const drawing = { figures: [], sets: {} };
   const drawBox = commandBox('figures', () => ({ run: runPath, figures: drawing.figures, sets: drawing.sets }));
   const refreshDraw = () => drawBox.refresh(!current);
-  const catalogue = current ? await get('/api/figures', { run: runPath }) : { figures: [], options: [] };
+  const catalogue = current ? await get('/api/figures', { run: runPath }).catch((error) => ({ figures: [], options: [], error })) : { figures: [], options: [] };
   const junction = { inputs: [], label: '', dataset: 'ir-junction', cpjsdraw: '', tag: '', width: '', tree: '', order_from: '', drop_pseudo: false };
   const junctionBox = commandBox('ir-junction', () => junction);
   const refreshJunction = () => junctionBox.refresh();
@@ -835,6 +835,7 @@ async function exportPage(query) {
       el('div', { class: 'card' }, el('h2', null, 'NCBI submission'), el('p', { class: 'small' }, 'Write .fsa and .tbl from a checked record. With your .sbt template, table2asn adds a .sqn.'), el('a', { class: 'btn', href: '#/analyse' }, 'Set it up in Analyse'))),
     el('section', { class: 'card' }, el('h2', null, 'Figures'),
       el('p', { class: 'small' }, 'Leave every box empty to draw all the run’s tables can feed, or tick the ones to draw again. A publication figure comes as PNG and PDF, a quick one as SVG, EPS and PDF.'),
+      catalogue.error ? fail(catalogue.error) : null,
       el('ol', { class: 'plan' }, catalogue.figures.filter((figure) => figure.can_draw).map((figure) => el('li', null,
         el('input', { type: 'checkbox', 'aria-label': figure.id, onchange: (event) => {
           drawing.figures = event.target.checked ? [...drawing.figures, figure.id] : drawing.figures.filter((id) => id !== figure.id);

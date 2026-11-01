@@ -131,6 +131,21 @@ def test_the_figures_of_a_run_come_from_the_engine(tmp_path: Path, data_dir: Pat
     assert "outgroup" in {option["name"] for option in listing["options"]}
 
 
+def test_a_folder_that_is_no_run_is_said_in_words(tmp_path: Path, data_dir: Path) -> None:
+    app = _workspace(tmp_path, data_dir)
+    (app.runs_dir / "empty" / "x").mkdir(parents=True)
+    with pytest.raises(Refused, match="not a run directory"):
+        app.figures("runs/empty/x")
+
+
+def test_a_command_on_a_short_path_still_has_a_page(tmp_path: Path, data_dir: Path) -> None:
+    """The engine refuses it by name; the job page must stay up to say so."""
+    app = _workspace(tmp_path, data_dir)
+    job = _finished(app, app.start_job({"command": "qc", "form": {"run": "x"}})["id"])
+    assert job["status"] == "refused" and job["run"] is None
+    assert "not a run directory" in job["output"]
+
+
 def test_a_set_of_references_can_be_listed(tmp_path: Path, data_dir: Path) -> None:
     app = _workspace(tmp_path, data_dir)
     shutil.copy(data_dir / "NC_024936.1.gb", app.workspace / "references" / "NC_024936.1.gb")

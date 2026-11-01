@@ -98,6 +98,16 @@ happens:
 | `--figures` | `install it with: pip install 'plastid-suite[figures]'` | **3** |
 | `figures <run>` with R present, matplotlib absent | draws the R half, records `matplotlib figures unavailable: …` | **0** |
 
+**The local interface** (M9.7, measured 01/11/2026, same machine). `plastid ui` adds no package: it
+is the standard library and 232 kB of page, fonts included, and it needs no network. From the wheel
+above, with those four packages alone, it served the page and its fonts, read the IR gate of the
+golden record and ran the same seven modules, each `ok`, at the minimum install's limits: a form
+does not offer figures or Word reports until their extras are there. The server held **77 MB** there
+and **115 MB** with every extra, after showing a run's figures. The work runs in a `plastid` process of
+its own, at the costs in this file. The memory, cores and free disk the page shows are what the
+assembly step measures. Under WSL2 the free disk is the virtual disk's ceiling, not what drive C: has
+left, so read that one on Windows.
+
 The last row is the deliberate difference: `--figures` is the user asking for figures, so a missing
 plotting library stops the command; `figures` is a collection step and carries what it can, with
 the absence written into the manifest and `qc` rather than dropped silently. A second fresh venv

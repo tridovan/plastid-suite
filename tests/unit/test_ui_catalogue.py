@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import re
+from pathlib import Path
 
 import pytest
 
 from plastid.cli import build_parser
 from plastid.modules.registry import all_modules
-from plastid.ui import commands
+from plastid.run.state import EXIT_STATES
+from plastid.ui import catalogue, commands
 from plastid.ui.catalogue import COMMANDS, FROZEN, PAGES, page_of_module
 
 
@@ -54,6 +57,15 @@ def test_every_command_that_does_work_can_be_built() -> None:
     """`run` builds `batch` too; the lists are what the server reads, not what it starts."""
     not_started = {"ui", "modules", "tools", "runs", "batch"}
     assert set(commands.BUILDERS) == set(COMMANDS) - not_started
+
+
+def test_the_page_names_every_way_a_run_can_end() -> None:
+    """A status the page does not know would show as a raw word, or as nothing at all."""
+    page = (Path(catalogue.__file__).parent / "assets" / "app.js").read_text(encoding="utf-8")
+    known = re.search(r"const STATUS = \{(.*?)\};", page, re.DOTALL)
+    assert known is not None
+    for state in EXIT_STATES:
+        assert f"{state.status}:" in known.group(1), state.status
 
 
 @pytest.mark.parametrize("frozen", FROZEN)

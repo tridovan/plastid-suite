@@ -81,13 +81,23 @@ RUN mkdir -p "$PTS_MISA_DIR" \
 # The assembly tools and table2asn each take an environment of their own: GetOrganelle pins a BLAST
 # older than the analyses', and table2asn cannot be solved beside R (docs/tools/table2asn.md). They
 # come last on PATH, so the analyses keep their pinned BLAST. This layer sits above the COPY so a
-# source change does not pay for it again. GetOrganelle's and Oatk's databases are fetched once by
-# the user into the mounted folder (docs/tools/getorganelle.md, docs/tools/oatk.md).
+# source change does not pay for it again. GetOrganelle's and Oatk's databases are fetched here, from
+# the releases docs/tools/getorganelle.md and docs/tools/oatk.md record: someone on Windows has no
+# prompt to fetch them from, and 140 MB is little beside the 3 GB of tools that need them.
 COPY environment-assembly.yml /tmp/environment-assembly.yml
 RUN micromamba create -y -n assembly -f /tmp/environment-assembly.yml \
     && micromamba create -y -n table2asn -c conda-forge -c bioconda table2asn=1.29.324 \
     && micromamba clean -a -y
 ENV PATH=$PATH:/opt/conda/envs/assembly/bin:/opt/conda/envs/table2asn/bin
+ENV GETORG_PATH=/home/mambauser/db/getorganelle
+ENV OATK_DB=/home/mambauser/db/oatk/v20230921
+RUN mkdir -p "$GETORG_PATH" /home/mambauser/db/oatk \
+    && get_organelle_config.py -a embplant_pt,embplant_mt --config-dir "$GETORG_PATH" \
+    && curl -sSL --retry 3 --max-time 300 \
+         https://github.com/c-zhou/OatkDB/archive/75e8db0ac4a7d508a9a518d900876003ceb70737.tar.gz \
+       | tar -xz -C /tmp \
+    && mv /tmp/OatkDB-75e8db0ac4a7d508a9a518d900876003ceb70737/v20230921 "$OATK_DB" \
+    && rm -rf /tmp/OatkDB-*
 
 # What CPJSdraw needs to run. CPJSdraw itself is not here: its source states no licence and the
 # figure needs a patched build (docs/tools/cpjsdraw.md), so the user names their own copy in the
@@ -117,7 +127,8 @@ RUN mafft --version \
     && ls -l "$PTS_MISA_DIR/misa.pl" \
     && get_organelle_from_reads.py --version \
     && oatk --version \
-    && table2asn -version
+    && table2asn -version \
+    && plastid tools
 
 # The golden numbers, inside the container. `PTS_REQUIRE_TOOLS=1` turns a missing tool from a
 # printed skip into a failure, the whole point of checking in here.
