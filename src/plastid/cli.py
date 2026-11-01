@@ -3762,6 +3762,7 @@ def _assemble_prepare(args: argparse.Namespace) -> int:
         params=params,
         module_id=assembly_step.MODULE_ID,
         module_order=1,
+        announce_tools=True,
     )
     manifest = _assembly_manifest(
         layout=layout,
@@ -3854,6 +3855,7 @@ def _assemble_import(args: argparse.Namespace) -> int:
         params=params,
         module_id=assembly_step.MODULE_ID,
         module_order=1,
+        announce_tools=True,
     )
     manifest = _assembly_manifest(
         layout=layout,
@@ -3899,6 +3901,7 @@ def _assemble_run(args: argparse.Namespace) -> int:
         params=params,
         module_id=assembly_step.MODULE_ID,
         module_order=1,
+        announce_tools=True,
     )
     manifest = _assembly_manifest(
         layout=layout,
@@ -3992,23 +3995,21 @@ def _assembly_outcome(
             "files": [str(path.relative_to(layout.run_dir)) for path in files],
         }
     )
-    manifest["status"] = "ok" if usable else "incomplete"
-    code = _finish(manifest, layout, ctx, version, EXIT_OK if usable else EXIT_ERROR)
     if not usable:
-        print(
-            f"assemble: {assembled.sample}: the assembler says {assembled.status_text!r}, read "
-            f"support is {evaluation.support}, the graph is {evaluation.graph_call}: no artifact "
-            f"for the next step — {layout.run_dir}",
-            file=sys.stderr,
+        why = (
+            f"{assembled.sample}: the assembler says {assembled.status_text!r}, read support is "
+            f"{evaluation.support}, the graph is {evaluation.graph_call}: no artifact for the "
+            "next step."
         )
         if assembled.word_limit_hit:
-            print(
-                "assemble: it stopped recruiting reads at its word limit. More memory (--set "
-                "memory_gb), or a run elsewhere through `plastid assemble prepare`, would recruit "
-                "more.",
-                file=sys.stderr,
+            why += (
+                " It stopped recruiting reads at its word limit. More memory (--set memory_gb), or "
+                "a run elsewhere through `plastid assemble prepare`, would recruit more."
             )
-    return code
+        manifest["modules"][-1]["error"] = why
+        print(f"assemble: {why} — {layout.run_dir}", file=sys.stderr)
+    manifest["status"] = "ok" if usable else "incomplete"
+    return _finish(manifest, layout, ctx, version, EXIT_OK if usable else EXIT_ERROR)
 
 
 def _print_json(payload: Any) -> None:

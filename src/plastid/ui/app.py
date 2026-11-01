@@ -77,6 +77,7 @@ class App:
         self._cached: dict[str, Any] = {}
         self._jobs: dict[str, _Job] = {}
         self._lock = Lock()
+        self._preview_lock = Lock()
 
     # Paths -----------------------------------------------------------------------------------
 
@@ -258,14 +259,16 @@ class App:
             return path
         Image.MAX_IMAGE_PIXELS = None  # the toolkit's own R figures reach 235 million pixels
         target = self.state_dir / "previews" / f"{path.stat().st_mtime_ns}-{path.name}"
-        if target.is_file():
-            return target
-        target.parent.mkdir(exist_ok=True)
-        with Image.open(path) as image:
-            if image.width <= _PREVIEW_WIDTH:
-                return path
-            height = max(1, image.height * _PREVIEW_WIDTH // image.width)
-            image.convert("RGB").resize((_PREVIEW_WIDTH, height)).save(target)
+        # One at a time: that many pixels take most of a gigabyte each while they are decoded.
+        with self._preview_lock:
+            if target.is_file():
+                return target
+            target.parent.mkdir(exist_ok=True)
+            with Image.open(path) as image:
+                if image.width <= _PREVIEW_WIDTH:
+                    return path
+                height = max(1, image.height * _PREVIEW_WIDTH // image.width)
+                image.convert("RGB").resize((_PREVIEW_WIDTH, height)).save(target)
         return target
 
     # Starting work ---------------------------------------------------------------------------

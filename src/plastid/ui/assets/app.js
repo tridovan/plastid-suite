@@ -585,14 +585,16 @@ async function jobPage(id) {
     const job = await get(`/api/jobs/${id}`);
     const run = job.run ? await get(`/api/run/${job.run.dataset}/${job.run.run_id}`) : null;
     log.textContent = job.output || 'Starting…';
-    summary.replaceChildren(
+    summary.replaceChildren(...[
       el('div', null, el('span', null, 'Status'), el('b', null, word(job.status))),
       run && run.total ? el('div', null, el('span', null, run.kind === 'batch' ? 'Samples' : 'Analyses'), el('b', null, `${run.done} of ${run.total}`)) : null,
-      el('div', { class: 'wide' }, el('span', null, 'Command'), el('b', null, job.line)));
+      el('div', { class: 'wide' }, el('span', null, 'Command'), el('b', null, job.line)),
+    ].filter(Boolean));
     if (run) {
       const parts = run.kind === 'batch' ? run.samples.map((sample) => ({ id: sample.sample_id, status: sample.status })) : run.steps;
       const rows = parts.map((step) => el('div', { class: `step-row ${['ok', 'cached'].includes(step.status) ? 'done' : (step.status === 'failed' ? 'failed' : '')}` }, el('i'), step.id, el('small', null, step.status || '')));
-      if (job.running) rows.push(el('div', { class: 'step-row now' }, el('i'), run.current || 'starting', el('small', null, 'running')));
+      const reached = [...job.output.matchAll(/^\[([a-z0-9-]+)\]$/gm)].pop();
+      if (job.running) rows.push(el('div', { class: 'step-row now' }, el('i'), run.current || (reached ? reached[1] : 'starting'), el('small', null, 'running')));
       steps.replaceChildren(...rows);
     }
     actions.replaceChildren(...(job.running && job.run ? [el('button', { class: 'btn stop-run', type: 'button', onclick: async () => {
@@ -640,7 +642,7 @@ async function runsPage() {
 function provenance(run) {
   const bits = [];
   if (run.inputs.length === 1) bits.push(`Read from ${run.inputs[0].path.split('/').pop()}${run.inputs[0].sha256 ? ` (sha256 ${run.inputs[0].sha256.slice(0, 8)}…)` : ''}.`);
-  else if (run.inputs.length) bits.push(`Read from ${run.inputs.length} records, listed under How this was made.`);
+  else if (run.inputs.length) bits.push(`Read from ${run.inputs.length} files, listed under How this was made.`);
   if (run.ir && run.ir.source) bits.push(`IR read from ${run.ir.annotation_used ? 'the annotation' : 'the sequence'}.`);
   const label = run.params.data_label || run.data_label;
   if (label) bits.push(`Data from ${label}.`);
@@ -665,7 +667,7 @@ async function tableView(entry) {
 
 function figureCard(figure, label, path, pick, pressed) {
   return el('button', { class: 'figure-card', type: 'button', 'aria-pressed': String(pressed), onclick: pick },
-    el('span', { class: 'frame' }, el('img', { src: `/api/preview?${new URLSearchParams({ path })}`, alt: '', loading: 'lazy' })),
+    el('span', { class: 'frame' }, el('img', { src: `/api/preview?${new URLSearchParams({ path })}`, alt: 'Preparing the preview…', loading: 'lazy' })),
     el('span', null, el('b', null, label.replaceAll('_', ' ')), el('br'), el('small', null, figure.id)));
 }
 

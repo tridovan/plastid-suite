@@ -424,6 +424,8 @@ def test_a_run_that_reaches_its_word_limit_says_so(
     payload = json.loads((run / "01_assembly" / "result.json").read_text("utf-8"))
     assert any("stopped recruiting reads" in note for note in payload["notes"])
     assert "--set memory_gb" in capsys.readouterr().err
+    # The page reads the record, so the reason has to be there as well as on the screen.
+    assert "word limit" in bench.manifest(run)["modules"][0]["error"]
 
 
 def test_the_map_back_reads_the_raw_reads_and_the_assembler_the_trimmed_ones(bench: Bench) -> None:
@@ -1158,3 +1160,15 @@ def test_a_wrong_value_is_refused_before_anything_runs(
     assert bench.run("--set", "threads=many") == 2
     assert "whole number" in capsys.readouterr().err
     assert not bench.out.exists()
+
+
+def test_a_step_says_which_tool_it_has_reached(bench: Bench, capsys) -> None:
+    """One tool can take hours, and a run with no word from it looks stopped."""
+    _canned_complete(bench.tools)
+    assert bench.run() == 0
+    out = capsys.readouterr().out.splitlines()
+    assert [line for line in out if line.startswith("[")] == [
+        "[fastp]",
+        "[getorganelle]",
+        "[minimap2]",
+    ]

@@ -25,6 +25,8 @@ class RunContext:
     module_order: int
     ir: IRResult | None = None
     tools: list[ToolRecord] = field(default_factory=list)
+    # One tool of a long step can take hours, and a run that says nothing looks stopped.
+    announce_tools: bool = False
 
     def out(self, logical: str, ext: str) -> Path:
         """Where a logical output goes — the layout decides, the module never names paths."""
@@ -47,6 +49,8 @@ class RunContext:
 
     def tool(self, name: str, argv: Sequence[str], **kwargs: Any) -> ToolRecord:
         """Run an external tool through the single door and keep its provenance."""
+        if self.announce_tools and name not in {record.name for record in self.tools}:
+            print(f"[{name}]", flush=True)
         record = run_tool(name, argv, log_dir=self.layout.logs_dir, **kwargs)
         self.tools.append(record)
         return record

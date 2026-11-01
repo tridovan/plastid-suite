@@ -19,6 +19,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--ground); color: var(--ink); font: 400 15px/22px var(--sans); }
 a { color: var(--link); } a:hover { color: #084D35; }
