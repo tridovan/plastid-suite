@@ -18,10 +18,10 @@ CDS scope. A run holding neither is skipped by name rather than drawn without it
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from plastid.core.align import SUBSTITUTION_TYPES
-from plastid.result.figures.r_common import csv_text
+from plastid.result.figures.r_common import csv_text, genome_labels
 from plastid.result.result import Result
 from plastid.result.rfigure import RFigureSkip, RFigureSpec
 
@@ -40,9 +40,18 @@ class SubstitutionsFrame:
     ratios: dict[str, str]  # genome → the ts_tv column's rendering
     ratio_table: str
     reference: str
+    headers: tuple[str, ...] = ()  # the column of each genome when the run can name both sides
+
+    def labelled(self, names: Mapping[str, str]) -> SubstitutionsFrame:
+        """Each column as the paper heads it, `reference × sample`, naming both sides."""
+        labels = genome_labels((self.reference, *self.genomes), names)
+        reference = labels[self.reference]
+        return replace(
+            self, headers=tuple(f"{reference} × {labels[genome]}" for genome in self.genomes)
+        )
 
     def inputs(self) -> tuple[tuple[str, str], ...]:
-        header = ("Substitution_Type", "Category", *self.genomes)
+        header = ("Substitution_Type", "Category", *(self.headers or self.genomes))
         rows = [
             (
                 type_name,

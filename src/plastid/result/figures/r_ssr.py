@@ -15,9 +15,9 @@ measured. The caption says so.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-from plastid.result.figures.r_common import csv_text
+from plastid.result.figures.r_common import csv_text, genome_labels
 from plastid.result.result import Result
 from plastid.result.rfigure import RFigureSpec
 
@@ -46,6 +46,11 @@ class SsrFrame:
 
     values: tuple[str, ...]
     unsourced: tuple[str, ...]
+
+    def labelled(self, names: Mapping[str, str]) -> SsrFrame:
+        """The same row under its species, as the paper's figure spells it."""
+        label = genome_labels((self.values[0],), names)[self.values[0]]
+        return replace(self, values=(label, *self.values[1:]))
 
     def inputs(self) -> tuple[tuple[str, str], ...]:
         header = (

@@ -188,8 +188,8 @@ def test_f5_gets_one_row_per_sample(tmp_path: Path) -> None:
     ((name, text),) = frame.inputs()
     lines = text.splitlines()
     assert len(lines) == 3  # header + two samples
-    assert lines[1].startswith("S1,4,")
-    assert lines[2].startswith("S2,6,")
+    assert lines[1].startswith("Alpha one,4,")
+    assert lines[2].startswith("Beta two,6,")
 
 
 def _rna_editing() -> Result:

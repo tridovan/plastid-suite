@@ -1436,8 +1436,10 @@ def _execute_run(
                 "path": str(text),
                 "sha256": _sha256_file(Path(text)),
                 "bytes": Path(text).stat().st_size,
+                "accession": genome.accession,
+                "organism": genome.source.get("organism") or genome.name,
             }
-            for text in inputs
+            for text, genome in zip(inputs, genomes, strict=True)
         ],
         coordinate_system={
             "name": "genbank",

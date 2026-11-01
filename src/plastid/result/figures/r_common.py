@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 
 __all__ = [
+    "genome_labels",
     "AMINO_ACID_NAMES",
     "csv_text",
     "species_column",
@@ -43,6 +44,19 @@ AMINO_ACID_NAMES: dict[str, str] = {
     "Y": "Tyrosine",
     "V": "Valine",
 }
+
+
+def genome_labels(accessions: Sequence[str], names: Mapping[str, str]) -> dict[str, str]:
+    """What a publication figure calls each genome: its species, else its accession.
+
+    Two records of one species keep their accession too. One label for both would merge them on
+    the axis, and the figure would look right.
+    """
+    named = [names.get(accession, accession) for accession in accessions]
+    return {
+        accession: f"{name} {accession}" if named.count(name) > 1 else name
+        for accession, name in zip(accessions, named, strict=True)
+    }
 
 
 def species_column(label: str) -> str:

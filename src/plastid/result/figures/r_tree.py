@@ -15,11 +15,15 @@ properties of this toolkit.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from plastid.result.figures.r_common import genome_labels, species_column
 from plastid.result.result import Result
 from plastid.result.rfigure import RFigureSpec
+
+_TIP = re.compile(r"(?<=[(,])[^(),:;]+(?=[:,);])")
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +44,20 @@ class TreeFrame:
             "the drops and the root — so the transformation can be checked rather than inferred "
             "from the image. The paper's choices are that paper's, not this toolkit's defaults."
         )
+
+
+def relabelled_tree(newick: str, names: Mapping[str, str]) -> str:
+    """The same tree with its tips under their species; lengths and support stay as they are.
+
+    A tip follows `(` or `,`, which is what keeps a support value after `)` out of the match.
+    """
+    labels = genome_labels(tuple(_TIP.findall(newick)), names)
+
+    def named(match: re.Match[str]) -> str:
+        tip = match.group(0)
+        return species_column(labels[tip]) if tip in names else tip
+
+    return _TIP.sub(named, newick)
 
 
 def frame(results: Mapping[str, Result]) -> TreeFrame:

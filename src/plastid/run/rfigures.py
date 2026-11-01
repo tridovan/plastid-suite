@@ -18,6 +18,7 @@ recorded, never a traceback and never a silent blank panel.
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 import tempfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -27,6 +28,7 @@ from typing import Any
 
 from plastid.result.figure import FigureRecord
 from plastid.result.figures import all_r_figures
+from plastid.result.figures.r_tree import relabelled_tree
 from plastid.result.result import Result
 from plastid.result.rfigure import RFigureSkip
 from plastid.run import batch_frames
@@ -80,6 +82,7 @@ def render_run_rfigures(
     target = root / FIGURES_DIRNAME
     wanted = None if figures is None else set(figures)
     settings: Mapping[str, Any] = params or {}
+    names = _species_names(root)
 
     candidates = [spec for spec in all_r_figures() if wanted is None or spec.id in wanted]
     # Asked once for the whole pass, and only when there is something to draw: `--figure
@@ -121,7 +124,9 @@ def render_run_rfigures(
             records.append(FigureRecord(spec.id, "R", reason=str(reason)))
             continue
         try:
-            drawn, record_lines = _draw(spec, frame, target, runner, results, source, provenance)
+            drawn, record_lines = _draw(
+                spec, frame, target, runner, results, source, provenance, names
+            )
         except ToolError as error:
             # R itself refused — a missing script, a package it does not have, a non-zero exit.
             # The adapter already named what was missing, so the figure is skipped with that name
@@ -187,12 +192,16 @@ def _draw(
     results,
     source: Path | None,
     run_provenance: Sequence[str] = (),
+    names: Mapping[str, str] | None = None,
 ) -> tuple[list[Path], tuple[str, ...]]:
     """One figure: write what R reads, run the script, keep its images and its caption."""
     target.mkdir(parents=True, exist_ok=True)
     # A repeat render replaces the figure's whole output space; the script may draw a different
     # set of names on a different table, and a stale image would look current (M11.18).
     _discard(target, spec.id)
+    labelled = getattr(frame, "labelled", None)
+    if labelled is not None and names:
+        frame = labelled(names)
     inputs = frame.inputs()
     # The pivot files stay in the run: they are the table R actually read, so a figure can be
     # reproduced — and checked — without re-deriving them. Named ``<id>__`` so two figures can
@@ -206,10 +215,15 @@ def _draw(
             path.write_text(text, encoding="utf-8")
             written.append(path)
 
+    own_tree = source is not None and names and source.is_relative_to(target.parent)
+    drawn_from = source
+    if own_tree:
+        drawn_from = _own_tree_for_drawing(source, names, input_dir)
+
     produced: list[Path] = []
     with tempfile.TemporaryDirectory(prefix=f"pts-{spec.id}-") as scratch:
-        if source is not None:
-            figures_dir = runner(spec.script, source, None, Path(scratch))
+        if drawn_from is not None:
+            figures_dir = runner(spec.script, drawn_from, None, Path(scratch))
         elif spec.input_mode == "file":
             figures_dir = runner(spec.script, written[0], None, Path(scratch))
         else:
@@ -231,9 +245,33 @@ def _draw(
         *_source_line(spec, source, target.parent),
         *spec.scope_lines(results),
     ]
+    if names and (labelled is not None or own_tree):
+        pairs = "; ".join(f"{accession} = {name}" for accession, name in names.items())
+        lines.append(f"labels: {pairs}")
     lines.extend(spec.notes)
     caption.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return [*produced, caption], tuple(lines)
+
+
+def _species_names(run_dir: Path) -> dict[str, str]:
+    """Each input's accession and species, from the manifest. A batch names its own samples."""
+    path = run_dir / "manifest.json"
+    if not path.is_file():
+        return {}
+    inputs = json.loads(path.read_text(encoding="utf-8")).get("inputs") or []
+    return {
+        entry["accession"]: entry["organism"]
+        for entry in inputs
+        if entry.get("accession") and entry.get("organism")
+    }
+
+
+def _own_tree_for_drawing(source: Path, names: Mapping[str, str], input_dir: Path) -> Path:
+    """A copy of the run's tree with species at its tips, kept beside what R read."""
+    input_dir.mkdir(parents=True, exist_ok=True)
+    copy = input_dir / source.name
+    copy.write_text(relabelled_tree(source.read_text(encoding="utf-8"), names), encoding="utf-8")
+    return copy
 
 
 def _source_line(spec, source: Path | None, run_dir: Path) -> tuple[str, ...]:

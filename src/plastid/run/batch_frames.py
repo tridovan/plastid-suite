@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from plastid.result.figures import r_amino_acid, r_rscu, r_ssr
-from plastid.result.figures.r_common import csv_text
+from plastid.result.figures.r_common import csv_text, genome_labels
 from plastid.result.result import Result, Table
 
 __all__ = ["frame_for"]
@@ -216,10 +216,17 @@ class _BatchSsr:
 
 
 def _ssr(results):
+    species = {
+        str(row["sample"]): str(row["species"])
+        for table in results["ssr"].tables.values()
+        for row in table.rows
+        if row.get("species")
+    }
     split = _per_sample(results, "ssr")
-    rows, unsourced = [], ()
-    for _sample, result in split.items():
-        frame = r_ssr.frame({"ssr": result})
-        rows.append(frame.values)
-        unsourced = frame.unsourced
+    frames = {sample: r_ssr.frame({"ssr": result}) for sample, result in split.items()}
+    names = {frame.values[0]: species.get(sample, "") for sample, frame in frames.items()}
+    named = {accession: name for accession, name in names.items() if name}
+    labels = genome_labels(tuple(names), named)
+    rows = [(labels[frame.values[0]], *frame.values[1:]) for frame in frames.values()]
+    unsourced = next((frame.unsourced for frame in frames.values()), ())
     return _BatchSsr(tuple(rows), unsourced)

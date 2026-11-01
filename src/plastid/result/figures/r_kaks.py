@@ -17,9 +17,9 @@ blanks, so filling them would quietly redraw the figure.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
-from plastid.result.figures.r_common import tsv_text
+from plastid.result.figures.r_common import genome_labels, species_column, tsv_text
 from plastid.result.result import Result
 from plastid.result.rfigure import RFigureSkip, RFigureSpec
 
@@ -37,9 +37,17 @@ class KaksFrame:
     cells: dict[tuple[str, str], str]  # (gene, genome) → the ka_ks column's rendering
     reference: str
     n_scored: str
+    headers: tuple[str, ...] = ()  # the column of each genome when the run can name it
+
+    def labelled(self, names: Mapping[str, str]) -> KaksFrame:
+        """Each column under its species; the script turns the underscores back into spaces."""
+        labels = genome_labels(self.genomes, names)
+        return replace(
+            self, headers=tuple(species_column(labels[genome]) for genome in self.genomes)
+        )
 
     def inputs(self) -> tuple[tuple[str, str], ...]:
-        header = ("Gene", *self.genomes)
+        header = ("Gene", *(self.headers or self.genomes))
         rows = [
             (gene, *[self.cells.get((gene, genome), "") for genome in self.genomes])
             for gene in self.genes
