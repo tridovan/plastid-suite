@@ -691,7 +691,9 @@ def _checked_sets(pairs: Sequence[str], module_ids: Sequence[str]) -> dict | Non
     ]
     for problem in problems:
         print(problem, file=sys.stderr)
-    return None if problems else params
+    if problems:
+        return None
+    return registry.anchored_paths(registry.declared_params(module_ids), params)
 
 
 def _refused_for_own_command(specs: Sequence[registry.ModuleSpec]) -> bool:
@@ -1095,6 +1097,7 @@ def _cmd_batch(args: argparse.Namespace) -> int:
             {"renderer": renderer, "reason": reason} for renderer, reason in outcome.missing
         ]
         payload["figures"]["status"] = outcome.as_manifest()["status"]
+        payload["figures"]["failed"] = outcome.as_manifest()["failed"]
         payload["figures"]["policy"] = (
             "a batch has no single genome; the one-genome matplotlib figures are not drawn, "
             "and the sample figures are the R ones read from aggregate.csv"
@@ -1111,13 +1114,16 @@ def _cmd_batch(args: argparse.Namespace) -> int:
         ]
         if outcome.tools:
             payload["figures"]["tools"] = [asdict(record) for record in outcome.tools]
+        if outcome.failed and code == EXIT_OK:
+            code = EXIT_TOOL
+            payload["status"] = exit_state(code).status
+            payload["exit_code"] = code
         (layout.run_dir / "batch.json").write_text(
             json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
         for path in outcome.files:
             print(f"wrote {path.relative_to(layout.run_dir).as_posix()}")
-        for figure_id, reason in outcome.skipped:
-            print(f"skipped {figure_id}: {reason}", file=sys.stderr)
+        _say_undrawn(outcome)
 
     print(f"batch: {len(records) - len(failed)} of {len(records)} sample(s) ok — {layout.run_dir}")
     return code
@@ -1778,6 +1784,18 @@ def _run_steps(
                 }
             )
         manifest["figures"] = outcome.as_manifest()
+        for renderer, reason in outcome.missing:
+            print(f"{renderer} figures unavailable: {reason}", file=sys.stderr)
+        if outcome.failed:
+            # The analyses finished and their tables stand; the figures this run asked for and
+            # could feed did not. Exit 0 here is how three figures went missing without a word.
+            for figure_id, reason in outcome.failed:
+                print(f"failed {figure_id}: {reason}", file=sys.stderr)
+            print(f"the analyses finished — {layout.run_dir}", file=sys.stderr)
+            manifest["status"] = exit_state(EXIT_TOOL).status
+            return _finish(manifest, layout, ctx, specs[-1].version, EXIT_TOOL)
+        drawn = sum(1 for record in outcome.records if record.files)
+        print(f"figures: {drawn} drawn — `plastid figures --list` names the rest")
     manifest["status"] = "ok"
     return _finish(manifest, layout, ctx, specs[-1].version, EXIT_OK)
 
@@ -2217,8 +2235,8 @@ def _junction_order(
 ) -> list[str] | None:
     """Species names ordered by distance from a reference on the user's own tree.
 
-    The tree is the user's (PTS builds none — M10.5), and its tip labels are not this toolkit's
-    species names, so a tip is matched to a record by the first two words of the organism name.
+    The tree is the one the user named, and its tip labels are not this toolkit's species names,
+    so a tip is matched to a record by the first two words of the organism name.
     A reference that is not on the tree is said out loud and the input order is kept: silently
     ordering by nothing would look like a tree was used.
     """
@@ -2296,6 +2314,7 @@ def _cmd_figures(args: argparse.Namespace) -> int:
         print(problem, file=sys.stderr)
     if problems:
         return EXIT_USAGE
+    sets = registry.anchored_paths(declared, sets)
 
     records: list[FigureRecord] = []
     batch_results = None
@@ -2322,7 +2341,7 @@ def _cmd_figures(args: argparse.Namespace) -> int:
         outcome = _render_output_figures(
             run_dir,
             figures=args.figure,
-            sets=args.sets,
+            sets=sets,
             results=batch_results,
             include_matplotlib=not is_batch,
             allow_missing_extra=True,
@@ -2351,6 +2370,7 @@ def _cmd_figures(args: argparse.Namespace) -> int:
             {"renderer": renderer, "reason": reason} for renderer, reason in outcome.missing
         ]
         payload["figures"]["status"] = outcome.as_manifest()["status"]
+        payload["figures"]["failed"] = outcome.as_manifest()["failed"]
         payload["figures"]["policy"] = (
             "a batch has no single genome; the one-genome matplotlib figures are not drawn, "
             "and the sample figures are the R ones read from aggregate.csv"
@@ -2372,11 +2392,8 @@ def _cmd_figures(args: argparse.Namespace) -> int:
         )
         for path in outcome.files:
             print(f"wrote {path.relative_to(run_dir).as_posix()}")
-        for figure_id, reason in outcome.skipped:
-            print(f"skipped {figure_id}: {reason}", file=sys.stderr)
-        for renderer, reason in outcome.missing:
-            print(f"{renderer} figures unavailable: {reason}", file=sys.stderr)
-        return EXIT_OK if outcome.files else EXIT_TOOL
+        _say_undrawn(outcome)
+        return EXIT_OK if outcome.files and not outcome.failed else EXIT_TOOL
 
     # A refresh can delete a figure whose table disappeared, and it rewrites the ones it does
     # draw. Both cases must reach the run's file list: a deleted path and an old digest are stale
@@ -2399,10 +2416,7 @@ def _cmd_figures(args: argparse.Namespace) -> int:
     manifest["files"].extend(refreshed.values())
     for relative in refreshed:
         print(f"wrote {relative}")
-    for figure_id, reason in outcome.skipped:
-        print(f"skipped {figure_id}: {reason}", file=sys.stderr)
-    for renderer, reason in outcome.missing:
-        print(f"{renderer} figures unavailable: {reason}", file=sys.stderr)
+    _say_undrawn(outcome)
     # The whole catalogue's status goes into the manifest even when nothing was drawn: a later
     # QC pass and a package read it back instead of guessing why a figure is absent.
     manifest["figures"] = {
@@ -2425,6 +2439,8 @@ def _cmd_figures(args: argparse.Namespace) -> int:
             f"warning: the figures are written, but {manifest_path.name} was not updated: {error}",
             file=sys.stderr,
         )
+    if outcome.failed:
+        return EXIT_TOOL
     if not outcome.files:
         print("no figure could be rendered from this run's tables", file=sys.stderr)
         # Exit 3 is "a tool this run needs is not here" — the plotting extra, or R when the
@@ -2531,6 +2547,7 @@ class OutputFigures:
     records: tuple[FigureRecord, ...]
     missing: tuple[tuple[str, str], ...]
     tools: tuple[Any, ...] = ()
+    failed: tuple[tuple[str, str], ...] = ()  # the run could feed these and their renderer did not
 
     def as_manifest(self) -> dict[str, Any]:
         return {
@@ -2544,16 +2561,36 @@ class OutputFigures:
                 for figure_id, reason in self.skipped
                 for renderer in [_renderer_of(self.records, figure_id)]
             ],
+            "failed": [
+                {
+                    "figure": figure_id,
+                    "renderer": _renderer_of(self.records, figure_id),
+                    "reason": why,
+                }
+                for figure_id, why in self.failed
+            ],
             "missing_renderers": [
                 {"renderer": renderer, "reason": reason} for renderer, reason in self.missing
             ],
             "status": (
-                "complete"
+                "failed"
+                if self.failed
+                else "complete"
                 if not self.skipped and not self.missing
                 else ("partial" if self.files else "unavailable")
             ),
             "tools": [asdict(record) for record in self.tools],
         }
+
+
+def _say_undrawn(outcome: OutputFigures) -> None:
+    """Every figure a pass did not draw, by name, and a failure in words of its own."""
+    failed = dict(outcome.failed)
+    for figure_id, reason in outcome.skipped:
+        word = "failed" if figure_id in failed else "skipped"
+        print(f"{word} {figure_id}: {reason}", file=sys.stderr)
+    for renderer, reason in outcome.missing:
+        print(f"{renderer} figures unavailable: {reason}", file=sys.stderr)
 
 
 def _renderer_of(records: Sequence[FigureRecord], figure_id: str) -> str:
@@ -2599,6 +2636,7 @@ def _render_output_figures(
     records: list[FigureRecord] = []
     missing: list[tuple[str, str]] = []
     tools: list[Any] = []
+    failed: list[tuple[str, str]] = []
 
     if include_matplotlib:
         try:
@@ -2631,6 +2669,7 @@ def _render_output_figures(
         )
         files.extend(r_outcome.files)
         skipped.extend(r_outcome.skipped)
+        failed.extend(r_outcome.failed)
         records.extend(r_outcome.records)
         tools.extend(ctx.tools)
         if r_outcome.blocked is not None:
@@ -2642,6 +2681,7 @@ def _render_output_figures(
         records=tuple(records),
         missing=tuple(missing),
         tools=tuple(tools),
+        failed=tuple(failed),
     )
 
 
@@ -3572,6 +3612,7 @@ def _assembly_params(args: argparse.Namespace) -> dict | None:
         print(problem, file=sys.stderr)
     if problems:
         return None
+    params = registry.anchored_paths(declared, params)
     if args.label:
         params[DATA_LABEL_PARAM] = args.label
     return assembly_step.resolve_params(params)

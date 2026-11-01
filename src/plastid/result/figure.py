@@ -172,6 +172,7 @@ class FigureRecord:
     files: tuple[Path, ...] = ()
     provenance: tuple[str, ...] = ()
     reason: str = ""  # non-empty exactly when nothing was drawn
+    failed: bool = False  # the run could feed this figure and its renderer did not draw it
 
     def __post_init__(self) -> None:
         if self.renderer not in ("matplotlib", "R"):
@@ -187,7 +188,9 @@ class FigureRecord:
 
     @property
     def status(self) -> str:
-        return "rendered" if self.files else "skipped"
+        if self.files:
+            return "rendered"
+        return "failed" if self.failed else "skipped"
 
 
 @dataclass(frozen=True, slots=True)

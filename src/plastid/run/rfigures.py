@@ -54,6 +54,9 @@ class RFigureOutcome:
     blocked: str | None = None
     # One record per catalogue entry, in the same shape the matplotlib pass reports (M11.18).
     records: tuple[FigureRecord, ...] = field(default_factory=tuple)
+    # The figures this run could feed and R did not draw, each also in `skipped`. Separate because
+    # a table the run does not hold is expected, and a failed script is not.
+    failed: tuple[tuple[str, str], ...] = ()
 
 
 def render_run_rfigures(
@@ -84,6 +87,7 @@ def render_run_rfigures(
     blocked = preflight() if candidates and preflight is not None else None
     files: list[Path] = []
     skipped: list[tuple[str, str]] = []
+    failed: list[tuple[str, str]] = []
     records: list[FigureRecord] = []
     for spec in candidates:
         if blocked is not None:
@@ -98,7 +102,7 @@ def render_run_rfigures(
             skipped.append((spec.id, reason))
             records.append(FigureRecord(spec.id, "R", reason=reason))
             continue
-        source = _source_file(spec, settings)
+        source = _source_file(spec, settings, root)
         if source is _NO_SOURCE:
             reason = f"needs --set {spec.source_param}=<file>" + (
                 f" — {settings[spec.source_param]!r} is not a file"
@@ -124,12 +128,17 @@ def render_run_rfigures(
             # rather than failing the pass: the other figures can still be drawn.
             _discard(target, spec.id)
             skipped.append((spec.id, str(error)))
-            records.append(FigureRecord(spec.id, "R", reason=str(error)))
+            failed.append((spec.id, str(error)))
+            records.append(FigureRecord(spec.id, "R", reason=str(error), failed=True))
             continue
         files.extend(drawn)
         records.append(FigureRecord(spec.id, "R", tuple(drawn), provenance=record_lines))
     return RFigureOutcome(
-        files=tuple(files), skipped=tuple(skipped), blocked=blocked, records=tuple(records)
+        files=tuple(files),
+        skipped=tuple(skipped),
+        blocked=blocked,
+        records=tuple(records),
+        failed=tuple(failed),
     )
 
 
@@ -155,15 +164,19 @@ def _discard(target: Path, figure_id: str) -> None:
 _NO_SOURCE = object()
 
 
-def _source_file(spec, params: Mapping[str, Any]) -> Path | None | object:
-    """The file a spec reads directly, or :data:`_NO_SOURCE` when it was not supplied."""
+def _source_file(spec, params: Mapping[str, Any], run_dir: Path) -> Path | None | object:
+    """The file a spec reads directly: the one the user named, else the one this run wrote."""
     if spec.source_param is None:
         return None
     given = params.get(spec.source_param)
-    if not given:
+    if given:
+        path = Path(str(given))
+        return path if path.is_file() else _NO_SOURCE
+    if spec.source_artifact is None:
         return _NO_SOURCE
-    path = Path(str(given))
-    return path if path.is_file() else _NO_SOURCE
+    module, filename = spec.source_artifact
+    written = sorted(run_dir.glob(f"*_{module}/{filename}"))
+    return written[0] if written else _NO_SOURCE
 
 
 def _draw(
@@ -215,7 +228,7 @@ def _draw(
         spec.title,
         *run_provenance,
         frame.caption(),
-        *_source_line(spec, source),
+        *_source_line(spec, source, target.parent),
         *spec.scope_lines(results),
     ]
     lines.extend(spec.notes)
@@ -223,9 +236,12 @@ def _draw(
     return [*produced, caption], tuple(lines)
 
 
-def _source_line(spec, source: Path | None) -> tuple[str, ...]:
-    """Name the user's own file, with its digest — the figure's only tie to what drew it."""
+def _source_line(spec, source: Path | None, run_dir: Path) -> tuple[str, ...]:
+    """Name the file that drew the figure, with its digest — the figure's only tie to it."""
     if source is None:
         return ()
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    if source.is_relative_to(run_dir):
+        own = source.relative_to(run_dir).as_posix()
+        return (f"source: this run's {own} (sha256 {digest})",)
     return (f"source: --set {spec.source_param}={source} (sha256 {digest})",)

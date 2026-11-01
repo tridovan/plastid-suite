@@ -58,7 +58,7 @@ cat(paste("  → Samples are alphabetically ordered\n\n"))
 
 # Calculate dynamic dimensions
 if (num_samples == 1) {
-  plot_width_vert <- 4
+  plot_width_vert <- 6  # 4 cut the title at this font; measured 01/11/2026 on one pair
   plot_width_horiz <- 8
   plot_height_vert <- 6
   plot_height_horiz <- 3

@@ -472,6 +472,52 @@ module's refusal of a value its user could fix did the same: too few genomes for
 `refused` for 2, `tool_error` for 3, `conflict` for 4, `cancelled` for 130. The status used to read
 `failed` for all of them. Held by `tests/unit/test_cli_surface.py` and `tests/unit/test_run_state.py`.
 
+## K-24 — A run with `rna_editing` lost its RSCU, amino-acid and SSR figures — **fixed (01/11/2026)**
+
+**Symptom.** `plastid run -m codon_usage -m amino_acid -m ssr --figures` on `NC_050833.1` drew five
+R figures. The same run with `-m rna_editing` added drew none and exited 0. R said "the input has
+no species column" and "CSV file is empty".
+
+**Cause.** `batch_frames.frame_for` called a run a batch when any table of any module had a
+`sample` column. `rna_editing` writes one in a run of one genome, so the batch path took over, found
+no sample in `codon_usage`, and handed R a header with no species. Since M4.5, 30/10/2026.
+
+**Fix.** A batch is recognised in the tables of the module the figure reads.
+Regressions: `tests/unit/test_batch_figures.py`, `tests/unit/test_rfigure.py`,
+`tests/golden/test_figures_with_rna_editing.py`. The expected figures are the ones the same run
+draws without `rna_editing`.
+
+## K-25 — A figure that failed was not said to have failed — **fixed (01/11/2026)**
+
+**Symptom.** K-24 printed nothing during `plastid run --figures`, and the run exited 0. The manifest
+said `partial`, which it says of every run, because some figures always need tables a run does not
+hold. `plastid figures` printed the script's banner from stdout as the reason, and the real message
+stayed in the stderr log.
+
+**Fix.** A figure the run could feed and its renderer did not draw is `failed`, apart from a
+`skipped` one. `run --figures`, `batch --figures` and `figures` name each one and exit 3
+(`tool_error`); the tables stay in the run. The manifest's `figures.status` is `failed`, with a
+`failed` list. A tool's failure now quotes its stderr first. Regression:
+`tests/unit/test_figure_failures.py`, with a stand-in for Rscript.
+
+## K-26 — A run with `phylogeny` did not draw its own tree — **fixed (01/11/2026)**
+
+**Symptom.** `plastid run -m phylogeny --figures` wrote `01_phylogeny/tree.treefile` and reported
+`r_tree: needs --set tree=<file>`. Two docstrings still said the toolkit builds no tree.
+
+**Fix.** `r_tree` reads the tree the run's `phylogeny` step wrote, and its caption names that file
+and its digest. `--set tree=` wins when given. Regression: `tests/unit/test_rfigure.py`.
+
+## K-27 — A relative path to a tool failed once the tool ran — **fixed (01/11/2026)**
+
+**Symptom.** `plastid ir-junction --cpjsdraw relative/CPJSdraw.pl` stopped with "Can't open perl
+script": the file was there, but the tool's working directory was not the user's. Same family as
+K-17.
+
+**Fix.** Every `--set` value declared as a file or a directory is made absolute before a module reads
+it, on `run`, `batch`, `annotate`, `assemble` and `figures`, and so is `--cpjsdraw`. Regression:
+`tests/unit/test_relative_tool_paths.py`.
+
 ## Other current limitations
 
 The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's

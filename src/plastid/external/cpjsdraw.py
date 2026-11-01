@@ -65,7 +65,8 @@ def cpjsdraw_script(explicit: str | Path | None = None) -> Path:
         path = Path(explicit)
         if not path.is_file():
             raise ToolError(f"cpjsdraw: --cpjsdraw {explicit} is not a file — {CPJSDRAW_DOC}")
-        return path
+        # Absolute, because the tool runs in a directory of its own and not the user's.
+        return path.resolve()
     found = which(_SCRIPT_NAME)
     if found is None:
         raise ToolError(

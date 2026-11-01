@@ -21,6 +21,10 @@ __all__ = ["frame_for"]
 
 DROPPED = ("sample", "species")
 
+# The module each sample-oriented figure reads. A batch is recognised in that module's tables and
+# not across the run, because `rna_editing` writes a `sample` column in a run of one genome too.
+_SOURCE_MODULE = {"r_rscu": "codon_usage", "r_amino_acid": "amino_acid", "r_ssr": "ssr"}
+
 
 def _key_column(table: Table, rows, sample: str) -> str | None:
     """Recover the row key the single-run table addressed its rows by.
@@ -90,10 +94,9 @@ def _unique(labels: list[str]) -> list[str]:
 
 def frame_for(spec_id: str, results: Mapping[str, Result]) -> object | None:
     """A batch frame for F3/F4/F5, or ``None`` when the results are a single run."""
-    if not any(
-        "sample" in {column.name for column in table.columns}
-        for result in results.values()
-        for table in result.tables.values()
+    source = results.get(_SOURCE_MODULE.get(spec_id, ""))
+    if source is None or not any(
+        "sample" in {column.name for column in table.columns} for table in source.tables.values()
     ):
         return None
     if spec_id == "r_rscu":

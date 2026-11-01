@@ -192,6 +192,37 @@ def test_f5_gets_one_row_per_sample(tmp_path: Path) -> None:
     assert lines[2].startswith("S2,6,")
 
 
+def _rna_editing() -> Result:
+    """What `rna_editing` writes in a run of one genome: a table with a ``sample`` column."""
+    return Result(
+        module="rna_editing",
+        module_version="test",
+        tables={
+            "rna_editing_summary": _table(
+                "rna_editing_summary",
+                ("sample", "organism"),
+                [{"sample": "NC_050833.1", "organism": "Iris domestica"}],
+            )
+        },
+    )
+
+
+def test_a_sample_column_in_another_module_does_not_make_a_run_a_batch() -> None:
+    """Without `rna_editing` this run draws one species column; with it the answer is the same.
+
+    Measured 01/11/2026 on `NC_050833.1`: `codon_usage amino_acid ssr` drew 5 R figures, and the
+    same run with `rna_editing` added drew none, because the batch test read every module's tables
+    and the batch path then found no sample in `codon_usage`.
+    """
+    results = {
+        "codon_usage": _codon_usage("Alpha one", "1.0", "1.0"),
+        "rna_editing": _rna_editing(),
+    }
+    assert batch_frames.frame_for("r_rscu", results) is None
+    assert batch_frames.frame_for("r_amino_acid", results) is None
+    assert batch_frames.frame_for("r_ssr", results) is None
+
+
 def test_plastid_figures_draws_the_batch_sample_figure(tmp_path: Path, monkeypatch) -> None:
     """The CLI path: a batch directory feeds F3 with one column per sample, no analysis re-run."""
     import json

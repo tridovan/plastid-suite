@@ -72,10 +72,11 @@ class RFigureSpec:
     frame: Callable[[Mapping[str, Result]], RFrame]
     notes: tuple[str, ...] = ()
     # A parameter naming a file the script reads **directly**, rather than one this toolkit pivots
-    # out of a table. `R_F9_phylogeny_tree.R` is the one case: the tree is the user's own, built
-    # outside this toolkit, so there is no cell to read and nothing to write — only a path to be
-    # named, and a digest to record. Its caption says which file drew the figure.
+    # out of a table. `R_F9_phylogeny_tree.R` is the one case: a tree has no cell to read and
+    # nothing to write, only a path and a digest. Its caption says which file drew the figure.
     source_param: str | None = None
+    # (module, file) a step of the run writes for that parameter, used when the user names no file.
+    source_artifact: tuple[str, str] | None = None
 
     def __post_init__(self) -> None:
         if not self.id or "." in self.id:

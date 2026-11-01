@@ -85,10 +85,10 @@ the run's provenance. Four things are worth knowing:
   therefore a valid script input; joining several runs into one table is the batch path (M11.6),
   not a hidden list in the script. `kaks` and `diversity` take the whole panel, so F6 and F8
   cover every genome in the run;
-* **F9, the tree, reads no table at all.** This toolkit builds no tree, so the figure takes the
-  user's own file — `--set tree=<file.treefile>` — hands it to the script as its input, and never
-  copies it into the run. Its caption carries that file's path and sha256 where the others carry a
-  scope label. No tip is dropped and no outgroup is chosen by default; the script is
+* **F9, the tree, reads no table at all.** A run with `phylogeny` draws the tree that step wrote,
+  with no flag. Any run can draw another one with `--set tree=<file.treefile>`, which wins over the
+  run's own and is never copied into the run. The caption carries the file and its sha256 where
+  the others carry a scope label. No tip is dropped and no outgroup is chosen by default; the script is
   midpoint-rooted unless the run passes `--set outgroup=...` (or `--set root=outgroup` with an
   outgroup, or `--set root=none` to keep the tree's own root). The CLI forwards these choices
   (K-06 was fixed in M11.7). Beside the images the script writes `<tag>_used.treefile` — the tree

@@ -168,6 +168,51 @@ def test_a_tool_error_is_a_named_skip_and_the_other_figures_still_draw(tmp_path:
     assert "r_rscu" in skipped and "missing" in skipped["r_rscu"]
 
 
+def test_a_tool_that_fails_is_told_apart_from_a_table_the_run_does_not_hold(
+    tmp_path: Path,
+) -> None:
+    """A run that lacks a table was never going to draw it; a tool that failed should have."""
+    run_dir = _run_dir(tmp_path)
+
+    def failing(script, input_file, input_dir, out_dir):
+        raise ToolError("rscript:rscu exited 1 (expected [0]): Error: no species column")
+
+    outcome = render_run_rfigures(run_dir, runner=failing)
+    assert dict(outcome.failed).keys() == {"r_rscu"}
+    records = {record.figure_id: record for record in outcome.records}
+    assert records["r_rscu"].status == "failed"
+    assert records["r_kaks"].status == "skipped"
+
+
+def test_a_sample_column_in_another_module_leaves_the_pivot_one_species_wide(
+    tmp_path: Path,
+) -> None:
+    """The file R reads names the species, as it does in a run without `rna_editing`."""
+    run_dir = _run_dir(tmp_path)
+    editing = Result(
+        module="rna_editing",
+        module_version="0.1.0",
+        tables={
+            "rna_editing_summary": Table(
+                id="rna_editing_summary",
+                title="RNA editing",
+                columns=(Column("sample", "Sample"),),
+                rows=({"sample": "NC_050833.1"},),
+                scope=Scope(label="predicted"),
+            )
+        },
+    )
+    editing_dir = run_dir / "10_rna_editing"
+    editing_dir.mkdir()
+    (editing_dir / "result.json").write_text(export_json(editing), encoding="utf-8")
+    calls: list = []
+    outcome = render_run_rfigures(run_dir, runner=_runner(calls), figures=["r_rscu"])
+    assert not outcome.skipped
+    assert calls[0][1].read_text(encoding="utf-8").splitlines()[0] == (
+        "Amino_Acid,Codon,Iris_domestica"
+    )
+
+
 def test_a_table_the_run_does_not_hold_is_named_rather_than_drawn_empty(tmp_path: Path) -> None:
     run_dir = _run_dir(tmp_path)
     calls: list = []
@@ -257,7 +302,7 @@ def test_a_real_run_draws_its_r_figures_with_the_real_engine(
 
 
 def test_the_tree_figure_is_skipped_by_name_until_a_tree_is_named(tmp_path: Path) -> None:
-    """PTS builds no tree, so this one figure has nothing to draw until the user names one."""
+    """A run without `phylogeny` holds no tree, so the figure waits for the user to name one."""
     run_dir = _run_dir(tmp_path)
     calls: list = []
     outcome = render_run_rfigures(run_dir, runner=_runner(calls), figures=["r_tree"])
@@ -288,6 +333,42 @@ def test_the_tree_figure_draws_from_the_users_own_file_and_records_its_digest(
     assert f"sha256 {digest}" in caption and str(tree) in caption
     # no table was read, so there is no scope label to carry — said, not left blank
     assert "no scope label" in caption
+
+
+def _own_tree(run_dir: Path) -> Path:
+    """What a `phylogeny` step leaves in the run."""
+    step = run_dir / "07_phylogeny"
+    step.mkdir()
+    tree = step / "tree.treefile"
+    tree.write_text("((a,b),c);\n", encoding="utf-8")
+    return tree
+
+
+def test_the_tree_figure_draws_the_runs_own_tree_without_being_told(tmp_path: Path) -> None:
+    """`phylogeny` writes a tree into the run, so `--figures` has what the figure needs."""
+    import hashlib
+
+    run_dir = _run_dir(tmp_path)
+    tree = _own_tree(run_dir)
+    calls: list = []
+    outcome = render_run_rfigures(run_dir, runner=_runner(calls), figures=["r_tree"])
+    assert not outcome.skipped and outcome.files
+    assert calls[0][1] == tree
+    caption = (run_dir / "figures" / "r_tree.caption.txt").read_text(encoding="utf-8")
+    digest = hashlib.sha256(tree.read_bytes()).hexdigest()
+    assert f"sha256 {digest}" in caption and "07_phylogeny/tree.treefile" in caption
+
+
+def test_a_tree_the_user_names_wins_over_the_runs_own(tmp_path: Path) -> None:
+    run_dir = _run_dir(tmp_path)
+    _own_tree(run_dir)
+    named = tmp_path / "cay.treefile"
+    named.write_text("((a,c),b);\n", encoding="utf-8")
+    calls: list = []
+    render_run_rfigures(
+        run_dir, runner=_runner(calls), figures=["r_tree"], params={"tree": str(named)}
+    )
+    assert calls[0][1] == named
 
 
 def test_a_tree_path_that_is_not_a_file_is_named(tmp_path: Path) -> None:

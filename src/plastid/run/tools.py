@@ -233,7 +233,8 @@ def run_tool(
         stdout_tail=tail,
     )
     if process.returncode not in expect:
-        detail = tail or (stderr or "").strip()
+        # A tool narrates on stdout and says why it stopped on stderr, so stderr speaks first.
+        detail = "\n".join((stderr or "").strip().splitlines()[-_TAIL_LINES:]) or tail
         raise ToolError(
             f"{name} exited {process.returncode} (expected {list(expect)}): {detail[:300]}"
         )

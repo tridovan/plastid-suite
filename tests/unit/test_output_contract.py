@@ -401,6 +401,9 @@ def test_a_figure_refresh_drops_a_manifest_entry_whose_file_is_gone(
         inputs=[],
         coordinate_system={"name": "genbank", "rotation_offset": 0},
     )
+    # A finished run: a fresh manifest says `running` under this test's own process, and whether
+    # that reads as alive depends on how pytest was started.
+    manifest["status"] = "ok"
     manifest["files"] = [
         {
             "path": "figures/circular_map.svg",
@@ -453,6 +456,9 @@ def test_a_figure_refresh_updates_the_manifest_digest_of_a_rewritten_file(
         inputs=[],
         coordinate_system={"name": "genbank", "rotation_offset": 0},
     )
+    # A finished run: a fresh manifest says `running` under this test's own process, and whether
+    # that reads as alive depends on how pytest was started.
+    manifest["status"] = "ok"
     manifest["files"] = [
         {
             "path": "figures/circular_map.svg",

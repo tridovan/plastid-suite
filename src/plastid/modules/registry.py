@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from plastid.core.model import Genome
@@ -248,6 +249,11 @@ def refused_values(module_ids: Sequence[str], params: dict[str, Any]) -> list[st
     both. A key set through its own flag is refused here when `--set` carries it, because the
     module expects what that flag builds.
     """
+    return value_problems(declared_params(module_ids), params)
+
+
+def declared_params(module_ids: Sequence[str]) -> dict[str, list[ParamSpec]]:
+    """Every parameter these modules read, by name, with the run-wide ones included."""
     declared: dict[str, list[ParamSpec]] = {}
     for module_id in module_ids:
         spec = _REGISTRY.get(module_id)
@@ -255,7 +261,21 @@ def refused_values(module_ids: Sequence[str], params: dict[str, Any]) -> list[st
             continue
         for param in (*spec.params, *SHARED_PARAMS):
             declared.setdefault(param.name, []).append(param)
-    return value_problems(declared, params)
+    return declared
+
+
+def anchored_paths(declared: dict[str, list[ParamSpec]], params: dict[str, Any]) -> dict[str, Any]:
+    """``params`` with every declared file or directory absolute.
+
+    A tool runs in a working directory of its own, so a relative path typed at the prompt names
+    nothing by the time the tool reads it.
+    """
+    anchored = dict(params)
+    for key, value in params.items():
+        kinds = {param.type for param in declared.get(key, ())}
+        if isinstance(value, str) and kinds & {"file", "dir"}:
+            anchored[key] = str(Path(value).expanduser().resolve())
+    return anchored
 
 
 _REGISTRY: dict[str, ModuleSpec] = {}
