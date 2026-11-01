@@ -112,6 +112,48 @@ def test_a_mito_fasta_is_refused_by_name_when_the_path_serves_plastids(tmp_path:
     assert not _artifacts(out)
 
 
+@pytest.mark.parametrize("state", ["absent", "empty"])
+def test_a_reference_set_that_is_not_there_says_how_to_supply_one(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], state: str
+) -> None:
+    """The first thing a fresh install meets: the toolkit ships no plastid records.
+
+    The set is the user's to supply, so the refusal names the flag and the command that fetches
+    one, and it stops before any run exists: no directory was made, so nothing may point to one.
+    """
+    sample = _write(tmp_path, "sample.fa", ">SYN.1\nACGTACGTACGTACGTACGT\n")
+    reference = tmp_path / "reference"
+    if state == "empty":
+        reference.mkdir()
+    out = tmp_path / "runs"
+
+    code = main(["annotate", "-i", str(sample), "--reference", str(reference), "-o", str(out)])
+
+    message = capsys.readouterr().err
+    assert code == 3
+    assert str(reference) in message
+    assert "--reference" in message
+    assert "plastid panel pin" in message
+    assert "run directory" not in message
+    assert not out.exists()
+
+
+def test_an_audit_of_a_reference_set_that_is_not_there_says_the_same(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--audit-only` reads the same directory, so it owes the same answer."""
+    reference = tmp_path / "reference"
+
+    code = main(
+        ["annotate", "--audit-only", "--reference", str(reference), "-o", str(tmp_path / "runs")]
+    )
+
+    message = capsys.readouterr().err
+    assert code == 3
+    assert "--reference" in message
+    assert "plastid panel pin" in message
+
+
 def test_a_batch_that_mixes_two_organelles_stops_before_annotating_any_of_them(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

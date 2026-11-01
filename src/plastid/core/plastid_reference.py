@@ -42,6 +42,7 @@ __all__ = [
     "build_manifest",
     "leave_one_out",
     "load_recorded_manifest",
+    "missing_set",
     "read_manifest",
     "resolve_directory",
     "verify_pin",
@@ -218,6 +219,22 @@ def resolve_directory(given: str | Path | None) -> Path:
         return Path(given)
     recorded = load_recorded_manifest()
     return Path(recorded.directory if recorded is not None else "")
+
+
+def missing_set(directory: Path) -> str | None:
+    """Why ``directory`` cannot serve as a reference set, or ``None`` when it holds records.
+
+    The package carries no plastid records (a plastome set is data, not source), so on a fresh
+    install this is the first thing the annotator answers, and the answer names the way to a set.
+    """
+    if directory.is_dir() and any(directory.glob("*.gb")):
+        return None
+    return (
+        f"no reference set at {directory}: the toolkit ships no plastid records, so annotation "
+        f"transfers from a directory of GenBank records (*.gb) you supply, same family first. "
+        f"Pass it with --reference <directory> (--set reference=<directory> under `plastid "
+        f"run`); `plastid panel pin --accessions A,B,C --out <directory>` fetches and pins one"
+    )
 
 
 def read_manifest(path: str | Path) -> ReferenceSet:

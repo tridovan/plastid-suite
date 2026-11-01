@@ -1,11 +1,9 @@
 # Known correctness and integration issues
 
-These issues were reproduced during the 26 October 2026 review. **K-01 to K-11 are fixed.** Documenting a defect did not fix it, and a fixed entry says which
-test now holds it. **K-07 was found by the M11.8 acceptance run on 28/10/2026 and fixed on the
-same day**; its regression is now a positive test, not an `xfail`. The code version is `1.0.0`;
-that version label does not establish readiness for scientific use. The "observed" columns below
-are the review's before-fix measurements; they are kept as the reproduction record, not as current
-behaviour.
+K-01 to K-06 were reproduced during the 26 October 2026 review, and the later entries were found by
+running the toolkit. **K-01 to K-18 are all fixed.** Documenting a defect did not fix it, and a fixed
+entry says which test now holds it. The "observed" columns below are the before-fix measurements;
+they are kept as the reproduction record, not as current behaviour.
 
 Coordinates below are 0-based half-open unless a GenBank position is explicitly stated. The pinned
 fixture is [NC_050833.1.gb](../tests/data/NC_050833.1.gb); its provenance and checksum are in
@@ -397,6 +395,24 @@ now made absolute where they enter. Held by `test_reads_named_from_where_the_com
 in `tests/unit/test_assembly_step.py` and `tests/unit/test_assembly_hifi.py`, and measured with real
 tools on both routes.
 
+## K-18 — A new install's first `annotate` named a private directory, and two refusals left with the wrong code — **fixed (01/11/2026)**
+
+Found by running the public commands from a wheel in an empty environment, outside the repository.
+`plastid annotate -i sample.fasta`, the README's own example, stopped with
+`.panel/plastid-reference: no GenBank records to describe as 'annotation_db'`, then said each sample's
+run directory named the reason, when no directory had been made. The module had a message that named
+the way to a set, and nothing could reach it once the run described its reference set first.
+`--audit-only` answered differently again. The toolkit ships no plastid records, so a new user always
+met this. The refusal now says so, names `--reference` and `plastid panel pin`, exits 3 and writes
+nothing. The same pass found two codes that disagreed with the README's table: an unknown module
+exited 1 with `KeyError`'s quotes around its message, where 2 is a wrong command line, and `plastid
+assemble prepare` without fastp exited 1, where 3 is a missing tool. Held by
+`test_a_reference_set_that_is_not_there_says_how_to_supply_one` and
+`test_an_audit_of_a_reference_set_that_is_not_there_says_the_same` in
+`tests/unit/test_cli_annotate.py`, `test_a_module_that_does_not_exist_is_a_wrong_command_line` in
+`tests/unit/test_cli_batch.py`, and `test_prepare_without_fastp_exits_as_a_missing_tool` in
+`tests/unit/test_assembly_step.py`.
+
 ## Other current limitations
 
 The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's
@@ -487,8 +503,6 @@ The following require targeted regression/acceptance checks in the next coding s
   must explicitly decide how differences block or qualify downstream work. Normalized DB artifacts
   now carry their own digest and the run records the raw input's digest and the chosen naming
   reference (`tests/golden/test_reference_flow.py`).
-- Alignment coordinates and normalized-reference coordinates in diversity/barcodes still need
-  rotation tests on the panel.
 
 Sources for the observations above: [naming](../src/plastid/modules/gene_normalize.py),
 [group measurements](../src/plastid/modules/stats.py),

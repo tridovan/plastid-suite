@@ -36,6 +36,10 @@ ModuleFn = SingleGenomeFn | MultiGenomeFn
 class UnknownModuleError(KeyError):
     """No module is registered under that id."""
 
+    def __str__(self) -> str:
+        # KeyError prints the repr of its argument, and this message reaches a person.
+        return str(self.args[0])
+
 
 @dataclass(frozen=True, slots=True)
 class ModuleSpec:

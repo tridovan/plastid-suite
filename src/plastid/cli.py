@@ -118,7 +118,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="store_true", help="print the version and exit")
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
-    run_parser = subparsers.add_parser("run", help="run one analysis module on one genome")
+    run_parser = subparsers.add_parser(
+        "run", help="run one or more analysis modules on one genome, or on several to compare"
+    )
     run_parser.add_argument(
         "-m",
         "--module",
@@ -776,7 +778,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             specs.append(registry.get(module_id))
         except registry.UnknownModuleError as error:
             print(str(error), file=sys.stderr)
-            return EXIT_ERROR
+            return EXIT_USAGE
     repeated = sorted({spec.id for spec in specs if [s.id for s in specs].count(spec.id) > 1})
     if repeated:
         print(
@@ -890,7 +892,7 @@ def _cmd_batch(args: argparse.Namespace) -> int:
                 specs.append(spec)
     except registry.UnknownModuleError as error:
         print(str(error), file=sys.stderr)
-        return EXIT_ERROR
+        return EXIT_USAGE
     multi = [spec.id for spec in specs if spec.arity != 1]
     if multi:
         print(
@@ -2486,7 +2488,11 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
         params["exclude"] = exclusions
 
     directory = plastid_reference.resolve_directory(params.get("reference"))
+    missing = plastid_reference.missing_set(directory)
     if args.audit_only:
+        if missing is not None:
+            print(f"annotate: {missing}", file=sys.stderr)
+            return EXIT_TOOL
         return _audit_reference_directory(
             panel=directory,
             out=args.out,
@@ -2556,6 +2562,10 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
             print("annotate: nothing was annotated", file=sys.stderr)
             return EXIT_USAGE
 
+    if samples and missing is not None:
+        print(f"annotate: {missing}", file=sys.stderr)
+        return EXIT_TOOL
+
     for text, genome in samples:
         codes.append(
             _annotate_sample(text=text, genome=genome, spec=spec, params=params, args=args)
@@ -2564,8 +2574,8 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
     failed = [code for code in codes if code != EXIT_OK]
     if failed:
         print(
-            f"annotate: {len(failed)} of {len(codes)} sample(s) failed — each one's run directory "
-            f"names the reason",
+            f"annotate: {len(failed)} of {len(codes)} sample(s) failed — the reason is above, "
+            f"and a sample that reached its run directory records it there",
             file=sys.stderr,
         )
         return failed[0]
@@ -3458,7 +3468,9 @@ def _assemble_prepare(args: argparse.Namespace) -> int:
     )
     try:
         payload = assembly_step.prepare(reads, params, ctx)
-    except (AssemblyError, ToolError, OSError) as error:
+    except ToolError as error:
+        return _fail(manifest, layout, ctx, assembly_step.MODULE_VERSION, str(error), EXIT_TOOL)
+    except (AssemblyError, OSError) as error:
         return _fail(manifest, layout, ctx, assembly_step.MODULE_VERSION, str(error), EXIT_ERROR)
     prepared = ctx.out("prepared", "json")
     prepared.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

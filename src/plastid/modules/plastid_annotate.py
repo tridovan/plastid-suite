@@ -86,7 +86,7 @@ from plastid.core.plastid_caller import (
 from plastid.core.plastid_caller import (
     call_rrna as call_plastid_rrna,
 )
-from plastid.core.plastid_reference import load_recorded_manifest, resolve_directory
+from plastid.core.plastid_reference import load_recorded_manifest, missing_set, resolve_directory
 from plastid.core.submission import to_fasta
 from plastid.external.aragorn import AragornResult, run_aragorn
 from plastid.external.blast import (
@@ -147,12 +147,9 @@ def _reference_directory(params: dict[str, Any], target: str) -> tuple[Path, tup
     """
     manifest = load_recorded_manifest()
     directory = resolve_directory(params.get("reference"))
-    if not directory.is_dir():
-        raise ReferenceSetMissing(
-            f"plastid_annotate: the reference set is not at {directory} — the pinned plastid "
-            f"records live outside the repository (.panel/ is gitignored), so a run is pointed at "
-            f"them with `--set reference=<directory of GenBank records>`"
-        )
+    missing = missing_set(directory)
+    if missing is not None:
+        raise ReferenceSetMissing(f"plastid_annotate: {missing}")
     recorded = manifest is not None and directory.resolve() == Path(manifest.directory).resolve()
     allowed = manifest.references_for(target) if recorded else ()
     return directory, allowed
@@ -178,10 +175,6 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
     """
     directory, allowed = _reference_directory(params, target)
     paths = sorted(directory.glob("*.gb"))
-    if not paths:
-        raise ReferenceSetMissing(
-            f"plastid_annotate: {directory} holds no *.gb records to transfer an annotation from"
-        )
     # A name, or several separated by commas: `--set exclude=A` and `--set exclude=A,B` are the
     # same request, and neither may be read as a set of characters (which is what iterating the
     # string would silently give).

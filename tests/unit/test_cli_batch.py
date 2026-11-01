@@ -122,6 +122,18 @@ def test_duplicate_sample_names_keep_both_accessions(tmp_path: Path, monkeypatch
     assert {sample["accession"] for sample in payload["samples"]} == {"DUP.1"}
 
 
+@pytest.mark.parametrize("command", ["run", "batch"])
+def test_a_module_that_does_not_exist_is_a_wrong_command_line(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], command: str
+) -> None:
+    """Exit 2 is the README's code for a wrong command line; 1 means an analysis failed."""
+    code = main([command, "-m", "no_such_module", "-i", "x.gb", "-o", str(tmp_path / "runs")])
+    message = capsys.readouterr().err
+    assert code == 2
+    assert message.startswith("unknown module 'no_such_module'")
+    assert not (tmp_path / "runs").exists()
+
+
 def test_an_arity_two_module_is_refused_before_anything_runs(tmp_path: Path, monkeypatch) -> None:
     _stub(monkeypatch, arity=2)
     sample = _write(tmp_path, "a.fa", ">ALPHA.1\nACGTACGTACGTACGT\n")

@@ -563,6 +563,17 @@ def test_a_missing_tool_is_named_with_the_route_and_starts_no_run(
     assert not bench.out.exists()
 
 
+def test_prepare_without_fastp_exits_as_a_missing_tool(
+    bench: Bench, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 3 is the README's code for a missing tool, and `prepare` runs fastp on the reads."""
+    _canned_complete(bench.tools)
+    (bench.tools / "fastp").unlink()
+    code = main(["assemble", "prepare", *bench.reads, "-o", str(bench.root / "p"), *bench.sets])
+    assert code == 3
+    assert "fastp not found" in capsys.readouterr().err
+
+
 def test_a_failure_the_assembler_exits_zero_on_is_named_with_the_route(
     bench: Bench, capsys: pytest.CaptureFixture[str]
 ) -> None:
