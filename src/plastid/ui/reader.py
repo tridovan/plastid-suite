@@ -13,7 +13,7 @@ from typing import Any
 
 from plastid.run.state import RunState, read_state
 
-__all__ = ["run_detail", "state_row", "table"]
+__all__ = ["record_of", "run_detail", "state_row", "table"]
 
 _TABLE_ROWS = 500  # rows sent to the page; the file itself holds them all
 _IMAGE_SUFFIXES = (".png", ".svg")
@@ -25,6 +25,7 @@ def state_row(state: RunState) -> dict[str, Any]:
     return {
         "run_id": state.run_id,
         "dataset": state.dataset,
+        "folder": state.run_dir.parent.name,  # the address: a run names itself as it was typed
         "status": state.status,
         "kind": state.kind,
         "done": state.done,
@@ -37,8 +38,9 @@ def state_row(state: RunState) -> dict[str, Any]:
     }
 
 
-def _record(run_dir: Path) -> dict[str, Any]:
-    for name in ("manifest.json", "batch.json"):
+def record_of(run_dir: Path) -> dict[str, Any]:
+    """What a run says about itself. A batch directory holds `batch.json` and no manifest."""
+    for name in ("batch.json", "manifest.json"):
         path = run_dir / name
         if path.is_file():
             return json.loads(path.read_text(encoding="utf-8"))
@@ -112,21 +114,43 @@ def _figures(run_dir: Path, record: dict[str, Any], root: Path) -> dict[str, Any
     }
 
 
+def _sample(entry: dict[str, Any], root: Path) -> dict[str, Any]:
+    """One row of a batch, with the address of its own run when that lies in the workspace."""
+    folder = Path(str(entry.get("run_dir") or ""))
+    inside = folder.is_absolute() and folder.is_relative_to(root) and folder.is_dir()
+    return {
+        "sample_id": entry.get("sample_id"),
+        "species": entry.get("species"),
+        "accession": entry.get("accession"),
+        "status": entry.get("status"),
+        "ir_gate": entry.get("ir_gate"),
+        "error": entry.get("error"),
+        "run": {"dataset": folder.parent.name, "run_id": folder.name} if inside else None,
+    }
+
+
 def run_detail(run_dir: Path, root: Path) -> dict[str, Any]:
     """Everything the run page shows, with paths relative to the workspace."""
     state = read_state(run_dir)
-    record = _record(run_dir)
+    record = record_of(run_dir)
+    aggregate = run_dir / "aggregate.csv"
     return {
         **state_row(state),
         "path": run_dir.relative_to(root).as_posix(),
         "command": record.get("command"),
         "package_version": record.get("package_version"),
-        "inputs": record.get("inputs") or [],
+        # A batch lists its inputs as the paths typed; their digests are in `samples`.
+        "inputs": [
+            {"path": entry} if isinstance(entry, str) else entry
+            for entry in record.get("inputs") or []
+        ],
         "params": record.get("params") or {},
+        "data_label": record.get("data_label"),
         "ir": record.get("ir"),
         "reference_sets": record.get("reference_sets") or [],
         "steps": [_step(run_dir, entry, root) for entry in record.get("modules") or []],
-        "samples": record.get("samples") or [],
+        "samples": [_sample(entry, root) for entry in record.get("samples") or []],
+        "aggregate": aggregate.relative_to(root).as_posix() if aggregate.is_file() else None,
         "figures": _figures(run_dir, record, root),
     }
 

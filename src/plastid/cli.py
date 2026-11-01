@@ -2518,6 +2518,7 @@ def _list_figures(
     results = batch_results if batch_results is not None else _stored_results(run_dir)
     records, _missing = _figure_inventory(run_dir, results, manifest)
     if as_json:
+        specs = {spec.id: spec for spec in (*all_figures(), *all_r_figures())}
         _print_json(
             {
                 "figures": [
@@ -2525,6 +2526,7 @@ def _list_figures(
                         "id": record.figure_id,
                         "renderer": record.renderer,
                         "drawn": bool(record.files),
+                        "can_draw": not specs[record.figure_id].missing(results),
                         "reason": record.reason,
                     }
                     for record in records
@@ -4140,6 +4142,7 @@ def _cmd_tools(args: argparse.Namespace) -> int:
         for tool in spec.optional_tools:
             needed_by.setdefault(tool, []).append(f"{name} (if asked)")
     statuses = check_tools()
+    machine = assembly_step.measure_machine(Path())
     records = [
         {
             **status.as_dict(),
@@ -4151,8 +4154,12 @@ def _cmd_tools(args: argparse.Namespace) -> int:
         for status in statuses
     ]
     if args.json:
-        _print_json({"tools": records})
+        _print_json({"tools": records, "machine": asdict(machine)})
         return EXIT_OK
+    print(
+        f"this machine: {machine.ram_gb:.1f} GB memory, {machine.cores} cores, "
+        f"{machine.disk_free_gb:.1f} GB free here\n"
+    )
     _print_table(
         ("TOOL", "STATUS", "VERSION", "PINNED", "NEEDED BY"),
         [

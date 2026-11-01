@@ -52,3 +52,10 @@ def test_a_tool_only_some_runs_ask_for_is_marked(capsys: pytest.CaptureFixture[s
     assert tools["macse"]["used_by"] == ["phylogeny (if asked)"]
     assert tools["table2asn"]["used_by"] == ["submission (if asked)"]
     assert "phylogeny" in tools["iqtree"]["used_by"]
+
+
+def test_the_report_says_what_this_machine_has(capsys: pytest.CaptureFixture[str]) -> None:
+    """The assembly page plans with these, and they are the numbers the step measures itself."""
+    assert main(["tools", "--json"]) == 0
+    machine = json.loads(capsys.readouterr().out)["machine"]
+    assert machine["ram_gb"] > 0 and machine["cores"] >= 1 and machine["disk_free_gb"] >= 0

@@ -89,6 +89,66 @@ def test_a_run_from_the_prompt_reads_like_any_other(tmp_path: Path, data_dir: Pa
     assert table["scope"] and table["columns"]
 
 
+def test_a_batch_is_found_read_and_cancelled_like_a_run(tmp_path: Path, data_dir: Path) -> None:
+    """A batch writes `batch.json` and one run per sample, all under the same process number."""
+    app = _workspace(tmp_path, data_dir)
+    shutil.copy(data_dir / "NC_024936.1.gb", app.workspace / "records" / "NC_024936.1.gb")
+    form = {
+        "modules": ["genome_stats"],
+        "inputs": ["records/NC_050833.1.gb", "records/NC_024936.1.gb"],
+        "dataset": "many",
+        "one_by_one": True,
+        "sets": {"ir_source": "sequence"},
+    }
+    job = _finished(app, app.start_job({"command": "run", "form": form})["id"])
+    assert job["status"] == "ok" and job["run"]["dataset"] == "many"
+
+    detail = app.run("many", job["run"]["run_id"])
+    assert detail["kind"] == "batch"
+    assert [sample["accession"] for sample in detail["samples"]] == ["NC_050833.1", "NC_024936.1"]
+    assert all(sample["run"]["dataset"] for sample in detail["samples"])
+    assert detail["aggregate"].endswith("aggregate.csv")
+    assert app.table(detail["aggregate"])["total"] > 0
+
+
+def test_a_command_on_a_run_leads_back_to_that_run(tmp_path: Path, data_dir: Path) -> None:
+    """`figures`, `package` and `qc` make no directory, and the job page still needs a way on."""
+    app = _workspace(tmp_path, data_dir)
+    _finished(app, app.start_job({"command": "run", "form": _form()})["id"])
+    run_id = app.runs()["runs"][0]["run_id"]
+    form = {"run": f"runs/same/{run_id}"}
+    job = _finished(app, app.start_job({"command": "qc", "form": form})["id"])
+    assert job["run"] == {"dataset": "same", "run_id": run_id}
+
+
+def test_the_figures_of_a_run_come_from_the_engine(tmp_path: Path, data_dir: Path) -> None:
+    app = _workspace(tmp_path, data_dir)
+    _finished(app, app.start_job({"command": "run", "form": _form()})["id"])
+    run_id = app.runs()["runs"][0]["run_id"]
+    listing = app.figures(f"runs/same/{run_id}")
+    can_draw = {figure["id"]: figure["can_draw"] for figure in listing["figures"]}
+    assert can_draw["r_rscu"] and not can_draw["pi_window"]
+    assert "outgroup" in {option["name"] for option in listing["options"]}
+
+
+def test_a_set_of_references_can_be_listed(tmp_path: Path, data_dir: Path) -> None:
+    app = _workspace(tmp_path, data_dir)
+    shutil.copy(data_dir / "NC_024936.1.gb", app.workspace / "references" / "NC_024936.1.gb")
+    assert [row["name"] for row in app.records("references")["records"]] == ["NC_024936.1.gb"]
+    with pytest.raises(Refused, match="outside the workspace"):
+        app.records("../..")
+
+
+def test_a_run_with_no_dataset_name_can_be_opened(tmp_path: Path, data_dir: Path) -> None:
+    """The name is an accession as written, and its folder is that name in lower case."""
+    app = _workspace(tmp_path, data_dir)
+    form = {"modules": ["genome_stats"], "inputs": ["records/NC_050833.1.gb"]}
+    _finished(app, app.start_job({"command": "run", "form": form})["id"])
+    row = app.runs()["runs"][0]
+    assert row["dataset"] == "NC_050833.1"
+    assert app.run(row["folder"], row["run_id"])["status"] == "ok"
+
+
 def test_a_refused_form_starts_nothing(tmp_path: Path, data_dir: Path) -> None:
     app = _workspace(tmp_path, data_dir)
     with pytest.raises(Refused, match="at least one analysis"):

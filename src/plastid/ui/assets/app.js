@@ -88,7 +88,9 @@ const word = (status) => el('span', { class: `word-${statusOf(status)[1]}` }, st
 const species = (text) => el('em', { class: 'species' }, text);
 const when = (stamp) => (stamp ? stamp.replace('T', ' ').slice(0, 16) : '');
 
+// An answer that arrives late must not paint over the page the person has since moved to.
 function page(active, ...content) {
+  if (active && active !== session.active) return;
   for (const timer of timers) clearInterval(timer);
   timers = [];
   app.replaceChildren(rail(active), el('main', null, ...content));
@@ -220,6 +222,37 @@ function textField(labelText, value, change, note) {
     note ? el('span', { class: 'tiny' }, note) : null);
 }
 
+function checkField(labelText, value, change) {
+  return el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: value, onchange: (event) => change(event.target.checked) }), labelText);
+}
+
+function selectField(labelText, options, value, change) {
+  return el('label', { class: 'field' }, labelText, el('select', { onchange: (event) => change(event.target.value) },
+    options.map((option) => el('option', { value: option, selected: option === value }, option))));
+}
+
+// Comma-separated words in a box, a list in the form.
+function listField(labelText, change, note) {
+  return textField(labelText, '', (value) => change(value.split(',').map((item) => item.trim()).filter(Boolean)), note);
+}
+
+// What most people never change, closed until someone wants it.
+function more(title, ...fields) {
+  return el('details', { class: 'more' }, el('summary', null, title), el('div', { class: 'field-grid' }, ...fields));
+}
+
+// A button that starts a command. What the server refuses is said beside the button.
+function jobButton(command, build, words, kind = 'btn') {
+  const button = el('button', { class: kind, type: 'button', onclick: async () => {
+    if (button.nextElementSibling && button.nextElementSibling.matches('.note-warn')) button.nextElementSibling.remove();
+    try {
+      const job = await post('/api/jobs', { command, form: build() });
+      location.hash = `#/job/${job.id}`;
+    } catch (error) { button.after(fail(error)); }
+  } }, words);
+  return button;
+}
+
 /* The line a form will run, shown beside it, and the button that runs exactly that line. */
 
 function commandBox(command, form) {
@@ -231,8 +264,12 @@ function commandBox(command, form) {
       location.hash = `#/job/${job.id}`;
     } catch (error) { line.textContent = String(error.message); }
   } }, 'Start');
+  let asked = 0;
   const refresh = async (blocked) => {
+    asked += 1;
+    const mine = asked;
     const answer = await post('/api/command', { command, form: form() });
+    if (mine !== asked) return;  // a newer keystroke has its own answer coming
     line.textContent = answer.line || answer.incomplete;
     start.disabled = Boolean(blocked) || !answer.line;
   };
@@ -300,8 +337,8 @@ async function loadTools() {
 function runRow(run) {
   return el('tr', null,
     el('td', null, word(run.status)),
-    el('td', null, el('a', { href: `#/run/${run.dataset}/${run.run_id}` }, run.dataset)),
-    el('td', { class: 'num' }, run.total ? `${run.done} of ${run.total}` : 'figures'),
+    el('td', null, el('a', { href: `#/run/${run.folder}/${run.run_id}` }, run.dataset)),
+    el('td', { class: 'num' }, run.total ? `${run.done} of ${run.total}${run.kind === 'batch' ? ' samples' : ''}` : 'figures'),
     el('td', { class: 'num' }, when(run.started_at)));
 }
 
@@ -452,7 +489,7 @@ async function analysePage() {
   const payload = () => {
     const sets = { ...form.sets };
     if (viaSequence()) sets.ir_source = 'sequence';
-    return { modules: shown().filter((module) => form.on.has(module.id)).map((module) => module.id), inputs, one_by_one: form.mode === 'batch', label: form.label, dataset: form.dataset, figures: form.figures, docx: form.docx, no_cache: form.no_cache, sets };
+    return { modules: shown().filter((module) => form.on.has(module.id)).map((module) => module.id), inputs, one_by_one: form.mode === 'batch', label: form.label, dataset: form.dataset, groups: form.groups, figures: form.figures, docx: form.docx, no_cache: form.no_cache, sets };
   };
   const box = commandBox('run', payload);
   const redraw = () => {
@@ -474,6 +511,10 @@ async function analysePage() {
     parameters.replaceChildren(...(focus ? [
       el('h2', null, focus.title),
       el('p', { class: 'small' }, [focus.genomes.min > 1 ? 'Two genomes or more' : 'One genome', focus.ir_gate ? 'Passes the IR gate first' : 'Does not read IR positions', focus.tools.length ? `Uses ${focus.tools.join(', ')}` : 'No external tool'].join(' · ')),
+      focus.reference_param ? pathField('The record you chose as the naming standard', form.sets[focus.reference_param], (value) => {
+        if (value) form.sets[focus.reference_param] = value; else delete form.sets[focus.reference_param];
+        box.refresh(blockers());
+      }, { start: 'references' }) : null,
       focus.params.length ? el('div', { class: 'field-grid' }, focus.params.filter((param) => !param.flag).map((param) => paramField(param, form.sets, () => box.refresh(blockers()))))
         : el('p', { class: 'small' }, 'This analysis has no parameters.'),
     ] : []));
@@ -515,7 +556,8 @@ async function analysePage() {
             el('div', { class: 'row' }, records.map((record) => el('span', { class: 'note-plain' }, species(record.organism), ' ', el('code', { class: 'small' }, record.accession))), el('a', { href: '#/records' }, inputs.length ? 'Change' : 'Choose records'))),
           el('div', { class: 'field-grid' },
             textField('Where the data came from', form.label, (value) => { form.label = value; box.refresh(blockers()); }, 'Printed with every table.'),
-            textField('Dataset name', form.dataset, (value) => { form.dataset = value; box.refresh(blockers()); }, 'The folder inside runs.')),
+            textField('Dataset name', form.dataset, (value) => { form.dataset = value; box.refresh(blockers()); }, 'The folder inside runs.'),
+            form.mode === 'batch' ? null : pathField('Sample groups (optional)', form.groups, (value) => { form.groups = value; box.refresh(blockers()); }, { start: 'records' })),
           el('div', { class: 'row' }, [['figures', 'Draw figures'], ['docx', 'Word reports']].map(([key, words]) => el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: form[key], onchange: (event) => { form[key] = event.target.checked; box.refresh(blockers()); } }), words)),
             el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: !form.no_cache, onchange: (event) => { form.no_cache = !event.target.checked; box.refresh(blockers()); } }), 'Reuse stored results'))),
         parameters),
@@ -545,10 +587,11 @@ async function jobPage(id) {
     log.textContent = job.output || 'Starting…';
     summary.replaceChildren(
       el('div', null, el('span', null, 'Status'), el('b', null, word(job.status))),
-      run && run.total ? el('div', null, el('span', null, 'Analyses'), el('b', null, `${run.done} of ${run.total}`)) : null,
+      run && run.total ? el('div', null, el('span', null, run.kind === 'batch' ? 'Samples' : 'Analyses'), el('b', null, `${run.done} of ${run.total}`)) : null,
       el('div', { class: 'wide' }, el('span', null, 'Command'), el('b', null, job.line)));
     if (run) {
-      const rows = run.steps.map((step) => el('div', { class: `step-row ${['ok', 'cached'].includes(step.status) ? 'done' : (step.status === 'failed' ? 'failed' : '')}` }, el('i'), step.id, el('small', null, step.status || '')));
+      const parts = run.kind === 'batch' ? run.samples.map((sample) => ({ id: sample.sample_id, status: sample.status })) : run.steps;
+      const rows = parts.map((step) => el('div', { class: `step-row ${['ok', 'cached'].includes(step.status) ? 'done' : (step.status === 'failed' ? 'failed' : '')}` }, el('i'), step.id, el('small', null, step.status || '')));
       if (job.running) rows.push(el('div', { class: 'step-row now' }, el('i'), run.current || 'starting', el('small', null, 'running')));
       steps.replaceChildren(...rows);
     }
@@ -560,7 +603,9 @@ async function jobPage(id) {
       for (const timer of timers) clearInterval(timer);
       head.textContent = statusOf(job.status)[0];
       note.textContent = job.status === 'cancelled' ? 'What had finished stays in the run directory.' : '';
-      if (job.run) actions.replaceChildren(el('a', { class: 'btn go', href: `#/run/${job.run.dataset}/${job.run.run_id}` }, 'Open the results'));
+      actions.replaceChildren(job.run
+        ? el('a', { class: 'btn go', href: `#/run/${job.run.dataset}/${job.run.run_id}` }, 'Open the results')
+        : el('button', { class: 'btn', type: 'button', onclick: () => history.back() }, 'Back'));
     }
   };
   every(1500, refresh);
@@ -594,12 +639,13 @@ async function runsPage() {
 
 function provenance(run) {
   const bits = [];
-  if (run.inputs.length === 1) bits.push(`Read from ${run.inputs[0].path.split('/').pop()} (sha256 ${run.inputs[0].sha256.slice(0, 8)}…).`);
+  if (run.inputs.length === 1) bits.push(`Read from ${run.inputs[0].path.split('/').pop()}${run.inputs[0].sha256 ? ` (sha256 ${run.inputs[0].sha256.slice(0, 8)}…)` : ''}.`);
   else if (run.inputs.length) bits.push(`Read from ${run.inputs.length} records, listed under How this was made.`);
   if (run.ir && run.ir.source) bits.push(`IR read from ${run.ir.annotation_used ? 'the annotation' : 'the sequence'}.`);
-  if (run.params.data_label) bits.push(`Data from ${run.params.data_label}.`);
+  const label = run.params.data_label || run.data_label;
+  if (label) bits.push(`Data from ${label}.`);
   else bits.push('Data source: not labelled.');
-  bits.push(`PlastidToolSuite ${run.package_version}.`);
+  if (run.package_version) bits.push(`PlastidToolSuite ${run.package_version}.`);
   return bits.join(' ');
 }
 
@@ -614,7 +660,7 @@ async function tableView(entry) {
         ? el('td', { class: 'notmeasured' }, 'not measured')
         : el('td', { class: /^-?[0-9][0-9,.]*$/.test(cell) ? 'num' : '' }, cell)))))))),
     notice,
-    el('p', { class: 'small' }, el('b', null, 'Scope. '), table.scope || 'not stated', table.coordinates ? ` | coordinates: ${table.coordinates}` : ''));
+    el('p', { class: 'small' }, el('b', null, 'Scope. '), table.scope || (table.columns.includes('scope') ? 'each row carries its own, in the scope column' : 'not stated'), table.coordinates ? ` | coordinates: ${table.coordinates}` : ''));
 }
 
 function figureCard(figure, label, path, pick, pressed) {
@@ -648,6 +694,22 @@ async function figuresView(run) {
   return [big, grid, absent.length ? el('section', { class: 'card' }, el('h2', null, 'What this run did not draw'), el('ol', { class: 'plan' }, absent)) : null];
 }
 
+function samplesView(run) {
+  return el('section', { class: 'card' }, el('h2', null, 'Samples'),
+    el('p', { class: 'small' }, 'One run each. A failed sample is listed with its reason and adds no number to the table for all.'),
+    el('div', { class: 'table-box' }, el('table', null,
+      el('thead', null, el('tr', null, ['Status', 'Species', 'Accession', 'IR gate', 'Its run'].map((name) => el('th', { scope: 'col' }, name)))),
+      el('tbody', null, run.samples.map((sample) => [
+        el('tr', null,
+          el('td', null, word(sample.status)),
+          el('td', null, species(sample.species)),
+          el('td', { class: 'num' }, sample.accession),
+          el('td', null, sample.ir_gate || 'not measured'),
+          el('td', null, sample.run ? el('a', { href: `#/run/${sample.run.dataset}/${sample.run.run_id}` }, 'Open') : '')),
+        sample.error ? el('tr', null, el('td', { colspan: 5, class: 'small' }, sample.error)) : null,
+      ])))));
+}
+
 // A run's records on the same scale. A record that has left the workspace is simply not drawn.
 async function drawMaps(run, box) {
   const answers = await Promise.all(run.inputs.slice(0, MAPS_SHOWN).map((input) => get('/api/record', { path: input.path }).catch(() => null)));
@@ -662,16 +724,18 @@ async function drawMaps(run, box) {
 
 async function runPage(dataset, runId, open) {
   const run = await get(`/api/run/${dataset}/${runId}`);
-  if (run.status === 'running') { every(3000, () => runPage(dataset, runId, open)); }
   if (!session.modules) session.modules = await get('/api/modules');
   const titled = (id) => (session.modules.modules.find((module) => module.id === id) || { title: id }).title;
   const tables = run.steps.flatMap((step) => step.tables.map((table) => ({ ...table, step: step.id })));
+  const batch = run.kind === 'batch';
+  if (!open && batch) open = 'samples';
   if (!open && !run.steps.length) open = 'figures';
   const body = el('section', { class: 'grow' });
   const nav = el('nav', { class: 'nav-list', 'aria-label': 'Sections of this run' });
   const go = (section) => { location.hash = `#/run/${dataset}/${runId}/${section}`; };
   const entry = (id, title) => el('button', { type: 'button', 'aria-current': String(open === id), onclick: () => go(id) }, title);
   nav.append(...[
+    batch ? el('h3', null, 'This batch') : null, batch ? entry('samples', 'Samples') : null, run.aggregate ? entry('aggregate', 'One table for all') : null,
     run.steps.length ? el('h3', null, 'Analyses') : null, ...run.steps.map((step) => entry(step.id, titled(step.id))),
     el('h3', null, 'This run'), entry('figures', 'Figures'), entry('how', 'How this was made'), entry('files', 'Files'),
   ].filter(Boolean));
@@ -688,7 +752,14 @@ async function runPage(dataset, runId, open) {
     maps, tiles,
     run.status === 'refused' || run.status === 'failed' ? el('div', { class: 'note-warn' }, run.steps.map((step) => step.error).filter(Boolean).join(' ')) : null,
     el('div', { class: 'columns' }, nav, body));
+  if (run.status === 'running') {
+    every(3000, async () => {
+      const fresh = await get(`/api/run/${dataset}/${runId}`);
+      if (fresh.status !== run.status || fresh.done !== run.done) runPage(dataset, runId, open);
+    });
+  }
   drawMaps(run, maps);
+  if (batch) tiles.append(el('button', { class: 'tile', type: 'button', onclick: () => go('samples') }, el('span', null, 'Samples'), el('b', null, `${run.done} of ${run.total}`), el('small', null, 'finished')));
   for (const [file, column, label, noteWords] of HIGHLIGHTS) {
     const table = tables.find((candidate) => candidate.name === file);
     if (!table) continue;
@@ -698,11 +769,13 @@ async function runPage(dataset, runId, open) {
     tiles.append(el('button', { class: 'tile', type: 'button', onclick: () => go(table.step) }, el('span', null, label), el('b', null, data.rows[0][index] || 'not measured'), el('small', null, noteWords)));
   }
   if (open === 'figures') { body.replaceChildren(...(await figuresView(run)).filter(Boolean)); return; }
+  if (open === 'samples') { body.append(samplesView(run)); return; }
+  if (open === 'aggregate') { body.append(await tableView({ path: run.aggregate, name: 'aggregate.csv' })); return; }
   if (open === 'how') {
     body.append(el('section', { class: 'card' }, el('h2', null, 'How this was made'),
       el('p', { class: 'small' }, 'Every tool is recorded with its version, its command line and its exit code.'),
       el('pre', { class: 'command' }, (run.command || []).join(' ')),
-      el('ul', { class: 'small' }, run.inputs.map((input) => el('li', null, input.path, ' ', el('code', null, `sha256 ${input.sha256.slice(0, 16)}…`)))),
+      el('ul', { class: 'small' }, run.inputs.map((input) => el('li', null, input.path, ' ', input.sha256 ? el('code', null, `sha256 ${input.sha256.slice(0, 16)}…`) : null))),
       el('div', { class: 'table-box' }, el('table', null,
         el('thead', null, el('tr', null, ['Step', 'Tool', 'Version', 'Calls', 'Exit'].map((name) => el('th', { scope: 'col' }, name)))),
         el('tbody', null, run.steps.flatMap((step) => [...new Set(step.tools.map((tool) => tool.name))].map((name) => {
@@ -734,39 +807,64 @@ async function runPage(dataset, runId, open) {
 async function exportPage(query) {
   const { runs } = await get('/api/runs');
   const finished = runs.filter((run) => !['running', 'refused'].includes(run.status));
-  const initial = query.get('run') || (finished[0] ? `${finished[0].dataset}/${finished[0].run_id}` : '');
-  const chosen = { run: initial };
-  const runPath = () => `${session.about.runs}/${chosen.run}`;
-  const action = (title, text, command, form, words) => el('div', { class: 'card' }, el('h2', null, title), el('p', { class: 'small' }, text),
-    el('button', { class: 'btn', type: 'button', onclick: async () => {
-      const job = await post('/api/jobs', { command, form: form() });
-      location.hash = `#/job/${job.id}`;
-    } }, words));
-  const junction = { inputs: [], label: '', dataset: 'ir-junction', cpjsdraw: '' };
+  const address = (run) => `${run.folder}/${run.run_id}`;
+  const initial = query.get('run') || (finished[0] ? address(finished[0]) : '');
+  const current = finished.find((run) => address(run) === initial);
+  const runPath = `${session.about.runs}/${initial}`;
+  const action = (title, text, command, words) => el('div', { class: 'card' }, el('h2', null, title), el('p', { class: 'small' }, text),
+    current && current.kind === 'batch'
+      ? el('p', { class: 'small' }, 'This works on one run: open a sample of this batch, then export it.')
+      : jobButton(command, () => ({ run: runPath }), words));
+  const drawing = { figures: [], sets: {} };
+  const drawBox = commandBox('figures', () => ({ run: runPath, figures: drawing.figures, sets: drawing.sets }));
+  const refreshDraw = () => drawBox.refresh(!current);
+  const catalogue = current ? await get('/api/figures', { run: runPath }) : { figures: [], options: [] };
+  const junction = { inputs: [], label: '', dataset: 'ir-junction', cpjsdraw: '', tag: '', width: '', tree: '', order_from: '', drop_pseudo: false };
   const junctionBox = commandBox('ir-junction', () => junction);
+  const refreshJunction = () => junctionBox.refresh();
   const records = (await get('/api/records')).records;
   page('export',
     el('header', { class: 'page-head' },
       el('div', null, el('h1', null, 'Export'), el('p', { class: 'lead' }, 'Build what leaves the toolkit from a finished run. Nothing is computed again.')),
-      el('label', { class: 'field' }, 'Run', el('select', { onchange: (event) => { chosen.run = event.target.value; } },
-        finished.map((run) => el('option', { value: `${run.dataset}/${run.run_id}`, selected: `${run.dataset}/${run.run_id}` === initial }, `${run.dataset}, ${when(run.started_at)}`))))),
+      el('label', { class: 'field' }, 'Run', el('select', { onchange: (event) => { location.hash = `#/export?run=${event.target.value}`; } },
+        finished.map((run) => el('option', { value: address(run), selected: address(run) === initial }, `${run.dataset}, ${when(run.started_at)}`))))),
     el('section', { class: 'grid' },
-      action('Figures', 'Draw every figure the run’s tables can feed. A publication figure comes as PNG and PDF, a quick one as SVG, EPS and PDF.', 'figures', () => ({ run: runPath() }), 'Draw the figures'),
-      action('Supplementary package', 'Tables, figures, reports and an index, in one folder.', 'package', () => ({ run: runPath() }), 'Build the package'),
-      action('Technical QC report', 'What ran, tool versions, inputs, audits and figures.', 'qc', () => ({ run: runPath() }), 'Write the report'),
+      action('Supplementary package', 'Tables, figures, reports and an index, in one folder.', 'package', 'Build the package'),
+      action('Technical QC report', 'What ran, tool versions, inputs, audits and figures.', 'qc', 'Write the report'),
       el('div', { class: 'card' }, el('h2', null, 'NCBI submission'), el('p', { class: 'small' }, 'Write .fsa and .tbl from a checked record. With your .sbt template, table2asn adds a .sqn.'), el('a', { class: 'btn', href: '#/analyse' }, 'Set it up in Analyse'))),
+    el('section', { class: 'card' }, el('h2', null, 'Figures'),
+      el('p', { class: 'small' }, 'Leave every box empty to draw all the run’s tables can feed, or tick the ones to draw again. A publication figure comes as PNG and PDF, a quick one as SVG, EPS and PDF.'),
+      el('ol', { class: 'plan' }, catalogue.figures.filter((figure) => figure.can_draw).map((figure) => el('li', null,
+        el('input', { type: 'checkbox', 'aria-label': figure.id, onchange: (event) => {
+          drawing.figures = event.target.checked ? [...drawing.figures, figure.id] : drawing.figures.filter((id) => id !== figure.id);
+          refreshDraw();
+        } }),
+        el('span', null, figure.id, el('small', null, figure.drawn ? `drawn, ${figure.renderer === 'R' ? 'publication figure' : 'quick figure'}` : figure.reason))))),
+      more('Drawing options', catalogue.options.map((param) => paramField(param, drawing.sets, refreshDraw))),
+      el('details', { class: 'more' }, el('summary', null, 'What this run has no data for'),
+        el('ol', { class: 'plan' }, catalogue.figures.filter((figure) => !figure.can_draw).map((figure) => el('li', null,
+          el('b', { class: 'word-quiet' }, 'No data'), el('span', null, figure.id, el('small', null, figure.reason)))))),
+      drawBox.line, drawBox.start),
     el('section', { class: 'card' }, el('h2', null, 'IR junctions across species'),
       el('p', { class: 'small' }, 'JLB, JSB, JSA and JLA drawn by CPJSdraw from each record’s annotated IR. It gives SVG, PNG and a table of the junctions.'),
       el('div', { class: 'row' }, records.map((record) => el('label', { class: 'check' }, el('input', { type: 'checkbox', onchange: (event) => {
         junction.inputs = event.target.checked ? [...junction.inputs, record.path] : junction.inputs.filter((path) => path !== record.path);
-        junctionBox.refresh();
+        refreshJunction();
       } }), record.name))),
       el('div', { class: 'field-grid' },
-        textField('Where the data came from', '', (value) => { junction.label = value; junctionBox.refresh(); }),
-        pathField('CPJSdraw.pl, when it is not on PATH', '', (value) => { junction.cpjsdraw = value; junctionBox.refresh(); })),
+        textField('Where the data came from', '', (value) => { junction.label = value; refreshJunction(); }),
+        pathField('CPJSdraw.pl, when it is not on PATH', '', (value) => { junction.cpjsdraw = value; refreshJunction(); })),
+      more('Drawing options',
+        textField('Base name of the files', '', (value) => { junction.tag = value; refreshJunction(); }, 'Default: ir_junction'),
+        textField('PNG width, in pixels', '', (value) => { junction.width = value; refreshJunction(); }, 'Default: 3200'),
+        pathField('A tree that sets the species order', '', (value) => { junction.tree = value; refreshJunction(); }),
+        textField('The species on that tree the others are ordered from', '', (value) => { junction.order_from = value; refreshJunction(); }),
+        checkField('Leave pseudogenes out of the figure', false, (value) => { junction.drop_pseudo = value; refreshJunction(); })),
       junctionBox.line, junctionBox.start));
+  drawBox.start.textContent = 'Draw';
   junctionBox.start.textContent = 'Draw the junctions';
-  junctionBox.refresh();
+  refreshDraw();
+  refreshJunction();
 }
 
 /* Annotate --------------------------------------------------------------------------------------- */
@@ -774,7 +872,7 @@ async function exportPage(query) {
 async function annotatePage(query) {
   if (!session.modules) session.modules = await get('/api/modules');
   const module = session.modules.modules.find((item) => item.id === 'plastid_annotate');
-  const form = { inputs: query.get('input') ? [query.get('input')] : [], reference_set: 'references', label: '', dataset: '', sets: {} };
+  const form = { inputs: query.get('input') ? [query.get('input')] : [], reference_set: 'references', exclude: [], label: '', dataset: '', docx: false, no_cache: false, sets: {} };
   const box = commandBox('annotate', () => form);
   const refresh = () => box.refresh();
   page('annotate',
@@ -786,8 +884,11 @@ async function annotatePage(query) {
           textField('Where the data came from', '', (value) => { form.label = value; refresh(); }, 'Printed with every table.'),
           textField('Dataset name', '', (value) => { form.dataset = value; refresh(); }, 'The folder inside runs.')),
         el('section', { class: 'card' }, el('div', { class: 'row between' }, el('h2', null, 'Reference set'), el('a', { href: '#/references' }, 'Manage references')),
-          pathField('Folder of GenBank records', form.reference_set, (value) => { form.reference_set = value; refresh(); }, { start: 'references', folders: true })),
+          pathField('Folder of GenBank records', form.reference_set, (value) => { form.reference_set = value; refresh(); }, { start: 'references', folders: true }),
+          listField('Leave out of the search', (value) => { form.exclude = value; refresh(); }, 'Accessions, comma-separated. The run names what it left out.')),
         el('section', { class: 'card' }, el('h2', null, 'Parameters'),
+          el('div', { class: 'row' }, checkField('Word report', form.docx, (value) => { form.docx = value; refresh(); }),
+            checkField('Reuse stored results', true, (value) => { form.no_cache = !value; refresh(); })),
           el('div', { class: 'field-grid' }, module.params.filter((param) => !param.flag && param.type !== 'dir').map((param) => paramField(param, form.sets, refresh))))),
       el('aside', { class: 'card side' }, el('h2', null, 'The plan'),
         el('p', { class: 'small' }, 'The reference set is audited first: a blocked record stops the run and is named. A record that already carries genes is refused unless you ask to replace them.'),
@@ -799,7 +900,9 @@ async function annotatePage(query) {
 /* Assemble --------------------------------------------------------------------------------------- */
 
 async function assemblePage() {
-  const form = { kind: 'short', where: 'here', reads_1: '', reads_2: '', hifi: '', sample: '', label: '', prepared: '', result: '', source_name: '', retrieved_at: '', source_url: '', compare_to: '' };
+  if (!session.modules) session.modules = await get('/api/modules');
+  const step = session.modules.assembly;
+  const form = { kind: 'short', where: 'here', reads_1: '', reads_2: '', hifi: '', sample: '', label: '', prepared: '', result: '', source_name: '', retrieved_at: '', source_url: '', compare_to: '', skip_resource_check: false, sets: {} };
   const command = () => (form.where === 'here' ? 'assemble run' : (form.where === 'prepare' ? 'assemble prepare' : 'assemble import'));
   const fields = el('section', { class: 'card' });
   const notes = el('div');
@@ -815,16 +918,26 @@ async function assemblePage() {
       ? [pathField('prepared.json', form.prepared, (value) => { form.prepared = value; refresh(); }),
         pathField('Folder of the assembler’s output', form.result, (value) => { form.result = value; refresh(); }, { folders: true }),
         textField('Where it ran', form.source_name, (value) => { form.source_name = value; refresh(); }, 'For example usegalaxy.eu.'),
-        textField('Date retrieved', form.retrieved_at, (value) => { form.retrieved_at = value; refresh(); }, 'YYYY-MM-DD')]
+        textField('Date retrieved', form.retrieved_at, (value) => { form.retrieved_at = value; refresh(); }, 'YYYY-MM-DD'),
+        textField('Link to the run (optional)', form.source_url, (value) => { form.source_url = value; refresh(); })]
       : [...reads, textField('Sample name', form.sample, (value) => { form.sample = value; refresh(); })]),
     textField('Where the reads came from', form.label, (value) => { form.label = value; refresh(); }),
-    pathField('A sequence to compare with (optional)', form.compare_to, (value) => { form.compare_to = value; refresh(); }, { start: 'records' }));
+    form.where === 'prepare' ? null : pathField('A sequence to compare with (optional)', form.compare_to, (value) => { form.compare_to = value; refresh(); }, { start: 'records' }),
+    more('Step parameters', step.params.filter((param) => param.name !== 'data_label').map((param) => paramField(param, form.sets, refresh))),
+    form.where === 'here' ? checkField('Run even if this computer looks too small', form.skip_resource_check, (value) => { form.skip_resource_check = value; refresh(); }) : null);
     const needed = form.kind === 'hifi' ? ['oatk', 'minimap2'] : ['getorganelle', 'fastp', 'minimap2'];
     const missing = session.tools.tools.filter((tool) => needed.includes(tool.name) && tool.status === 'missing').map((tool) => tool.name);
     notes.replaceChildren(...(form.where === 'here' && missing.length ? [el('div', { class: 'note-warn' },
       `${missing.join(', ')} not found. Install them, or run the same assembly elsewhere.`,
       el('button', { class: 'btn way', type: 'button', onclick: () => { form.where = 'prepare'; draw(); } }, 'Prepare to run it elsewhere'))] : []));
+    const machine = session.tools.machine;
+    const needs = (name) => step.params.find((param) => param.name === name).default;
+    const fits = machine.ram_gb >= Number(form.sets.min_ram_gb ?? needs('min_ram_gb'));
     area.replaceChildren(el('h2', null, 'The plan'),
+      form.where === 'here' ? el('ol', { class: 'plan' },
+        el('li', null, el('b', { class: `word-${fits ? 'ok' : 'warn'}` }, 'Memory'), el('span', null, `${machine.ram_gb.toFixed(1)} GB on this computer`, el('small', null, `The step stops below ${form.sets.min_ram_gb ?? needs('min_ram_gb')} GB.`))),
+        el('li', null, el('b', { class: 'word-quiet' }, 'Disk'), el('span', null, `${machine.disk_free_gb.toFixed(1)} GB free`, el('small', null, `The step needs ${form.sets.disk_factor ?? needs('disk_factor')} times the size of the reads, and checks that itself.`))),
+        el('li', null, el('b', { class: 'word-quiet' }, 'Cores'), el('span', null, `${machine.cores} here`, el('small', null, `The tools use ${form.sets.threads ?? needs('threads')}.`)))) : null,
       el('p', { class: 'small' }, form.where === 'here' ? 'The reads are mapped back and every join of the circle is read. A sequence moves on only if the reads cross every join.'
         : (form.where === 'prepare' ? 'Quality check and hashes. Nothing leaves this computer; you run the same tool on the service you choose.'
           : 'The result is checked against the same reads, and the run says where it ran.')),
@@ -848,35 +961,96 @@ async function assemblePage() {
 /* References ------------------------------------------------------------------------------------- */
 
 async function referencesPage() {
-  const form = { taxon: '', target: '', mode: 'all', level: 'family', accessions: '', to: 'references', reference_set: 'references', family: '' };
-  const job = (command, build, words, kind = 'btn') => el('button', { class: kind, type: 'button', onclick: async () => {
-    const started = await post('/api/jobs', { command, form: build() });
-    location.hash = `#/job/${started.id}`;
-  } }, words);
+  if (!session.modules) session.modules = await get('/api/modules');
+  const naming = session.modules.modules.find((module) => module.id === 'gene_normalize');
+  const form = { taxon: '', max_records: '', index: '', target: '', mode: 'tiers', level: 'family', per_tier: '', accessions: '', groups: '', files: [], note: '', to: 'references', reference_set: 'references', family: '', rule: '', exceptions: '', no_confirm: false, confirm_exception: '', confirmed_by: '', reason: '' };
+  const pin = () => ({ ...form, accessions: form.accessions.split(',').map((item) => item.trim()).filter(Boolean) });
+  const audit = () => ({ ...form, confirm_exception: '', confirmed_by: '', reason: '' });
+  const editing = { records: '', reference_file: '', to: 'references/editing_reference.json' };
+
+  const standard = { star: '', records: [], label: '', dataset: '', sets: {} };
+  const starBox = commandBox('run', () => ({
+    modules: [naming.id], inputs: standard.records.map((record) => record.path).filter((path) => path !== standard.star),
+    label: standard.label, dataset: standard.dataset, sets: { ...standard.sets, [naming.reference_param]: standard.star },
+  }));
+  const refreshStar = () => starBox.refresh(!standard.star);
+  const list = el('div', { class: 'picks' });
+  const readSet = async () => {
+    list.replaceChildren(el('p', { class: 'small' }, 'Reading the set…'));
+    const { records } = await get('/api/records', { folder: form.reference_set });
+    standard.records = await Promise.all(records.map((entry) => get('/api/record', { path: entry.path })));
+    standard.star = '';
+    list.replaceChildren(...(standard.records.length ? standard.records.map((record) => el('label', { class: 'check' },
+      el('input', { type: 'radio', name: 'star', onchange: () => { standard.star = record.path; refreshStar(); } }),
+      record.unreadable ? `${record.path}: ${record.unreadable}` : el('span', null, species(record.organism), ' ', el('code', { class: 'small' }, record.accession || ''), ` · ${record.genes.total} genes`)))
+      : [el('p', { class: 'small' }, 'No record in that folder.')]));
+    refreshStar();
+  };
+
   page('references',
     el('header', null, el('h1', null, 'References'), el('p', { class: 'lead' }, 'Find records, read what the audit reports, and choose one as the naming standard. That choice is yours; the toolkit never makes it.')),
     el('section', { class: 'card' }, el('h2', null, '1. Find records'),
-      el('div', { class: 'note-plain' }, 'This is the one place the toolkit goes online, and only when you press the button. It reads a public list from NCBI and sends none of your data.'),
+      el('div', { class: 'note-plain' }, 'This is the one place the toolkit goes online, and only when you press a button that says so. It reads public lists and records from NCBI and sends none of your data.'),
+      el('h3', null, 'The list for a taxon'),
       el('div', { class: 'field-grid' },
         textField('Taxon', '', (value) => { form.taxon = value; }, 'For example Iridaceae.'),
+        textField('Most records to ask for', '', (value) => { form.max_records = value; }, 'Default: 200'),
+        textField('Where the list is kept', '', (value) => { form.index = value; }, 'Default: .panel/index.json')),
+      el('div', { class: 'row' }, jobButton('panel refresh', () => form, 'Ask NCBI for the list')),
+      el('h3', null, 'Candidates for your genome'),
+      el('div', { class: 'field-grid' },
         textField('Your target genome', '', (value) => { form.target = value; }, 'An accession on that list.'),
-        el('label', { class: 'field' }, 'How far to look', el('select', { onchange: (event) => { form.level = event.target.value; } }, ['family', 'species', 'genus', 'order'].map((level) => el('option', { value: level }, level)))),
-        textField('Accessions to fetch', '', (value) => { form.accessions = value; }, 'Comma-separated.')),
-      el('div', { class: 'row' },
-        job('panel refresh', () => form, 'Ask NCBI for the list'),
-        job('panel propose', () => form, 'Propose candidates'),
-        job('panel pin', () => ({ ...form, accessions: form.accessions.split(',').map((item) => item.trim()).filter(Boolean) }), 'Fetch and pin these'))),
+        selectField('How to choose', ['tiers', 'all'], form.mode, (value) => { form.mode = value; }),
+        selectField('How far to look, with all', ['family', 'species', 'genus', 'order'], form.level, (value) => { form.level = value; }),
+        textField('How many from each tier, with tiers', '', (value) => { form.per_tier = value; }, 'Default: 3')),
+      el('div', { class: 'row' }, jobButton('panel propose', () => form, 'Propose candidates')),
+      el('h3', null, 'Fetch and pin'),
+      el('div', { class: 'field-grid' },
+        textField('Accessions to fetch', '', (value) => { form.accessions = value; }, 'Comma-separated.'),
+        pathField('Or a file of sample groups', '', (value) => { form.groups = value; }),
+        pathField('Where the records go', form.to, (value) => { form.to = value; }, { start: 'references', folders: true })),
+      el('div', { class: 'row' }, jobButton('panel pin', pin, 'Fetch and pin these')),
+      more('Pin a record made elsewhere',
+        pathField('The record', '', (value) => { form.files = value ? [value] : []; }),
+        textField('Which service made it, and when', '', (value) => { form.note = value; }, 'For example PMGA web, 2026-10-03.'),
+        jobButton('panel pin', pin, 'Pin this record'))),
     el('section', { class: 'card' }, el('h2', null, '2. Audit a set'),
       pathField('Folder of GenBank records', form.reference_set, (value) => { form.reference_set = value; }, { start: 'references', folders: true }),
       el('p', { class: 'small' }, 'The audit blocks what cannot be used and reports what a person must know. Differences are reported, not repaired.'),
-      el('div', { class: 'row' }, job('reference audit', () => form, 'Audit the set', 'btn go'), job('reference verify', () => form, 'Check the files'),
-        textField('Family, for leave-one-out', '', (value) => { form.family = value; }), job('reference leave-one-out', () => form, 'Write which may annotate which'))),
+      el('div', { class: 'row' }, jobButton('reference audit', audit, 'Audit the set', 'btn go'), jobButton('reference verify', () => form, 'Check the files')),
+      more('Audit options',
+        pathField('The file of pinned exceptions', '', (value) => { form.exceptions = value; }),
+        checkField('Skip the second reading; the report then says not measured', false, (value) => { form.no_confirm = value; })),
+      more('Accept one reported finding',
+        textField('File and check', '', (value) => { form.confirm_exception = value; }, 'FILE:CHECK, as the report writes it. Editing the file voids it.'),
+        textField('Who confirms it', '', (value) => { form.confirmed_by = value; }),
+        textField('Why it is accepted', '', (value) => { form.reason = value; }),
+        jobButton('reference audit', () => form, 'Pin this exception')),
+      more('Which record may annotate which',
+        textField('The family the set was chosen at', '', (value) => { form.family = value; }, 'For example Iridaceae.'),
+        textField('The sentence it was chosen by', '', (value) => { form.rule = value; }, 'Default: same family first'),
+        pathField('Where to write it', '', (value) => { form.to_set = value; }),
+        jobButton('reference leave-one-out', () => ({ ...form, to: form.to_set }), 'Write it, each record left out of its own set'))),
     el('section', { class: 'card' }, el('h2', null, '3. Choose the naming standard'),
-      el('p', { class: 'small' }, 'Run gene_normalize from Analyse with the records of the set, and name the record you choose in its naming_reference field. Unifying writes a new set with its own checksum.'),
-      el('a', { class: 'btn', href: '#/analyse' }, 'Open Analyse')),
+      el('p', { class: 'small' }, 'Every other record of the set is named after the one you mark here. Unifying writes a new set with its own checksum. Read the audit first: the record you choose is audited again, and one that cannot be used stops the run.'),
+      el('div', { class: 'row' }, el('button', { class: 'btn', type: 'button', onclick: () => readSet().catch((error) => list.replaceChildren(fail(error))) }, 'Read the set above')),
+      list,
+      el('div', { class: 'field-grid' },
+        textField('Where the data came from', '', (value) => { standard.label = value; refreshStar(); }, 'Printed with every table.'),
+        textField('Dataset name', '', (value) => { standard.dataset = value; refreshStar(); }, 'The folder inside runs.'),
+        naming.params.filter((param) => ['mode', 'on_conflict'].includes(param.name)).map((param) => paramField(param, standard.sets, refreshStar))),
+      starBox.line, starBox.start),
     el('section', { class: 'card' }, el('h2', null, 'The reference behind RNA-editing predictions'),
       el('p', { class: 'small' }, 'A rebuild of the PREP-Cp training reference from seven pinned records. It is not the original PREP-Cp reference, and the results say so.'),
-      el('div', { class: 'row' }, job('editing-reference verify', () => ({}), 'Verify it', 'btn go'), job('editing-reference build', () => ({ to: 'references/editing_reference.json' }), 'Rebuild it'))));
+      el('div', { class: 'row' },
+        jobButton('editing-reference verify', () => ({ reference_file: editing.reference_file, records: editing.records }), 'Verify it', 'btn go'),
+        jobButton('editing-reference build', () => editing, 'Rebuild it')),
+      more('Which files',
+        pathField('Folder of the seven pinned records', '', (value) => { editing.records = value; }, { folders: true }),
+        pathField('A reference file to verify', '', (value) => { editing.reference_file = value; }),
+        textField('Where a rebuild is written', editing.to, (value) => { editing.to = value; }))));
+  starBox.start.textContent = 'Unify the names';
+  refreshStar();
 }
 
 /* Tools ------------------------------------------------------------------------------------------ */
@@ -897,6 +1071,8 @@ async function toolsPage() {
     el('header', { class: 'page-head' },
       el('div', null, el('h1', null, 'Tools'), el('p', { class: 'lead' }, 'Version is part of a result, so each tool is checked against the version the toolkit’s numbers were measured with. A different build is reported, never used quietly.')),
       el('button', { class: 'btn', type: 'button', onclick: async () => { session.tools = await post('/api/tools/refresh'); toolsPage(); } }, 'Check again')),
+    el('p', { class: 'small' }, `This computer: ${tools.machine.ram_gb.toFixed(1)} GB memory, ${tools.machine.cores} cores, ${tools.machine.disk_free_gb.toFixed(1)} GB free in your folder.`),
+    el('p', { class: 'small' }, 'A tool kept somewhere else can be named on the analysis that uses it: its parameters have a field for the tool. “If asked” means only a chosen option needs that tool.'),
     el('div', { class: 'table-box' }, el('table', null,
       el('thead', null, el('tr', null, ['Tool', 'Status', 'Found', 'Pinned', 'Needed by'].map((name) => el('th', { scope: 'col' }, name)))), body)));
   redraw(tools);
@@ -911,6 +1087,7 @@ async function route() {
   try {
     if (!session.about) session.about = await get('/api/app');
     const [name, ...rest] = parts;
+    session.active = { job: 'runs', run: 'runs' }[name] || (session.about.pages.includes(name) ? name : 'start');
     if (name === 'records') await recordsPage();
     else if (name === 'analyse') await analysePage();
     else if (name === 'job') await jobPage(rest[0]);

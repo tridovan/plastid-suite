@@ -33,6 +33,7 @@ _TEXT_LIMIT = 200_000  # characters sent to the page; the file itself holds them
 _LOG_TAIL = 4_000  # characters of a command's output kept on the run page
 _PREVIEW_WIDTH = 1600  # px; an R figure's PNG can be 20,000 px wide
 _SEEN_LIMIT_S = 5  # a run started this close to a command is that command's run
+_ON_A_RUN = ("figures", "package", "qc")  # commands that write into a run, not a new directory
 
 
 class NotFound(LookupError):
@@ -133,18 +134,16 @@ class App:
 
     # Records ---------------------------------------------------------------------------------
 
-    def _record_files(self) -> list[Path]:
-        found = []
-        for path in sorted((self.workspace / "records").rglob("*")):
-            if path.is_file() and path.suffix.lower() in RECORD_SUFFIXES:
-                found.append(path)
-        return found
-
-    def records(self) -> dict[str, Any]:
+    def records(self, folder: str = "records") -> dict[str, Any]:
+        """The records under one folder of the workspace, for its list or a reference set."""
+        base = self._inside(folder)
+        if not base.is_dir():
+            raise NotFound(f"no folder {folder}")
         return {
             "records": [
                 {"path": self.relative(path), "name": path.name, "bytes": path.stat().st_size}
-                for path in self._record_files()
+                for path in sorted(base.rglob("*"))
+                if path.is_file() and path.suffix.lower() in RECORD_SUFFIXES
             ]
         }
 
@@ -201,11 +200,22 @@ class App:
         state = read_state(folder)
         if state.status != "running":
             raise Refused(f"that run is {state.status}, not running")
-        pid = json.loads((folder / "manifest.json").read_text(encoding="utf-8")).get("pid")
+        pid = reader.record_of(folder).get("pid")
         if not isinstance(pid, int):
             raise Refused("that run does not name its process")
         os.kill(pid, signal.SIGTERM)
         return {"asked": True}
+
+    def figures(self, run: str) -> Any:
+        """What a run can draw, why not, and the drawing options: the engine's own list."""
+        folder = self._inside(run)
+        if not folder.is_dir():
+            raise NotFound(f"no run {run}")
+        return json.loads(
+            plastid_output(
+                ("figures", self.relative(folder), "--list", "--json"), cwd=self.workspace
+            )
+        )
 
     def table(self, path: str) -> dict[str, Any]:
         return reader.table(self.readable(path))
@@ -277,18 +287,25 @@ class App:
         return self._job_view(job)
 
     def _job_run(self, job: _Job) -> dict[str, str] | None:
-        """The run directory this command made, found by the process number it recorded."""
+        """The run this command made or worked on.
+
+        A new run is found by the process number it recorded. A batch comes first, because each
+        of its samples is a run under the same process.
+        """
+        if job.argv[0] in _ON_A_RUN:
+            return dict(zip(("dataset", "run_id"), Path(job.argv[1]).parts[-2:], strict=True))
         if not self.runs_dir.is_dir():
             return None
-        for manifest in self.runs_dir.glob("*/*/manifest.json"):
-            if manifest.stat().st_mtime < job.started - _SEEN_LIMIT_S:
-                continue
-            try:
-                record = json.loads(manifest.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                continue
-            if record.get("pid") == job.process.pid:
-                return {"dataset": manifest.parent.parent.name, "run_id": manifest.parent.name}
+        for name in ("batch.json", "manifest.json"):
+            for path in self.runs_dir.glob(f"*/*/{name}"):
+                if path.stat().st_mtime < job.started - _SEEN_LIMIT_S:
+                    continue
+                try:
+                    record = json.loads(path.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if record.get("pid") == job.process.pid:
+                    return {"dataset": path.parent.parent.name, "run_id": path.parent.name}
         return None
 
     def _job_view(self, job: _Job) -> dict[str, Any]:

@@ -99,6 +99,7 @@ def assemble_run(form: Form) -> list[str]:
     _reads(args, form)
     _destination(args, form)
     _value(args, "--compare-to", form.get("compare_to"))
+    _switch(args, "--skip-resource-check", form.get("skip_resource_check"))
     _sets(args, form)
     return args
 
@@ -145,6 +146,8 @@ def panel_pin(form: Form) -> list[str]:
     _value(args, "--index", form.get("index"))
     if form.get("files"):
         _each(args, "--file", form["files"])
+    elif form.get("groups"):
+        _value(args, "--groups", form["groups"])
     else:
         args += [
             "--accessions",
@@ -165,6 +168,12 @@ def reference_audit(form: Form) -> list[str]:
     args = ["reference", "audit"]
     _value(args, "--reference-set", _needs(form, "reference_set", "choose a reference set"))
     _value(args, "-o", form.get("out"))
+    _value(args, "--exceptions", form.get("exceptions"))
+    _switch(args, "--no-confirm", form.get("no_confirm"))
+    if form.get("confirm_exception"):
+        _value(args, "--confirm-exception", form["confirm_exception"])
+        _value(args, "--confirmed-by", _needs(form, "confirmed_by", "say who confirms it"))
+        _value(args, "--reason", _needs(form, "reason", "say why the finding is accepted"))
     return args
 
 
@@ -186,7 +195,10 @@ def editing_reference_build(form: Form) -> list[str]:
 
 
 def editing_reference_verify(form: Form) -> list[str]:
-    return ["editing-reference", "verify"]
+    args = ["editing-reference", "verify"]
+    _value(args, "--reference-file", form.get("reference_file"))
+    _value(args, "--records", form.get("records"))
+    return args
 
 
 def figures(form: Form) -> list[str]:
@@ -208,6 +220,7 @@ def ir_junction(form: Form) -> list[str]:
     args = ["ir-junction"]
     _each(args, "-i", _needs(form, "inputs", "choose the annotated records"))
     _destination(args, form)
+    _value(args, "--tag", form.get("tag"))
     _value(args, "--width", form.get("width"))
     _value(args, "--tree", form.get("tree"))
     _value(args, "--order-from", form.get("order_from"))

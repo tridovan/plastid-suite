@@ -99,6 +99,7 @@ def _routes(app: App) -> list[tuple[str, re.Pattern[str], Route]]:
         ("GET", r"/api/runs", app.runs),
         ("GET", r"/api/run/(?P<dataset>[^/]+)/(?P<run_id>[^/]+)", app.run),
         ("POST", r"/api/run/(?P<dataset>[^/]+)/(?P<run_id>[^/]+)/cancel", app.cancel_run),
+        ("GET", r"/api/figures", app.figures),
         ("GET", r"/api/table", app.table),
         ("GET", r"/api/text", app.text),
         ("POST", r"/api/command", app.command),
