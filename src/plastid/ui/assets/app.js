@@ -19,6 +19,7 @@ const ROUTE = [
   ['export', 'Export', 'package, submission'],
 ];
 const MAPS_SHOWN = 6;  // a run of 34 genomes is not read as 34 strips
+const ROWS_SHOWN = 25;  // a table of 150 windows stays one click away, and the next table in sight
 // The order a person reads analyses in: the genome first, its parts next, comparisons by question.
 const ORDER = ['structure', 'genome_stats', 'gene_table', 'introns', 'orf', 'codon_usage', 'amino_acid',
   'ssr', 'repeats', 'rna_editing', 'submission', 'diversity', 'substitutions', 'barcodes', 'kaks', 'popgen',
@@ -654,14 +655,17 @@ function provenance(run) {
 async function tableView(entry) {
   const table = await get('/api/table', { path: entry.path });
   const notice = table.total > table.rows.length ? el('p', { class: 'tiny' }, `Showing ${table.rows.length} of ${number(table.total)} rows. The file holds them all.`) : null;
+  const body = el('tbody');
+  const fill = (rows) => body.replaceChildren(...rows.map((row) => el('tr', null, row.map((cell) => (cell === ''
+    ? el('td', { class: 'notmeasured' }, 'not measured')
+    : el('td', { class: /^-?[0-9][0-9,.]*$/.test(cell) ? 'num' : '' }, cell))))));
+  fill(table.rows.slice(0, ROWS_SHOWN));
+  const all = table.rows.length > ROWS_SHOWN ? el('button', { class: 'link', type: 'button', onclick: () => { fill(table.rows); all.remove(); } }, `Show all ${number(table.rows.length)} rows`) : null;
   return el('div', { class: 'card' },
     el('div', { class: 'row between' }, el('h3', null, table.title || entry.name), el('a', { href: `/api/file?${new URLSearchParams({ path: entry.path, download: 1 })}` }, 'CSV')),
     el('div', { class: 'table-box' }, el('table', null,
-      el('thead', null, el('tr', null, table.columns.map((column) => el('th', { scope: 'col' }, column)))),
-      el('tbody', null, table.rows.map((row) => el('tr', null, row.map((cell) => (cell === ''
-        ? el('td', { class: 'notmeasured' }, 'not measured')
-        : el('td', { class: /^-?[0-9][0-9,.]*$/.test(cell) ? 'num' : '' }, cell)))))))),
-    notice,
+      el('thead', null, el('tr', null, table.columns.map((column) => el('th', { scope: 'col' }, column)))), body)),
+    all, notice,
     el('p', { class: 'small' }, el('b', null, 'Scope. '), table.scope || (table.columns.includes('scope') ? 'each row carries its own, in the scope column' : 'not stated'), table.coordinates ? ` | coordinates: ${table.coordinates}` : ''));
 }
 
