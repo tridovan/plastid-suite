@@ -1,7 +1,7 @@
 # Known correctness and integration issues
 
 K-01 to K-06 were reproduced during the 26 October 2026 review, and the later entries were found by
-running the toolkit. **K-01 to K-29 are all fixed.** Documenting a defect did not fix it, and a fixed
+running the toolkit. **K-01 to K-30 are all fixed.** Documenting a defect did not fix it, and a fixed
 entry says which test now holds it. The "observed" columns below are the before-fix measurements;
 they are kept as the reproduction record, not as current behaviour.
 
@@ -543,6 +543,16 @@ had not failed, and a person reading the record would look for the fault in the 
 **Fix.** The analyses keep their record, and the error goes in the run's `figures` section, with exit 3
 as before. `plastid tools --json` now says which optional parts are installed, so a form does not
 offer what would stop the run. Regression: `tests/unit/test_figure_failures.py`.
+
+## K-30 — An IR-junction run did not record its tools — **fixed (01/11/2026)**
+
+**Symptom.** `plastid ir-junction` ran CPJSdraw and `rsvg-convert` through `run_tool()`, which kept their
+logs, but the run's manifest listed no step and no tool, and `run_info.md` was not written. Nothing in
+the record said which build drew the figure, and the interface's "How this was made" came up empty.
+
+**Fix.** The run closes with one step, `ir_junction`, holding the tools with their versions, and what
+stopped them when one did. Regression: `tests/unit/test_junction_command.py`; the part that reads the
+tools needs a patched CPJSdraw, so it is tier B.
 
 ## Other current limitations
 

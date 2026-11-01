@@ -2200,7 +2200,22 @@ def _cmd_ir_junction(args: argparse.Namespace) -> int:
 
     # The drawing is wired here rather than in `run/junction.py`: the `run` layer may not import
     # `external/`, and this is where every other non-module step that calls a tool is wired.
-    from plastid.external.cpjsdraw import run_cpjsdraw, svg_to_png
+    from plastid.external.cpjsdraw import CPJSDRAW_VERSION, run_cpjsdraw, svg_to_png
+
+    def closed(status: str, code: int, error: str = "") -> int:
+        """End the run with its one step: which tools ran, and what stopped them if one did."""
+        step: dict[str, Any] = {
+            "id": "ir_junction",
+            "version": CPJSDRAW_VERSION,
+            "status": status,
+            "tools": [asdict(record) for record in ctx.tools],
+            "files": [entry["path"] for entry in manifest["files"]],
+        }
+        if error:
+            step["error"] = error
+        manifest["modules"].append(step)
+        manifest["status"] = exit_state(code).status
+        return _finish(manifest, layout, ctx, CPJSDRAW_VERSION, code)
 
     figures = layout.figures_dir
     figures.mkdir(parents=True, exist_ok=True)
@@ -2220,20 +2235,16 @@ def _cmd_ir_junction(args: argparse.Namespace) -> int:
         png = svg_to_png(ctx, svg, figures / f"{args.tag}.png", width=args.width)
     except RunCancelled:
         print(f"cancelled — what had finished is in {layout.run_dir}", file=sys.stderr)
-        _finish_manifest(manifest, manifest_path, EXIT_CANCELLED)
-        return EXIT_CANCELLED
+        return closed("cancelled", EXIT_CANCELLED)
     except ToolError as error:
         print(str(error), file=sys.stderr)
-        _finish_manifest(manifest, manifest_path, EXIT_TOOL)
-        return EXIT_TOOL
+        return closed("failed", EXIT_TOOL, str(error))
     except JunctionError as error:
         print(f"cannot draw the junction figure: {error}", file=sys.stderr)
-        _finish_manifest(manifest, manifest_path, EXIT_USAGE)
-        return EXIT_USAGE
+        return closed("failed", EXIT_USAGE, str(error))
     except (OSError, ValueError) as error:
         print(f"cannot draw the junction figure: {error}", file=sys.stderr)
-        _finish_manifest(manifest, manifest_path, EXIT_ERROR)
-        return EXIT_ERROR
+        return closed("failed", EXIT_ERROR, str(error))
 
     for path in (config, table, svg, png):
         relative = path.relative_to(layout.run_dir).as_posix()
@@ -2249,16 +2260,7 @@ def _cmd_ir_junction(args: argparse.Namespace) -> int:
     for row in rows:
         if row.warning:
             print(f"warning: {row.warning}", file=sys.stderr)
-    _finish_manifest(manifest, manifest_path, EXIT_OK)
-    return EXIT_OK
-
-
-def _finish_manifest(manifest: dict[str, Any], path: Path, code: int) -> None:
-    """Close a manifest — a run that failed still says what it was and what it wrote."""
-    manifest["status"] = exit_state(code).status
-    manifest["exit_code"] = code
-    manifest["finished_at"] = datetime.now().isoformat(timespec="seconds")
-    write_manifest(path, manifest)
+    return closed("ok", EXIT_OK)
 
 
 def _junction_order(

@@ -7,6 +7,7 @@ one test that draws a real figure is ``tier_b`` and skips with a named reason.
 
 from __future__ import annotations
 
+import json
 import os
 import random
 from pathlib import Path
@@ -148,6 +149,10 @@ def test_the_command_stops_naming_a_missing_cpjsdraw(tmp_path: Path) -> None:
         ]
     )
     assert code == EXIT_TOOL
+    manifest = json.loads(next((tmp_path / "runs").glob("*/*/manifest.json")).read_text("utf-8"))
+    step = manifest["modules"][0]
+    assert (step["id"], step["status"]) == ("ir_junction", "failed")
+    assert "not-a-tool.pl" in step["error"]
 
 
 def test_the_command_refuses_a_record_it_cannot_cut_into_four_regions(tmp_path: Path) -> None:
@@ -187,3 +192,9 @@ def test_a_real_run_draws_the_figure(tmp_path: Path, data_dir: Path) -> None:
     table = (figures / "ir_junction.csv").read_text(encoding="utf-8")
     assert "NC_050833" in table and "passed" in table
     assert read_genbank(record).accession == "NC_050833.1"
+    # Every tool is recorded with its version: the figure is only as traceable as this list.
+    manifest = json.loads(next(out.glob("*/*/manifest.json")).read_text(encoding="utf-8"))
+    [step] = manifest["modules"]
+    assert (step["id"], step["status"]) == ("ir_junction", "ok")
+    assert [tool["name"] for tool in step["tools"]] == ["cpjsdraw", "rsvg-convert"]
+    assert step["tools"][0]["version"] == "0.0.1"
