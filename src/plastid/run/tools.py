@@ -20,7 +20,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-__all__ = ["RunCancelled", "ToolError", "ToolRecord", "run_tool", "tool_version", "which"]
+__all__ = [
+    "RunCancelled",
+    "ToolError",
+    "ToolRecord",
+    "plastid_output",
+    "run_tool",
+    "start_plastid",
+    "tool_version",
+    "which",
+]
 
 # Flags tried in order. ``-version`` was added 03/10/2026 after measuring BLAST+: it accepts only
 # the single-dash spelling and exits 1 for ``--version``, ``-v`` and ``-V`` — so the version of the
@@ -239,6 +248,39 @@ def run_tool(
             f"{name} exited {process.returncode} (expected {list(expect)}): {detail[:300]}"
         )
     return record
+
+
+def start_plastid(
+    args: Sequence[str], *, cwd: str | Path, log: str | Path
+) -> subprocess.Popen[bytes]:
+    """Start the toolkit's own command line in a session of its own, and return at once.
+
+    The interface does its work through this, so a run started there is the run the same line
+    makes at a prompt. The session is its own so that closing the interface leaves the work going.
+    """
+    with open(log, "wb") as output:
+        return subprocess.Popen(
+            # Unbuffered, so the page can show each step as it is reached.
+            [sys.executable, "-u", "-m", "plastid", *args],
+            cwd=str(cwd),
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+
+
+def plastid_output(args: Sequence[str], *, cwd: str | Path) -> str:
+    """What the toolkit's command line prints, for the lists a program reads (`--json`)."""
+    finished = subprocess.run(
+        [sys.executable, "-m", "plastid", *args],
+        cwd=str(cwd),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if finished.returncode != 0:
+        raise ToolError(f"plastid {' '.join(args)} exited {finished.returncode}: {finished.stderr}")
+    return finished.stdout
 
 
 def python_self() -> str:

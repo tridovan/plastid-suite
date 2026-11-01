@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import signal
 import sys
 import threading
@@ -27,7 +28,7 @@ from plastid.core import organelle, plastid_reference, reference_audit
 from plastid.core.assembly import AssemblyError
 from plastid.core.codon import UnsupportedTranslationError
 from plastid.core.deps import ExportDependencyError
-from plastid.core.genbank import read_fasta, read_genbank
+from plastid.core.genbank import read_fasta, read_genbank, read_record
 from plastid.core.gene_names import (
     NamingConflictError,
     RecordedReference,
@@ -102,6 +103,7 @@ from plastid.run.runner import (
 )
 from plastid.run.state import EXIT_STATES, exit_state, list_runs, read_state
 from plastid.run.tools import RunCancelled, ToolError, tool_version, which
+from plastid.ui.catalogue import DEFAULT_PORT, LOOPBACK
 
 EXIT_OK = 0
 EXIT_ERROR = 1
@@ -187,6 +189,30 @@ def build_parser() -> argparse.ArgumentParser:
     runs_parser = subparsers.add_parser("runs", help="list the runs in a directory, newest first")
     runs_parser.add_argument("root", nargs="?", metavar="DIR", help="default: .runs")
     runs_parser.add_argument("--json", action="store_true", help=_JSON_HELP)
+
+    ui_parser = subparsers.add_parser(
+        "ui", help="open the local interface in a browser; nothing leaves this computer"
+    )
+    ui_parser.add_argument(
+        "--workspace",
+        default=".",
+        metavar="DIR",
+        help="the folder the interface works in: records, reads, references and runs live there",
+    )
+    ui_parser.add_argument(
+        "--port",
+        type=int,
+        default=DEFAULT_PORT,
+        help="port on this computer; a busy port stops the command, it never moves to another",
+    )
+    ui_parser.add_argument(
+        "--host",
+        default=LOOPBACK,
+        help="address to listen on; anything but 127.0.0.1 is refused outside the Docker image",
+    )
+    ui_parser.add_argument(
+        "--no-browser", action="store_true", help="print the link and do not open a browser"
+    )
 
     run_parser = subparsers.add_parser(
         "run", help="run one or more analysis modules on one genome, or on several to compare"
@@ -1269,21 +1295,7 @@ def _resolve_recorded_reference(recorded: RecordedReference) -> Path:
 
 
 def _read_input(path: str) -> Genome:
-    """One input file as a genome — GenBank or FASTA, decided by the file's own first line.
-
-    A sample that has just come off an assembler is a bare sequence, and annotating it is exactly
-    what ``plastid annotate`` is for, so ``plastid run`` has to accept one (P4a-04). The
-    choice is made on content rather than on the suffix: ``.fa``, ``.fasta``, ``.fna`` and ``.fas``
-    all occur in the wild, and a sequencing facility's file naming is not ours to require.
-
-    An empty file is refused here rather than by whichever reader happens to be picked — the
-    GenBank reader's own message ("no GenBank records found") would name the wrong format.
-    """
-    with open(path, encoding="utf-8", errors="replace") as handle:
-        for line in handle:
-            if line.strip():
-                return read_fasta(path) if line.lstrip().startswith(">") else read_genbank(path)
-    raise ValueError(f"{path}: empty file")
+    return read_record(path)
 
 
 def _ir_manifest_fields(ir: IRResult, *, requested_source: str = "annotation") -> dict:
@@ -4233,6 +4245,50 @@ def _subcommands(parser: argparse.ArgumentParser) -> dict[str, argparse.Argument
     return dict(found[0].choices) if found else {}
 
 
+def _cmd_ui(args: argparse.Namespace) -> int:
+    """Serve the local interface until stopped. Work it started carries on without it."""
+    import webbrowser
+
+    from plastid.ui.app import App
+    from plastid.ui.server import PortBusy, Session, serve
+
+    if args.host != LOOPBACK and not os.environ.get("PLASTID_IN_CONTAINER"):
+        print(
+            f"--host: the interface listens on {LOOPBACK} only; another address is for the "
+            "Docker image, which publishes the port to this computer alone",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    workspace = Path(args.workspace)
+    if not workspace.is_dir():
+        print(f"--workspace: {workspace} is not a folder", file=sys.stderr)
+        return EXIT_USAGE
+    token = os.environ.get("PLASTID_UI_TOKEN")
+    session = Session(args.port, token) if token else Session(args.port)
+    try:
+        server = serve(App(workspace, version=__version__), session, host=args.host)
+    except PortBusy:
+        print(
+            f"port {args.port} is in use: stop what holds it, or choose another with --port",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
+    print(f"PlastidToolSuite is open at {session.link()}", flush=True)
+    print(
+        "Keep this window open while you work. Ctrl-C closes it; runs already started go on.",
+        flush=True,
+    )
+    if not args.no_browser:
+        webbrowser.open(session.link())
+    try:
+        server.serve_forever()
+    except (KeyboardInterrupt, RunCancelled):
+        print("closed")
+    finally:
+        server.server_close()
+    return EXIT_OK
+
+
 def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     if args.version:
         print(f"plastid {__version__}")
@@ -4246,6 +4302,9 @@ def _dispatch(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     if actions and args.action is None:
         print(f"{args.command}: choose an action — {' | '.join(actions)}", file=sys.stderr)
         return EXIT_USAGE
+
+    if args.command == "ui":
+        return _cmd_ui(args)
 
     if args.command == "modules":
         return _cmd_modules(args)

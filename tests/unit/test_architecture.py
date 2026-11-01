@@ -9,6 +9,7 @@ Each layer may import itself plus everything to its left:
     external/ -> core, result, run
     modules/  -> core, result, run, external, and modules.registry ONLY
                  (a module never imports another module)
+    ui/       -> core, result, run (it starts `plastid` for the work, so it needs no module)
     cli.py, __main__.py, __init__.py -> exempt (process entry points)
 
 A violation fails the build, so the dependency graph stays a DAG while ~20
@@ -26,11 +27,13 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "plastid"
 # Third-party top-level imports allowed inside the package (besides the stdlib).
 #
 # ``docx`` and ``lxml`` are the optional Word-export extra (D2-04), ``matplotlib`` the figures
-# extra, ``scipy`` the statistics extra (D5-02) and ``openpyxl`` the Excel extra (P5-04). They
-# are imported inside functions,
+# extra, ``scipy`` the statistics extra (D5-02), ``openpyxl`` the Excel extra (P5-04) and ``PIL``
+# comes with matplotlib, for the interface's figure previews. They are imported inside functions,
 # never at module import time, so the minimum install still runs without them — the allowlist is
 # what says the dependency is deliberate rather than accidental.
-THIRD_PARTY_ALLOWED = frozenset({"Bio", "yaml", "docx", "lxml", "matplotlib", "openpyxl", "scipy"})
+THIRD_PARTY_ALLOWED = frozenset(
+    {"Bio", "yaml", "docx", "lxml", "matplotlib", "openpyxl", "scipy", "PIL"}
+)
 
 # layer -> allowed `plastid.*` import prefixes
 LAYERS: dict[str, frozenset[str]] = {
@@ -48,6 +51,7 @@ LAYERS: dict[str, frozenset[str]] = {
             "plastid.modules.registry",
         }
     ),
+    "ui": frozenset({"plastid.core", "plastid.result", "plastid.run", "plastid.ui"}),
 }
 
 

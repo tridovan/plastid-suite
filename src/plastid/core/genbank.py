@@ -24,7 +24,7 @@ from Bio.SeqRecord import SeqRecord
 
 from plastid.core.model import Gene, Genome, Interval, RepeatRegion, gene_qualifiers
 
-__all__ = ["read_fasta", "read_genbank", "read_genbank_records", "to_genbank"]
+__all__ = ["read_fasta", "read_genbank", "read_genbank_records", "read_record", "to_genbank"]
 
 _GENE_FEATURE_TYPES = frozenset({"gene", "CDS", "tRNA", "rRNA"})
 
@@ -61,6 +61,24 @@ def read_fasta(path: str | Path) -> Genome:
         sequence=str(record.seq).upper(),
         topology="circular",
     )
+
+
+def read_record(path: str | Path) -> Genome:
+    """One input file as a genome — GenBank or FASTA, decided by the file's own first line.
+
+    A sample that has just come off an assembler is a bare sequence, and annotating it is exactly
+    what ``plastid annotate`` is for, so ``plastid run`` has to accept one. The choice is made on
+    content rather than on the suffix: ``.fa``, ``.fasta``, ``.fna`` and ``.fas`` all occur in the
+    wild, and a sequencing facility's file naming is not ours to require.
+
+    An empty file is refused here rather than by whichever reader happens to be picked — the
+    GenBank reader's own message ("no GenBank records found") would name the wrong format.
+    """
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            if line.strip():
+                return read_fasta(path) if line.lstrip().startswith(">") else read_genbank(path)
+    raise ValueError(f"{path}: empty file")
 
 
 def read_genbank_records(path: str | Path) -> list[Genome]:
