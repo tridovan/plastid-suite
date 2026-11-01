@@ -42,6 +42,7 @@ passing their tests, but do not extend them.
 - `run/`: run layout, manifest, cache, `run_tool()`.
 - `external/`: one adapter per tool.
 - `modules/`: the analyses.
+- `ui/`: the local interface. It starts `plastid` for every piece of work and reads run directories.
 - `cli.py`: the only place that exits.
 
 A module is a pure function `run(genome, params, ctx) -> Result` (`run(genomes, …)` when its arity is
@@ -66,6 +67,10 @@ tables. Convert only with `Interval.to_1based` / `Interval.from_1based`.
 - **Scope labels.** Every exported number carries a scope label. A value that was not measured is
   written "not measured". Every output made from third-party data carries its provenance label
   (`--label`).
+- **Interface.** `ui/` computes no number and has no route around a check: a form becomes the command
+  line that runs, the IR gate is `core/ir.py`, and a run reads the same whichever door it came through.
+  It listens on `127.0.0.1` behind a session token, loads nothing from outside the package and sends
+  nothing anywhere. `plastid panel` is the one thing that goes online, when the user presses its button.
 - **Run directories.** Output goes to `<out>/<dataset>/<run_id>/`, and nothing is overwritten in
   place.
 - **Minimum install.** biopython + PyYAML alone run every pure-Python analysis. Optional extras

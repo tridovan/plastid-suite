@@ -3,7 +3,8 @@
 **State:** 01/11/2026 — `main` holds phases M11, M4.5, the assembly of Phase 7 (M7.1, M7.2, M7.5,
 M7.6: short reads and HiFi reads, the graph read, the memory limited) and the review of the command
 line (M9.8), merged and acceptance-tested (`make acceptance` 291 passed, 0 skipped). The open work is
-a local interface (M9.7), then the release (M9.6). RNA editing is the module `rna_editing` (`docs/tools/prep_cp.md`); its reference B′'s seven
+the local interface on branch `feat/m9.7-ui` (M9.7: Docker and acceptance remain), then the release
+(M9.6). RNA editing is the module `rna_editing` (`docs/tools/prep_cp.md`); its reference B′'s seven
 records live in `.panel/rna_editing/`, pinned in `src/plastid/data/rna_editing/taxa.yaml`. Product
 documentation,
 requirements and shared method live in this repository. Maintainer planning — the active task, the

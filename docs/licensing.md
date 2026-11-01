@@ -31,6 +31,7 @@ be a different, and here unnecessary, choice.
 | `src/plastid/data/*.yaml` · `*.json` · `*.md` | MIT | ours — defaults, citations, gene groups, the reference sets' notes |
 | `src/plastid/data/misa.ini` | MIT | **ours**: MISA's *default* definitions written down (`1-10 2-6 3-5 4-5 5-5 6-5`, interruptions 100, `GFF: true`). Configuration values describing a tool's documented behaviour; the tool's own file is not copied (D-q) |
 | `src/plastid/data/plastid_reference.json` · `mito_reference_*.faa/fa` | derived | built from **public GenBank records** (NCBI — U.S. Government work, no copyright); the derivation is ours |
+| `src/plastid/ui/assets/fonts/*.woff2` | SIL OFL 1.1 | IBM Plex Sans and Mono, Latin subset, © IBM Corp.; the licence travels beside them as `OFL.txt`. The interface loads nothing from outside the package, so its fonts ship in it |
 | `tests/data/**` | derived | GenBank records from NCBI, the corpus's public records, and PGA's *output* on them (a program's output is not covered by the program's licence) |
 
 **Nothing else.** No external tool ships in the wheel, the sdist or the repository: `uv build

@@ -84,7 +84,9 @@ class RunLayout:
         now: datetime | None = None,
     ) -> RunLayout:
         stamp = (now or datetime.now()).strftime("%Y%m%d-%H%M%S")
-        root = Path(out_root)
+        # Absolute from the first moment: a tool runs in a directory of its own, and what it writes
+        # has to be found again under this run.
+        root = Path(out_root).resolve()
         dataset_slug = slugify(dataset)
         base = f"{stamp}-{fingerprint[:8]}"
         run_id = base

@@ -11,6 +11,9 @@ migration table below is for anyone who ran an earlier checkout, because some nu
 
 ### What it does
 
+- **A local interface.** `plastid ui` opens the toolkit in a browser on your own computer: records and
+  the IR gate, analyses, assembly, references, results, figures and export. It starts the same
+  command line you can type, shows that line beside each form, and sends nothing anywhere.
 - **Reads to a checked sequence.** `plastid assemble` takes paired short reads (fastp, GetOrganelle)
   or PacBio HiFi reads (Oatk), maps the reads back with an aligner the assembler does not use, reads
   the graph for every structure that closes, and declares a sequence only when the reads cross every

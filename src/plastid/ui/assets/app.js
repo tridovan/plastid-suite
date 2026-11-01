@@ -658,9 +658,10 @@ async function runPage(dataset, runId, open) {
   const nav = el('nav', { class: 'nav-list', 'aria-label': 'Sections of this run' });
   const go = (section) => { location.hash = `#/run/${dataset}/${runId}/${section}`; };
   const entry = (id, title) => el('button', { type: 'button', 'aria-current': String(open === id), onclick: () => go(id) }, title);
-  nav.append(
+  nav.append(...[
     run.steps.length ? el('h3', null, 'Analyses') : null, ...run.steps.map((step) => entry(step.id, titled(step.id))),
-    el('h3', null, 'This run'), entry('figures', 'Figures'), entry('how', 'How this was made'), entry('files', 'Files'));
+    el('h3', null, 'This run'), entry('figures', 'Figures'), entry('how', 'How this was made'), entry('files', 'Files'),
+  ].filter(Boolean));
   const tiles = el('section', { class: 'grid tiles', 'aria-label': 'Key numbers' });
   page('runs',
     el('nav', { class: 'crumb', 'aria-label': 'Breadcrumb' }, el('a', { href: '#/runs' }, 'Results'), ` / ${dataset} / `, el('code', null, runId)),

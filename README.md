@@ -56,6 +56,39 @@ and how to install it: [docs/tools/](docs/tools/) — its front page lists every
 `environment-check.yml` and `environment-future.yml`, so installing the analyses never pulls in an
 assembler.
 
+## The local interface
+
+`plastid ui` opens the toolkit in your browser, on your own computer. Nothing is uploaded: the page
+talks to a small server on `127.0.0.1`, and that server starts the same `plastid` command line this
+file describes, so a run made there is a run made here.
+
+```bash
+plastid ui --workspace my_project
+```
+
+The first time, this makes four folders in `my_project`: `records`, `reads`, `references` and `runs`.
+The link it prints holds a key for this session, so open that link rather than typing the address.
+Closing the tab stops nothing. Ctrl-C closes the interface, and runs already started go on. A busy
+port stops the command by name; `--port` chooses another.
+
+### A first run, step by step
+
+1. **Add a record.** Open **Records**, press **Add records** and choose a GenBank file, or copy it into
+   the `records` folder. The page reads it and asks the IR gate at once.
+2. **Read the gate.** A green mark means the two inverted-repeat copies agree. If the record is refused,
+   the page says what it measured and which ways forward keep the check in place. The gate has no off
+   switch.
+3. **Choose the analyses.** Tick the record and press **Analyse**. Pick the analyses on the left. A
+   form appears for any that take parameters, already filled with their defaults. The plan on the
+   right says what will run and what is missing, and shows the same run as a command line.
+4. **Say where the data came from.** It is printed with every table.
+5. **Press Run.** The page follows the work and has a **Cancel run** button. You can close the tab
+   and come back.
+6. **Read the results.** **Results** lists every run, including runs started at a prompt. A run shows
+   its tables with their scope, its figures, and how it was made.
+7. **Export.** **Export** draws figures, builds the Supplementary package and the QC report, and draws IR
+   junctions across species.
+
 ## Use
 
 ```bash

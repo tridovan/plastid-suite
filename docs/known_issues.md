@@ -514,9 +514,13 @@ and its digest. `--set tree=` wins when given. Regression: `tests/unit/test_rfig
 script": the file was there, but the tool's working directory was not the user's. Same family as
 K-17.
 
+The same family: `plastid ir-junction -o runs` drew its figure and then stopped with a traceback,
+leaving the run saying `running`, because the tool's output was absolute and the run directory was
+not.
+
 **Fix.** Every `--set` value declared as a file or a directory is made absolute before a module reads
-it, on `run`, `batch`, `annotate`, `assemble` and `figures`, and so is `--cpjsdraw`. Regression:
-`tests/unit/test_relative_tool_paths.py`.
+it, on `run`, `batch`, `annotate`, `assemble` and `figures`, and so is `--cpjsdraw`. A run directory
+is absolute from the moment it is created. Regression: `tests/unit/test_relative_tool_paths.py`.
 
 ## Other current limitations
 

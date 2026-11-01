@@ -10,6 +10,7 @@ from pathlib import Path
 
 from plastid.cli import _checked_sets, main
 from plastid.external.cpjsdraw import cpjsdraw_script
+from plastid.run.layout import RunLayout
 
 CPJSDRAW = '#!/usr/bin/perl\nmy $version = "0.0.1";\n'
 
@@ -28,6 +29,14 @@ def test_a_relative_tool_directory_is_absolute_before_a_module_reads_it(
     monkeypatch.chdir(tmp_path)
     params = _checked_sets(["mummer=tools/bin"], ["repeats"])
     assert params == {"mummer": str(tmp_path / "tools" / "bin")}
+
+
+def test_a_relative_out_gives_an_absolute_run_directory(tmp_path: Path, monkeypatch) -> None:
+    """`ir-junction -o runs` crashed after drawing: its tool writes absolute paths, the run none."""
+    monkeypatch.chdir(tmp_path)
+    layout = RunLayout.create("runs", "pair", fingerprint="x")
+    assert layout.run_dir.is_absolute()
+    assert layout.run_dir.is_relative_to(tmp_path / "runs" / "pair")
 
 
 def test_a_value_that_names_no_path_is_left_as_it_was(tmp_path: Path, monkeypatch) -> None:
