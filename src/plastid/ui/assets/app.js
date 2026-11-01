@@ -468,7 +468,7 @@ async function analysePage() {
   const missing = new Set(tools.tools.filter((tool) => tool.status === 'missing').map((tool) => tool.name));
   const all = session.modules.modules.filter((module) => module.group !== 'mito' && !module.command.includes('annotate'));
   const inputs = [...session.chosen];
-  const form = session.form = session.form || { mode: inputs.length > 1 ? 'compare' : 'one', on: new Set(), focus: null, sets: {}, label: '', dataset: '', figures: true, docx: false, no_cache: false };
+  const form = session.form = session.form || { mode: inputs.length > 1 ? 'compare' : 'one', on: new Set(), focus: null, sets: {}, label: '', dataset: '', figures: tools.extras.figures, docx: false, no_cache: false };
   if (inputs.length > 1 && form.mode === 'one') { form.mode = 'compare'; form.on = new Set(); }
   const place = (module) => { const at = ORDER.indexOf(module.id); return at < 0 ? ORDER.length : at; };
   const shown = () => all
@@ -558,7 +558,7 @@ async function analysePage() {
             textField('Where the data came from', form.label, (value) => { form.label = value; box.refresh(blockers()); }, 'Printed with every table.'),
             textField('Dataset name', form.dataset, (value) => { form.dataset = value; box.refresh(blockers()); }, 'The folder inside runs.'),
             form.mode === 'batch' ? null : pathField('Sample groups (optional)', form.groups, (value) => { form.groups = value; box.refresh(blockers()); }, { start: 'records' })),
-          el('div', { class: 'row' }, [['figures', 'Draw figures'], ['docx', 'Word reports']].map(([key, words]) => el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: form[key], onchange: (event) => { form[key] = event.target.checked; box.refresh(blockers()); } }), words)),
+          el('div', { class: 'row' }, [['figures', 'Draw figures'], ['docx', 'Word reports']].map(([key, words]) => el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: form[key], disabled: !tools.extras[key], onchange: (event) => { form[key] = event.target.checked; box.refresh(blockers()); } }), tools.extras[key] ? words : `${words}: needs plastid-suite[${key}]`)),
             el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: !form.no_cache, onchange: (event) => { form.no_cache = !event.target.checked; box.refresh(blockers()); } }), 'Reuse stored results'))),
         parameters),
       el('aside', { class: 'card side', 'aria-label': 'Plan' }, el('h2', null, 'The plan'), plan, box.start, notice,
@@ -686,12 +686,13 @@ async function figuresView(run) {
         caption ? el('pre', { class: 'small' }, caption) : null)));
   };
   const absent = [
+    figures.error ? el('li', null, el('b', { class: 'word-bad' }, 'Failed'), el('span', null, 'All figures', el('small', null, figures.error))) : null,
     ...figures.failed.map((entry) => el('li', null, el('b', { class: 'word-bad' }, 'Failed'), el('span', null, entry.figure, el('small', null, entry.reason)))),
     ...figures.skipped.map((entry) => el('li', null, el('b', { class: 'word-quiet' }, 'Not drawn'), el('span', null, entry.figure, el('small', null, entry.reason)))),
     ...figures.missing_renderers.map((entry) => el('li', null, el('b', { class: 'word-tool' }, 'Missing'), el('span', null, entry.renderer, el('small', null, entry.reason)))),
   ];
   await redraw();
-  return [big, grid, absent.length ? el('section', { class: 'card' }, el('h2', null, 'What this run did not draw'), el('ol', { class: 'plan' }, absent)) : null];
+  return [big, grid, absent.filter(Boolean).length ? el('section', { class: 'card' }, el('h2', null, 'What this run did not draw'), el('ol', { class: 'plan' }, absent)) : null];
 }
 
 function samplesView(run) {
@@ -871,6 +872,7 @@ async function exportPage(query) {
 
 async function annotatePage(query) {
   if (!session.modules) session.modules = await get('/api/modules');
+  await loadTools();
   const module = session.modules.modules.find((item) => item.id === 'plastid_annotate');
   const form = { inputs: query.get('input') ? [query.get('input')] : [], reference_set: 'references', exclude: [], label: '', dataset: '', docx: false, no_cache: false, sets: {} };
   const box = commandBox('annotate', () => form);
@@ -887,7 +889,7 @@ async function annotatePage(query) {
           pathField('Folder of GenBank records', form.reference_set, (value) => { form.reference_set = value; refresh(); }, { start: 'references', folders: true }),
           listField('Leave out of the search', (value) => { form.exclude = value; refresh(); }, 'Accessions, comma-separated. The run names what it left out.')),
         el('section', { class: 'card' }, el('h2', null, 'Parameters'),
-          el('div', { class: 'row' }, checkField('Word report', form.docx, (value) => { form.docx = value; refresh(); }),
+          el('div', { class: 'row' }, session.tools.extras.docx ? checkField('Word report', form.docx, (value) => { form.docx = value; refresh(); }) : null,
             checkField('Reuse stored results', true, (value) => { form.no_cache = !value; refresh(); })),
           el('div', { class: 'field-grid' }, module.params.filter((param) => !param.flag && param.type !== 'dir').map((param) => paramField(param, form.sets, refresh))))),
       el('aside', { class: 'card side' }, el('h2', null, 'The plan'),

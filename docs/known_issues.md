@@ -1,7 +1,7 @@
 # Known correctness and integration issues
 
 K-01 to K-06 were reproduced during the 26 October 2026 review, and the later entries were found by
-running the toolkit. **K-01 to K-28 are all fixed.** Documenting a defect did not fix it, and a fixed
+running the toolkit. **K-01 to K-29 are all fixed.** Documenting a defect did not fix it, and a fixed
 entry says which test now holds it. The "observed" columns below are the before-fix measurements;
 they are kept as the reproduction record, not as current behaviour.
 
@@ -533,6 +533,16 @@ figure looks like the one that was asked for.
 **Fix.** A name that is not a tip stops the figure and the message lists the tips. `--root outgroup`
 with no outgroup stops too. One outgroup tip roots the tree, and a named outgroup is the root unless
 `--root` says otherwise. Regression: `tests/golden/test_tree_figure_output.py`, against real R.
+
+## K-29 — A run with no plotting extra said its last analysis failed — **fixed (01/11/2026)**
+
+**Symptom.** `plastid run -m codon_usage --figures` on a minimum install finished the analysis, then
+wrote a second `codon_usage` entry with the status `failed` and the figures' error in it. The analysis
+had not failed, and a person reading the record would look for the fault in the wrong place.
+
+**Fix.** The analyses keep their record, and the error goes in the run's `figures` section, with exit 3
+as before. `plastid tools --json` now says which optional parts are installed, so a form does not
+offer what would stop the run. Regression: `tests/unit/test_figure_failures.py`.
 
 ## Other current limitations
 

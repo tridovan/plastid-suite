@@ -59,3 +59,12 @@ def test_the_report_says_what_this_machine_has(capsys: pytest.CaptureFixture[str
     assert main(["tools", "--json"]) == 0
     machine = json.loads(capsys.readouterr().out)["machine"]
     assert machine["ram_gb"] > 0 and machine["cores"] >= 1 and machine["disk_free_gb"] >= 0
+
+
+def test_the_report_says_which_optional_parts_are_installed(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A form cannot offer figures on a machine where asking for them ends the run in an error."""
+    assert main(["tools", "--json"]) == 0
+    extras = json.loads(capsys.readouterr().out)["extras"]
+    assert set(extras) == {"figures", "docx"} and all(isinstance(v, bool) for v in extras.values())

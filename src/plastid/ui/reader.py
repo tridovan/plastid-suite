@@ -103,6 +103,7 @@ def _figures(run_dir: Path, record: dict[str, Any], root: Path) -> dict[str, Any
     section = record.get("figures") or {}
     return {
         "status": section.get("status"),
+        "error": section.get("error"),
         "drawn": [entry for entry in drawn.values() if entry["views"]],
         "failed": section.get("failed") or [],
         "skipped": [

@@ -6,6 +6,7 @@
 .runs
 .panel
 .data
+feedback
 .cache
 dist
 build

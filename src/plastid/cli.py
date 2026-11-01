@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import signal
@@ -810,6 +811,22 @@ def _fail(
         )
     manifest["status"] = exit_state(code).status
     return _finish(manifest, layout, ctx, version, code)
+
+
+def _figures_stopped(
+    manifest: dict,
+    layout: RunLayout,
+    ctx: RunContext,
+    specs: Sequence[registry.ModuleSpec],
+    message: str,
+    code: int,
+) -> int:
+    """Figures that could not start. Every analysis finished, so none of them is recorded failed."""
+    print(message, file=sys.stderr)
+    print(f"the analyses finished — {layout.run_dir}", file=sys.stderr)
+    manifest["figures"] = {"status": "failed", "error": message}
+    manifest["status"] = exit_state(code).status
+    return _finish(manifest, layout, ctx, specs[-1].version, code)
 
 
 def _cancelled(
@@ -1785,9 +1802,9 @@ def _run_steps(
                 provenance=_manifest_provenance(manifest),
             )
         except ExportDependencyError as error:
-            return _fail(manifest, layout, ctx, specs[-1].version, str(error), EXIT_TOOL)
+            return _figures_stopped(manifest, layout, ctx, specs, str(error), EXIT_TOOL)
         except (OSError, ValueError) as error:
-            return _fail(manifest, layout, ctx, specs[-1].version, str(error), EXIT_ERROR)
+            return _figures_stopped(manifest, layout, ctx, specs, str(error), EXIT_ERROR)
         for path in outcome.files:
             manifest["files"].append(
                 {
@@ -4131,6 +4148,10 @@ def _cmd_modules(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+# The optional parts a form can ask for, each by the module that tells whether it is installed.
+_EXTRAS = (("figures", "matplotlib"), ("docx", "docx"))
+
+
 def _cmd_tools(args: argparse.Namespace) -> int:
     """What a run on this machine would find: a report, so a missing tool is not a failure here."""
     from plastid.external.inventory import check_tools
@@ -4154,7 +4175,8 @@ def _cmd_tools(args: argparse.Namespace) -> int:
         for status in statuses
     ]
     if args.json:
-        _print_json({"tools": records, "machine": asdict(machine)})
+        extras = {name: importlib.util.find_spec(module) is not None for name, module in _EXTRAS}
+        _print_json({"tools": records, "machine": asdict(machine), "extras": extras})
         return EXIT_OK
     print(
         f"this machine: {machine.ram_gb:.1f} GB memory, {machine.cores} cores, "

@@ -8,6 +8,7 @@ Rscript, so they fail the same way on a machine with R and on one without it.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -121,3 +122,21 @@ def test_a_batch_that_loses_a_figure_says_so_in_its_exit_code(
     payload = json.loads(next((out / "pair").glob("*/batch.json")).read_text(encoding="utf-8"))
     assert payload["figures"]["status"] == "failed"
     assert payload["exit_code"] == EXIT_TOOL
+
+
+def test_a_missing_plotting_extra_is_not_the_last_analysis_failing(
+    tmp_path: Path, data_dir: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    """The analyses finished. Their record says so, and the figures say what stopped them."""
+    monkeypatch.setitem(sys.modules, "matplotlib.pyplot", None)
+    out = tmp_path / "runs"
+    record = str(data_dir / "NC_050833.1.gb")
+    code = main(["run", "-m", "codon_usage", "-i", record, "-o", str(out), "--figures"])
+    assert code == EXIT_TOOL
+    assert "plastid-suite[figures]" in capsys.readouterr().err
+
+    manifest = json.loads((_run_dir(out) / "manifest.json").read_text(encoding="utf-8"))
+    assert [(step["id"], step["status"]) for step in manifest["modules"]] == [("codon_usage", "ok")]
+    assert manifest["status"] == "tool_error"
+    assert manifest["figures"]["status"] == "failed"
+    assert "plastid-suite[figures]" in manifest["figures"]["error"]
