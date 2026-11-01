@@ -65,15 +65,6 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
         r-ape \
     && micromamba clean -a -y
 
-# **table2asn is deliberately NOT in this image.** It is the one tool that (a) is optional — the
-# `.fsa` + `.tbl` route needs nothing (D3-04) — and (b) cannot share this environment with R, and is
-# otherwise a 56 MB fetch from NCBI. Measured 11/10/2026: through the Docker VM that download crawls
-# (the host was pulling the same file at ~600 kB/s), and an optional tool must never be able to hang
-# a user's build. So
-# the image carries the tools the *analyses* need, and the `.sqn` step is what `docs/tools/
-# table2asn.md` describes: fetch the binary on the host and mount it, or pass
-# `--set table2asn=/path/to/table2asn`. Its single check is deselected by name below.
-
 # MISA 2.1 is fetched, never baked in from our side: the toolkit stopped shipping it because its
 # zip states no licence (D-q, docs/tools/misa.md). Same URL, same md5s — and the module re-reads
 # the release from the script's own header, so a different MISA could not pass as this one.
@@ -86,6 +77,26 @@ RUN mkdir -p "$PTS_MISA_DIR" \
     && unzip -j misa_sourcecode_25082020.zip misa.pl -d "$PTS_MISA_DIR" \
     && echo "cfebc1d1a36fddfd6e0d897c96babd12  $PTS_MISA_DIR/misa.pl" | md5sum -c - \
     && rm misa_sourcecode_25082020.zip
+
+# The assembly tools and table2asn each take an environment of their own: GetOrganelle pins a BLAST
+# older than the analyses', and table2asn cannot be solved beside R (docs/tools/table2asn.md). They
+# come last on PATH, so the analyses keep their pinned BLAST. This layer sits above the COPY so a
+# source change does not pay for it again. GetOrganelle's and Oatk's databases are fetched once by
+# the user into the mounted folder (docs/tools/getorganelle.md, docs/tools/oatk.md).
+COPY environment-assembly.yml /tmp/environment-assembly.yml
+RUN micromamba create -y -n assembly -f /tmp/environment-assembly.yml \
+    && micromamba create -y -n table2asn -c conda-forge -c bioconda table2asn=1.29.324 \
+    && micromamba clean -a -y
+ENV PATH=$PATH:/opt/conda/envs/assembly/bin:/opt/conda/envs/table2asn/bin
+
+# What CPJSdraw needs to run. CPJSdraw itself is not here: its source states no licence and the
+# figure needs a patched build (docs/tools/cpjsdraw.md), so the user names their own copy in the
+# mounted folder, on the Export page or with --cpjsdraw.
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libsvg-perl librsvg2-bin \
+    && rm -rf /var/lib/apt/lists/*
+USER $MAMBA_USER
 
 WORKDIR /work
 COPY --chown=$MAMBA_USER:$MAMBA_USER . /work
@@ -103,27 +114,25 @@ RUN mafft --version \
     && iqtree2 --version | head -1 \
     && perl -v | grep -E "^This is perl 5" \
     && python -c "import plastid; print('plastid', plastid.__version__)" \
-    && ls -l "$PTS_MISA_DIR/misa.pl"
+    && ls -l "$PTS_MISA_DIR/misa.pl" \
+    && get_organelle_from_reads.py --version \
+    && oatk --version \
+    && table2asn -version
 
 # The golden numbers, inside the container. `PTS_REQUIRE_TOOLS=1` turns a missing tool from a
-# printed skip into a failure — the whole point of checking in here, and why Vmatch is installed
-# above rather than left out. **One** check is deselected, **by name and with its reason printed**:
-# table2asn's `.sqn` step, which this image does not carry (see the note above). A deselect that
-# says what it dropped is not a silent skip; nothing else may skip.
-# The pinned panels (`.panel/`) are not in the build context by design — they are gitignored,
+# printed skip into a failure, the whole point of checking in here.
+# The pinned panels (`.panel/`) are not in the build context by design: they are gitignored,
 # ~250 MB, and third-party data, so the panel half of the golden skips here and the number printed
 # is the vendored-fixture half only. To run the whole suite, including the panel:
 #
 #   docker run --rm -v "$PWD:/work" -w /work pts-local:golden \
-#     sh -c 'PTS_REQUIRE_TOOLS=1 python -m pytest tests/golden -q -rs \
-#       --deselect tests/golden/test_tier_b.py::test_the_sqn_step_runs_and_ncbi_reads_the_table'
-#
-# Measured 28/10/2026: 55 skips inside the build, every one of them "`.panel/` is not in this
-# tree"; **0 skips** with the repository mounted. And the skip count is not silent: the suite
-# prints every reason, which is why this note exists.
-RUN echo "table2asn is not in this image: its one optional .sqn check is deselected by name" \
-    && echo "panel checks skip here: .panel/ is mounted at run time, not built in" \
-    && PTS_REQUIRE_TOOLS=1 python -m pytest tests/golden -q -rs \
-         --deselect tests/golden/test_tier_b.py::test_the_sqn_step_runs_and_ncbi_reads_the_table
+#     sh -c 'PTS_REQUIRE_TOOLS=1 python -m pytest tests/golden -q -rs'
+RUN echo "panel checks skip here: .panel/ is mounted at run time, not built in" \
+    && PTS_REQUIRE_TOOLS=1 python -m pytest tests/golden -q -rs
 
-CMD ["plastid", "--help"]
+# The container listens on every address it has, because a published port arrives from outside it.
+# `docker/plastid-ui.bat` publishes that port to 127.0.0.1 on the host alone, and the session token,
+# the Host check and the Origin check stand exactly as they do outside a container.
+ENV PLASTID_IN_CONTAINER=1
+EXPOSE 26214
+CMD ["plastid", "ui", "--workspace", "/work", "--host", "0.0.0.0", "--no-browser"]
