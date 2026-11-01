@@ -225,6 +225,7 @@ def test_the_workbook_pins_both_timestamps() -> None:
     once in a full run (3 times in 300 exports — a clock-second race). This asserts the contract
     directly instead of hoping the race shows up.
     """
+    pytest.importorskip("openpyxl", reason="the 'excel' extra is not installed")
     import zipfile
 
     assert importlib.util.find_spec("openpyxl") is not None

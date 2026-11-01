@@ -342,6 +342,7 @@ def test_a_changed_cell_changes_the_figure() -> None:
 
 def test_figures_render_from_a_run_directory_alone(tmp_path: Path) -> None:
     """P5-02's Done-when, proved here for the first figure: the run directory is the input."""
+    pytest.importorskip("matplotlib", reason="the 'figures' extra is not installed")
     run = tmp_path / "standin" / "20261005-000000-abcdef12"
     module_dir = run / "01_diversity"
     module_dir.mkdir(parents=True)

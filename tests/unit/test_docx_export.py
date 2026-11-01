@@ -383,6 +383,7 @@ def test_merging_sets_the_document_title() -> None:
     assert Document(io.BytesIO(merged)).core_properties.title == "Run report"
 
 
+@requires_docx
 def test_merging_rejects_a_document_this_exporter_did_not_build() -> None:
     from plastid.result.docx_export import merge_documents
 
