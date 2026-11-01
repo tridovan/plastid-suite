@@ -91,6 +91,7 @@ h3 { font-size: 15px; line-height: 22px; font-weight: 600; }
 
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--ink-2); min-width: 0; }
 .field .small, .field .tiny { font-weight: 400; }
+.card code { overflow-wrap: anywhere; }
 .field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px 20px; }
 input[type=text], input[type=number], select { width: 100%; min-height: 44px; padding: 0 12px; background: var(--sheet); border: 1px solid var(--edge); border-radius: 8px; font-size: 15px; font-weight: 400; color: var(--ink); }
 input.changed { border-color: var(--leaf); }

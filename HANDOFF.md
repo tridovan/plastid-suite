@@ -52,8 +52,11 @@ pipeline. Do not invent a replacement task list.
 
 - This machine hides what a new user meets: it has `.panel/`, the extras and the tools. Run a check of
   the install from a clean copy (`docs/release.md`, "A new user's checkout"), not from this tree.
-- The Docker image has not been built since 29/10/2026, before the assembly work. Each build leaves
-  about 1.3 GB on C:, so build once, on the release revision.
+- The Docker image was built on 01/11/2026 through `docker/plastid-ui.bat` (6.5 GB, about 15 minutes; a
+  rebuild after a source change takes about 5, because the tool layers stay cached). Check the disk
+  first, and the release revision must be built again.
+- Docker Desktop mounts a Windows folder writable for the container only when Windows made it. A
+  folder made from WSL as root carries root's mode, and the container's user cannot write there.
 - The `PTS_*` variables are read by the tests only. The product finds a tool on `PATH` or through
   `--set`, and `plastid tools` says what it found.
 - MACSE and IQ-TREE sit in the same conda environment as the other analysis tools, as

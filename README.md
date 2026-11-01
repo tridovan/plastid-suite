@@ -77,13 +77,18 @@ The toolkit runs on Windows through Docker. You need no command line:
 
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and start it.
 2. Download this repository as a ZIP and unpack it.
-3. Double-click `docker\plastid-ui.bat`. The first time it builds the toolkit, which needs the network
-   and takes a long while. After that it starts in seconds, and your browser opens by itself.
+3. Double-click `docker\plastid-ui.bat`. The first time it builds the toolkit, which needs the network,
+   about 15 minutes on a laptop and about 7 GB of disk. After that it starts in seconds, and your
+   browser opens by itself.
 
-Your work goes in `Documents\PlastidToolSuite`. Keep the black window open while you work; closing
-it stops the interface. Every tool is in the image you built except CPJSdraw: for IR junctions, put
-your own patched copy in that folder and choose it on the Export page. It is not bundled, because
-its source states no licence.
+Your work goes in `Documents\PlastidToolSuite`. Keep the black window open while you work. If it was
+closed and the toolkit is still running, double-click the file again: it opens the running one. To
+stop the toolkit, stop `plastid-ui` in Docker Desktop, under Containers. A run still going stops with
+it, and reads as interrupted.
+
+Every tool is in the image you built except CPJSdraw: for IR junctions, put your own patched copy in
+that folder and choose it on the Export page. It is not bundled, because its source states no
+licence.
 
 ### A first run, step by step
 
