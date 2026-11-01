@@ -61,7 +61,8 @@ all — because they are carried for reproduction, not adopted as this toolkit's
 `--inputdir` or `--input` points into the output directory instead of at the caller's data and every
 script fails to find its own input. Measured 17/10/2026: `--inputdir sample_data` fails, an absolute
 path works. `00_common.R` now makes those paths absolute before the working directory moves. No
-drawing changed.
+drawing changed. The tree script has since gained the options K-06 forwards, and it stops on a name
+that is not a tip (K-28) rather than draw a different tree from the one asked for.
 
 **How a run wires its tables to these scripts.** `plastid figures <run_dir>` renders them, beside
 the toolkit's own figures — `--set rscript=/path/to/Rscript` when R is not on `PATH`. Each R figure
@@ -85,6 +86,12 @@ the run's provenance. Four things are worth knowing:
   therefore a valid script input; joining several runs into one table is the batch path (M11.6),
   not a hidden list in the script. `kaks` and `diversity` take the whole panel, so F6 and F8
   cover every genome in the run;
+* a figure names each genome by the **organism on its record**, and an accession stands in only
+  for a record that gives none. Two records of one species keep both, as "species accession", so a
+  column is never merged. The tables are not renamed: their cells keep the accessions, and the
+  caption carries the mapping in a line that starts `labels:`. Tree tips get the same names on a
+  relabelled copy of the run's own tree, kept beside the pivot; a tree you pass with `--set tree=`
+  is drawn with the tips it has;
 * **F9, the tree, reads no table at all.** A run with `phylogeny` draws the tree that step wrote,
   with no flag. Any run can draw another one with `--set tree=<file.treefile>`, which wins over the
   run's own and is never copied into the run. The caption carries the file and its sha256 where

@@ -41,22 +41,35 @@ WIDTH     <- as.numeric(get_param("--width", "4200"))
 HEIGHT    <- as.numeric(get_param("--height", "4200"))
 DPI       <- as.numeric(get_param("--dpi", "300"))
 TITLE     <- get_param("--title", NULL)
-ROOT_MODE <- get_param("--root", "midpoint")
 
 split_arg <- function(x) {
   if (is.null(x) || !nzchar(x)) return(character(0))
   trimws(strsplit(x, ",")[[1]])
 }
-DROP_TIPS <- split_arg(get_param("--drop-tips", ""))
-OUTGROUP  <- split_arg(get_param("--outgroup", ""))
+# Tips are drawn with `_` as a space, so a name copied from the tree file is read the same way.
+DROP_TIPS <- gsub("_", " ", split_arg(get_param("--drop-tips", "")))
+OUTGROUP  <- gsub("_", " ", split_arg(get_param("--outgroup", "")))
 OG_LABEL  <- get_param("--outgroup-label", "")
+# A named outgroup is the root unless --root says otherwise: the caption promises it.
+ROOT_MODE <- get_param("--root", if (length(OUTGROUP)) "outgroup" else "midpoint")
+if (ROOT_MODE == "outgroup" && !length(OUTGROUP)) stop("--root outgroup needs --outgroup")
 
 # ── 1. Read the tree ─────────────────────────────────────────────────────────
 cat(sprintf("  reading tree: %s\n", TREE_FILE))
 tree <- read.tree(TREE_FILE)
-tree$tip.label <- gsub("_NC_[0-9]+.*", "", tree$tip.label)   # strip accession
+# Strip the accession, unless it is what tells two records of one species apart.
+stripped <- gsub("_NC_[0-9]+.*", "", tree$tip.label)
+if (!anyDuplicated(stripped)) tree$tip.label <- stripped
 tree$tip.label <- gsub("_", " ", tree$tip.label)
 cat(sprintf("  %d tips, %d node\n", Ntip(tree), Nnode(tree)))
+
+# A name that matches no tip stops here. Passed over, a misspelt outgroup draws a midpoint tree and
+# a misspelt drop keeps the tip, and each figure reads as the one that was asked for.
+unknown <- setdiff(c(DROP_TIPS, OUTGROUP), tree$tip.label)
+if (length(unknown)) {
+  stop(sprintf("not tips of this tree: %s. Its tips are: %s",
+               paste(unknown, collapse = ", "), paste(tree$tip.label, collapse = ", ")))
+}
 
 # ── 2. Drop unused taxa ──────────────────────────────────────────────────────
 if (length(DROP_TIPS)) {
@@ -100,7 +113,7 @@ root_midpoint <- function(tree) {          # root at the midpoint of the longest
   tree
 }
 
-if (ROOT_MODE == "outgroup" && length(og_labeled) >= 2) {
+if (ROOT_MODE == "outgroup") {
   tree <- root(tree, og_labeled, resolve.root = TRUE); cat("  rooted by outgroup\n")
 } else if (ROOT_MODE == "none") {
   cat("  kept the tree's original root\n")

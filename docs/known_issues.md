@@ -1,7 +1,7 @@
 # Known correctness and integration issues
 
 K-01 to K-06 were reproduced during the 26 October 2026 review, and the later entries were found by
-running the toolkit. **K-01 to K-23 are all fixed.** Documenting a defect did not fix it, and a fixed
+running the toolkit. **K-01 to K-28 are all fixed.** Documenting a defect did not fix it, and a fixed
 entry says which test now holds it. The "observed" columns below are the before-fix measurements;
 they are kept as the reproduction record, not as current behaviour.
 
@@ -521,6 +521,18 @@ not.
 **Fix.** Every `--set` value declared as a file or a directory is made absolute before a module reads
 it, on `run`, `batch`, `annotate`, `assemble` and `figures`, and so is `--cpjsdraw`. A run directory
 is absolute from the moment it is created. Regression: `tests/unit/test_relative_tool_paths.py`.
+
+## K-28 — The tree figure ignored a name that was not a tip — **fixed (01/11/2026)**
+
+**Symptom.** The tree script kept the names in `--outgroup` and `--drop-tips` that matched a tip and
+passed over the rest, so a misspelt outgroup drew a midpoint tree and a misspelt drop kept its tip.
+One outgroup tip gave a midpoint tree as well, because the script needed two, and so did naming an
+outgroup without `--root outgroup`, though the caption says a named outgroup is the root. Each
+figure looks like the one that was asked for.
+
+**Fix.** A name that is not a tip stops the figure and the message lists the tips. `--root outgroup`
+with no outgroup stops too. One outgroup tip roots the tree, and a named outgroup is the root unless
+`--root` says otherwise. Regression: `tests/golden/test_tree_figure_output.py`, against real R.
 
 ## Other current limitations
 
