@@ -30,7 +30,7 @@ from plastid.core.model import Genome
 from plastid.core.resources import data_file
 from plastid.run.context import RunContext
 from plastid.run.params import ParamValueError
-from plastid.run.tools import ToolError, tool_version, which
+from plastid.run.tools import ToolError, script_on_path, tool_version, which
 
 __all__ = [
     "MISA_VERSION",
@@ -184,7 +184,7 @@ def misa_script(explicit: str | Path | None = None) -> Path:
         if not path.is_file():
             raise ToolError(f"misa: --set misa={explicit} is not a file — {MISA_DOC}")
         return path
-    found = which(_SCRIPT_NAME)
+    found = script_on_path(_SCRIPT_NAME)
     if found is None:
         raise ToolError(
             f"misa: {_SCRIPT_NAME} not found — MISA {MISA_VERSION} is not bundled with this "

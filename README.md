@@ -66,7 +66,8 @@ file describes, so a run made there is a run made here.
 plastid ui --workspace my_project
 ```
 
-The first time, this makes four folders in `my_project`: `records`, `reads`, `references` and `runs`.
+The first time, this makes five folders in `my_project`: `records`, `reads`, `references`, `runs` and
+`tools`, where a tool you keep yourself goes.
 The link it prints holds a key for this session, so open that link rather than typing the address.
 Closing the tab stops nothing. Ctrl-C closes the interface, and runs already started go on. A busy
 port stops the command by name; `--port` chooses another.
@@ -86,9 +87,12 @@ closed and the toolkit is still running, double-click the file again: it opens t
 stop the toolkit, stop `plastid-ui` in Docker Desktop, under Containers. A run still going stops with
 it, and reads as interrupted.
 
-Every tool is in the image you built except CPJSdraw: for IR junctions, put your own patched copy in
-that folder and choose it on the Export page. It is not bundled, because its source states no
-licence.
+Every tool is in the image you built except CPJSdraw, because its source states no licence. For IR
+junctions, copy your own patched `cpjsdraw` folder into the `tools` folder there and press **Check
+again** on **Tools**.
+
+To take a newer version, stop `plastid-ui`, run `docker image rm plastid-suite`, and double-click the
+file in the new folder. It builds again, in about 5 minutes if the old build is still cached.
 
 ### A first run, step by step
 

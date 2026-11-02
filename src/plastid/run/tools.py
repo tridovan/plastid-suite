@@ -26,6 +26,7 @@ __all__ = [
     "ToolRecord",
     "plastid_output",
     "run_tool",
+    "script_on_path",
     "start_plastid",
     "tool_version",
     "which",
@@ -71,6 +72,19 @@ class ToolRecord:
     stderr_file: str
     stdout_tail: str
     interpreter: str | None = None  # e.g. "perl 5.38.2" for script-based tools
+
+
+def script_on_path(name: str) -> str | None:
+    """A script an interpreter reads, found on PATH with or without its execute bit.
+
+    ``shutil.which`` skips a file without it, and a copy from a download or across a Windows mount
+    has none, so a tool that is there would read as not installed.
+    """
+    for directory in filter(None, os.environ.get("PATH", "").split(os.pathsep)):
+        candidate = Path(directory) / name
+        if candidate.is_file():
+            return str(candidate)
+    return None
 
 
 def which(name: str, extra: Sequence[Path] = ()) -> str | None:
@@ -250,8 +264,16 @@ def run_tool(
     return record
 
 
+def _with_tool_dirs(tool_dirs: Sequence[Path]) -> dict[str, str]:
+    """This environment with these folders last on PATH, so a pinned tool still comes first."""
+    return {
+        **os.environ,
+        "PATH": os.pathsep.join([os.environ.get("PATH", ""), *map(str, tool_dirs)]),
+    }
+
+
 def start_plastid(
-    args: Sequence[str], *, cwd: str | Path, log: str | Path
+    args: Sequence[str], *, cwd: str | Path, log: str | Path, tool_dirs: Sequence[Path] = ()
 ) -> subprocess.Popen[bytes]:
     """Start the toolkit's own command line in a session of its own, and return at once.
 
@@ -263,17 +285,19 @@ def start_plastid(
             # Unbuffered, so the page can show each step as it is reached.
             [sys.executable, "-u", "-m", "plastid", *args],
             cwd=str(cwd),
+            env=_with_tool_dirs(tool_dirs),
             stdout=output,
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
 
 
-def plastid_output(args: Sequence[str], *, cwd: str | Path) -> str:
+def plastid_output(args: Sequence[str], *, cwd: str | Path, tool_dirs: Sequence[Path] = ()) -> str:
     """What the toolkit's command line prints, for the lists a program reads (`--json`)."""
     finished = subprocess.run(
         [sys.executable, "-m", "plastid", *args],
         cwd=str(cwd),
+        env=_with_tool_dirs(tool_dirs),
         capture_output=True,
         text=True,
         check=False,

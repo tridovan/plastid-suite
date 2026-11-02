@@ -231,6 +231,34 @@ def test_the_page_names_the_folder_the_person_knows(tmp_path: Path) -> None:
     assert mounted.about()["workspace"] == "C:\\Users\\a\\Documents\\PTS"
 
 
+def _kept_in_the_workspace(app: App) -> Path:
+    """A copy of CPJSdraw as a person would leave it: the whole folder, under `tools`."""
+    folder = app.workspace / "tools" / "cpjsdraw" / "bin"
+    folder.mkdir(parents=True)
+    script = folder / "CPJSdraw.pl"
+    script.write_text('my $version = "0.0.1";\n', encoding="utf-8")
+    return script
+
+
+def test_a_tool_kept_in_the_workspace_is_found(tmp_path: Path) -> None:
+    """The image cannot carry CPJSdraw, and someone on Windows has no PATH to put it on."""
+    app = App(tmp_path / "work", version="test")
+    script = _kept_in_the_workspace(app)
+    tools = {tool["name"]: tool for tool in app.tools()["tools"]}
+    assert tools["cpjsdraw"]["status"] == "ok"
+    assert tools["cpjsdraw"]["found_at"] == str(script)
+
+
+def test_a_run_finds_the_tool_the_page_found(tmp_path: Path, data_dir: Path) -> None:
+    """The stand-in is refused as unpatched, which is how this shows the run reached that copy."""
+    app = _workspace(tmp_path, data_dir)
+    script = _kept_in_the_workspace(app)
+    form = {"inputs": ["records/NC_050833.1.gb"], "dataset": "ir-junction"}
+    job = _finished(app, app.start_job({"command": "ir-junction", "form": form})["id"])
+    assert job["status"] == "tool_error"
+    assert f"{script}: this is not the patched CPJSdraw" in job["output"].replace("\n", " ")
+
+
 def test_a_refused_form_starts_nothing(tmp_path: Path, data_dir: Path) -> None:
     app = _workspace(tmp_path, data_dir)
     with pytest.raises(Refused, match="at least one analysis"):

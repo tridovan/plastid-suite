@@ -26,7 +26,7 @@ import re
 from pathlib import Path
 
 from plastid.run.context import RunContext
-from plastid.run.tools import ToolError, tool_version, which
+from plastid.run.tools import ToolError, script_on_path, tool_version, which
 
 __all__ = [
     "CPJSDRAW_VERSION",
@@ -67,7 +67,7 @@ def cpjsdraw_script(explicit: str | Path | None = None) -> Path:
             raise ToolError(f"cpjsdraw: --cpjsdraw {explicit} is not a file — {CPJSDRAW_DOC}")
         # Absolute, because the tool runs in a directory of its own and not the user's.
         return path.resolve()
-    found = which(_SCRIPT_NAME)
+    found = script_on_path(_SCRIPT_NAME)
     if found is None:
         raise ToolError(
             f"cpjsdraw: {_SCRIPT_NAME} not found — CPJSdraw is not bundled with this toolkit, "

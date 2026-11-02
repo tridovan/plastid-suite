@@ -68,3 +68,14 @@ def test_the_report_says_which_optional_parts_are_installed(
     assert main(["tools", "--json"]) == 0
     extras = json.loads(capsys.readouterr().out)["extras"]
     assert set(extras) == {"figures", "docx"} and all(isinstance(v, bool) for v in extras.values())
+
+
+@pytest.mark.usefixtures("bare_machine")
+def test_a_script_perl_runs_needs_no_execute_bit(tmp_path: Path) -> None:
+    """A copy from a download or across a Windows mount has none, and it is still installed."""
+    script = tmp_path / "CPJSdraw.pl"
+    script.write_text('my $version = "0.0.1";\n', encoding="utf-8")
+    script.chmod(0o644)
+    cpjsdraw = next(status for status in check_tools() if status.name == "cpjsdraw")
+    assert cpjsdraw.status == "ok"
+    assert cpjsdraw.found_at == str(script)

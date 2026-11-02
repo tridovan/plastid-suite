@@ -1,7 +1,7 @@
 # Known correctness and integration issues
 
 K-01 to K-06 were reproduced during the 26 October 2026 review, and the later entries were found by
-running the toolkit. **K-01 to K-31 are all fixed.** Documenting a defect did not fix it, and a fixed
+running the toolkit. **K-01 to K-32 are all fixed.** Documenting a defect did not fix it, and a fixed
 entry says which test now holds it. The "observed" columns below are the before-fix measurements;
 they are kept as the reproduction record, not as current behaviour.
 
@@ -561,6 +561,17 @@ identity (need >= 99.9 %)`. The gate was right and the sentence contradicted it.
 
 **Fix.** An identity shown to a reader is rounded down, so 99.8964 % reads 99.89 %. The tables keep
 their own precision, and no decision reads the rounded value. Regression: `tests/unit/test_ir.py`.
+
+## K-32 — A Perl script without an execute bit read as not installed — **fixed (02/11/2026)**
+
+**Symptom.** `misa.pl` or `CPJSdraw.pl` on `PATH` without the bit, as a download or a copy across a
+Windows mount leaves them, read as missing in `plastid tools`, although Perl reads them and needs no
+such bit. In the Windows image a user's CPJSdraw had no place to be found at all, so **Tools** said
+missing beside a copy that worked when typed on Export.
+
+**Fix.** A script an interpreter runs is found by name on `PATH`, and the interface puts the workspace's
+`tools` folder, and each `tools/<name>/bin`, last on the `PATH` of everything it starts. Regression:
+`tests/unit/test_tool_report.py`, `tests/unit/test_ui_engine.py`.
 
 ## Other current limitations
 

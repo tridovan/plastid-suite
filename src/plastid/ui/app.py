@@ -27,7 +27,7 @@ from plastid.ui.records import RECORD_SUFFIXES, RecordBook
 
 __all__ = ["App", "NotFound", "Refused"]
 
-_PLACES = ("records", "reads", "references", "runs")
+_PLACES = ("records", "reads", "references", "runs", "tools")
 _STATE_DIR = ".plastid-ui"
 _TEXT_SUFFIXES = (".md", ".txt", ".log", ".tsv", ".cfg", ".csv", ".json")
 _TEXT_LIMIT = 200_000  # characters sent to the page; the file itself holds them all
@@ -111,6 +111,14 @@ class App:
             raise Refused(f"{bare} is already there; files here are not overwritten")
         return target
 
+    def _tool_dirs(self) -> list[Path]:
+        """Where the person keeps a tool of their own: `tools`, and a program's `bin` inside it.
+
+        The image cannot carry a tool with no licence, and someone on Windows has no PATH to set.
+        """
+        tools = self.workspace / "tools"
+        return [tools, *sorted(tools.glob("*/bin"))]
+
     # The engine's own lists ------------------------------------------------------------------
 
     def about(self) -> dict[str, Any]:
@@ -129,7 +137,7 @@ class App:
         with self._lock:
             if key in self._cached:
                 return self._cached[key]
-        value = json.loads(plastid_output(args, cwd=self.workspace))
+        value = json.loads(plastid_output(args, cwd=self.workspace, tool_dirs=self._tool_dirs()))
         with self._lock:
             self._cached[key] = value
         return value
@@ -236,7 +244,7 @@ class App:
             raise NotFound(f"no run {run}")
         args = ("figures", self.relative(folder), "--list", "--json")
         try:
-            return json.loads(plastid_output(args, cwd=self.workspace))
+            return json.loads(plastid_output(args, cwd=self.workspace, tool_dirs=self._tool_dirs()))
         except ToolError as error:
             raise Refused(str(error)) from None
 
@@ -298,7 +306,7 @@ class App:
         job_id = uuid4().hex[:12]
         log = self.state_dir / "jobs" / f"{job_id}.log"
         log.parent.mkdir(exist_ok=True)
-        process = start_plastid(args, cwd=self.workspace, log=log)
+        process = start_plastid(args, cwd=self.workspace, log=log, tool_dirs=self._tool_dirs())
         job = _Job(job_id, args, process, log)
         with self._lock:
             self._jobs[job_id] = job

@@ -892,7 +892,7 @@ async function exportPage(query) {
       } }), record.name))),
       el('div', { class: 'field-grid' },
         textField('Where the data came from', '', (value) => { junction.label = value; refreshJunction(); }),
-        pathField('CPJSdraw.pl, when it is not on PATH', '', (value) => { junction.cpjsdraw = value; refreshJunction(); })),
+        pathField('CPJSdraw.pl, when it is not in your tools folder', '', (value) => { junction.cpjsdraw = value; refreshJunction(); })),
       more('Drawing options',
         textField('Base name of the files', '', (value) => { junction.tag = value; refreshJunction(); }, 'Default: ir_junction'),
         textField('PNG width, in pixels', '', (value) => { junction.width = value; refreshJunction(); }, 'Default: 3200'),
@@ -1112,7 +1112,7 @@ async function toolsPage() {
       el('div', null, el('h1', null, 'Tools'), el('p', { class: 'lead' }, 'Version is part of a result, so each tool is checked against the version the toolkit’s numbers were measured with. A different build is reported, never used quietly.')),
       el('button', { class: 'btn', type: 'button', onclick: async () => { session.tools = await post('/api/tools/refresh'); toolsPage(); } }, 'Check again')),
     el('p', { class: 'small' }, `This computer: ${tools.machine.ram_gb.toFixed(1)} GB memory, ${tools.machine.cores} cores, ${tools.machine.disk_free_gb.toFixed(1)} GB free in your folder.`),
-    el('p', { class: 'small' }, 'A tool kept somewhere else can be named on the analysis that uses it: its parameters have a field for the tool. “If asked” means only a chosen option needs that tool.'),
+    el('p', { class: 'small' }, 'A tool of your own goes in the tools folder of your workspace, with its whole folder if it has one, such as tools/cpjsdraw. Press Check again and every run finds it. “If asked” means only a chosen option needs that tool.'),
     el('div', { class: 'table-box' }, el('table', null,
       el('thead', null, el('tr', null, ['Tool', 'Status', 'Found', 'Pinned', 'Needed by'].map((name) => el('th', { scope: 'col' }, name)))), body)));
   redraw(tools);
