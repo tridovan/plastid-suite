@@ -198,7 +198,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--workspace",
         default=".",
         metavar="DIR",
-        help="the folder the interface works in: records, reads, references and runs live there",
+        help="the folder the interface works in, made if it is not there: records, reads, "
+        "references, runs and your own tools live in it",
     )
     ui_parser.add_argument(
         "--port",
@@ -4296,9 +4297,6 @@ def _cmd_ui(args: argparse.Namespace) -> int:
         )
         return EXIT_USAGE
     workspace = Path(args.workspace)
-    if not workspace.is_dir():
-        print(f"--workspace: {workspace} is not a folder", file=sys.stderr)
-        return EXIT_USAGE
     token = os.environ.get("PLASTID_UI_TOKEN")
     session = Session(args.port, token) if token else Session(args.port)
     try:

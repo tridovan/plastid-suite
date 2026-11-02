@@ -5,6 +5,7 @@ from __future__ import annotations
 import http.client
 import json
 import shutil
+import socket
 import threading
 from collections.abc import Iterator
 from pathlib import Path
@@ -210,3 +211,27 @@ def test_a_folder_that_cannot_be_written_is_named(
     assert main(["ui", "--workspace", str(tmp_path), "--no-browser"]) == 2
     err = capsys.readouterr().err
     assert "--workspace" in err and "cannot write" in err
+
+
+def test_a_workspace_that_is_not_there_yet_is_made(tmp_path: Path) -> None:
+    """`plastid ui --workspace my_project` is the first command a person types.
+
+    A busy port ends the command right after the folder, so the test needs no running server.
+    """
+    workspace = tmp_path / "my_project"
+    with socket.socket() as taken:
+        taken.bind((LOOPBACK, 0))
+        taken.listen()
+        port = str(taken.getsockname()[1])
+        code = main(["ui", "--workspace", str(workspace), "--no-browser", "--port", port])
+    assert code == 2
+    assert (workspace / "records").is_dir()
+
+
+def test_a_workspace_that_is_a_file_is_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    taken = tmp_path / "a_file"
+    taken.write_text("x", encoding="utf-8")
+    assert main(["ui", "--workspace", str(taken), "--no-browser"]) == 2
+    assert "--workspace" in capsys.readouterr().err
