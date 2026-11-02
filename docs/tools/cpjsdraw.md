@@ -46,6 +46,10 @@ chmod a+x CPJSdraw/script/svg_kit/buildInFont      # readme.txt asks for this
 sudo apt-get install -y perl libsvg-perl librsvg2-bin
 ```
 
+For the interface, and on Windows, put the patched `CPJSdraw` folder in the `tools` folder of your
+workspace: `tools/CPJSdraw/bin/CPJSdraw.pl` is found by every run started there, and needs no execute
+bit. `rsvg-convert` is in the Windows image.
+
 **It wants `gene` features, and this toolkit writes none.** Measured 17/10/2026: handed a record
 without one, CPJSdraw stops with `has no gene info(no primary gene tag)` and writes no SVG. A
 GenBank record from NCBI carries both `gene` and `CDS` features and works; a record **this toolkit

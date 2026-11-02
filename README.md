@@ -8,8 +8,8 @@ tables, codon usage, amino-acid composition, introns, SSR, repeats, substitution
 diversity (π), barcodes, Ka/Ks, population genetics, synteny, group statistics, ORF checks,
 gene-name unification, annotation, maximum-likelihood phylogeny, predicted RNA-editing sites and
 NCBI submission files, plus assembly from short or HiFi reads. The existing mitochondrial path
-(`mito annotate` · `mito genes`) is an experimental prototype; current development targets
-plastids.
+(`plastid mito annotate` and the `mito_genes` module) is an experimental prototype; current
+development targets plastids.
 
 Every run writes its own directory with tables and a draft report. External tool calls record
 their name, version and command line. Output from a new analysis run does not overwrite an older run.
@@ -31,73 +31,108 @@ and the integration still missing.
 
 ## Install
 
-**Linux — install from a source checkout.** The minimum install supports the pure-Python analyses.
-These instructions do not assume a published PyPI release:
-
-```bash
-git clone https://github.com/tridovan/plastid-suite && cd plastid-suite
-uv sync                 # or: pip install .
-```
-
-**Windows** — the toolkit does not run natively on Windows; the supported route is Docker (build
-once, then use `docker run` for every command in this file):
-
-```bash
-docker build -f docker/Dockerfile -t plastid-suite .
-docker run --rm -v "$PWD:/work" plastid-suite plastid --version
-```
-
-Some analyses need external tools (MAFFT, MISA, BLAST+, MUMmer, PAML…). The toolkit never bundles
-them, and never silently skips one: a missing tool stops the run and names it. What each tool is
-and how to install it: [docs/tools/](docs/tools/) — its front page lists every tool with its role
-(runtime · assembly · cross-check · deferred · survey-only). The runtime environment is
-`environment.yml` (`conda env create -f environment.yml`). The assembly tools are in
-`environment-assembly.yml`, and the cross-check engines and deferred tools in
-`environment-check.yml` and `environment-future.yml`, so installing the analyses never pulls in an
-assembler.
-
-## The local interface
-
-`plastid ui` opens the toolkit in your browser, on your own computer. Nothing is uploaded: the page
-talks to a small server on `127.0.0.1`, and that server starts the same `plastid` command line this
-file describes, so a run made there is a run made here.
-
-```bash
-plastid ui --workspace my_project
-```
-
-The first time, this makes five folders in `my_project`: `records`, `reads`, `references`, `runs` and
-`tools`, where a tool you keep yourself goes.
-The link it prints holds a key for this session, so open that link rather than typing the address.
-Closing the tab stops nothing. Ctrl-C closes the interface, and runs already started go on. A busy
-port stops the command by name; `--port` chooses another.
+Nothing is on PyPI yet, so the toolkit comes from this repository. Windows runs it through Docker,
+and Linux through a conda environment. Either way you get the local interface and every analysis.
 
 ### On Windows
 
-The toolkit runs on Windows through Docker. You need no command line:
+You need no command line:
 
-1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and start it.
-2. Download this repository as a ZIP and unpack it.
-3. Double-click `docker\plastid-ui.bat`. The first time it builds the toolkit, which needs the network,
-   about 15 minutes on a laptop and about 7 GB of disk. After that it starts in seconds, and your
-   browser opens by itself.
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), start it, and wait until
+   it says it is running.
+2. Download this repository as a ZIP (**Code**, then **Download ZIP**) and unpack it.
+3. Double-click `docker\plastid-ui.bat`. If Windows warns about the file, press **More info**, then
+   **Run anyway**. The first time it builds the toolkit, which needs the network, about 15 minutes on
+   a laptop and about 10 GB of free disk. After that it starts in seconds, and your browser opens by
+   itself.
 
 Your work goes in `Documents\PlastidToolSuite`. Keep the black window open while you work. If it was
 closed and the toolkit is still running, double-click the file again: it opens the running one. To
 stop the toolkit, stop `plastid-ui` in Docker Desktop, under Containers. A run still going stops with
 it, and reads as interrupted.
 
-Every tool is in the image you built except CPJSdraw, because its source states no licence. For IR
-junctions, copy your own patched `cpjsdraw` folder into the `tools` folder there and press **Check
-again** on **Tools**.
+Every tool is in the image you built except CPJSdraw, which only the IR junction figure needs: its
+source states no licence. [docs/tools/cpjsdraw.md](docs/tools/cpjsdraw.md) has the clone line and the
+two patches. Copy the patched `CPJSdraw` folder into the `tools` folder of your work folder and press
+**Check again** on **Tools**.
 
-To take a newer version, stop `plastid-ui`, run `docker image rm plastid-suite`, and double-click the
-file in the new folder. It builds again, in about 5 minutes if the old build is still cached.
+To take a newer version, stop `plastid-ui`, delete the image `plastid-suite` in Docker Desktop, under
+Images, and double-click the file in the new folder. It builds again, in about 5 minutes if the old
+build is still cached.
+
+The same image takes every command in this file. In PowerShell, from a folder you want to work in:
+
+```powershell
+docker run --rm -v "${PWD}:/work" plastid-suite plastid --version
+```
+
+### On Linux
+
+You need [conda](https://github.com/conda-forge/miniforge), or micromamba with the same arguments. The
+environment holds the analysis tools, about 3 GB:
+
+```bash
+git clone https://github.com/tridovan/plastid-suite && cd plastid-suite
+conda env create -f environment.yml
+conda activate plastid-suite
+pip install '.[figures,docx,excel,stats]'
+```
+
+MISA, which the SSR analysis runs, is a download of its own, because its zip states no licence:
+
+```bash
+curl -fsSLO https://webblast.ipk-gatersleben.de/misa/misa_sourcecode_25082020.zip
+unzip -j misa_sourcecode_25082020.zip misa.pl -d "$CONDA_PREFIX/bin"
+```
+
+`plastid tools` then says what this machine has, and how to get what it lacks. Activate the
+environment in each new shell.
+
+The assembly tools take an environment of their own, about 3 GB more. Put it last on `PATH`, so the
+analyses keep their pinned BLAST, and fetch GetOrganelle's database once:
+
+```bash
+conda env create -f environment-assembly.yml
+export PATH="$PATH:$(conda info --base)/envs/plastid-suite-assembly/bin"
+conda run -n plastid-suite-assembly get_organelle_config.py -a embplant_pt,embplant_mt --config-dir ~/getorganelle
+export GETORG_PATH=~/getorganelle
+```
+
+HiFi reads also need Oatk's profiles ([docs/tools/oatk.md](docs/tools/oatk.md)). The `.sqn` step needs
+table2asn ([docs/tools/table2asn.md](docs/tools/table2asn.md)), and the IR junction figure needs
+CPJSdraw ([docs/tools/cpjsdraw.md](docs/tools/cpjsdraw.md)).
+
+### The pure-Python analyses alone
+
+`pip install .` in a clone needs nothing but Python 3.10 or newer, and runs every analysis that calls
+no external tool. A missing tool or extra stops the run and names it; nothing is skipped silently.
+
+What each tool is and how to install it: [docs/tools/](docs/tools/), whose front page lists every tool
+with its role (runtime · assembly · cross-check · deferred · survey-only). The cross-check engines and
+deferred tools are in `environment-check.yml` and `environment-future.yml`.
+
+## The local interface
+
+`plastid ui` opens the toolkit in your browser, on your own computer. Nothing is uploaded: the page
+talks to a small server on `127.0.0.1`, and that server starts the same `plastid` command line this
+file describes, so a run made there is a run made here. On Windows, `plastid-ui.bat` does this for
+you. On Linux:
+
+```bash
+plastid ui --workspace my_project
+```
+
+The first time, this makes `my_project` with five folders in it: `records`, `reads`, `references`,
+`runs` and `tools`, where a tool you keep yourself goes. The link it prints holds a key for this
+session, so open that link rather than typing the address. Closing the tab stops nothing. Ctrl-C
+closes the interface, and runs already started go on. A busy port stops the command by name; `--port`
+chooses another.
 
 ### A first run, step by step
 
 1. **Add a record.** Open **Records**, press **Add records** and choose a GenBank file, or copy it into
-   the `records` folder. The page reads it and asks the IR gate at once.
+   the `records` folder. To try it on a known record, use `tests/data/NC_050833.1.gb` from this
+   repository. The page reads it and asks the IR gate at once.
 2. **Read the gate.** A green mark means the two inverted-repeat copies agree. If the record is refused,
    the page says what it measured and which ways forward keep the check in place. The gate has no off
    switch.
@@ -108,7 +143,8 @@ file in the new folder. It builds again, in about 5 minutes if the old build is 
 5. **Press Run.** The page follows the work and has a **Cancel run** button. You can close the tab
    and come back.
 6. **Read the results.** **Results** lists every run, including runs started at a prompt. A run shows
-   its tables with their scope, its figures, and how it was made.
+   its tables with their scope, its figures, and how it was made. On the known record, **Genome
+   statistics** gives 153,724 bp, 37.85 % GC and 132 genes.
 7. **Export.** **Export** draws figures again with your choices, such as the root of a tree, builds the
    Supplementary package and the QC report, and draws IR junctions across species.
 
@@ -138,8 +174,8 @@ Every run gets its own directory, named by time and input, so two runs never mix
   01_genome_stats/       tables/*.csv · result.json · report.md (draft — needs human review)
 ```
 
-From paired short reads to a checked sequence (`conda env create -f environment-assembly.yml`, and
-[docs/tools/getorganelle.md](docs/tools/getorganelle.md) for the database it needs once):
+From paired short reads to a checked sequence, with the assembly tools of [On Linux](#on-linux)
+([docs/tools/getorganelle.md](docs/tools/getorganelle.md) has the method):
 
 ```bash
 plastid assemble run -1 reads_1.fastq.gz -2 reads_2.fastq.gz --sample my_sample --out .runs \
@@ -191,7 +227,8 @@ sequence exits `1` with the status `incomplete`.
 
 ## Verify
 
-In a checkout, with the tools you have installed:
+In a checkout, with the tools you have installed. `make` runs through
+[uv](https://docs.astral.sh/uv/), so run `uv sync --all-extras` once first:
 
 ```bash
 make test        # fast tests — no external tools, no network
