@@ -41,10 +41,10 @@ You need no command line:
 1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), start it, and wait until
    it says it is running.
 2. Download this repository as a ZIP (**Code**, then **Download ZIP**) and unpack it.
-3. Double-click `docker\plastid-ui.bat`. If Windows warns about the file, press **More info**, then
-   **Run anyway**. The first time it builds the toolkit, which needs the network, about 15 minutes on
-   a laptop and about 10 GB of free disk. After that it starts in seconds, and your browser opens by
-   itself.
+3. Double-click `docker\plastid-ui.bat`. Windows may warn that the publisher could not be verified:
+   press **Run**, or in a blue box **More info**, then **Run anyway**. The first time it builds the
+   toolkit, which needs the network, about 15 minutes on a laptop and about 10 GB of free disk. After
+   that it starts in seconds, and your browser opens by itself.
 
 Your work goes in `Documents\PlastidToolSuite`. Keep the black window open while you work. If it was
 closed and the toolkit is still running, double-click the file again: it opens the running one. To
