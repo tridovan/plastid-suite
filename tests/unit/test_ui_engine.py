@@ -11,7 +11,7 @@ import pytest
 from test_ui_commands import FULL_FORMS, _leaf
 
 from plastid.cli import main
-from plastid.ui.app import App, Refused
+from plastid.ui.app import App, NotFound, Refused
 
 MODULES = ["genome_stats", "codon_usage"]
 LABEL = "NCBI RefSeq, PTS test set"
@@ -153,6 +153,46 @@ def test_a_set_of_references_can_be_listed(tmp_path: Path, data_dir: Path) -> No
     assert [row["name"] for row in app.records("references")["records"]] == ["NC_024936.1.gb"]
     with pytest.raises(Refused, match="outside the workspace"):
         app.records("../..")
+
+
+def test_a_reference_set_lists_the_records_a_run_searches(tmp_path: Path, data_dir: Path) -> None:
+    """Annotate ticks records from this list, so it holds exactly what `annotate` reads.
+
+    Every `*.gb` directly in the folder, and nothing a run never searches: a `.gbk`, a FASTA or a
+    record one folder down. A row's `key` is the name `--exclude` takes, the file's stem, which is
+    not the accession when the file is named otherwise; the row says who the record is and how many
+    genes it carries, CDS + tRNA + rRNA.
+    """
+    app = _workspace(tmp_path, data_dir)
+    folder = app.workspace / "references" / "iridaceae"
+    (folder / "deeper").mkdir(parents=True)
+    shutil.copy(data_dir / "NC_050833.1.gb", folder / "NC_050833.1.gb")
+    shutil.copy(data_dir / "NC_024936.1.gb", folder / "gatesii.gb")
+    shutil.copy(data_dir / "NC_024936.1.gb", folder / "NC_024936.1.gbk")
+    shutil.copy(data_dir / "NC_024936.1.gb", folder / "deeper" / "NC_024936.1.gb")
+    (folder / "notes.fasta").write_text(">notes\nACGT\n", encoding="utf-8")
+
+    rows = app.reference_set("references/iridaceae")["records"]
+
+    assert [row["name"] for row in rows] == ["NC_050833.1.gb", "gatesii.gb"]
+    domestica, gatesii = rows
+    assert (domestica["key"], domestica["accession"]) == ("NC_050833.1", "NC_050833.1")
+    assert domestica["organism"] == "Iris domestica"
+    assert domestica["genes"] == 132  # 86 CDS + 38 tRNA + 8 rRNA, the golden pair's contract
+    assert (gatesii["key"], gatesii["accession"]) == ("gatesii", "NC_024936.1")
+    assert gatesii["organism"] == "Iris gatesii"
+
+
+def test_a_reference_set_the_page_cannot_list_is_said_in_words(
+    tmp_path: Path, data_dir: Path
+) -> None:
+    app = _workspace(tmp_path, data_dir)
+    with pytest.raises(Refused, match="is a file; choose the folder that holds it"):
+        app.reference_set("records/NC_050833.1.gb")
+    with pytest.raises(Refused, match="outside the workspace"):
+        app.reference_set("../..")
+    with pytest.raises(NotFound, match="no folder references/none"):
+        app.reference_set("references/none")
 
 
 def test_a_run_with_no_dataset_name_can_be_opened(tmp_path: Path, data_dir: Path) -> None:

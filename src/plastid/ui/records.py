@@ -13,13 +13,13 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from plastid.core.genbank import read_record
+from plastid.core.genbank import read_genbank, read_record
 from plastid.core.ir import IRDetectionError, IRResult, detect_ir, identity_percent
 from plastid.core.model import Genome, count_genes
 from plastid.core.normalize import normalize
 from plastid.core.sequence import gc_percent
 
-__all__ = ["RECORD_SUFFIXES", "RecordBook", "inspect"]
+__all__ = ["RECORD_SUFFIXES", "RecordBook", "brief", "inspect"]
 
 RECORD_SUFFIXES = (".gb", ".gbk", ".gbff", ".fasta", ".fa", ".fna", ".fas")
 _COUNTED = ("CDS", "tRNA", "rRNA")
@@ -99,6 +99,21 @@ def inspect(path: Path) -> dict[str, Any]:
             "rrna": counts.rrna,
         },
         "gates": {source: _gate(genome, source) for source in gates},
+    }
+
+
+def brief(path: Path) -> dict[str, Any]:
+    """Who a reference record is and how many genes it carries, read as the annotator reads it.
+
+    No IR gate here: a reference record is searched, not measured, and a set of thirty would make
+    the list wait on thirty gates.
+    """
+    genome = read_genbank(path)
+    counts = count_genes(genome)
+    return {
+        "organism": genome.source.get("organism") or genome.name,
+        "accession": genome.accession,
+        "genes": counts.cds + counts.trna + counts.rrna,
     }
 
 

@@ -200,6 +200,7 @@ dialog::backdrop { background: rgba(15, 42, 34, .4); }
 .picker-list button { min-height: 40px; padding: 0 8px; background: none; border: none; border-radius: 6px; text-align: left; font-size: 14px; cursor: pointer; }
 .picker-list button:hover { background: var(--ground); }
 .picker-list .folder { font-weight: 500; }
+.picker-list .file { min-height: 40px; padding: 0 8px; display: flex; align-items: center; font-size: 14px; color: var(--ink-3); }
 .empty { padding: 28px; text-align: center; color: var(--ink-2); }
 
 /* What most people never change, closed until someone wants it. */
@@ -207,3 +208,4 @@ dialog::backdrop { background: rgba(15, 42, 34, .4); }
 .more summary { cursor: pointer; font-weight: 500; color: var(--ink-2); min-height: 26px; }
 .more[open] summary { margin-bottom: 12px; }
 .picks { display: flex; flex-direction: column; gap: 6px; }
+.ref-list { max-height: 22rem; overflow-y: auto; }

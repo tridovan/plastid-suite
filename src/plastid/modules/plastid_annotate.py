@@ -86,7 +86,14 @@ from plastid.core.plastid_caller import (
 from plastid.core.plastid_caller import (
     call_rrna as call_plastid_rrna,
 )
-from plastid.core.plastid_reference import load_recorded_manifest, missing_set, resolve_directory
+from plastid.core.plastid_reference import (
+    excluded_by,
+    exclusion_names,
+    load_recorded_manifest,
+    missing_set,
+    record_files,
+    resolve_directory,
+)
 from plastid.core.submission import to_fasta
 from plastid.external.aragorn import AragornResult, run_aragorn
 from plastid.external.blast import (
@@ -174,24 +181,16 @@ def _reference_set(params: dict[str, Any], target: str) -> Iterator[_Reference]:
     record it names is not annotated from.
     """
     directory, allowed = _reference_directory(params, target)
-    paths = sorted(directory.glob("*.gb"))
-    # A name, or several separated by commas: `--exclude A` and `--exclude A,B` are the same
-    # request, and neither may be read as a set of characters (which is what iterating the string
-    # would silently give).
-    raw_exclusions = params.get("exclude", ())
-    if isinstance(raw_exclusions, str):
-        raw_exclusions = (raw_exclusions,)
-    dropped_by_request = {
-        name.strip() for item in raw_exclusions for name in str(item).split(",") if name.strip()
-    }
+    paths = record_files(directory)
+    dropped_by_request = exclusion_names(params.get("exclude"))
     searched: list[Path] = []
     records, excluded, dropped = [], [], []
     matched: set[str] = set()
     for path in paths:
-        accession = path.stem
-        if accession in dropped_by_request or path.name in dropped_by_request:
-            matched.add(accession)
-            dropped.append((accession, "left out by --set exclude"))
+        named = excluded_by(path, dropped_by_request)
+        if named:
+            matched |= named
+            dropped.append((path.stem, "left out by --set exclude"))
             continue
         genome = read_genbank(path)
         accession = genome.accession or genome.name

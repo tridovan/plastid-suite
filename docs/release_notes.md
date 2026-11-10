@@ -76,6 +76,9 @@ what each comparison shows, in both directions, is in [cgas.md](tools/cgas.md) a
 | A script that reads `manifest.command` (K-21) | It now holds what was typed, whole |
 | `plastid run -m plastid_annotate` or `plastid batch -m plastid_annotate` (K-20) | Refused by name. Use `plastid annotate`, with `--set reannotate=yes` for a record that carries an annotation |
 | `--set` with a misspelt word for a yes/no value (K-22) | It used to read as no. It is refused now |
+| `--reference-set` naming one record instead of its folder (K-33) | Refused as a wrong command line, exit 2, naming the folder to pass. `annotate` and `reference audit` used to exit 3 and say the toolkit ships no records |
+| `--exclude` with a file name or a comma list (K-34) | A file name leaves its record out; it used to stop the run. A record left out by a comma list is now left out of the manifest's `reference_sets` too |
+| `annotate` with a reference file not named by its accession (K-35) | The manifest no longer counts the sample's own record as searched. A set whose every record is left out stops before the run starts, exit 2 |
 
 The command line was reviewed before the first release, and names that meant two things were changed
 without keeping the old ones, because nothing had been released under them:

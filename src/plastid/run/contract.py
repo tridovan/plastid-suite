@@ -21,6 +21,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from plastid.core.genbank import read_genbank
+from plastid.core.plastid_reference import excluded_by, exclusion_names, record_files
+
 __all__ = [
     "ARTIFACT_SCHEMA_VERSION",
     "EXTERNAL_RESULT_SCHEMA_VERSION",
@@ -53,6 +56,19 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
+def _own_accession(record: Path) -> str | None:
+    """The accession inside a reference record, as the annotator reads it; ``None`` if unreadable.
+
+    An unreadable record is not decided here: the search reads it next and stops on it in its own
+    words, so the contract neither hides that nor refuses the run first.
+    """
+    try:
+        genome = read_genbank(record)
+    except (OSError, ValueError):
+        return None
+    return genome.accession or genome.name
+
+
 def describe_reference_set(
     directory: str | Path,
     *,
@@ -62,28 +78,41 @@ def describe_reference_set(
 ) -> dict[str, Any]:
     """One directory a run searched: records actually searched and a digest over their bytes.
 
-    ``exclude`` are accessions the run was told to drop (``--exclude``) and ``leave_out`` is the
-    target's own accession, which the annotator never searches (leave-one-out, D5-08). Both are
+    ``exclude`` are the names the run was told to drop (``--exclude``: a file's stem or its whole
+    name, a value possibly holding several separated by commas) and ``leave_out`` is the target's
+    own accession, which the annotator never searches (leave-one-out, D5-08). Both are
     recorded so the digest names the set that was used, not every file that happened to sit in
     the directory. A path alone cannot say whether the set changed; raises
     :class:`ContractError` when nothing is left to search rather than writing an empty contract a
     downstream step would trust.
     """
     root = Path(directory)
-    present = sorted(root.glob("*.gb"))
-    dropped = set(exclude)
-    if leave_out:
-        dropped.add(leave_out)
-    records = [record for record in present if record.stem not in dropped]
+    present = record_files(root)
+    # Both are read the way the search reads them, or the digest would name records the search had
+    # left out: the request as comma lists matching a stem or a file name, and the target's own
+    # record by the accession inside it, whatever its file is called.
+    requested = exclusion_names(exclude)
+    left_out = [
+        record
+        for record in present
+        if excluded_by(record, requested) or (leave_out and _own_accession(record) == leave_out)
+    ]
+    records = [record for record in present if record not in left_out]
     if not records:
-        raise ContractError(f"{root}: no GenBank records to describe as {role!r}")
+        reason = (
+            f" — every record in it is left out ({', '.join(record.stem for record in left_out)}),"
+            f" by --exclude or as the sample's own record"
+            if present
+            else ""
+        )
+        raise ContractError(f"{root}: no GenBank records to describe as {role!r}{reason}")
     listing = "".join(f"{record.name}\t{sha256_file(record)}\n" for record in records)
     return {
         "role": role,
         "format": "genbank",
         "path": str(root),
         "records": len(records),
-        "excluded": sorted(record.stem for record in present if record.stem in dropped),
+        "excluded": sorted(record.stem for record in left_out),
         "leave_out": leave_out,
         "sha256": hashlib.sha256(listing.encode("utf-8")).hexdigest(),
     }

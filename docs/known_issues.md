@@ -1,7 +1,7 @@
 # Known correctness and integration issues
 
 K-01 to K-06 were reproduced during the 26 October 2026 review, and the later entries were found by
-running the toolkit. **K-01 to K-32 are all fixed.** Documenting a defect did not fix it, and a fixed
+running the toolkit. **K-01 to K-35 are all fixed.** Documenting a defect did not fix it, and a fixed
 entry says which test now holds it. The "observed" columns below are the before-fix measurements;
 they are kept as the reproduction record, not as current behaviour.
 
@@ -572,6 +572,46 @@ missing beside a copy that worked when typed on Export.
 **Fix.** A script an interpreter runs is found by name on `PATH`, and the interface puts the workspace's
 `tools` folder, and each `tools/<name>/bin`, last on the `PATH` of everything it starts. Regression:
 `tests/unit/test_tool_report.py`, `tests/unit/test_ui_engine.py`.
+
+## K-33 — One record given as the reference set was answered as no set at all — **fixed (10/11/2026)**
+
+**Symptom.** The folder picker on **Annotate** listed the records inside the folder and took a click on
+one. `plastid annotate --reference-set references/NC_041459.1.gb` then stopped with `no reference set
+at …: the toolkit ships no plastid records`, exit 3, to someone who had just supplied a record.
+`reference audit` said the same, and `reference verify` and `leave-one-out` printed `Not a directory:
+…/PINNED.json`.
+
+**Fix.** A file given as the set is a wrong command line: all four commands exit 2 with `… is a file,
+and a reference set is the folder of GenBank records (*.gb) a run searches: pass --reference-set
+<its folder>`. A picker that takes a folder shows the files but cannot choose one. Regression:
+`test_a_record_named_as_the_reference_set_is_a_wrong_command_line` in
+`tests/unit/test_cli_annotate.py`, and `tests/unit/test_plastid_reference.py`.
+
+## K-34 — The search and the run's record read `--exclude` differently — **fixed (10/11/2026)**
+
+**Symptom.** The search splits each `--exclude` value on commas and matches a file's stem or its whole
+name. It then counted only stems as matched, so `--exclude NC_041459.1.gb` left the record out and
+stopped the run with `matches no record … nothing was left out`. The run's contract read each value
+whole and matched stems only, so after `--exclude A,B` the manifest's `reference_sets` counted A and B
+as searched, and its digest named a set the search never used.
+
+**Fix.** One reading of the request, in `core/plastid_reference.py`, used by both. Regression:
+`test_a_record_is_left_out_by_its_stem_or_its_file_name` in
+`tests/unit/test_plastid_annotate_module.py`, `test_the_run_records_the_records_its_exclusions_left_out`
+in `tests/unit/test_cli_annotate.py`.
+
+## K-35 — The run's record counted the sample's own record when its file was named otherwise — **fixed (10/11/2026)**
+
+**Symptom.** Leave-one-out finds the sample's own record by the accession inside the file. The
+contract compared that accession with file names. Measured through the interface with `domestica.gb`
+holding `NC_050833.1` beside four relatives, two of them unticked, for the sample `NC_050833.1`: the
+search's label said `2 GenBank record(s) … 1 left out by leave-one-out (NC_050833.1), 2 dropped by
+name`, and the manifest said `records: 3`.
+
+**Fix.** The contract reads each record's own accession, as the search does. A set whose every record
+is left out now stops before the run starts, exit 2, and names them. Regression:
+`test_the_run_records_the_sample_s_own_record_left_out_whatever_its_file_is_called` in
+`tests/unit/test_cli_annotate.py`.
 
 ## Other current limitations
 

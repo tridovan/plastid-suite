@@ -45,6 +45,17 @@ def _write(directory: Path, name: str, text: str) -> Path:
     return path
 
 
+def _plastid_record(accession: str) -> str:
+    """The synthetic plastid record filed under another accession, its LOCUS columns kept.
+
+    A reference set's records are read for their accession, and a name of another length shifted
+    into the fixed-column LOCUS line reads as malformed.
+    """
+    locus = f"LOCUS       {accession:<16}{40:>12} bp    DNA     circular PLN 09-OCT-2026"
+    rest = PLASTID_RECORD.split("\n", 1)[1].replace("SYN_PLASTID.1", accession)
+    return f"{locus}\n{rest}"
+
+
 # Every cell the engine's report template resolves against — the stub run is a real run, so its
 # report has to render (tests/unit/test_report.py guards the template's own side of this).
 SUMMARY_COLUMNS = (
@@ -152,6 +163,118 @@ def test_an_audit_of_a_reference_set_that_is_not_there_says_the_same(
     assert code == 3
     assert "--reference-set" in message
     assert "plastid panel pin" in message
+
+
+# Every command whose `--reference-set` names a set, with the arguments it needs besides it.
+SET_COMMANDS = {
+    "annotate": lambda sample, path, out: [
+        "annotate", "-i", str(sample), "--reference-set", str(path), "-o", str(out)
+    ],
+    "reference audit": lambda sample, path, out: [
+        "reference", "audit", "--reference-set", str(path), "-o", str(out)
+    ],
+    "reference verify": lambda sample, path, out: [
+        "reference", "verify", "--reference-set", str(path)
+    ],
+    "reference leave-one-out": lambda sample, path, out: [
+        "reference", "leave-one-out", "--reference-set", str(path), "--family", "Testaceae"
+    ],
+}  # fmt: skip
+
+
+@pytest.mark.parametrize("command", sorted(SET_COMMANDS))
+def test_a_record_named_as_the_reference_set_is_a_wrong_command_line(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], command: str
+) -> None:
+    """K-33: one record handed to `--reference-set`, and the refusal said none had been supplied.
+
+    The path exists and holds a GenBank record, so "the toolkit ships no plastid records" is false.
+    The flag takes the folder a run searches (its metavar is DIR), so a file is a wrong command
+    line, which the README's table answers with 2. The refusal names the folder that would have
+    worked, says the same for every command that reads a set, and writes nothing.
+    """
+    sample = _write(tmp_path, "sample.fa", ">SYN.1\nACGTACGTACGTACGTACGT\n")
+    references = tmp_path / "references"
+    references.mkdir()
+    record = _write(references, "REF.1.gb", PLASTID_RECORD)
+    out = tmp_path / "runs"
+
+    code = main(SET_COMMANDS[command](sample, record, out))
+
+    message = capsys.readouterr().err
+    assert code == 2
+    assert f"{record} is a file" in message
+    assert f"--reference-set {references}" in message
+    assert "ships no plastid records" not in message
+    assert not out.exists()
+    assert sorted(path.name for path in references.iterdir()) == ["REF.1.gb"]
+
+
+@pytest.mark.parametrize(
+    ("request_words", "left_out"),
+    [
+        (["REF.1.gb"], ["REF.1"]),
+        (["REF.1,REF.2"], ["REF.1", "REF.2"]),
+        (["REF.1", "REF.2"], ["REF.1", "REF.2"]),
+    ],
+)
+def test_the_run_records_the_records_its_exclusions_left_out(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, request_words: list[str], left_out: list[str]
+) -> None:
+    """K-34: the run's record of its reference set must leave out what the search left out.
+
+    The search reads `--exclude` as names separated by commas, each matching a record by its file's
+    stem or its whole file name (`modules/plastid_annotate.py`). The contract read each value whole
+    and matched only stems, so `--exclude REF.1.gb` and `--exclude REF.1,REF.2` recorded the records
+    the search had dropped, and the digest named a set the run never searched.
+    """
+    _stub(monkeypatch)
+    sample = _write(tmp_path, "sample.fa", ">SYN.1\nACGTACGTACGTACGTACGT\n")
+    references = tmp_path / "references"
+    references.mkdir()
+    for name in ("REF.1", "REF.2", "REF.3"):
+        _write(references, f"{name}.gb", _plastid_record(name))
+    out = tmp_path / "runs"
+    exclusions = [word for value in request_words for word in ("--exclude", value)]
+
+    code = main(
+        ["annotate", "-i", str(sample), "--reference-set", str(references), *exclusions]
+        + ["-o", str(out)]
+    )
+
+    assert code == 0
+    manifest = json.loads(next(out.glob("**/manifest.json")).read_text(encoding="utf-8"))
+    reference_set = manifest["reference_sets"][0]
+    assert reference_set["excluded"] == left_out
+    assert reference_set["records"] == 3 - len(left_out)
+
+
+def test_the_run_records_the_sample_s_own_record_left_out_whatever_its_file_is_called(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """K-35: leave-one-out is by the record's own accession, and the run's record must agree.
+
+    The search never annotates a sample from its own record, and it finds that record by the
+    accession inside the file (`modules/plastid_annotate.py`), so `own.gb` holding `SYN.1` is not
+    searched for the sample `SYN.1`. The contract compared the accession with file stems and counted
+    `own.gb` as searched. Measured through the interface: the search said 2 records, the manifest 3.
+    """
+    _stub(monkeypatch)
+    sample = _write(tmp_path, "sample.fa", ">SYN.1\nACGTACGTACGTACGTACGT\n")
+    references = tmp_path / "references"
+    references.mkdir()
+    _write(references, "REF.1.gb", _plastid_record("REF.1"))
+    _write(references, "own.gb", _plastid_record("SYN.1"))
+    out = tmp_path / "runs"
+
+    code = main(["annotate", "-i", str(sample), "--reference-set", str(references), "-o", str(out)])
+
+    assert code == 0
+    manifest = json.loads(next(out.glob("**/manifest.json")).read_text(encoding="utf-8"))
+    reference_set = manifest["reference_sets"][0]
+    assert reference_set["leave_out"] == "SYN.1"
+    assert reference_set["excluded"] == ["own"]
+    assert reference_set["records"] == 1
 
 
 def test_a_batch_that_mixes_two_organelles_stops_before_annotating_any_of_them(
@@ -440,7 +563,8 @@ def test_reannotate_yes_makes_replacing_an_external_annotation_explicit(
     _stub(monkeypatch)
     references = tmp_path / "references"
     references.mkdir()
-    _write(references, "REF.1.gb", PLASTID_RECORD)
+    # A relative, not the sample's own record: leave-one-out never searches that one (K-35).
+    _write(references, "REF.1.gb", _plastid_record("REF.1"))
     sample = _write(tmp_path, "external.gb", PLASTID_RECORD)
     out = tmp_path / "runs"
 

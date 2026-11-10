@@ -38,12 +38,17 @@ from plastid.core.resources import data_file
 __all__ = [
     "MANIFEST_FILENAME",
     "RECORDED_MANIFEST",
+    "RECORD_GLOB",
     "ReferenceSet",
     "build_manifest",
+    "excluded_by",
+    "exclusion_names",
     "leave_one_out",
     "load_recorded_manifest",
+    "misnamed_set",
     "missing_set",
     "read_manifest",
+    "record_files",
     "resolve_directory",
     "verify_pin",
     "write_manifest",
@@ -57,6 +62,36 @@ MANIFEST_FILENAME = "REFERENCE_SET.json"
 # (`.panel/` is gitignored, and a 34-record plastome set is data, not source), so this file is what
 # a run reads to learn where they are and which of them may annotate a given target.
 RECORDED_MANIFEST = "plastid_reference.json"
+
+# The records a set holds: GenBank files directly in its folder. The search, the run's contract,
+# the pin check and the interface's list all read this one rule, so no door can offer a record the
+# run would not search, or record one it did not.
+RECORD_GLOB = "*.gb"
+
+
+def record_files(directory: str | Path) -> tuple[Path, ...]:
+    """The records a set holds, sorted by name: every ``*.gb`` directly inside ``directory``."""
+    return tuple(sorted(Path(directory).glob(RECORD_GLOB)))
+
+
+def exclusion_names(raw: str | Iterable[str] | None) -> frozenset[str]:
+    """The names ``--exclude`` asked to leave out: each value split on commas, blanks dropped.
+
+    `--exclude A` and `--exclude A,B` are one request in two forms, and neither may be read as a
+    set of characters, which iterating a lone string would silently give. The search and the run's
+    contract both read the request through here, so the set a run records is the set it searched.
+    """
+    values = (raw,) if isinstance(raw, str) else tuple(raw or ())
+    return frozenset(
+        name.strip() for value in values for name in str(value).split(",") if name.strip()
+    )
+
+
+def excluded_by(path: Path, names: frozenset[str]) -> frozenset[str]:
+    """The requested names that leave ``path`` out: its stem (the accession a pin files it under)
+    or its whole file name. Either is a match, so neither may later be reported as matching nothing.
+    """
+    return frozenset({path.stem, path.name} & names)
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,7 +171,7 @@ def verify_pin(directory: str | Path) -> tuple[str, ...]:
             problems.append(
                 f"{path.name} — sha256 {digest[:12]}… but the pin records {record.sha256[:12]}…"
             )
-    for path in sorted(root.glob("*.gb")):
+    for path in record_files(root):
         if path.name not in listed:
             problems.append(f"{path.name} — in the directory but not in PINNED.json")
     return tuple(problems)
@@ -221,13 +256,35 @@ def resolve_directory(given: str | Path | None) -> Path:
     return Path(recorded.directory if recorded is not None else "")
 
 
+def misnamed_set(directory: str | Path) -> str | None:
+    """Why ``directory`` names one record rather than the folder that holds it, or ``None``.
+
+    A reference set is a folder: a run searches every record in it, and its pin, its audit
+    exceptions and its leave-one-out manifest sit beside them. Naming one file is therefore a wrong
+    command line, not a missing set, and it is answered as such: the words for a missing set would
+    tell someone who has just supplied a record that they supplied none.
+    """
+    path = Path(directory)
+    if not path.is_file():
+        return None
+    return (
+        f"{path} is a file, and a reference set is the folder of GenBank records (*.gb) a run "
+        f"searches: pass --reference-set {path.parent}, and leave out the records you do not "
+        f"want with --exclude"
+    )
+
+
 def missing_set(directory: Path) -> str | None:
     """Why ``directory`` cannot serve as a reference set, or ``None`` when it holds records.
 
     The package carries no plastid records (a plastome set is data, not source), so on a fresh
     install this is the first thing the annotator answers, and the answer names the way to a set.
+    A file named as the set gets the answer :func:`misnamed_set` gives instead.
     """
-    if directory.is_dir() and any(directory.glob("*.gb")):
+    misnamed = misnamed_set(directory)
+    if misnamed is not None:
+        return misnamed
+    if directory.is_dir() and record_files(directory):
         return None
     return (
         f"no reference set at {directory}: the toolkit ships no plastid records, so annotation "

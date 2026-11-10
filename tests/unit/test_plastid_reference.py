@@ -20,7 +20,10 @@ from plastid.core.plastid_reference import (
     ReferenceSet,
     build_manifest,
     leave_one_out,
+    misnamed_set,
+    missing_set,
     read_manifest,
+    record_files,
     verify_pin,
     write_manifest,
 )
@@ -147,6 +150,28 @@ def test_verify_pin_names_a_record_the_pin_never_listed(tmp_path: Path) -> None:
     panel = _pinned_pair(tmp_path)
     (panel / "NC_999999.1.gb").write_text("LOCUS       NC_999999\n", encoding="utf-8")
     assert verify_pin(panel) == ("NC_999999.1.gb — in the directory but not in PINNED.json",)
+
+
+def test_a_set_is_the_genbank_files_directly_in_its_folder(tmp_path: Path) -> None:
+    """What a set holds is one rule, read by the search, the run's contract, the pin check and the
+    list the interface ticks from: a door that listed a `.gbk` or a record one folder down would
+    offer a record no run searches."""
+    (tmp_path / "deeper").mkdir()
+    for name in ("B.1.gb", "A.1.gb", "A.1.gbk", "notes.fasta", "deeper/C.1.gb"):
+        (tmp_path / name).write_text("LOCUS       X\n", encoding="utf-8")
+    assert [path.name for path in record_files(tmp_path)] == ["A.1.gb", "B.1.gb"]
+
+
+def test_a_record_named_as_the_set_is_answered_as_a_file(tmp_path: Path) -> None:
+    """K-33: a file is not a missing set, and the answer names the folder that holds it."""
+    record = tmp_path / "A.1.gb"
+    record.write_text("LOCUS       A.1\n", encoding="utf-8")
+    message = missing_set(record)
+    assert message is not None
+    assert f"{record} is a file" in message
+    assert f"--reference-set {tmp_path}" in message
+    assert "ships no plastid records" not in message
+    assert misnamed_set(tmp_path) is None
 
 
 def test_the_cli_reports_a_broken_pin_and_exits_nonzero(

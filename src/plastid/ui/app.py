@@ -19,11 +19,12 @@ from threading import Lock
 from typing import Any
 from uuid import uuid4
 
+from plastid.core import plastid_reference
 from plastid.run.state import EXIT_STATES, exit_state, list_runs, read_state
 from plastid.run.tools import ToolError, plastid_output, start_plastid
 from plastid.ui import commands, reader
 from plastid.ui.catalogue import PAGES
-from plastid.ui.records import RECORD_SUFFIXES, RecordBook
+from plastid.ui.records import RECORD_SUFFIXES, RecordBook, brief
 
 __all__ = ["App", "NotFound", "Refused"]
 
@@ -167,6 +168,28 @@ class App:
                 if path.is_file() and path.suffix.lower() in RECORD_SUFFIXES
             ]
         }
+
+    def reference_set(self, folder: str = "references") -> dict[str, Any]:
+        """The records a reference set holds, as `annotate` will search them, for Annotate to tick.
+
+        Only the files a run searches are listed (``plastid_reference.record_files``), so every box
+        the page draws is a record the run reads. A row's ``key`` is the name ``--exclude`` takes:
+        the file's stem, which is not the accession when a file is named otherwise.
+        """
+        base = self._inside(folder)
+        if base.is_file():
+            raise Refused(f"{folder} is a file; choose the folder that holds it")
+        if not base.is_dir():
+            raise NotFound(f"no folder {folder}")
+        rows: list[dict[str, Any]] = []
+        for path in plastid_reference.record_files(base):
+            row: dict[str, Any] = {"path": self.relative(path), "name": path.name, "key": path.stem}
+            try:
+                row |= brief(path)
+            except (OSError, ValueError) as error:
+                row["unreadable"] = str(error)
+            rows.append(row)
+        return {"records": rows}
 
     def record(self, path: str) -> dict[str, Any]:
         file = self.readable(path)

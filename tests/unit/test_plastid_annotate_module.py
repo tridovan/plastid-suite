@@ -275,6 +275,27 @@ def test_the_recorded_allow_list_does_not_filter_a_user_directory(
     assert searched == {"NC_999999.1", "NC_888888.1"}
 
 
+@pytest.mark.parametrize("name", ["NC_888888.1", "NC_888888.1.gb"])
+def test_a_record_is_left_out_by_its_stem_or_its_file_name(tmp_path: Path, name: str) -> None:
+    """K-34: `--exclude NC_888888.1.gb` left the record out and then said it matched nothing.
+
+    A request is matched against a file's stem and its whole name, so the file name is a match.
+    The run counted only stems as matched, and stopped with "matches no record … nothing was left
+    out" about the record it had just left out.
+    """
+    directory = _reference(tmp_path)
+    record = SeqIO.read(directory / "NC_999999.1.gb", "genbank")
+    record.id = record.name = "NC_888888.1"
+    SeqIO.write(record, directory / "NC_888888.1.gb", "genbank")
+
+    params = {"reference": str(directory), "exclude": [name]}
+    with plastid_annotate._reference_set(params, SEQ_ID) as reference:
+        searched = {genome.accession for genome in reference.records}
+
+    assert searched == {"NC_999999.1"}
+    assert reference.dropped == (("NC_888888.1", "left out by --set exclude"),)
+
+
 def test_a_max_hsps_below_one_is_refused_before_any_search(tmp_path: Path) -> None:
     """M11.20: the BLAST HSP cap is a parameter; zero would ask BLAST for no hit at all."""
     with pytest.raises(ValueError, match="max_hsps"):

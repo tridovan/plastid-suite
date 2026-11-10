@@ -150,6 +150,8 @@ chooses another.
 
 From reads, start at **Assemble**. From a sequence with no genes, start at **Annotate**, with reference
 records you found and audited on **References**, where you also choose the record that names the genes.
+**Annotate** lists the GenBank records of the folder you choose, all ticked; untick one to leave it
+out of the search.
 **Tools** says what this computer has and how to get what it lacks.
 
 ## Use

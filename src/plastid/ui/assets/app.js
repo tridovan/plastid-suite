@@ -182,7 +182,9 @@ function chooseFile({ title = 'Choose a file', start = '', folders = false } = {
     const list = el('div', { class: 'picker-list' });
     const where = el('div', { class: 'small mono' });
     const dialog = el('dialog', null,
-      el('div', { class: 'card' }, el('h2', null, title), where, list,
+      el('div', { class: 'card' }, el('h2', null, title), where,
+        folders ? el('p', { class: 'small' }, 'Open the folder, then press Use this folder. Its files are shown so you can see what it holds.') : null,
+        list,
         el('div', { class: 'row' },
           folders ? el('button', { class: 'btn go', type: 'button', onclick: () => done(current) }, 'Use this folder') : null,
           el('button', { class: 'btn', type: 'button', onclick: () => done(null) }, 'Close'))));
@@ -195,10 +197,12 @@ function chooseFile({ title = 'Choose a file', start = '', folders = false } = {
       const up = listing.path.includes('/') ? listing.path.replace(/\/[^/]*$/, '') : '';
       list.replaceChildren(
         listing.path ? el('button', { class: 'folder', type: 'button', onclick: () => open(up) }, '.. up one folder') : '',
-        ...listing.entries.map((entry) => el('button', {
-          type: 'button', class: entry.folder ? 'folder' : '',
-          onclick: () => (entry.folder ? open(entry.path) : done(entry.path)),
-        }, entry.folder ? `${entry.name}/` : entry.name)));
+        ...listing.entries.map((entry) => {
+          if (entry.folder) return el('button', { type: 'button', class: 'folder', onclick: () => open(entry.path) }, `${entry.name}/`);
+          // A field that takes a folder is never handed a file: the command it builds reads a folder.
+          if (folders) return el('div', { class: 'file' }, entry.name);
+          return el('button', { type: 'button', onclick: () => done(entry.path) }, entry.name);
+        }));
     };
     document.body.append(dialog);
     dialog.showModal();
@@ -230,11 +234,6 @@ function checkField(labelText, value, change) {
 function selectField(labelText, options, value, change) {
   return el('label', { class: 'field' }, labelText, el('select', { onchange: (event) => change(event.target.value) },
     options.map((option) => el('option', { value: option, selected: option === value }, option))));
-}
-
-// Comma-separated words in a box, a list in the form.
-function listField(labelText, change, note) {
-  return textField(labelText, '', (value) => change(value.split(',').map((item) => item.trim()).filter(Boolean)), note);
 }
 
 // What most people never change, closed until someone wants it.
@@ -914,7 +913,66 @@ async function annotatePage(query) {
   const module = session.modules.modules.find((item) => item.id === 'plastid_annotate');
   const form = { inputs: query.get('input') ? [query.get('input')] : [], reference_set: 'references', exclude: [], label: '', dataset: '', docx: false, no_cache: false, sets: {} };
   const box = commandBox('annotate', () => form);
-  const refresh = () => box.refresh();
+  // The records of the chosen folder, as the run will search them. An unticked one becomes
+  // `--exclude` by its file's stem, the name the run matches it by.
+  const set = { rows: null, off: new Set() };
+  const picks = el('div', { class: 'picks ref-list' });
+  const tally = el('div', { class: 'row between small' });
+  const notice = el('div');
+  const blockers = () => (set.rows && set.rows.length && set.off.size >= set.rows.length ? { words: 'Tick at least one reference record.' } : null);
+  const refresh = () => {
+    form.exclude = set.rows ? set.rows.filter((row) => set.off.has(row.key)).map((row) => row.key) : [];
+    const reason = blockers();
+    notice.replaceChildren(...(reason ? [el('div', { class: 'note-warn' }, reason.words)] : []));
+    box.refresh(reason);
+  };
+  const drawTally = () => {
+    if (!set.rows || !set.rows.length) { tally.replaceChildren(); return; }
+    tally.replaceChildren(el('span', { class: 'mono' }, `${set.rows.length - set.off.size} of ${set.rows.length} ticked`),
+      el('span', { class: 'row' },
+        el('button', { class: 'link', type: 'button', onclick: () => { set.off = new Set(); drawSet(); } }, 'Tick all'),
+        el('button', { class: 'link', type: 'button', onclick: () => { set.off = new Set(set.rows.map((row) => row.key)); drawSet(); } }, 'Untick all')));
+  };
+  const rowOf = (record) => el('label', { class: 'check' },
+    el('input', { type: 'checkbox', checked: !set.off.has(record.key), onchange: (event) => {
+      if (event.target.checked) set.off.delete(record.key); else set.off.add(record.key);
+      drawTally();
+      refresh();
+    } }),
+    record.unreadable
+      ? el('span', null, el('code', { class: 'small' }, record.name), ` cannot be read: ${record.unreadable}`)
+      : el('span', null, species(record.organism), ' ', el('code', { class: 'small' }, record.accession || record.key),
+        ` · ${record.genes ? `${number(record.genes)} genes` : 'no genes marked'}`,
+        record.accession === record.key ? null : el('span', { class: 'small' }, ` · ${record.name}`)));
+  const drawSet = () => {
+    picks.replaceChildren(...(set.rows.length ? set.rows.map(rowOf)
+      : [el('p', { class: 'small' }, 'No GenBank record (*.gb) directly in this folder. ', el('a', { href: '#/references' }, 'Find and pin records on References.'))]));
+    drawTally();
+    refresh();
+  };
+  let asked = 0;
+  let pause = null;
+  const readSet = () => {
+    clearTimeout(pause);
+    asked += 1;
+    const mine = asked;
+    set.rows = null;
+    set.off = new Set();
+    tally.replaceChildren();
+    refresh();
+    if (!form.reference_set) { picks.replaceChildren(); return; }
+    picks.replaceChildren(el('p', { class: 'small' }, 'Reading the records…'));
+    pause = setTimeout(async () => {
+      try {
+        const { records } = await get('/api/reference-set', { folder: form.reference_set });
+        if (mine !== asked) return;  // the folder changed while this one was read
+        set.rows = records;
+        drawSet();
+      } catch (error) {
+        if (mine === asked) picks.replaceChildren(fail(error));
+      }
+    }, 250);
+  };
   page('annotate',
     el('header', null, el('h1', null, 'Annotate'), el('p', { class: 'lead' }, 'Transfer genes to a sequence from GenBank records you choose, same family first. The toolkit ships no plastid records.')),
     el('div', { class: 'columns' },
@@ -924,17 +982,18 @@ async function annotatePage(query) {
           textField('Where the data came from', '', (value) => { form.label = value; refresh(); }, 'Printed with every table.'),
           textField('Dataset name', '', (value) => { form.dataset = value; refresh(); }, 'The folder inside runs.')),
         el('section', { class: 'card' }, el('div', { class: 'row between' }, el('h2', null, 'Reference set'), el('a', { href: '#/references' }, 'Manage references')),
-          pathField('Folder of GenBank records', form.reference_set, (value) => { form.reference_set = value; refresh(); }, { start: 'references', folders: true }),
-          listField('Leave out of the search', (value) => { form.exclude = value; refresh(); }, 'Accessions, comma-separated. The run names what it left out.')),
+          pathField('Folder of GenBank records', form.reference_set, (value) => { form.reference_set = value; readSet(); }, { start: 'references', folders: true }),
+          tally, picks,
+          el('p', { class: 'small' }, 'Untick a record to leave it out of the search. The run also leaves out a record with the sequence’s own accession, and names what it left out.')),
         el('section', { class: 'card' }, el('h2', null, 'Parameters'),
           el('div', { class: 'row' }, session.tools.extras.docx ? checkField('Word report', form.docx, (value) => { form.docx = value; refresh(); }) : null,
             checkField('Reuse stored results', true, (value) => { form.no_cache = !value; refresh(); })),
           el('div', { class: 'field-grid' }, module.params.filter((param) => !param.flag && param.type !== 'dir').map((param) => paramField(param, form.sets, refresh))))),
       el('aside', { class: 'card side' }, el('h2', null, 'The plan'),
         el('p', { class: 'small' }, 'The reference set is audited first: a blocked record stops the run and is named. A record that already carries genes is refused unless you ask to replace them.'),
-        box.start, el('div', { class: 'small' }, el('b', null, 'The same run on the command line')), box.line)));
+        box.start, notice, el('div', { class: 'small' }, el('b', null, 'The same run on the command line')), box.line)));
   box.start.textContent = 'Annotate';
-  refresh();
+  readSet();
 }
 
 /* Assemble --------------------------------------------------------------------------------------- */

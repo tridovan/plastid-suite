@@ -2838,6 +2838,8 @@ def _cmd_annotate(args: argparse.Namespace) -> int:
         params["exclude"] = list(args.exclude)
 
     directory = plastid_reference.resolve_directory(params.get("reference"))
+    if _names_a_record("annotate", directory):
+        return EXIT_USAGE
     missing = plastid_reference.missing_set(directory)
 
     # Every sample is read and checked *before* anything is annotated: a batch that mixed two
@@ -2995,7 +2997,22 @@ def _cmd_mito_annotate(args: argparse.Namespace) -> int:
     )
 
 
+def _names_a_record(command: str, given: str | Path) -> bool:
+    """Whether a set's flag named one record instead of its folder, having said so if it did.
+
+    Every command that reads ``--reference-set`` answers this mistake in the same words, and as a
+    wrong command line (exit 2): the record exists, so "no reference set" would be untrue.
+    """
+    misnamed = plastid_reference.misnamed_set(given)
+    if misnamed is None:
+        return False
+    print(f"{command}: {misnamed}", file=sys.stderr)
+    return True
+
+
 def _cmd_reference(args: argparse.Namespace) -> int:
+    if _names_a_record(f"reference {args.action}", args.reference_set):
+        return EXIT_USAGE
     if args.action == "audit":
         return _reference_audit(args)
     if args.action == "verify":
