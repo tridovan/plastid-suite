@@ -71,7 +71,7 @@ def test_cli_panel_pin_fails_when_a_record_cannot_be_read(
         def fetch_genbank(self, accession: str) -> str:
             return "this is not a GenBank file"
 
-    monkeypatch.setattr("plastid.cli.NcbiClient", FakeClient)
+    monkeypatch.setattr("plastid.cli.reference.NcbiClient", FakeClient)
     code = main(["panel", "pin", "--accessions", "XX_000000.1", "--to", str(tmp_path)])
 
     assert code == 1
@@ -224,7 +224,7 @@ def test_cli_panel_pin_resolves_an_accession_the_index_cannot_hold(
         def fetch_genbank(self, accession: str) -> str:
             return golden
 
-    monkeypatch.setattr("plastid.cli.NcbiClient", FakeClient)
+    monkeypatch.setattr("plastid.cli.reference.NcbiClient", FakeClient)
     code = main(["panel", "pin", "--accessions", "PX923121.1", "--to", str(tmp_path)])
 
     assert code == 0

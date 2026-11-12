@@ -8,8 +8,8 @@ Deterministic for the same reason the Word document is: ``openpyxl`` writes a zi
 carry the wall-clock time and a ``docProps/core.xml`` with created/modified stamps. Both are
 pinned here — fixed properties, then the archive rebuilt entry by entry.
 
-Pinning ``modified`` at the workbook is not enough, and that was measured the hard way (
-10/10/2026): ``ExcelWriter.write_workbook`` assigns ``properties.modified = datetime.now(...)``
+Pinning ``modified`` at the workbook is not enough, and that was measured the hard way:
+``ExcelWriter.write_workbook`` assigns ``properties.modified = datetime.now(...)``
 **after** the caller has set it, so the field reached the file with the wall clock and two exports
 in different seconds were not byte-identical — the export test failed once in a full ``make check``
 and 3 times in 300 exports. The stamp is therefore rewritten in the written entry, where nothing
@@ -68,7 +68,7 @@ def sheet_name(module_id: str, table_id: str, taken: set[str] | None = None) -> 
     """
     raw = _FORBIDDEN.sub("_", f"{module_id}.{table_id}")
     if len(raw) > SHEET_NAME_LIMIT:
-        digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:6]  # noqa: S324 — a name, not security
+        digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:6]  # a name, not security
         raw = f"{raw[: SHEET_NAME_LIMIT - 7]}-{digest}"
     name = raw
     suffix = 2
@@ -101,7 +101,7 @@ def _write_provenance_sheet(sheet: Any, results: Mapping[str, Result]) -> None:
 
     The CSVs carry the scope as a comment, the Word document as a caption and the JSON as a
     field; without this sheet the Excel copy would be the one export whose numbers have no
-    stated scope (M11.18).
+    stated scope.
     """
     sheet.append(["Module", "Table", "Scope", "Coordinates"])
     for module_id, result in results.items():

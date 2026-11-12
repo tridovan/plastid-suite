@@ -105,7 +105,7 @@ def series(results: Mapping[str, Result]) -> JunctionSeries:
         # A feature annotated across the record origin has no single linear interval; its outer
         # bounds are the whole genome, and drawing those would fill the panel. Each part is
         # placed where the annotation says it is, then split again if it crosses the
-        # *normalized* origin (M11.7).
+        # *normalized* origin.
         for segment_start, segment_end in gene_segments(row)
         for start, end in frame.span_to_normalized(segment_start, segment_end)
     ]
@@ -153,7 +153,7 @@ def series(results: Mapping[str, Result]) -> JunctionSeries:
 def caption(data: JunctionSeries) -> str:
     """State the rule the panels actually use, and every panel's own width.
 
-    Measured 28/10/2026: the old caption said "±3000 bp" while the code showed the whole IR copy —
+    Measured: the old caption said "±3000 bp" while the code showed the whole IR copy —
     29,214 bp on the golden genome. A caption is a claim; it names the window each panel got.
     """
     widths = " / ".join(
@@ -167,7 +167,7 @@ def caption(data: JunctionSeries) -> str:
 
 
 def _figure_width(window_bp: int) -> float:
-    """The physical width for the widest panel: one inch per extra 10 kb above the base (M11.7).
+    """The physical width for the widest panel: one inch per extra 10 kb above the base.
 
     A 3 kb + whole-IR window is 15–47 kb over the 80-record panel. At one fixed 7.4 in the largest
     record draws 6.3 kb per inch and its gene labels collide; widening the figure keeps the gene

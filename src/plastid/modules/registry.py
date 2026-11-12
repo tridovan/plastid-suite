@@ -66,25 +66,25 @@ class ModuleSpec:
     requires_ir: bool = False
     arity: int = 1
     citations: tuple[str, ...] = ()
-    # Which organelle this module serves: shared · plastid-only · mito-only (H-09).
+    # Which organelle this module serves: shared · plastid-only · mito-only.
     # It is deliberately *not* `requires_ir`:
     # that flag answers "does this need the inverted repeat", which `gene_table` (a plastome table
-    # that needs no IR) and `codon_usage` (CDS sequences only, no positions — and since M11.5 no
+    # that needs no IR) and `codon_usage` (CDS sequences only, no positions, so no
     # IR requirement either) both show is a different question. Default `shared` — a module that
     # says nothing is claiming to run on either organelle, which is the claim the run then checks.
     group: str = GROUP_SHARED
     # The parameter naming a *file* this module works against — a privileged record rather than
-    # one of the run's equal inputs (D5-09: the naming reference). Declared here so the CLI can
+    # one of the run's equal inputs (the naming reference). Declared here so the CLI can
     # resolve it, audit it and record its digest without knowing which module is asking: the
     # module says what it needs, the command line says how it is supplied.
     reference_param: str | None = None
     # A packaged reference this module computes against, described for the run manifest: a
-    # callable returning a dict with at least ``role`` and ``digest`` (M4.5, reference B′). The
+    # callable returning a dict with at least ``role`` and ``digest`` (reference B′). The
     # CLI records it under ``reference_sets`` and passes the digest to the step as
     # ``<module>_reference_digest``, so the cache key names the reference by its digest and not
     # only through the packaged files' bytes.
     reference_set: Callable[[], dict[str, Any]] | None = None
-    # Every parameter this module reads, so the CLI can refuse a key it does not (M11.20).
+    # Every parameter this module reads, so the CLI can refuse a key it does not.
     # An empty tuple is a claim — "this module takes no parameter" — and a test compares it with
     # the keys the module's source actually reads. Do not add a key here without a code path
     # that honours it: a recorded parameter that does not reach the tool states something false.
@@ -103,8 +103,8 @@ class ModuleSpec:
 class ParamSpec:
     """One parameter a module accepts, stated fully enough to check a value and to build a form.
 
-    The declaration exists so the command line can refuse a key the module does not read
-    (M11.20). Before it, ``--set min_lengh_bp=60`` was accepted, recorded in the manifest and
+    The declaration exists so the command line can refuse a key the module does not read.
+    Before it, ``--set min_lengh_bp=60`` was accepted, recorded in the manifest and
     ignored — a misspelling that looked like a successful override. ``help`` is not decoration:
     it is what the refusal message shows, so a user who typed the wrong key is told which one
     would work.
@@ -163,7 +163,7 @@ SHARED_PARAMS: tuple[ParamSpec, ...] = (
     # Read by the CLI, not by a module: `annotate` refuses an already-annotated GenBank unless
     # reannotate=yes, and `figures`/`package` take the R binary path. They are declared here
     # because the CLI is also a place a --set key is consumed, and a key the CLI reads but
-    # nothing declares is exactly the silent no-op M11.20 removes.
+    # nothing declares is exactly the silent no-op the declarations refuse.
     ParamSpec(
         name="reannotate",
         type="bool",
@@ -194,8 +194,8 @@ def unknown_params(module_ids: Sequence[str], params: dict[str, Any]) -> list[st
         for param in (*spec.params, *SHARED_PARAMS):
             accepted.setdefault(param.name, param.help)
         # A module may declare a *privileged record* instead of listing it among its ordinary
-        # parameters (D5-09: `naming_reference`). It reaches the module through `params` like
-        # any other key, so it has to be accepted here too — measured 28/10/2026: without this
+        # parameters (`naming_reference`). It reaches the module through `params` like
+        # any other key, so it has to be accepted here too — measured: without this
         # line `--set naming_reference=<file>` was refused by name and every calibration run
         # stopped at exit 2.
         if spec.reference_param:

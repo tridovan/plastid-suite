@@ -1,6 +1,6 @@
 """SSR (microsatellite) analysis — tier B: needs MISA 2.1 + perl.
 
-MISA is **obtained, not bundled** (D-q: its source zip states no licence — `docs/tools/misa.md`
+MISA is **obtained, not bundled** (its source zip states no licence — `docs/tools/misa.md`
 has the download line and both hashes). Pass ``--set misa=/path/to/misa.pl`` when it is not on
 ``PATH``; the run refuses any release but the pinned 2.1.
 
@@ -28,17 +28,17 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "ssr"
-# 0.5.0 (28/10/2026): `unit_repeats` now reaches MISA's ini instead of being refused. The
+# 0.5.0: `unit_repeats` now reaches MISA's ini instead of being refused. The
 # default run is unchanged (the shipped ini is still what runs), so the golden numbers stand;
 # the version moves because a value that used to be a usage error now changes the result.
-# 0.4.0 (11/10/2026): MISA left the package (D-q — its zip states no licence), so the module takes
+# 0.4.0: MISA left the package (its zip states no licence), so the module takes
 # `--set misa=/path/to/misa.pl` and refuses a release other than the pinned 2.1. The golden numbers
-# are unchanged; the cache key (H-08) is why this is a version and not just an edit.
-# 0.3.0 (10/10/2026): the compound flag now marks every component of a cluster. MISA writes a
+# are unchanged; the cache key is why this is a version and not just an edit.
+# 0.3.0: the compound flag now marks every component of a cluster. MISA writes a
 # cluster two ways and the parser read only one, so a component on its own line said "no" —
-# 0 of PX413282's 16 components while MISA counted 8 clusters (P8B-01, found by the Crataegus
-# answer-key corpus). The run cache keys on this version, not on the source (H-08).
-# 0.2.0 (10/10/2026): the Context column changed — a trans-spliced gene's outer span no longer
+# 0 of PX413282's 16 components while MISA counted 8 clusters (found by the Crataegus
+# answer-key corpus). The run cache keys on this version, not on the source.
+# 0.2.0: the Context column changed — a trans-spliced gene's outer span no longer
 # makes everything inside it an "Intron" (found by the CPStools cross-check).
 MODULE_VERSION = "0.5.0"
 
@@ -69,7 +69,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     unit_repeats = parse_unit_repeats(str(chosen)) if chosen is not None else None
     misa = run_misa(genome, ctx, params.get("misa"), unit_repeats=unit_repeats)
     # Report what the ini MISA was handed says, not what the command line asked for: the two are
-    # the same here, and reading the result makes that a fact rather than a promise (M11.20).
+    # the same here, and reading the result makes that a fact rather than a promise.
     thresholds = format_thresholds(misa.unit_repeats)
 
     rows = []
@@ -224,7 +224,7 @@ def _region_row(region: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
 def _reconciliation(misa: MisaResult, rows: list[dict[str, Any]]) -> str:
     """MISA's own statistics against the SSRs actually parsed out of its GFF.
 
-    They disagreed once (2026-10-03): the parser read only ``monomeric_repeat`` lines and
+    They disagreed once: the parser read only ``monomeric_repeat`` lines and
     silently lost every longer unit, leaving 30 of 37 SSRs. This column exists so that can
     never pass unnoticed again.
     """
@@ -271,7 +271,7 @@ def _gene_context(span: Interval, genome: Genome, ir: IRResult) -> str:
     A gene occupies its **exons**, never the space between them. Read by outer span instead, the
     golden's trans-spliced ``rps12`` — exon 1 in the LSC, exons 2 and 3 in the IR, all three
     listed on each CDS feature — is one gene covering 68,975–139,634, so every SSR in between
-    came out "Intron" whichever gene it actually sits in. Measured 10/10/2026 in the CPStools
+    came out "Intron" whichever gene it actually sits in. Measured in the CPStools
     cross-check: 11 of the golden's 37 rows, and cpstools' table named the genes they sit
     in (``ycf1`` · ``ndhA`` · the ``rpl32`` spacer).
 

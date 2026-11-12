@@ -824,7 +824,7 @@ async function runPage(dataset, runId, open) {
         el('tbody', null, run.steps.flatMap((step) => [...new Set(step.tools.map((tool) => tool.name))].map((name) => {
           const calls = step.tools.filter((tool) => tool.name === name);
           return el('tr', null, el('td', null, step.id), el('td', null, name), el('td', { class: 'num' }, calls[0].version), el('td', { class: 'num' }, calls.length), el('td', { class: 'num' }, [...new Set(calls.map((tool) => tool.rc))].join(', ')));
-        })))))));
+        }).concat((step.reused_tools || []).map((item) => el('tr', null, el('td', null, step.id), el('td', null, item.name), el('td', { colspan: 3 }, `output reused from ${item.computed_by}`))))))))));
     return;
   }
   if (open === 'files') { body.append(await filesView(run)); return; }

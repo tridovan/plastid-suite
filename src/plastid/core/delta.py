@@ -1,11 +1,11 @@
-"""MUMmer delta files — the alignment behind the %identity-by-coordinate series (P4-01).
+"""MUMmer delta files — the alignment behind the %identity-by-coordinate series.
 
 A delta file is what ``nucmer`` writes and what ``delta-filter`` rewrites: the coordinates of
 every alignment, plus the *gaps* inside each one. It is small, undocumented in the pipeline's own
 files, and decodes only one way — so the walk lives here, as pure functions, with the measurement
 that fixed it written down.
 
-Two facts about MUMmer 4's format, both measured 04/10/2026 on the golden pair:
+Two facts about MUMmer 4's format, both measured on the golden pair:
 
 * **one ``>`` header per sequence pair, not per alignment.** Every alignment of a pair is a
   ``7-number`` record terminated by a ``0`` line, all under a single header. A reader that

@@ -4,6 +4,11 @@
 M7.6: short reads and HiFi reads, the graph read, the memory limited), the review of the command
 line (M9.8) and the local interface (M9.7: `plastid ui`, the Windows image and
 `docker/plastid-ui.bat`), merged and acceptance-tested (`make acceptance` 291 passed, 0 skipped).
+M9.9 (12/11/2026, branch `feat/m9.9-performance-cleanup`) is a performance and clean-up pass that
+changes no number: the IR scan, the reference audit, the caller's lookups and the alignment maths
+are 3–5 times faster, one MAFFT call serves a run's comparison modules (recorded as reused), the
+command line is the package `plastid/cli/`, and `make test`/`make golden` run in parallel. Its
+outputs were compared byte for byte with `main`; acceptance 291 passed, 0 skipped.
 The open work is the release (M9.6). RNA editing is the module `rna_editing` (`docs/tools/prep_cp.md`); its reference B′'s seven
 records live in `.panel/rna_editing/`, pinned in `src/plastid/data/rna_editing/taxa.yaml`. Product
 documentation,

@@ -32,7 +32,7 @@ __all__ = [
     "which",
 ]
 
-# Flags tried in order. ``-version`` was added 03/10/2026 after measuring BLAST+: it accepts only
+# Flags tried in order. ``-version`` is there for BLAST+, measured: it accepts only
 # the single-dash spelling and exits 1 for ``--version``, ``-v`` and ``-V`` — so the version of the
 # tool that now annotates mitogenomes was recorded as "unknown" while every probe "succeeded" in
 # failing. The probe runs in a throwaway directory for exactly this class of surprise.
@@ -102,12 +102,61 @@ def which(name: str, extra: Sequence[Path] = ()) -> str | None:
     return None
 
 
+def find_executable(
+    label: str,
+    names: Sequence[str],
+    *,
+    doc: str,
+    missing: str,
+    directory: str | Path | None = None,
+    explicit: str | Path | None = None,
+) -> str:
+    """A tool's executable: an explicit file, else the first of ``names`` in ``directory``, else
+    the first of ``names`` on ``PATH``.
+
+    Each miss is a :class:`ToolError` that says where it looked; ``missing`` is the message for a
+    tool found nowhere, and says how to install it or point a run at it.
+    """
+    if explicit is not None:
+        path = Path(explicit)
+        if not path.is_file():
+            raise ToolError(f"{label} not found at {path} — see {doc}")
+        return str(path)
+    if directory is not None:
+        for name in names:
+            candidate = Path(directory) / name
+            if candidate.is_file():
+                return str(candidate)
+        raise ToolError(f"{label} not found in {directory} — see {doc}")
+    for name in names:
+        found = which(name)
+        if found is not None:
+            return found
+    raise ToolError(missing)
+
+
+def probe_output(argv: Sequence[str], *, label: str, timeout: int) -> tuple[str, str]:
+    """``(stdout, stderr)`` of a version or help request, run in a throwaway directory.
+
+    A version flag is only a convention, and a tool that ignores it may start real work where it
+    stands (see :func:`tool_version`), so a probe never runs in the caller's directory.
+    """
+    with tempfile.TemporaryDirectory(prefix="version_probe_") as where:
+        try:
+            result = subprocess.run(
+                list(argv), capture_output=True, text=True, timeout=timeout, check=False, cwd=where
+            )
+        except OSError as error:
+            raise ToolError(f"{label}: cannot run {argv[0]}: {error}") from error
+    return result.stdout or "", result.stderr or ""
+
+
 def tool_version(
     name: str, kind: str, path: str | None, pinned: str | None = None
 ) -> tuple[str | None, str]:
     """Best-effort version: a version flag for binaries, ``$^V`` for perl, pinned for vendored.
 
-    The probe *runs the tool*, so two rules apply, both measured 2026-10-03 on PGA:
+    The probe *runs the tool*, so two rules apply, both measured on PGA:
 
     * a Perl script is asked for the **interpreter's** version, never probed with a flag. Passing
       an unknown flag makes the script run itself with its default arguments: PGA's next act is
@@ -149,7 +198,7 @@ def tool_version(
             except OSError:
                 return None, "unknown"
             if result.returncode == 0:
-                # A line is a version only if it contains a digit. Measured 03/10/2026 on
+                # A line is a version only if it contains a digit. Measured on
                 # ARAGORN: its ``-V`` is not a version flag, it exits **0** and prints
                 # "No sequence file specified, type aragorn -h for help" — which was recorded as
                 # the version of the tool that calls tRNA genes. A plausible-looking string in a
@@ -227,7 +276,7 @@ def run_tool(
         character if character.isalnum() or character in "-_" else "_" for character in name
     )
     # The index counts the calls already logged for this tool. The pattern must match the names
-    # written below exactly — measured 2026-10-04: the first version asked for
+    # written below exactly — measured: the first version asked for
     # ``*__{name}__*.stdout.log``, which does not match ``001__mafft__stdout.log`` (there is no
     # dot before ``stdout``), so the count stayed 0 and **every call overwrote the previous
     # one's logs**. Every run kept the last tool call's output and nothing else — which quietly

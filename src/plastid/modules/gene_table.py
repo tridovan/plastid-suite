@@ -1,10 +1,10 @@
-"""Publication gene table — the table a plastome paper prints, grouped by function (M2.2).
+"""Publication gene table — the table a plastome paper prints, grouped by function.
 
 **Counting convention.** ``Number`` counts *copies*, both inverted-repeat copies included, so
 the table totals the fixed ``132 = 86 CDS + 38 tRNA + 8 rRNA`` and can be reconciled against
 :func:`~plastid.core.model.count_genes` — which this module does, in its own table, rather
 than trusting the grouping to have covered everything (the same reconciliation the SSR module
-gained in P2-06, for the same reason: a silent drop looks exactly like a smaller number).
+makes, for the same reason: a silent drop looks exactly like a smaller number).
 
 The grouping itself is data (``data/gene_groups.yaml``); this module never hard-codes a gene
 name. A gene no group claims is reported as an unclassified row and named in the notes.
@@ -45,7 +45,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     counts = count_genes(genome)
     # Copies, not names: every other number in the summary counts copies, and a reader
     # subtracting this cell from `n_genes_total` must land on the grouped rows. Measured
-    # 29/10/2026 on NC_016068.1 (Solanaceae): 24 copies of `hypothetical protein` had no group
+    # on NC_016068.1 (Solanaceae): 24 copies of `hypothetical protein` had no group
     # while the summary read 1.
     unclassified_genes = [row.gene for row in rows if row.group is None]
     unclassified_labels = sorted({names.label(gene) for gene in unclassified_genes})

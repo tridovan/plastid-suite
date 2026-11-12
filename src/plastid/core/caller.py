@@ -1,13 +1,13 @@
 """Turning BLAST hits against a curated reference set into gene calls — shared by both organelles.
 
-The rule that shapes everything here is decision **D3A-02**: a CDS's boundaries come from the
+The rule that shapes everything here: a CDS's boundaries come from the
 alignment to a curated reference protein, never from ORF-walking. The mito answer-key record is
 why — its own 31 CDS score 21 ok · 4 pseudogene · 3 no_stop · 3 no_start, so a "find ATG … stop"
 caller cannot reproduce it, and one that "repairs" what it finds would publish a record NCBI did
 not.
 
-**Why this module exists separately.** P3A-03 wrote these rules for the plant mitochondrion
-(``core/mito_caller.py``) and P3B-07 needed the same machinery for the plastid path — the second
+**Why this module exists separately.** These rules were first written for the plant mitochondrion
+(``core/mito_caller.py``), and the plastid path needed the same machinery — the second
 real copy, which is where this project's own rule says to extract rather than copy (CLAUDE.md →
 DRY after the second real copy; the counterexample it names is CGAS's 14 copy-pasted glue blocks).
 Nothing about the rules below was mitochondrion-specific: the floors and the translation table
@@ -39,9 +39,9 @@ What the measurements on the mito answer-key record forced (each is a test in
   after; cox2's alignment stops six codons short of the gene's real end. Reading one codon is a
   check; reading until a stop appears is ORF-walking.
 
-Scope, recorded because a paper has to state it (D3A-05): this is **annotation and submission
+Scope, recorded because a paper has to state it: this is **annotation and submission
 only** — no de-novo gene discovery, no intron model, no RNA-editing prediction. Multi-exon calls
-report the exons the alignment supports (D3A-04) and never claim a join they cannot show. A gene
+report the exons the alignment supports and never claim a join they cannot show. A gene
 absent from the reference set is reported as not called, never guessed.
 """
 
@@ -49,7 +49,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from io import StringIO
 from pathlib import Path
 
@@ -87,7 +87,7 @@ class ReferenceEntry:
     ``vocabulary`` is the symbol this path's vocabulary knows for the locus, or ``None`` when the
     reference carries a gene it has no name for. Those are **kept** rather than dropped, so an
     annotator run can say it found ``rps12`` instead of being silent about a gene it cannot name —
-    measured 2026-10-03, the standard plant-mito set is wider than the 31 loci that vocabulary
+    measured: the standard plant-mito set is wider than the 31 loci that vocabulary
     held. ``sequence`` is a protein for a CDS entry and a nucleotide for an rRNA one; the caller
     is told which, and never converts between them.
     """
@@ -97,7 +97,7 @@ class ReferenceEntry:
     source_gene: str  # the symbol the reference record itself used
     vocabulary: str | None  # our canonical symbol, when we have one
     sequence: str
-    # The record's own exon structure, as junctions a target can be searched with (P3B-10). Empty
+    # The record's own exon structure, as junctions a target can be searched with. Empty
     # for a single-exon gene, for an rRNA, and on the mito path, which does not use this yet.
     junctions: tuple[Junction, ...] = ()
 
@@ -105,13 +105,13 @@ class ReferenceEntry:
     def key(self) -> str:
         """What a BLAST hit calls this sequence: the first three fields of its header.
 
-        Measured 2026-10-03: BLAST+ truncates ``sseqid`` at the first whitespace, and the fourth
+        Measured: BLAST+ truncates ``sseqid`` at the first whitespace, and the fourth
         header field is the organism name — ``Nicotiana tabacum`` arrives as ``Nicotiana``. Three
         fields are also all a hit needs; the fourth is only there to be read by a person. ``-``
         means this toolkit has no symbol for the gene, exactly as the FASTA writer writes it.
 
         **Whitespace inside a field is removed**, because a name is allowed to carry one and a
-        header is not: measured 08/10/2026 on the plastid reference set, ``NC_042827.1`` names its
+        header is not: measured on the plastid reference set, ``NC_042827.1`` names its
         rRNA ``23S ribosomal RNA`` (a ``/product`` string, no ``/gene``), and the raw header came
         back from BLAST as ``NC_042827.1|23S`` — the parser refused it by name rather than
         matching a key that could never match. The mito path never met this because no
@@ -182,7 +182,7 @@ class Hsp:
 def header_field(value: str) -> str:
     """One ``|``-delimited header field, whitespace-free — see :attr:`ReferenceEntry.key`.
 
-    Public because a junction's id is built the same way (P3B-10): a header written with one rule
+    Public because a junction's id is built the same way: a header written with one rule
     and read with another is the bug this function exists to prevent, and a second copy of the
     rule is how it comes back.
     """
@@ -207,11 +207,29 @@ class ReferenceIndex:
 
     ``vocabulary`` is what this index may name: the path's own symbols for the kind being called.
     A reference whose gene has no symbol can only ever be *reported* (:meth:`unnameable`), never
-    named into an annotation — the H-06 gap, kept visible.
+    named into an annotation — a gap kept visible.
     """
 
     entries: tuple[ReferenceEntry, ...]
     vocabulary: tuple[str, ...]
+    # Built once from ``entries``: a search returns hits for thousands of subject keys, and a
+    # scan of every entry per key (recomputing each entry's key) made a call quadratic in the size
+    # of the reference set. Each maps to the **first** matching entry in ``entries`` order, which
+    # is what the scan returned.
+    _by_key: dict[str, ReferenceEntry] = field(init=False, repr=False, compare=False)
+    _by_key_length: dict[tuple[str, int], ReferenceEntry] = field(
+        init=False, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        by_key: dict[str, ReferenceEntry] = {}
+        by_key_length: dict[tuple[str, int], ReferenceEntry] = {}
+        for entry in self.entries:
+            key = entry.key
+            by_key.setdefault(key, entry)
+            by_key_length.setdefault((key, len(entry.sequence)), entry)
+        object.__setattr__(self, "_by_key", by_key)
+        object.__setattr__(self, "_by_key_length", by_key_length)
 
     @classmethod
     def from_entries(
@@ -231,7 +249,7 @@ class ReferenceIndex:
         return tuple(entry for entry in self.entries if entry.vocabulary is None)
 
     def entry_for(self, key: str) -> ReferenceEntry | None:
-        return next((entry for entry in self.entries if entry.key == key), None)
+        return self._by_key.get(key)
 
     def lengths_by_key(self) -> dict[str, list[int]]:
         lengths: dict[str, list[int]] = defaultdict(list)
@@ -240,10 +258,7 @@ class ReferenceIndex:
         return {key: sorted(set(values)) for key, values in lengths.items()}
 
     def entry_at(self, key: str, length: int) -> ReferenceEntry | None:
-        return next(
-            (entry for entry in self.entries if entry.key == key and len(entry.sequence) == length),
-            None,
-        )
+        return self._by_key_length.get((key, length))
 
 
 # The two notes a placement from the reference's own exon structure supersedes: when the structure
@@ -318,7 +333,7 @@ class GeneCall:
 
     @property
     def partial_start(self) -> bool:
-        """The 5' coordinate is not established — see the module docstring and D3A-04."""
+        """The 5' coordinate is not established — see the module docstring."""
         return self.parts[0].partial_start
 
     @property
@@ -743,7 +758,7 @@ def _header(entry: ReferenceEntry) -> str:
 
     The first three fields are ``entry.key`` itself rather than a second rendering of the same
     three values — a header that disagreed with the key would send every hit to ``entry_for`` and
-    find nothing (measured 08/10/2026: a plastid rRNA named ``23S ribosomal RNA`` needs the space
+    find nothing (measured: a plastid rRNA named ``23S ribosomal RNA`` needs the space
     removed in both places or in neither).
     """
     return f"{entry.key}|{' '.join(entry.organism.split())}"
@@ -892,7 +907,7 @@ def _candidate(
 
 
 # A reference model is the length of the sequence a candidate would transfer — residues for a
-# CDS, nucleotides for an rRNA. Measured on 39 Crataegus records (27/10/2026): the three
+# CDS, nucleotides for an rRNA. Measured on 39 Crataegus records: the three
 # references carrying models with extra residues before the start scored highest everywhere and
 # made every genome inherit the extension; see _choose and _over_long_start.
 RARE_MODEL_SHARE = 0.20
@@ -912,9 +927,9 @@ def _choose(
     closest relative is what a gene model should be transferred from — not the longest alignment,
     which is how a divergent open reading frame gets welded onto a gene.
 
-    **Structure decides before the score.** H-19 keeps a truncated duplicate out of the *index*;
+    **Structure decides before the score.** A truncated duplicate is kept out of the *index*;
     this is the same rule *between* candidates, and it is needed for the same reason. Measured on
-    the golden's ``rps19`` (10/10/2026): three references spell it 225 bp / 74 aa, and that
+    the golden's ``rps19``: three references spell it 225 bp / 74 aa, and that
     protein is a **suffix** of the 92 aa protein the target's own record carries — the same gene
     annotated from an inner ATG. Those three score **100.00 %** against 98.91 % for the complete
     ones, so identity alone transfers the truncation and the call lands 54 bp short of the
@@ -923,7 +938,7 @@ def _choose(
 
     **A rare model does not decide, either.** ``model_support`` is the share of the locus's
     reference entries that carry each sequence length (residues for a CDS, nucleotides for an
-    rRNA); the plastid path passes it. Measured 27/10/2026 on 39 Crataegus records: three
+    rRNA); the plastid path passes it. Measured on 39 Crataegus records: three
     references carry extended small-CDS models (``psbM`` 270 bp where 36 records say 105,
     ``psbK`` 195 where 36 say 186, ``psaJ`` 318 where 38 say 135, ``psbZ`` 279 where 38 say 189,
     ``psbJ`` 144 where 36 say 123, ``accD`` 1,527 where 36 say 1,476, ``rpoB`` 3,258 where 38 say
@@ -1011,7 +1026,7 @@ def _not_truncated(candidates: Sequence[_Candidate]) -> list[_Candidate]:
     A **suffix**, deliberately, and not any containment: two records spelling one gene from
     different start codons make the shorter protein the longer one's C-terminal stretch, while an
     arbitrary internal match is as likely to be low-complexity sequence as an annotation. Measured
-    over the whole pinned set (10/10/2026): the only containment at any locus is ``rps19``'s three
+    over the whole pinned set: the only containment at any locus is ``rps19``'s three
     74 aa proteins inside the 92 aa ones, and one 92 aa record that is a *prefix* of a 94 aa one —
     which this rule leaves alone, because a gene cut short at its 3' end is a different claim from
     one started late, and the corpus has no measurement that would justify acting on it.
@@ -1119,7 +1134,7 @@ def _refine_start(
     is checked against the table. When it does not reach, the coordinate is partial — except that
     the codon **immediately before** the alignment is read, and an accepted initiator there
     establishes the start. This is the 5' mirror of :func:`_refine_end`'s one-codon look for a
-    stop, and it is opt-in per path: measured 27/10/2026 on 39 Crataegus records, the plastid
+    stop, and it is opt-in per path: measured on 39 Crataegus records, the plastid
     caller wrote ``psbL`` as a 114 bp no-start CDS while the codon before the alignment was
     ``ACG`` (an accepted plastid initiator), making the model 117 bp with a complete ORF and the
     reference's own length. No codon beyond that one is read, and a non-initiator leaves the
@@ -1182,7 +1197,7 @@ def _refine_end(
     end**, because it is what says where *this* gene ends. blastx stops translating at a stop, so
     a target whose gene is shorter than the reference's presents an alignment that simply ends —
     and requiring the alignment to reach the reference's end left every such call one codon short
-    of the published CDS. Measured (P3B-10): of the corpus's differences that survived the
+    of the published CDS. Measured: of the corpus's differences that survived the
     exon-structure transfer, **65 were exactly this** — the published end 3 bp past ours with a
     stop codon sitting there, ``psaJ`` (30 records) at the top of them.
 

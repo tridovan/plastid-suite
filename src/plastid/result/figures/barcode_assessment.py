@@ -1,7 +1,7 @@
-"""π along the reference with the candidate barcode loci marked — M4.3's picture.
+"""π along the reference with the candidate barcode loci marked.
 
 The source is ``barcodes``: the windowed π, the candidate loci, the run's own numbers. The figure
-recomputes nothing — the threshold line prints the summary cell's own rendering (D5-03).
+recomputes nothing — the threshold line prints the summary cell's own rendering.
 
 Choices worth stating:
 
@@ -53,7 +53,7 @@ _BAND_TINT = 0.18  # how far a band's colour is blended into the background
 
 @dataclass(frozen=True, slots=True)
 class BarcodeAssessmentSeries:
-    """Everything the figure draws, read from the tables — the D5-03 audit trail."""
+    """Everything the figure draws, read from the tables — each mark traces back to a cell."""
 
     accession: str
     organism: str

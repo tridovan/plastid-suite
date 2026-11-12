@@ -1,4 +1,4 @@
-"""The plant-mitochondrial calling path — the mito half of the shared core (P3A-03, P3B-07).
+"""The plant-mitochondrial calling path — the mito half of the shared core.
 
 The rules that turn BLAST hits into gene calls live in ``core/caller.py``, with the evidence for
 each one; the plastid path (``core/plastid_caller.py``) uses the same machinery, which is why it

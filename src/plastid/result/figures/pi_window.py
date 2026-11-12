@@ -1,4 +1,4 @@
-"""π along the alignment with the plastid regions shaded — M5.1's sliding-window figure.
+"""π along the alignment with the plastid regions shaded — the sliding-window figure.
 
 The source is ``diversity.diversity_windows`` and nothing else (plus the module's summary for the
 two numbers the axis labels print). Every window already carries **the reference region it falls
@@ -45,7 +45,7 @@ def _boundary(left: Window, right: Window) -> float:
 
 @dataclass(frozen=True, slots=True)
 class PiWindowSeries:
-    """Everything the figure draws, read from the tables — the D5-03 audit trail."""
+    """Everything the figure draws, read from the tables — each mark traces back to a cell."""
 
     accession: str
     organism: str

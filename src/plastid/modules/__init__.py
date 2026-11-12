@@ -6,7 +6,7 @@ The architecture test permits sibling imports only from this file.
 
 from __future__ import annotations
 
-from plastid.modules import (  # noqa: F401  (importing registers them)
+from plastid.modules import (  # importing registers them
     amino_acid,
     barcodes,
     codon_usage,

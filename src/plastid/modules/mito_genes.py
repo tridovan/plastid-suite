@@ -1,7 +1,7 @@
-"""Plant mitochondrial gene set (P3-04) — the path that must not touch the IR gate.
+"""Plant mitochondrial gene set — the path that must not touch the IR gate.
 
 A plant mitogenome has no canonical inverted repeat, so nothing on this path may call
-``ctx.require_ir()``: measured 2026-10-03, both stand-in mitogenomes raise ``IRDetectionError``,
+``ctx.require_ir()``: measured: both stand-in mitogenomes raise ``IRDetectionError``,
 and they are right to. A module that gated here would refuse to describe a genome it can read
 perfectly well — the gate exists to stop *position-based* analysis, not to stop counting genes.
 

@@ -1,4 +1,4 @@
-"""Render a run's R figures from the run's own tables (M10.3/M10.4).
+"""Render a run's R figures from the run's own tables.
 
 The second figure pass, beside :mod:`plastid.run.figures`. It is separate because the guarantees
 are separate — the matplotlib figures are byte-identical across runs and vector only, the R ones
@@ -17,7 +17,6 @@ recorded, never a traceback and never a silent blank panel.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 import tempfile
@@ -26,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from plastid.core.digest import sha256_file
 from plastid.result.figure import FigureRecord
 from plastid.result.figures import all_r_figures
 from plastid.result.figures.r_tree import relabelled_tree
@@ -54,7 +54,7 @@ class RFigureOutcome:
     # command can tell "the run has no such table" (a data problem) from "R is not installed"
     # (a tool problem, exit 3) — the two must not share an exit code.
     blocked: str | None = None
-    # One record per catalogue entry, in the same shape the matplotlib pass reports (M11.18).
+    # One record per catalogue entry, in the same shape the matplotlib pass reports.
     records: tuple[FigureRecord, ...] = field(default_factory=tuple)
     # The figures this run could feed and R did not draw, each also in `skipped`. Separate because
     # a table the run does not hold is expected, and a failed script is not.
@@ -197,7 +197,7 @@ def _draw(
     """One figure: write what R reads, run the script, keep its images and its caption."""
     target.mkdir(parents=True, exist_ok=True)
     # A repeat render replaces the figure's whole output space; the script may draw a different
-    # set of names on a different table, and a stale image would look current (M11.18).
+    # set of names on a different table, and a stale image would look current.
     _discard(target, spec.id)
     labelled = getattr(frame, "labelled", None)
     if labelled is not None and names:
@@ -278,7 +278,7 @@ def _source_line(spec, source: Path | None, run_dir: Path) -> tuple[str, ...]:
     """Name the file that drew the figure, with its digest — the figure's only tie to it."""
     if source is None:
         return ()
-    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+    digest = sha256_file(source)
     if source.is_relative_to(run_dir):
         own = source.relative_to(run_dir).as_posix()
         return (f"source: this run's {own} (sha256 {digest})",)

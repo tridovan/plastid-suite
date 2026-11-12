@@ -32,7 +32,7 @@ Transport = Callable[[str], str]
 def http_transport(url: str) -> str:
     """Default transport: one HTTPS GET."""
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310 — https only
+    with urllib.request.urlopen(request, timeout=60) as response:  # https only
         return response.read().decode("utf-8", "replace")
 
 
@@ -60,7 +60,7 @@ class NcbiClient:
     def search_refseq_plastomes(self, taxon: str, *, retmax: int = 200) -> list[str]:
         """UIDs of RefSeq chloroplast genomes for one taxon.
 
-        Two measured traps avoided (2026-10-03, Iridaceae):
+        Two measured traps avoided (Iridaceae):
         * no title substring filter — "complete genome[title]" drops valid records;
         * **both** organelle filters — ``chloroplast[filter]`` alone returns 71 while
           ``plastid[filter]`` returns 76, because records worded "plastid, complete genome"
@@ -113,7 +113,7 @@ class NcbiClient:
         """One accession → ``(esummary record, lineage)`` — two calls: esummary, then taxonomy.
 
         For genomes no search can return: esummary accepts the accession itself as ``id``
-        (measured 2026-10-03), so naming a record directly — a GenBank submission with no
+        (measured), so naming a record directly — a GenBank submission with no
         RefSeq twin, a mitogenome — costs a lookup instead of a search.
         """
         records = self.summaries([accession])  # guards the uid-present-but-record-missing case

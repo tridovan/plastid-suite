@@ -1,6 +1,6 @@
 """NCBI submission files — FASTA, the five-column table, and optionally the ASN.1 ``.sqn``.
 
-Decision D3-04: the ``.fsa`` and ``.tbl`` are emitted in pure Python and always — NCBI's web
+The ``.fsa`` and ``.tbl`` are emitted in pure Python and always — NCBI's web
 submission accepts exactly that pair, so the minimum install can prepare a submission with no
 external tool at all. The ``.sqn`` is produced only when asked for (``--set sqn=true``) **and**
 ``table2asn`` is present, because it needs a submitter template (``.sbt``) that only the team
@@ -161,7 +161,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "n_problems": len(problems),
                 # A validator that did not run has no counts. Zero would be a measurement this
                 # run never made; the scope rule is "not measured", carried as a blank cell
-                # with the reason in validator_status (M11.18).
+                # with the reason in validator_status.
                 "validator_status": validator_status,
                 "n_validator_errors": validator.errors if validator else None,
                 "n_validator_warnings": validator.warnings if validator else None,

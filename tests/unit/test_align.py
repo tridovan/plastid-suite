@@ -12,6 +12,7 @@ from plastid.core.align import (
     reference_positions,
     substitution_class,
     substitution_counts,
+    usable_columns,
     variable_sites,
     window_diversity,
 )
@@ -261,3 +262,86 @@ def test_the_default_strategy_is_the_one_every_number_was_measured_with() -> Non
     from plastid.external.mafft import DEFAULT_STRATEGY
 
     assert DEFAULT_STRATEGY == "auto"
+
+
+# ------------------------------------------------- cached column facts equal the column walk
+
+
+def _walked_diversity(alignment: Alignment, columns: list[int]) -> tuple[float | None, int]:
+    """π by walking each requested column, exactly as the estimator is written down."""
+    from collections import Counter
+
+    usable = [index for index in columns if all(base in "ACGT" for base in alignment.column(index))]
+    if not usable or alignment.n_rows < 2:
+        return None, 0
+    n = alignment.n_rows
+    total = 0.0
+    for index in usable:
+        counts = Counter(alignment.column(index))
+        homozygosity = sum((count / n) ** 2 for count in counts.values())
+        total += n / (n - 1) * (1 - homozygosity)
+    return total / len(usable), len(usable)
+
+
+def _walked_span(alignment: Alignment, row: int, start: int, end: int) -> tuple[int, ...]:
+    columns: list[int] = []
+    position = 0
+    for index, base in enumerate(alignment.sequences[row]):
+        if base == "-":
+            continue
+        if start <= position < end:
+            columns.append(index)
+        position += 1
+    return tuple(columns)
+
+
+@pytest.mark.parametrize("rows", [2, 3, 5, 8])
+def test_the_cached_column_facts_give_the_walk_s_numbers_bit_for_bit(rows: int) -> None:
+    """The per-column terms are read once and reused; every π and span must equal the walk.
+
+    Random rows over A/C/G/T with gaps and N, so a column can be invariant, polymorphic with up to
+    four bases, gapped or ambiguous; the comparison is ``==`` on floats, not approximate, because
+    the cache is a speed-up and must not move a single bit of a published number.
+    """
+    import random
+
+    generator = random.Random(rows)
+    length = 600
+    template = "".join(generator.choice("ACGT") for _ in range(length))
+    sequences = []
+    for _ in range(rows):
+        row = list(template)
+        for index in range(length):
+            roll = generator.random()
+            if roll < 0.08:
+                row[index] = generator.choice("ACGT")
+            elif roll < 0.11:
+                row[index] = "-"
+            elif roll < 0.12:
+                row[index] = "N"
+        sequences.append("".join(row))
+    alignment = Alignment(names=tuple(f"r{i}" for i in range(rows)), sequences=tuple(sequences))
+
+    spans = [(0, 0), (0, 1), (5, 40), (100, 333), (250, 900), (0, length)]
+    for start, end in spans:
+        for row in (0, rows - 1):
+            assert columns_for_span(alignment, row, (start, end)) == _walked_span(
+                alignment, row, start, end
+            )
+    picks = [
+        list(range(length)),
+        list(range(37, 412)),
+        [3, 3, 9, 200, 7],  # repeated and unordered columns count as given
+        list(columns_for_span(alignment, 0, (100, 333))),
+        [],
+    ]
+    for columns in picks:
+        assert nucleotide_diversity(alignment, columns) == _walked_diversity(alignment, columns)
+    for entry in window_diversity(alignment, window=60, step=20):
+        expected = _walked_diversity(alignment, list(range(entry.start_1b - 1, entry.end_1b)))
+        assert (entry.pi, entry.usable_columns) == expected
+    assert usable_columns(alignment) == tuple(
+        index
+        for index in range(length)
+        if all(base in "ACGT" for base in "".join(row[index] for row in sequences))
+    )

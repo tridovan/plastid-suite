@@ -173,7 +173,7 @@ pipeline.
 | 6a — export | CSV/JSON, Word, Excel, `figures`, `package`, `qc`, `genome_page` | One figure pass over the matplotlib and R catalogues for `run --figures`, `figures` and `package`; `qc` inventories both catalogues without drawing. A missing plotting extra or R is a named status, never a silent absence. The package is replaced as a whole, its index links every file with a digest, and the workbook names each table's scope; a batch's multi-sample figures use `plastid figures <batch-dir>` |
 | 6b — submission | `submission`: `.fsa/.tbl`, optional `.sqn` via table2asn + `.sbt` | Reads the checked GenBank directly (a bare sequence is refused); `.fsa` and `.tbl` share the sequence id; the validator's `not run` state is distinct from zero errors, and a `.sqn` is not ready-to-submit evidence |
 
-Code sources to compare: [CLI](../src/plastid/cli.py),
+Code sources to compare: [CLI](../src/plastid/cli/),
 [panel](../src/plastid/core/panel.py), [audit](../src/plastid/core/reference_audit.py),
 [naming](../src/plastid/modules/gene_normalize.py),
 [annotator](../src/plastid/modules/plastid_annotate.py),

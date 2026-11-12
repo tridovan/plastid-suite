@@ -1,4 +1,4 @@
-"""Substitutions — pairwise counts against a reference genome (ROADMAP M2.6).
+"""Substitutions — pairwise counts against a reference genome.
 
 Every count is stated against the genome it was measured from: row 0 of the MAFFT alignment is
 the reference **in its normalized frame** (the frame its regions are named in — K-10), and each
@@ -7,7 +7,7 @@ ambiguous base are skipped and reported, never scored as a match or a substituti
 
 Scope matters more here than anywhere: the golden Ts/Tv was measured over **CDS only, shared
 genes, IR excluded** — 2.6917 over 79 genes since the shared set was re-measured by locus
-(2026-10-04) — which is narrower than this module's default whole-alignment comparison. The two
+ — which is narrower than this module's default whole-alignment comparison. The two
 must never be quoted as if they were the same number. Ts/Tv is left blank when there are no
 transversions — it is undefined, not infinite.
 """
@@ -35,7 +35,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "substitutions"
-MODULE_VERSION = "0.3.0"  # 0.3.0 adds substitutions_by_type; 0.2.0 changed behaviour 2026-10-04
+MODULE_VERSION = "0.3.0"  # 0.3.0 adds substitutions_by_type; 0.2.0 changed behaviour
 
 
 # The two scopes this module can report, and why the difference is not cosmetic: the golden
@@ -80,11 +80,11 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     # The CLI already chose the IR source for this run (annotation or the explicit
     # `ir_source=sequence`); re-detecting here would ignore that choice. A direct module call
     # (tests, a library user) has no CLI choice to honour, so it detects its own.
-    ir = ctx.ir if ctx.ir is not None else detect_ir(reference)
+    ir = ctx.ir if ctx.ir is not None else detect_ir(reference, cross_check=False)
     frame = normalize(reference, ir)
     # Row 0 is the reference in its **normalized** frame: the region columns are the normalized
     # frame's, and an alignment of the record as deposited indexes them with a cursor from a
-    # different frame. Measured 28/10/2026: the golden reference rotated by half aligned to
+    # different frame. Measured: the golden reference rotated by half aligned to
     # 230,663 columns (154,827 unrotated), compared 76,502 of them and counted 386 substitutions
     # where the unrotated reference counts 1,094 — the same genome, two answers. `barcodes` and
     # `diversity` normalize their reference for the same reason.
@@ -153,7 +153,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             Column("ts_tv", "Ts/Tv", dtype="float", precision=4),
             Column("tool", "Aligner"),
             # The report's prose prints this cell rather than asserting a scope of its own:
-            # measured 10/10/2026 (P2B-03), the template said "this is the whole aligned
+            # measured: the template said "this is the whole aligned
             # plastome" over a run made with --set scope=cds, so the document described
             # numbers it was not showing.
             Column("scope", "Scope (this run)"),
@@ -262,17 +262,17 @@ def _cds_scope(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContex
 
     This is the scope fixed for the golden ratio — CDS only, shared genes, IR
     excluded — and the scope in which the toolkit's Ts/Tv is comparable to that table at all.
-    The numbers it reproduces today (2026-10-04: 323 Ts / 120 Tv = 2.6917 over 79 shared genes)
+    The numbers it reproduces (323 Ts / 120 Tv = 2.6917 over 79 shared genes)
     are pinned by the golden tests, not here.
     """
     reference = genomes[0]
     # No table is passed: the record's own organelle picks the vocabulary (aliases_for) —
-    # measured 2026-10-04, a mitogenome whose CDS are named by product sentence needs the
+    # measured: a mitogenome whose CDS are named by product sentence needs the
     # mitochondrial one, and passing the plastid table explicitly found no shared gene at all.
     ref_genes = _by_name(reference, None)
     # A record with no annotation cannot share a CDS with anything — it is excluded from the
     # comparison and NAMED, rather than quietly emptying the table for every other genome.
-    # Measured 04/10/2026 on the pinned panel: 3 of its 11 records carry no CDS, and the first
+    # Measured on the pinned panel: 3 of its 11 records carry no CDS, and the first
     # version of this scope returned an empty table for the whole run.
     queries = [(genome, _by_name(genome, None)) for genome in genomes[1:]]
     annotated = [(genome, genes) for genome, genes in queries if genes]

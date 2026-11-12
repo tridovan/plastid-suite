@@ -8,13 +8,16 @@ fallback against MAFFT once gave 2.667 where the true Ts/Tv was 2.686).
 
 from __future__ import annotations
 
+import hashlib
+import json
 import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
 from plastid.core.align import Alignment
+from plastid.core.genbank import fasta_text, read_fasta_text
 from plastid.run.context import RunContext
-from plastid.run.tools import ToolError, tool_version, which
+from plastid.run.tools import ToolError, which
 
 __all__ = [
     "DEFAULT_STRATEGY",
@@ -31,7 +34,7 @@ __all__ = [
 
 MAFFT_VERSION = "7.526"
 
-# The two protein calls of the PREP-Cp-compatible predictor (M4.5): building reference B′ and
+# The two protein calls of the PREP-Cp-compatible predictor: building reference B′ and
 # adding one query to it. Both say `--amino` because MAFFT otherwise guesses the alphabet from the
 # letters, and a 37-residue peptide (petG, psaI) is a small sample to guess from. Both use L-INS-i
 # (`--localpair --maxiterate 1000`), the accuracy-oriented option for a handful of sequences with
@@ -48,7 +51,7 @@ PROTEIN_ARGV: tuple[str, ...] = ("--amino", "--localpair", "--maxiterate", "1000
 # `--linsi`, `--ginsi`, `--fftns` or `--nwns`: those are v6 names, and the v7 aliases are the
 # separate wrapper programs of the same name, the algorithms themselves being selected by the
 # pair/hmm options below. Every non-default strategy therefore failed against the pinned build
-# (measured 28/10/2026: `Unknown option: --fftns`, then `--linsi`) while the in-suite check, which
+# (measured: `Unknown option: --fftns`, then `--linsi`) while the in-suite check, which
 # only compared each string with `--<name>`, passed. `nwns` is gone: MAFFT 7 has no NW-NS mode to
 # map it to, and a name that always fails is worse than a refusal that lists the names that work.
 MAFFT_STRATEGIES: dict[str, tuple[str, ...]] = {
@@ -77,7 +80,7 @@ def align(
 ) -> Alignment:
     """Align ``(name, sequence)`` rows and return them in the order given.
 
-    ``strategy`` selects MAFFT's algorithm (M11.20). The default is ``auto``, which is what every
+    ``strategy`` selects MAFFT's algorithm. The default is ``auto``, which is what every
     number in this repository was measured with; anything else is a different alignment and must
     say so — the module records it in the table's scope and the argv in the manifest.
     """
@@ -97,7 +100,7 @@ def adjust_direction(rows: Sequence[tuple[str, str]], ctx: RunContext) -> dict[s
 
     ``--adjustdirection`` makes MAFFT compare every sequence's direction against **the first row**
     and reverse-complement the ones that came out the other way, marking each with an ``_R_``
-    prefix on its output name (measured 08/10/2026 on 7.526, the corpus's SSC region: the two
+    prefix on its output name (measured on 7.526, the corpus's SSC region: the two
     records the audit's gene-strand rule calls inverted are exactly the two that come back
     ``_R_``). It answers the one question a rule over a single record cannot settle alone — is
     this region oriented the way its relatives are? — and the caller decides what the first row
@@ -128,7 +131,7 @@ def add_protein(
 
     ``--add`` keeps the existing alignment: it may insert whole gap columns where the query has
     residues no reference has, but it never re-aligns the reference rows among themselves
-    (measured 30/10/2026 on 7.526 with the accD reference: the reference rows, with the inserted
+    (measured on 7.526 with the accD reference: the reference rows, with the inserted
     columns removed, came back byte for byte). The caller checks that property on every call
     rather than trusting it.
     """
@@ -142,8 +145,8 @@ def add_protein(
         raise ValueError(f"the query name {query[0]!r} is also a reference row")
     with tempfile.TemporaryDirectory(prefix="mafft_add_") as work:
         workdir = Path(work)
-        (workdir / "reference.fasta").write_text(_to_fasta(reference), encoding="utf-8")
-        (workdir / "query.fasta").write_text(_to_fasta([query]), encoding="utf-8")
+        (workdir / "reference.fasta").write_text(fasta_text(reference), encoding="utf-8")
+        (workdir / "query.fasta").write_text(fasta_text([query]), encoding="utf-8")
         record = ctx.tool(
             "mafft",
             [binary, *PROTEIN_ARGV, "--quiet", "--add", "query.fasta", "reference.fasta"],
@@ -166,10 +169,7 @@ def parse_directions(text: str) -> dict[str, bool]:
     is what BLAST and every other tool would truncate at the first whitespace.
     """
     directions: dict[str, bool] = {}
-    for line in text.splitlines():
-        if not line.startswith(">"):
-            continue
-        name = line[1:].strip().split(" ")[0]
+    for name, _sequence in read_fasta_text(text):
         reversed_name = name[3:] if name.startswith("_R_") else name
         directions[reversed_name] = name.startswith("_R_")
     return directions
@@ -197,12 +197,19 @@ def _run(
         raise ToolError(
             f"mafft not found — the comparison modules need MAFFT {MAFFT_VERSION}; install it"
         )
-    version, _ = tool_version("mafft", "mafft", binary)
     flags = tuple(argv) if argv is not None else strategy_flag(strategy)
+    input_text = fasta_text(rows)
+    # One alignment per identical call in a run: the binary, its arguments and the rows' text.
+    key = hashlib.sha256(
+        json.dumps(["mafft", binary, *flags, "--quiet", *extra, input_text]).encode("utf-8")
+    ).hexdigest()
+    earlier = ctx.computed_output(key)
+    if earlier is not None:
+        return earlier
     with tempfile.TemporaryDirectory(prefix="mafft_") as work:
         workdir = Path(work)
         fasta = workdir / "input.fasta"
-        fasta.write_text(_to_fasta(rows), encoding="utf-8")
+        fasta.write_text(input_text, encoding="utf-8")
         record = ctx.tool(
             "mafft",
             [binary, *flags, "--quiet", *extra, fasta.name],
@@ -210,33 +217,19 @@ def _run(
             pinned_version=MAFFT_VERSION,
             cwd=workdir,
         )
-        return Path(record.stdout_file).read_text(encoding="utf-8")
-
-
-def _to_fasta(rows: Sequence[tuple[str, str]], width: int = 60) -> str:
-    blocks = []
-    for name, sequence in rows:
-        body = "\n".join(sequence[i : i + width] for i in range(0, len(sequence), width))
-        blocks.append(f">{name}\n{body}\n")
-    return "".join(blocks)
+        output = Path(record.stdout_file).read_text(encoding="utf-8")
+    ctx.keep_output(key, output, record)
+    return output
 
 
 def _parse_fasta(text: str) -> dict[str, str]:
     """MAFFT's output as our rows — **uppercased**, because that is what the counters read.
 
-    Measured 03/10/2026 on MAFFT 7.526: it prints the alignment in **lowercase**
+    Measured on MAFFT 7.526: it prints the alignment in **lowercase**
     (``----------------------------------cccgatatcttactaaaaaaagatat``). The comparison modules
     classify a column by ``core.align._DNA``, which is ``ACGT``, so every column of a lowercase
     alignment was silently skipped: the first real-data Ts/Tv run reported *zero comparable
     columns and a blank ratio* rather than a wrong number. The unit tests never saw it because
     they build alignments by hand, in uppercase.
     """
-    sequences: dict[str, list[str]] = {}
-    current: str | None = None
-    for line in text.splitlines():
-        if line.startswith(">"):
-            current = line[1:].strip().split(" ")[0]
-            sequences[current] = []
-        elif current is not None:
-            sequences[current].append(line.strip())
-    return {name: "".join(parts).upper() for name, parts in sequences.items()}
+    return {name: sequence.upper() for name, sequence in read_fasta_text(text)}

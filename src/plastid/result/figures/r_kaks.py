@@ -71,7 +71,7 @@ def frame(results: Mapping[str, Result]) -> KaksFrame:
     genes = tuple(dict.fromkeys(row["gene"] for row in table.rows))
     genomes = tuple(dict.fromkeys(row["genome"] for row in table.rows))
     if len(genomes) < 2:
-        # Measured 17/10/2026, isolated on a hand-built matrix: two species columns draw and one
+        # Measured: isolated on a hand-built matrix: two species columns draw and one
         # does not. The script's own `mat[keep_genes, keep_spp]` drops a one-column matrix to a
         # vector, so `rownames(mat)` is NULL and it halts with "replacement has 0 rows". This is
         # the script's limit, not the run's — a second genome in the run draws the figure.

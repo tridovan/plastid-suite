@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from plastid.core.digest import sha256_file
 from plastid.core.ir import IRResult
 from plastid.core.model import Genome
 from plastid.result.export import Payload, export_csv, export_json
@@ -55,14 +56,14 @@ class StepOutcome:
     # The computation behind these files: module/source/input digests and the tool calls made.
     # On "ok" it describes this run; on "cached" it is the *original* run's record, while
     # ``RunContext.tools`` stays empty — the two together say what made the payload and what ran
-    # now (M11.12).
+    # now.
     provenance: dict[str, Any] | None = None
 
 
 def _params_hash(params: dict) -> str:
     """Parameters, with any parameter that names a file replaced by that file's content digest.
 
-    A path is not an identity (D5-09): a run told ``--set naming_reference=ref.gb`` must not
+    A path is not an identity: a run told ``--set naming_reference=ref.gb`` must not
     be served a result computed against a *different* ``ref.gb``. Any string parameter that
     resolves to a file on disk therefore contributes its sha256, so editing the file changes the
     key; a parameter that is not a path is hashed as itself.
@@ -76,16 +77,16 @@ def _content_addressed(value: object) -> object:
     if isinstance(value, str):
         path = Path(value)
         if path.is_file():
-            return {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+            return {"path": str(path), "sha256": sha256_file(path)}
         if path.is_dir():
             # A *directory* of inputs is a parameter the annotate step takes, and the same rule
-            # holds: the path is not the identity. Measured 09/10/2026 — `--set
+            # holds: the path is not the identity. Measured: `--set
             # reference=.panel/plastid-reference` was hashed as that string, so re-pinning a
             # record, or editing one, served the previous run's tables from the cache with no
             # sign that the reference had moved. The digest is over the file names and the files'
             # own digests, so adding, removing and editing each change the key.
             listing = {
-                entry.name: hashlib.sha256(entry.read_bytes()).hexdigest()
+                entry.name: sha256_file(entry)
                 for entry in sorted(path.iterdir())
                 if entry.is_file()
             }
@@ -97,9 +98,9 @@ def _input_hash(genome: Genome) -> str:
     """Everything a module can read: the sequence **and** the annotation and the source qualifiers.
 
     Hashing the sequence alone made two *annotations* of one sequence share a cache key — measured
-    05/10/2026 on the corpus's own pair: the published and PGA records of *Iris domestica*
+    on the corpus's own pair: the published and PGA records of *Iris domestica*
     carry the same 153,724 bp and different gene sets (86 vs 85 CDS), so the second run was served
-    the first's tables (H-15). A module that reads genes has to be keyed on the genes; one that
+    the first's tables. A module that reads genes has to be keyed on the genes; one that
     reads ``source`` (submission, for one) has to be keyed on that too.
     """
     payload = json.dumps(
@@ -119,12 +120,12 @@ def _input_hash(genome: Genome) -> str:
                     # /transl_table decides a CDS's status, /codon_start its frame,
                     # /exception whether the CDS may be submitted as-is, and
                     # /trans_splicing what the feature means. Omitting them let two annotations
-                    # share a payload (K-02, M11.12).
+                    # share a payload (K-02).
                     gene.trans_splicing,
                     gene.transl_table,
                     gene.codon_start,
                     gene.exception,
-                    # The annotator searches the record's own /translation (D5-08): two records
+                    # The annotator searches the record's own /translation: two records
                     # with one sequence and one gene list but different proteins are two
                     # different inputs, and the cache may not conflate them.
                     gene.translation,
@@ -153,15 +154,15 @@ def _input_hash(genome: Genome) -> str:
 
 
 def _module_source_hash(run_fn: RunFn) -> str:
-    """The module's own source file, hashed — H-08, and the reason it exists.
+    """The module's own source file, hashed, and the reason it exists.
 
     The key used to carry ``module_version`` and nothing else about the code, so a behaviour
-    change without a version bump served a **stale payload** (measured 2026-10-04: the CDS-scope
+    change without a version bump served a **stale payload** (measured: the CDS-scope
     fix came back ``cached``, four modules had to be bumped by hand). Version bumps stay the
     convention; this is the guard.
     """
     source = inspect.getsourcefile(run_fn) or inspect.getfile(run_fn)
-    return hashlib.sha256(Path(source).read_bytes()).hexdigest()
+    return sha256_file(source)
 
 
 _PACKAGE_ROOT = Path(__file__).resolve().parents[1]  # src/plastid
@@ -173,7 +174,7 @@ def _package_source_hash(root: Path = _PACKAGE_ROOT) -> str:
     A module imports ``core/``, ``result/`` and ``run/`` helpers, and reads packaged resources
     (``data/defaults.yaml``, report templates, R scripts, gene-name lists). Any of those can change
     what the module produces while the module file itself is untouched, so ``_module_source_hash``
-    alone was a narrower identity than the key claimed (M11.12). The digest covers relative path
+    alone was a narrower identity than the key claimed. The digest covers relative path
     *and* content, so a rename or a move is a change too.
 
     Coarser than it could be — editing any module invalidates every module's payload — and that is
@@ -200,7 +201,7 @@ def _tools_still_current(tools: object) -> bool:
     A cache hit restores a payload, not the computation that made it. If the version probe now
     answers differently — an upgraded BLAST+, a moved Rscript, a tool that has vanished — the
     stored payload was produced by a *different environment* and must not be served as this run's
-    result (M11.12). ``pinned``/``vendored`` versions are declared by the package, whose contents
+    result. ``pinned``/``vendored`` versions are declared by the package, whose contents
     are already in the shared-code digest.
     """
     if not isinstance(tools, list):
@@ -318,7 +319,7 @@ def execute_step(
     input_sha256s = tuple(_input_hash(genome) for genome in genomes)
     ir_fingerprint = _ir_fingerprint(ctx.ir)
     # What the step is asked to *produce* is part of what it is: a run asking for a Word
-    # document must not be served a payload that has none (H-14, measured 05/10/2026 — a
+    # document must not be served a payload that has none (measured: a
     # `--docx` run came back `cached` with 0 .docx files, and the manifest's `command`
     # did not carry the flag either).
     payload_kinds = ("report" if render_report is not None else "") + (
@@ -364,6 +365,9 @@ def execute_step(
         "tools": [asdict(record) for record in ctx.tools],
         "computed_at": datetime.now().isoformat(timespec="seconds"),
     }
+    if ctx.reused:
+        # Outputs an earlier step of the same run computed, which this computation read.
+        provenance["reused_tools"] = list(ctx.reused)
     # The cache stores JSON, which turns tuples into lists. Normalize here so a fresh outcome and
     # the later cache hit describe the same computation in the same shape (a tuple != a list).
     provenance = json.loads(json.dumps(provenance))

@@ -1,4 +1,4 @@
-"""The R figures: a second catalogue, drawn by the manuscript's own scripts (M10.3/M10.4).
+"""The R figures: a second catalogue, drawn by the manuscript's own scripts.
 
 **Why this is not :class:`~plastid.result.figure.FigureSpec`.** Three reasons, each measured:
 

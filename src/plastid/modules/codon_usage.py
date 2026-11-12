@@ -1,17 +1,17 @@
-"""Codon usage — RSCU · ENC · CAI · CBI · Fop (ROADMAP M2.4).
+"""Codon usage — RSCU · ENC · CAI · CBI · Fop.
 
 The CDS set is the counted one: every ``CDS`` feature with ``pseudo`` excluded, both IR copies
 included — the same rule as ``count_genes`` (golden genome: 86). Sequences come from
-``coding_sequence``, which reads each part on its own strand in annotation order (P2-03 measured
-that this is the only reading of the trans-spliced rps12 that yields a canonical ORF).
+``coding_sequence``, which reads each part on its own strand in annotation order (it is
+the only reading of the trans-spliced rps12 that yields a canonical ORF).
 
 **No inverted repeat is needed.** Every number here is a property of the CDS sequences; none is
 a position in the genome. The module was gated on the IR copy of an older rule, which refused a
-record whose repeat diverged even though its CDS were readable (M11.5). A CDS whose frame or
+record whose repeat diverged even though its CDS were readable. A CDS whose frame or
 declared translation table this compiled code cannot read is refused by name instead of being
 translated silently.
 
-Translation table: NCBI table 1, compiled here (decision D2-03) — and the output names the table
+Translation table: NCBI table 1, compiled here — and the output names the table
 the record's own CDS declare (plastid records declare 11; the two share every amino acid and
 differ only in initiation codons). RSCU and ENC are defined by the sequences alone; **CAI · CBI ·
 Fop need a reference**, so the reference used is named in the output — here the analysed CDS set
@@ -42,7 +42,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "codon_usage"
-MODULE_VERSION = "0.2.0"  # 0.2.0: no IR requirement; unsupported frame/table refused (M11.5)
+MODULE_VERSION = "0.2.0"  # 0.2.0: no IR requirement; unsupported frame/table refused
 
 REFERENCE_LABEL = "the analysed CDS set itself (self-reference)"
 RSCU_TOLERANCE = 1e-9
@@ -53,7 +53,7 @@ RSCU_TOLERANCE = 1e-9
     group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Codon usage",
-    # CDS sequences only: no position in the inverted repeat enters any number here (M11.5).
+    # CDS sequences only: no position in the inverted repeat enters any number here.
     requires_ir=False,
     citations=("biopython",),
 )

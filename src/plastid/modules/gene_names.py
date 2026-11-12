@@ -1,8 +1,8 @@
-"""Gene-name check across a set of records (M3.2, P3-02).
+"""Gene-name check across a set of records.
 
 One record can be normalized alone; a *panel* can do one thing more: a bare tRNA name
 (``trnK``, no anticodon) is resolved by 100 % sequence identity against the named copies in the
-other records. Measured 2026-10-03: reading the anticodon at a fixed offset matched only 106 of
+other records. Measured: reading the anticodon at a fixed offset matched only 106 of
 293 named tRNAs, so sequence identity is the only honest way to do it — and when it does not
 resolve, the name is reported, never guessed.
 

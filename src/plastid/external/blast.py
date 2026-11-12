@@ -1,4 +1,4 @@
-"""BLAST+ adapter — the searches the mito caller transfers an annotation from (P3A-03).
+"""BLAST+ adapter — the searches the mito caller transfers an annotation from.
 
 Every call goes through :meth:`RunContext.tool`, so the run records name · version · path · argv ·
 time · exit code · logs like any other tool (seam 3), and the parsed hits come from the search's
@@ -12,7 +12,7 @@ Three decisions in here were measured, and each of them is silent when it is wro
   atp9's best alignment drops from 137 to 67 bits and 21 other loci lose score as well. The
   identity floor, not the mask, is what keeps junk out.
 * **no ``-parse_seqids``.** The obvious flag for a FASTA whose ids are ``accession|gene|…`` is the
-  one that breaks: measured 03/10/2026, ``makeblastdb -parse_seqids`` fails with ``Error:
+  one that breaks: measured: ``makeblastdb -parse_seqids`` fails with ``Error:
   Duplicate seq_ids are found: LCL|NC_006581.1|SDH3|-|NICOTIANA`` (the reference set legitimately
   holds repeat copies), and for the ids it does parse it upper-cases them, which would break every
   lowercase gene symbol. Without it, ``sseqid`` is the defline's first token — which is what the
@@ -40,7 +40,7 @@ from plastid.core.mito_caller import Hsp
 from plastid.core.model import Genome
 from plastid.core.submission import to_fasta
 from plastid.run.context import RunContext
-from plastid.run.tools import ToolError, tool_version, which
+from plastid.run.tools import ToolError, find_executable, tool_version
 
 __all__ = [
     "BLAST_VERSION",
@@ -101,7 +101,7 @@ _VERSION = re.compile(r"\b(\d+)\.(\d+)\.(\d+)")
 _SUBJECT_FIELDS = 3
 
 # The columns of a search that has to answer *where inside an alignment* a position sits, as
-# `run_blastn_trace` does for P3B-10's exon structure. Only its own parser reads them.
+# `run_blastn_trace` does for the exon structure. Only its own parser reads them.
 _TRACE_COLUMNS: tuple[str, ...] = _COLUMNS + ("qseq", "sseq")
 
 
@@ -124,7 +124,7 @@ class TraceHit:
     Coordinate arithmetic maps an alignment's two ends and nothing in between: the reference's own
     introns carry indels against the target, so the k-th base of the query is not the k-th base of
     the subject, and an exon boundary sitting between them is off by every indel before it.
-    Measured on the golden (10/10/2026): the petB junction's 741 bp intron aligns with one gap,
+    Measured on the golden: the petB junction's 741 bp intron aligns with one gap,
     and the naive mapping put the first exon 1 bp away from where the published record has it.
     """
 
@@ -314,7 +314,7 @@ def search_argv(
     """The exact command line, so a test can hold it still without running BLAST.
 
     ``max_target_seqs`` is the size of the reference set, counted from the file — never a
-    constant. Measured 08/10/2026 (P3B-07): the 500 that sufficed for the mito path's 287
+    constant. Measured: the 500 that sufficed for the mito path's 287
     sequences silently truncated the plastid search, which searches 2,838 — BLAST reported 929
     HSPs over 467 subjects where the same command with the cap lifted reported 4,382 over 2,603,
     and **nothing in the output said so**. A cap that cannot truncate is the only kind worth
@@ -344,9 +344,9 @@ def search_argv(
     return argv
 
 
-# --- the naming search (P3B-04) ---------------------------------------------------------------
+# --- the naming search ---------------------------------------------------------------
 #
-# `blastp`, protein against protein, is the one search D5-08 keeps for the naming step: both
+# `blastp`, protein against protein, is the one search kept for the naming step: both
 # sides already carry a curated protein (/translation), so blastx's six-frame translation would
 # add cost and no sensitivity, and it would let a frame error hide inside a good score.
 #
@@ -542,23 +542,17 @@ def resolve_binary(
     tool: str, *, explicit: str | Path | None = None, directory: str | Path | None = None
 ) -> str:
     """Find a BLAST binary: an explicit path, then a directory, then ``PATH``."""
-    if explicit is not None:
-        path = Path(explicit)
-        if not path.is_file():
-            raise ToolError(f"{tool} not found at {path} — see docs/tools/blast.md")
-        return str(path)
-    if directory is not None:
-        candidate = Path(directory) / tool
-        if not candidate.is_file():
-            raise ToolError(f"{tool} not found in {directory} — see docs/tools/blast.md")
-        return str(candidate)
-    found = which(tool)
-    if found is None:
-        raise ToolError(
+    return find_executable(
+        tool,
+        (tool,),
+        explicit=explicit,
+        directory=directory,
+        doc="docs/tools/blast.md",
+        missing=(
             f"{tool} not found — install the pinned BLAST+ {BLAST_VERSION}, or point the run at "
             f"one with --set tools=<directory>. See docs/tools/blast.md."
-        )
-    return found
+        ),
+    )
 
 
 def blast_version(binary: str) -> str:

@@ -1,4 +1,4 @@
-"""Introns — count, length, position and phase per gene, CDS and tRNA (ROADMAP M2.7, M11.15).
+"""Introns — count, length, position and phase per gene, CDS and tRNA.
 
 An intron is the gap between two consecutive parts of one gene, both ends in one plastid region.
 The classes are counted separately and published together with their ``kind``, because they are
@@ -18,11 +18,11 @@ A class is **not measured** when the record annotates no feature of that kind. A
 no CDS cannot say "no CDS introns"; the summary says so rather than printing a zero that reads as
 a measurement.
 
-Measured on the golden genome (2026-10-03): the two rps12 junctions cross LSC→IRa (28,695 bp) and
+Measured on the golden genome: the two rps12 junctions cross LSC→IRa (28,695 bp) and
 LSC→IRb (69,749 bp) while all 17 CDS introns (541–1,055 bp) sit inside a single region — and the
 record's own ``/trans_splicing`` qualifier marks exactly those genes. Geometry and annotation
 agree; a disagreement is reported, not smoothed over. The 8 tRNA introns are checked against the
-record's own multi-part tRNA features, not against ARAGORN's count (H-23).
+record's own multi-part tRNA features, not against ARAGORN's count.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "introns"
-MODULE_VERSION = "0.2.0"  # 0.2.0: tRNA introns, separate counts and an assessment (M11.15)
+MODULE_VERSION = "0.2.0"  # 0.2.0: tRNA introns, separate counts and an assessment
 
 
 @module(
@@ -90,7 +90,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
                 "n_genes_with_introns": len({row["gene"] for row in judged}),
                 "n_introns": len(judged),
                 # A missing feature class is not a zero: an annotation with no CDS cannot say
-                # "no CDS introns", and printing 0 would read as a measurement (M11.15).
+                # "no CDS introns", and printing 0 would read as a measurement.
                 "n_cds_introns": len(cds_rows) if cdss else "not measured",
                 "n_trna_introns": len(trna_rows) if trnas else "not measured",
                 "total_length_bp": sum(row["length_bp"] for row in judged),

@@ -47,6 +47,7 @@ from plastid.core.assembly_graph import (
     parse_gfa,
     read_selected_graph,
 )
+from plastid.core.digest import sha256_file
 from plastid.run.context import RunContext
 from plastid.run.tools import ToolError, tool_version, which
 
@@ -329,7 +330,7 @@ def resolve_database(directory: str | Path | None = None) -> dict[str, Any]:
                 )
             _, version, sha256 = declared[name]
             fasta = root / kind / f"{name}.fasta"
-            digest = hashlib.sha256(fasta.read_bytes()).hexdigest()
+            digest = sha256_file(fasta)
             if digest != sha256:
                 raise ToolError(
                     f"{fasta}: sha256 {digest} is not the {sha256} its VERSION file names"

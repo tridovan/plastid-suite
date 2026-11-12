@@ -1,15 +1,15 @@
 """mVISTA-style % identity along the reference, with the synteny blocks beneath it.
 
 The source is ``synteny`` and nothing else: the windowed % identity series, the alignment blocks,
-the run's own parameters. Every number drawn is a table cell — the figure recomputes nothing
-(D5-03). Window coordinates are the **reference's normalized frame**, the same frame the block
+the run's own parameters. Every number drawn is a table cell — the figure recomputes nothing.
+Window coordinates are the **reference's normalized frame**, the same frame the block
 table's ``target_*`` columns use, so the two panels share one x axis; and a window with no aligned
 pair has no identity, so it is drawn as a **gap** (``nan``), never as zero.
 
 The per-genome series is carried as plain tuples in table order — one
 ``(genome, group, ((window_start, window_end, identity), ...))`` per genome — so a test can
-compare the figure's own data with the table cell by cell (the P5-01 pattern, and the shape the
-N-scaling measurement reads).
+compare the figure's own data with the table cell by cell (the pattern every figure follows,
+and the shape the N-scaling measurement reads).
 """
 
 from __future__ import annotations
@@ -48,9 +48,9 @@ _SERIES_COLOURS = (THEME.line, THEME.accent, THEME.muted)
 _BLOCK_COLOURS = {"forward": THEME.line, "reverse": THEME.accent}
 _BAR_HEIGHT = 0.6
 
-# Measured, not guessed (P5-02): the same figure at N = 2, 8 and 34. At 8 the seven
+# Measured, not guessed: the same figure at N = 2, 8 and 34. At 8 the seven
 # series and their legend read; at 34 the legend covered the panel and 33 lines merged into one
-# grey mass — an unreadable figure is a failed figure, not a dense one (D5-04). Above the cap the
+# grey mass — an unreadable figure is a failed figure, not a dense one. Above the cap the
 # panel switches to the span the genomes cover, whose two edges are still cell values.
 _SERIES_CAP = 8
 _ENVELOPE_FILL = "#c9d2dc"  # THEME.line blended into the background — no alpha (EPS drops it)
@@ -58,7 +58,7 @@ _ENVELOPE_FILL = "#c9d2dc"  # THEME.line blended into the background — no alph
 
 @dataclass(frozen=True, slots=True)
 class IdentitySyntenySeries:
-    """Everything the figure draws, read from the tables — the D5-03 audit trail."""
+    """Everything the figure draws, read from the tables — each mark traces back to a cell."""
 
     accession: str
     organism: str

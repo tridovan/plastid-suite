@@ -1,4 +1,4 @@
-"""PREP-Cp-compatible RNA-editing prediction — the published PREP method, pure functions (M4.5).
+"""PREP-Cp-compatible RNA-editing prediction — the published PREP method, pure functions.
 
 The method is Mower 2005's (PREP-Mt) applied to a chloroplast reference rebuilt the way Mower
 2009 built PREP-Cp's: translate a query CDS with the standard code, align the translation to a
@@ -48,6 +48,7 @@ from typing import Any
 import yaml
 
 from plastid.core.codon import STANDARD_CODE
+from plastid.core.digest import sha256_file
 from plastid.core.gene_names import AliasTable, NormalizedName, normalize_genome
 from plastid.core.model import Gene, Genome, Interval, coding_sequence
 from plastid.core.resources import data_file
@@ -733,7 +734,7 @@ def reference_set_entry(path: str | Path | None = None) -> dict[str, Any]:
         "label": reference.label,
         "digest": reference.digest,
         "path": f"plastid/data/{REFERENCE_FILE}" if path is None else str(source),
-        "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        "sha256": sha256_file(source),
         "taxa": [
             {"accession": taxon["accession"], "sha256": taxon["sha256"]}
             for taxon in payload["taxa"]

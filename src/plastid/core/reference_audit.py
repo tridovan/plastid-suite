@@ -1,20 +1,20 @@
-"""The reference-set audit — the gate in front of every annotation run (P3B-03, D5-08).
+"""The reference-set audit — the gate in front of every annotation run.
 
 A plastome is annotated by transferring a curated annotation from relatives
 (:mod:`plastid.core.plastid_reference`). That only works if the relatives themselves are usable:
-a record whose CDS carry no ``/translation`` cannot be searched (D5-08 — the engine never
+a record whose CDS carry no ``/translation`` cannot be searched (the engine never
 self-translates), a record with partial coordinates stamps partial flags on whatever it annotates
 (PGA was measured returning **zero** genes from exactly such a record), and a record whose
 IR pair does not hold up has no frame to normalize positions against. So the set is audited
 *before* anything is annotated, and this module is that audit.
 
-Two verdicts, and the difference is measured rather than stylistic (D5-08, 05/10/2026):
+Two verdicts, and the difference is measured rather than stylistic:
 
 * **BLOCK** — this record cannot be used. The run stops with ``file — reason``, and nothing is
   annotated. The classes are: unreadable · no gene features · a CDS without ``/translation`` ·
   a CDS whose partial coordinate does not fit its own ``/translation`` · the IR gate · a CDS
   whose own sequence fails the ORF check. A partial coordinate that **does** fit its translation
-  is reported, not blocked: H-21 reproduced the rule refusing ``NC_024936.1``'s complete 92 aa
+  is reported, not blocked: blocking it refused ``NC_024936.1``'s complete 92 aa
   ``rps19`` because of an inverted-repeat boundary flag.
 * **REPORT** — the set is not uniform and a person has to know. Measured on the 34-record
   corpus: 32/34 published records share one SSC orientation and **2/34 are inverted with all
@@ -26,7 +26,7 @@ Two verdicts, and the difference is measured rather than stylistic (D5-08, 05/10
   The **IR gene-mirror rule** is a REPORT too: a gene inside one IR copy must have its copy inside
   the other on the opposite strand, and a same-strand copy or a one-sided gene is the record's
   inconsistency, which a person confirms (pinned to the file's sha256) or fixes. Measured
-  29/10/2026: 23 of the 80 validation-panel records break it (third-party annotations), and
+  on the panel: 23 of the 80 validation-panel records break it (third-party annotations), and
   **0 of the 34 reference records** do.
 
 **A confirmed exception is pinned to bytes.** The REPORT classes are the ones no rule settles
@@ -45,13 +45,13 @@ itself.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from plastid.core.digest import sha256_file
 from plastid.core.genbank import read_genbank
 from plastid.core.gene_names import normalize_genome
 from plastid.core.ir import IRDetectionError, IRGateError, IRResult, detect_ir, enforce_ir_gate
@@ -122,7 +122,7 @@ class Finding:
 
     ``line`` is the message the design fixes — ``file — reason``, specific to the feature or
     coordinate, and nothing else. No suggested fix is ever appended: the audit says what is wrong
-    with the bytes, and what to do about it belongs to whoever holds the reference set (D5-08).
+    with the bytes, and what to do about it belongs to whoever holds the reference set.
     A ``confirmed_by`` finding was waived by a pinned exception; it stays in the report, so the
     waiver is visible rather than silent.
     """
@@ -176,7 +176,7 @@ class RecordFacts:
     # Which repeat annotation the record's frame was read from: "annotation" (the default),
     # "sequence" (annotation-first refused, the sequence's own repeat passed — the explicit
     # `--set ir_source=sequence` route), or None when neither passed. A record read from the
-    # sequence path is usable, and the report says so rather than leaving it implicit (H-21).
+    # sequence path is usable, and the report says so rather than leaving it implicit.
     ir_source: str | None = "annotation"
 
 
@@ -303,7 +303,7 @@ def audit_files(
 
     # The set-level reports come first, because a pin may name one of *them* — an exception
     # applied before the finding it is about exists would come back "unused" and quietly stop
-    # working (measured 08/10/2026: the first end-to-end run of the exception door did exactly
+    # working (measured: the first end-to-end run of the exception door did exactly
     # that). Then the pins, then the second reading — which has nothing left to settle for a
     # finding a person has already confirmed.
     findings.extend(_set_reports(facts))
@@ -338,7 +338,7 @@ def audit_files(
 
 def _audit_one(path: Path) -> tuple[list[Finding], RecordFacts | None]:
     findings: list[Finding] = []
-    digest = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else ""
+    digest = sha256_file(path) if path.is_file() else ""
     try:
         genome = read_genbank(path)
     except (OSError, ValueError) as error:
@@ -386,7 +386,7 @@ def _translation_findings(path: Path, genome: Genome) -> list[Finding]:
 def _partial_findings(path: Path, genome: Genome) -> list[Finding]:
     """A partial coordinate is a finding; it blocks only when the protein it describes is cut.
 
-    H-21, reproduced 26/10/2026 on ``NC_024936.1``: its two ``rps19`` CDS copies carry
+    The measured case is ``NC_024936.1``: its two ``rps19`` CDS copies carry
     ``>83020``/``<153124`` and a **complete 92 aa translation** on a 279 bp span — the flag
     describes the coordinate at the inverted-repeat boundary, not a truncated protein. Blocking
     the record withheld the one reference that gave a base-perfect ``rps19`` call, and PGA's
@@ -456,11 +456,11 @@ def _ir_for(path: Path, genome: Genome) -> tuple[IRResult | None, Finding | None
     Annotation-first is the default and a failure is reported. The sequence path is probed as a
     **named alternative**, never substituted: when it passes, the finding says so and names the
     explicit ``--set ir_source=sequence`` route, and the record facts carry ``ir_source``. When
-    both paths fail, the record blocks. H-21: ``NC_024936.1`` is the measured case — 99.80 % from
+    both paths fail, the record blocks. ``NC_024936.1`` is the measured case — 99.80 % from
     its annotated copies, 100 % from the sequence's own repeat.
     """
     try:
-        return enforce_ir_gate(detect_ir(genome)), None, "annotation"
+        return enforce_ir_gate(detect_ir(genome, cross_check=False)), None, "annotation"
     except (IRGateError, IRDetectionError) as annotated:
         try:
             sequence = enforce_ir_gate(detect_ir(genome, source="sequence"))
@@ -514,7 +514,7 @@ def _gene_loci(genome: Genome) -> list[_GeneLocus]:
     names = normalize_genome(genome)
     # Keyed by name, not by feature: a bare tRNA name is resolved once per genome, so one copy
     # can be marked unresolved and its twin silently kept — which made a pair of unresolved
-    # tRNAs look like a one-sided annotation (measured 29/10/2026 on NC_008641.1's trnA/trnN).
+    # tRNAs look like a one-sided annotation (measured on NC_008641.1's trnA/trnN).
     unresolved = {names.canonical(entry.gene) for entry in names.unresolved}
     by_name: dict[str, list[tuple[int, int, int]]] = {}
     for gene in genome.genes:
@@ -729,7 +729,7 @@ def majority_report(
 
     "Majority" is the value most records carry; a tie at the top is reported as *no majority*
     rather than broken arbitrarily, and with two records there is nothing to be a majority of —
-    the report says the two references disagree, naming both (D5-08's own wording).
+    the report says the two references disagree, naming both.
     """
     considered = [record for record in records if value(record) not in ignored]
     if len(considered) < 2:
@@ -778,10 +778,10 @@ def majority_report(
 def gene_set_report(records: Sequence[RecordFacts]) -> list[Finding]:
     """Name-set deviations from the most common set — compared as names, never as loci.
 
-    Deliberately a statement about *spelling*: which names a record uses. D5-09 settles which
+    Deliberately a statement about *spelling*: which names a record uses. Naming settles which
     vocabulary the project writes (the ★ record) and forbids mixing the two, so the audit may not
     presuppose that answer by canonicalizing first. It reports what the set says, which is also
-    what the ★ pick has to be made from (D5-09).
+    what the ★ pick has to be made from.
     """
     if len(records) < 2:
         return []
@@ -847,7 +847,7 @@ def _ssc_rows(
 
     Each record's region is read on the path its own audit recorded (``RecordFacts.ir_source``).
     Reading the annotation path here again would refuse a record the audit has already reported
-    as usable: H-21's ``NC_024936.1`` fails the gate on its annotated pair (99.80 %) and passes on
+    as usable: ``NC_024936.1`` fails the gate on its annotated pair (99.80 %) and passes on
     the sequence's own repeat, and that is the frame its orientation was measured in. A record
     with no usable path has an ``unknown`` orientation, which the majority report excludes, so it
     cannot be the exemplar or a deviating name; reaching this check with one is a bug in the call,
@@ -874,7 +874,7 @@ def _ssc_rows(
                 f"normalized SSC region to align"
             )
         genome = read_genbank(record.file)
-        ir = enforce_ir_gate(detect_ir(genome, source=record.ir_source))
+        ir = enforce_ir_gate(detect_ir(genome, source=record.ir_source, cross_check=False))
         rows.append((name, _region_sequence(genome, ir, "SSC")))
     return tuple(rows), exemplar
 
@@ -932,7 +932,7 @@ def write_exception(
         raise ValueError(f"{target} is not a file — there is nothing to pin an exception to")
     pin = ExceptionPin(
         file=str(target),
-        sha256=hashlib.sha256(target.read_bytes()).hexdigest(),
+        sha256=sha256_file(target),
         check=check,
         reason=reason,
         confirmed_by=confirmed_by,
@@ -1100,7 +1100,7 @@ def region_sequences(paths: Mapping[str, str | Path], region: str) -> dict[str, 
     for name, path in paths.items():
         genome = read_genbank(path)
         try:
-            ir = enforce_ir_gate(detect_ir(genome))
+            ir = enforce_ir_gate(detect_ir(genome, cross_check=False))
         except (IRDetectionError, IRGateError):
             continue
         out[name] = _region_sequence(genome, ir, region)

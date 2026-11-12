@@ -1,15 +1,15 @@
-"""Derived spans — introns, trans-splicing junctions and intergenic spacers (P2B-01, D-g).
+"""Derived spans — introns, trans-splicing junctions and intergenic spacers.
 
 Two modules need the same boundaries: ``introns`` publishes the spans, ``diversity`` measures π
 over them. The derivation lives here so the two cannot disagree about where a boundary is — the
-reason D-g fixed the IGS definition once instead of leaving it to each reading module.
+reason the IGS definition is fixed once instead of being left to each reading module.
 
 Every span is stated in the **genome's own (GenBank) frame** — the coordinates a record's
 features are written in — while the region label comes from the normalized frame. That is why an
 :class:`~plastid.core.ir.IRResult` is an argument rather than something a caller could forget to
 pass: :meth:`~plastid.core.normalize.NormalizedFrame.region_at` converts between the two frames,
-and comparing them directly is right only when the record happens to start at the LSC (measured
-10/10/2026: the golden's rotation offset is 0, which is exactly how such a mistake survives).
+and comparing them directly is right only when the record happens to start at the LSC (the
+golden's rotation offset is 0, which is exactly how such a mistake survives).
 
 Definitions:
 
@@ -22,7 +22,7 @@ Definitions:
   between them: taking the outer span instead would let a trans-spliced ``rps12`` swallow the
   genes that sit between its LSC exon and its IR exons, and let ``trnK`` swallow ``matK``, which
   is annotated inside its intron — measured on the golden, both are real spacers that the outer
-  span silently loses. The IR is excluded (D-g), because its two copies are the same sequence
+  span silently loses. The IR is excluded, because its two copies are the same sequence
   annotated twice and the annotation is not always mirrored base for base — measured on the
   golden: 3 of the 18 spacer pairs do not mirror exactly (ycf1's truncated copy carries no CDS;
   two rRNA spacers differ by one base). IR-resident, boundary-crossing and overlapping gaps are
@@ -54,7 +54,7 @@ __all__ = [
 # The longest intron ARAGORN documents for its intron search (`-i`): "maximum length 3000
 # bases". A tRNA gap longer than this cannot have come from that caller's intron field, and on a
 # circular record it is usually not a gap at all but a join across the origin. The derivation
-# treats anything longer as **not assessed**, never as "no intron" (H-22/H-23).
+# treats anything longer as **not assessed**, never as "no intron".
 TRNA_INTRON_MAX_BP = 3000
 
 
@@ -64,7 +64,7 @@ class IntronSpan:
 
     ``kind`` is ``"CDS"`` or ``"tRNA"``. Both are introns by the same rule — a gap inside one
     plastid region between two exons of one feature — and are published together with the kind
-    stated, because "17 CDS introns" and "8 tRNA introns" are different facts (H-23).
+    stated, because "17 CDS introns" and "8 tRNA introns" are different facts.
     """
 
     intron_id: str  # "ndhA.1.1" — gene.copy.number, the id the `introns` table publishes
@@ -138,12 +138,12 @@ class Gap:
 class IntronSet:
     """Every intron and trans-splicing junction of one genome, with the region of each.
 
-    ``introns`` is the CDS set ``diversity`` measures π over, unchanged by H-23: adding tRNA
+    ``introns`` is the CDS set ``diversity`` measures π over, and stays CDS only: adding tRNA
     exons there would change a published diversity baseline for a RNA that is not translated.
     ``trna_introns`` is the separate tRNA set the ``introns`` module publishes beside it.
     ``unassessed`` names every multi-part tRNA gap that is neither: a join across the origin, a
     gap longer than the caller's documented maximum, or parts in different regions. Those are
-    reported, never dropped into an intron count (H-22).
+    reported, never dropped into an intron count.
     """
 
     introns: tuple[IntronSpan, ...]  # CDS introns, both IR copies
@@ -157,7 +157,7 @@ class SpacerSet:
     """Every published intergenic spacer, plus everything looked at and not published."""
 
     igs: tuple[IgsSpan, ...]  # gaps inside LSC or SSC, in genomic order — the published set
-    in_ir: tuple[IgsSpan, ...]  # gaps inside the IR: excluded (D-g), counted and named
+    in_ir: tuple[IgsSpan, ...]  # gaps inside the IR: excluded, counted and named
     crossing: tuple[Gap, ...]  # gaps crossing a region boundary — not spacers
     no_spacer: tuple[Gap, ...]  # gene pairs that overlap or abut — no gap to measure
 
@@ -260,9 +260,9 @@ def trna_introns_of(
             end = max(first.start, second.start)
             gap = end - start
             if gap < 1:
-                # Measured 26/10/2026 on a PGA annotation variant: trnG-GCC's two parts overlap
+                # Measured on a PGA annotation variant: trnG-GCC's two parts overlap
                 # by 5 bp. That is a malformed join, not an intron; the record still yields every
-                # other span, so it is named here instead of aborting the analysis (H-23's
+                # other span, so it is named here instead of aborting the analysis (the
                 # "not assessed" case). The CDS derivation keeps raising: `diversity` measures π
                 # over those spans, and a negative span would become a length.
                 unassessed.append(
@@ -393,7 +393,7 @@ def _same_exon_across_origin(first: Interval, second: Interval, length: int) -> 
     GenBank orders high then low on the plus strand), and :func:`rotate_gene` produces the same
     shape whenever the new origin cuts an exon. On the circle the pieces are contiguous: one ends
     at the last base and the other starts at the first. Reading that boundary as an intron
-    publishes a genome-length intron — measured 28/10/2026, `petD.1.2` at 153,243 bp on the golden
+    publishes a genome-length intron — measured: `petD.1.2` at 153,243 bp on the golden
     record rotated by half, while the 0-gap pair `_check_gap` refuses is a different defect (a
     join() that overlaps). A real intron that crosses the origin leaves a gap on both sides of
     it, so it does not match.
@@ -406,9 +406,8 @@ def _same_exon_across_origin(first: Interval, second: Interval, length: int) -> 
 def _check_gap(gene: Gene, first: Interval, second: Interval, gap: int) -> None:
     """A gap between two parts of a CDS is at least one base — otherwise the record is wrong.
 
-    This replaces the algebraic "exons + gaps tile the span" check the ``introns`` module carried
-    until 10/10/2026: measured on that date, the identity holds for **any**
-    pair of parts, so that check could never fail. What it silently allowed is the case it was
+    It is not the algebraic "exons + gaps tile the span" check: that identity holds for **any**
+    pair of parts, so such a check could never fail. What it silently allows is the case it is
     meant to catch — parts that overlap or nest give a negative "intron", which was published as
     a length. The gap below is a fact about the record, so this check can fail.
     """

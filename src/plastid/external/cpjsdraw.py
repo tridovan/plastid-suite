@@ -1,8 +1,8 @@
 """CPJSdraw adapter — the IR-junction figure (docs/tools/cpjsdraw.md).
 
-**CPJSdraw is not bundled.** Measured 17/10/2026: the upstream repository carries no licence
+**CPJSdraw is not bundled.** Measured: the upstream repository carries no licence
 (GitHub's API reports ``license: null`` for ``xul962464/CPJSdraw``) and its ``readme.txt`` states
-none — so, by the rule that took MISA out of the package (P9-01), it is declared and the user
+none — so, by the rule that took MISA out of the package, it is declared and the user
 obtains it. A tool that is only *called* is not redistributed; a missing licence forbids the other
 thing. The bundle this adapter ports says "CPJSdraw is MIT" in its integration README and "no
 licence file" in its own tool note; the second is what the tree shows.
@@ -103,7 +103,7 @@ def patched_script(script: Path) -> Path:
     the origin is drawn short, and the shortfall is silent — the figure still looks like a figure.
     The check is therefore a refusal, not a warning.
     """
-    digest = hashlib.md5(script.read_bytes()).hexdigest()  # noqa: S324 - identifying a file, not securing one
+    digest = hashlib.md5(script.read_bytes()).hexdigest()  # identifying a file, not securing one
     if digest == PATCHED_MD5:
         return script
     size = script.stat().st_size

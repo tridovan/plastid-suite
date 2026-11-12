@@ -1,4 +1,4 @@
-"""MUMmer 4 — the whole-genome alignment behind the synteny module (P4-01; decision D4-02).
+"""MUMmer 4 — the whole-genome alignment behind the synteny module.
 
 The pipeline is the standard one for the %identity-by-coordinate plot, and the
 module's numbers are only comparable to an earlier run while every step of it is the same:
@@ -11,7 +11,7 @@ Three choices in here are deliberate:
 
 * **the parameters are passed, not defaulted.** ``-l 20 -c 65`` are MUMmer 4's own defaults, but
   a default is a number nobody wrote down — and the phase's check is a block count that moves
-  with them (measured 04/10/2026: the golden pair gives 12 raw alignments at the defaults, 22 at
+  with them (measured: the golden pair gives 12 raw alignments at the defaults, 22 at
   ``-c 40``). They travel in the argv the manifest records, and they live in
   ``data/defaults.yaml`` (``synteny:``) rather than as constants here, so there is one place to
   change and the adapter cannot quietly disagree with the module.
@@ -34,7 +34,7 @@ from pathlib import Path
 
 from plastid.core.delta import DeltaBlock, parse_delta
 from plastid.run.context import RunContext
-from plastid.run.tools import ToolError, tool_version, which
+from plastid.run.tools import ToolError, find_executable, tool_version
 
 __all__ = [
     "MUMMER_VERSION",
@@ -91,18 +91,16 @@ class MummerResult:
 
 def resolve_binary(tool: str, *, directory: str | Path | None = None) -> str:
     """Find one MUMmer binary: a given directory, then ``PATH``."""
-    if directory is not None:
-        candidate = Path(directory) / tool
-        if not candidate.is_file():
-            raise ToolError(f"{tool} not found in {directory} — see docs/tools/mummer4.md")
-        return str(candidate)
-    found = which(tool)
-    if found is None:
-        raise ToolError(
+    return find_executable(
+        tool,
+        (tool,),
+        directory=directory,
+        doc="docs/tools/mummer4.md",
+        missing=(
             f"{tool} not found — install the pinned MUMmer {MUMMER_VERSION}, or point the run "
             f"at one with --set mummer=<directory>. See docs/tools/mummer4.md."
-        )
-    return found
+        ),
+    )
 
 
 def nucmer_version(binary: str) -> str:

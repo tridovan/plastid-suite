@@ -1,4 +1,4 @@
-"""The junction table and the configuration CPJSdraw reads (M10.1) — the pure half.
+"""The junction table and the configuration CPJSdraw reads — the pure half.
 
 No external tool is imported here: the drawing is the CLI's job, the way every other non-module step
 that calls a tool is wired (`cli.py` reaches `external/`; the `run` layer may not). What lives here
@@ -7,8 +7,8 @@ is everything that can be checked without a tool installed.
 **Two readers of the same record, and they may disagree.** The four regions come from
 :mod:`plastid.core.junctions`, which takes the record's ``repeat_region`` annotation as written. The
 **IR gate** comes from :mod:`plastid.core.ir`, which asks whether the two copies really are the same
-inverted repeat. A record can pass one and fail the other — measured 17/10/2026 on three of the
-eight Iridaceae records, whose annotated copies differ in length by 1, 2 and 4 bp (H-25) — so the
+inverted repeat. A record can pass one and fail the other — measured on three of the
+eight Iridaceae records, whose annotated copies differ in length by 1, 2 and 4 bp — so the
 gate's verdict is written **into the table** rather than left to be rediscovered. The figure is
 still drawn: it is a picture of what the record says, and refusing to draw it would hide the very
 disagreement a reader needs to see.
@@ -173,7 +173,7 @@ def _row(path: Path, genome: Genome) -> JunctionRow:
 def _gate(genome: Genome) -> tuple[str, float | None, str | None]:
     """The IR gate's verdict for this record — reported here, acted on by the modules."""
     try:
-        result = detect_ir(genome)
+        result = detect_ir(genome, cross_check=False)
     except IRDetectionError:
         return "not found", None, None
     return ("passed" if result.gate_passed else "failed"), result.identity, result.source

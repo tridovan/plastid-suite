@@ -1,13 +1,13 @@
-"""Amino-acid composition, GRAVY and aromaticity (ROADMAP M2.5).
+"""Amino-acid composition, GRAVY and aromaticity.
 
-The CDS set comes from ``cds_features`` — the same source P2-03 uses, so the two modules can
+The CDS set comes from ``cds_features`` — the same source codon usage reads, so the two modules can
 never disagree about which sequences they describe. Every translation is built with
-``coding_sequence`` and NCBI table 1, compiled here (D2-03) — and the output names the table the
+``coding_sequence`` and NCBI table 1, compiled here — and the output names the table the
 record's own CDS declare (plastid records declare 11; the two share every amino acid and differ
 only in initiation codons, and the initiator is read as its own amino acid).
 
 **No inverted repeat is needed.** Composition is a property of the translated CDS set, not a
-position; the module no longer waits behind the IR gate (M11.5). A frame or declared table this
+position; the module no longer waits behind the IR gate. A frame or declared table this
 compiled code cannot read is refused by name, never translated silently.
 
 Cross-check that must hold (and is asserted in the golden tests): the residue total equals the
@@ -34,7 +34,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "amino_acid"
-MODULE_VERSION = "0.2.0"  # 0.2.0: no IR requirement; unsupported frame/table refused (M11.5)
+MODULE_VERSION = "0.2.0"  # 0.2.0: no IR requirement; unsupported frame/table refused
 
 
 @module(
@@ -42,7 +42,7 @@ MODULE_VERSION = "0.2.0"  # 0.2.0: no IR requirement; unsupported frame/table re
     group=GROUP_SHARED,
     version=MODULE_VERSION,
     title="Amino-acid composition",
-    # CDS sequences only: no position in the inverted repeat enters any number here (M11.5).
+    # CDS sequences only: no position in the inverted repeat enters any number here.
     requires_ir=False,
     citations=("biopython",),
 )

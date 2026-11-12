@@ -1,10 +1,10 @@
-"""Repeats — maximal exact matches at or above a length floor (M2.12, D-f, H-16).
+"""Repeats — maximal exact matches at or above a length floor.
 
 The engine is MUMmer's ``repeat-match``, and the two class names are the tool's own: **dispersed**
 (a direct repeat) and **palindromic** (an inverted one). Vmatch 2.3.1 is the independent second
-engine the count is checked against — measured 10/10/2026, both give the golden's **9** matches at
+engine the count is checked against — measured: both give the golden's **9** matches at
 30 bp or more, the same coordinates and the same two classes — the way MISA 2.1 and cpstools 3.0
-both give its 37 SSRs (D-f).
+both give its 37 SSRs.
 
 Every match carries both copies' coordinates **and the plastid region of each copy**, the
 inverted-repeat pair among them: on the golden the longest match *is* the IR pair, 26,214 bp
@@ -16,7 +16,7 @@ number here — recorded as a coincidence, not as a reason.
 
 A **tandem** array is a different class and is not this module: ``repeat-match`` reports its
 copies as overlapping maximal matches, not as one tandem row, and the phrase "tandem repeat" in
-this toolkit means ``mreps``/``trf`` ground (M2.12's other half, still open).
+this toolkit means ``mreps``/``trf`` ground, which this module does not cover.
 """
 
 from __future__ import annotations

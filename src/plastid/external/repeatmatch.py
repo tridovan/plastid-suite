@@ -1,10 +1,10 @@
-"""MUMmer's ``repeat-match`` — every maximal exact repeat, both strands (M2.12, D-f).
+"""MUMmer's ``repeat-match`` — every maximal exact repeat, both strands.
 
 ``repeat-match`` reports maximal exact matches and marks the copy that is read on the reverse
 strand, which is exactly the two classes the ``repeats`` module publishes: **dispersed** (a
 direct repeat) and **palindromic** (an inverted one).
 
-Which MUMmer this binary is — measured 10/10/2026, because the tool survey said "MUMmer3":
+Which MUMmer this binary is — measured: because the tool survey said "MUMmer3":
 the program the toolkit runs comes from the **mummer4 4.0.1** bioconda package (``conda-meta``
 names it, and it sits beside ``nucmer``). It has **no version flag of its own** — ``--version`` is
 an invalid option and prints the usage — so the release is read from its sibling ``mummer``, and a
@@ -41,7 +41,7 @@ __all__ = [
 # no version flag, so this pin is checked against the sibling `mummer` in the same installation.
 REPEAT_MATCH_VERSION = "4.0.1"
 
-# D-f's floor: every match at least this long is published, and the number is part of the count.
+# The floor: every match at least this long is published, and the number is part of the count.
 MIN_LENGTH_BP = 30
 
 PROGRAM = "repeat-match"

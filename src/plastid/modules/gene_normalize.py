@@ -1,8 +1,8 @@
-"""Reference-driven gene naming — the step that makes one vocabulary out of many (D5-09, P3B-04).
+"""Reference-driven gene naming — the step that makes one vocabulary out of many.
 
 Every GenBank that enters the pipeline is written back out named after **the project's naming
-reference** — one record, chosen by the end user from the audit report (D5-09) — plus the
-tables that say what changed and why. Two runs of one module, two expectations (D5-09):
+reference** — one record, chosen by the end user from the audit report — plus the
+tables that say what changed and why. Two runs of one module, two expectations:
 
 * ``mode=normalize`` on the reference DB: renames happen; the DB comes out in vocabulary A;
 * ``mode=verify`` on an annotated sample: **nothing should change** — the sample inherited A
@@ -11,14 +11,13 @@ tables that say what changed and why. Two runs of one module, two expectations (
 **A and B never mix.** ``genomes[0]`` is the naming reference (vocabulary **A**, what every result
 table prints); ``genomes[1:]`` are the records being normalized (vocabulary **B**). B's spellings
 appear in exactly one place — the ``pairing`` table, in their own column — because A is the join
-key every later table joins on (D5-09).
+key every later table joins on.
 
-**The name proposes, the sequence disposes** (D5-09). Four tests decide, in order: the name
+**The name proposes, the sequence disposes**. Four tests decide, in order: the name
 (syntax, then the alias table oriented by the reference), the sequence ranking, the margin between
 the best and the runner-up, and the neighbours inside one region. Which test decided is the
 ``rule`` column, and every gene carries a ``status`` — ``measured`` / ``not measured`` /
-``outside vocabulary`` — so "there is no counterpart" and "we could not tell" never look alike
-(D5-09).
+``outside vocabulary`` — so "there is no counterpart" and "we could not tell" never look alike.
 
 **What the measurement changed**. The sequence tests can decide for a CDS but
 **not** for a tRNA: true and wrong tRNA loci overlap in identity (53.76–100 % against up to
@@ -67,14 +66,14 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "gene_normalize"
-MODULE_VERSION = "0.2.0"  # 0.2.0: blastp evalue/max_hsps are parameters (M11.20)
+MODULE_VERSION = "0.2.0"  # 0.2.0: blastp evalue/max_hsps are parameters
 
 MODE_NORMALIZE = "normalize"
 MODE_VERIFY = "verify"
 MODES = (MODE_NORMALIZE, MODE_VERIFY)
 
 # The conflict tiers' default: stop. `on_conflict=continue` is the second of two invocations —
-# never a prompt, so the step stays runnable under Docker and in scripts (D5-09).
+# never a prompt, so the step stays runnable under Docker and in scripts.
 ON_CONFLICT_STOP = "stop"
 ON_CONFLICT_CONTINUE = "continue"
 
@@ -92,7 +91,7 @@ _NUCLEOTIDE_CANDIDATES = 8
     title="Reference-driven gene naming (A/B pairing)",
     requires_ir=False,  # names are not a position-based analysis; the IR frame only feeds test 4
     arity=2,  # the naming reference plus at least one record to normalize
-    reference_param="naming_reference",  # D5-09: recorded, not spelled `reference`,
+    reference_param="naming_reference",  # recorded, not spelled `reference`,
     params=(
         ParamSpec(
             "mode",
@@ -134,7 +133,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
             f"got {on_conflict!r}"
         )
 
-    # The alias table's direction follows the naming reference (D5-09): the file says which
+    # The alias table's direction follows the naming reference: the file says which
     # names are one locus, the reference says which of them the project prints.
     aliases = oriented_aliases(load_gene_aliases(), reference)
     vocabulary = vocabulary_of(reference)
@@ -256,7 +255,7 @@ def _frame_of(genome: Genome, *, source: str = "annotation") -> IRResult | None:
     test's input, not a coordinate.
     """
     try:
-        return enforce_ir_gate(detect_ir(genome, source=source))
+        return enforce_ir_gate(detect_ir(genome, source=source, cross_check=False))
     except (IRGateError, IRDetectionError):
         return None
 
@@ -293,7 +292,7 @@ def _search(
     One database for the run, not one per record: the same reference proteins have to rank the
     same way for every record, and a rebuild per record would be a second, silently different
     database. The reference's own ``/translation`` is the subject — never a self-translation
-    (D5-08) — written with the three-field subject key the mito path already uses, with the
+    — written with the three-field subject key the mito path already uses, with the
     vocabulary field saying ``A``.
     """
     from plastid.external.blast import run_blastp
@@ -323,7 +322,7 @@ def _by_locus(hits: Sequence[Any]) -> tuple[Hit, ...]:
 
     The reference's inverted repeat carries two copies of a gene under one name, and BLAST returns
     both with nearly equal scores; kept as two hits, the runner-up would be the same locus as the
-    winner and the margin of test 3 would read zero on every IR gene (measured 08/10/2026: ycf2
+    winner and the margin of test 3 would read zero on every IR gene (measured: ycf2
     against the golden came out a *conflict* with the name and the sequence agreeing). The margin
     is between the best match and the best **different** match — which is what "runner-up" means.
     """
@@ -414,7 +413,7 @@ def _conflicts(
     *,
     ir_source: str = "annotation",
 ) -> list[str]:
-    """Every case D5-09's stop tier covers, each with the coordinates it names.
+    """Every case the stop tier covers, each with the coordinates it names.
 
     Two kinds only, and both are about *disagreement* rather than about biology: a name whose
     sequence says another locus, and a rename that would give one record two different genes under
@@ -474,7 +473,7 @@ def _artifacts(
     """The normalized records, or — in verify mode — none, and a note saying what it found.
 
     The artifact keeps the record's own ``/translation``: that protein is what the annotator
-    searches (D5-08), and a normalization that dropped it would quietly disarm the step
+    searches, and a normalization that dropped it would quietly disarm the step
     standing behind it.
     """
     if mode == MODE_VERIFY:
@@ -510,7 +509,7 @@ def _summary(
     not_measured = counts.get(STATUS_NOT_MEASURED, 0)
     if mode == MODE_VERIFY:
         # A decision, never "verified": missing evidence is its own state, and a finding stays a
-        # finding until a human resolves it (M11.16).
+        # finding until a human resolves it.
         if conflicts:
             decision = "conflict"
         elif renamed:
@@ -563,7 +562,7 @@ def _summary(
 
 
 def _pairing(records: Sequence[Genome], decisions: Sequence[tuple[int, GeneDecision]]) -> Table:
-    """The one table where vocabulary B appears — in its own column, beside A's (D5-09)."""
+    """The one table where vocabulary B appears — in its own column, beside A's."""
     width = len(str(len(decisions)))
     rows = []
     for number, (index, decision) in enumerate(decisions, start=1):
@@ -624,7 +623,7 @@ def _differences(
     Only the rows where something differs: a locus that agrees is not a finding, and ninety
     agreeing rows are a table nobody reads. What is compared is the **pairing**, so a locus the
     reference names and a record does not carry shows up as missing rather than absent, and a gene
-    the record carries alone shows up as extra — the two cases D5-09 keeps out of the stop tier
+    the record carries alone shows up as extra — the two cases kept out of the stop tier
     on purpose.
     """
     reference_genes: dict[str, Gene] = {}
@@ -719,7 +718,7 @@ def _conflicts_table(
     decisions: Sequence[tuple[int, GeneDecision]],
     conflicts: Sequence[str],
 ) -> Table:
-    """Written only when the run was told to carry on past its conflicts (D5-09)."""
+    """Written only when the run was told to carry on past its conflicts."""
     rows: list[dict[str, Any]] = []
     for number, (index, decision) in enumerate(
         ((row_index, d) for row_index, d in decisions if d.conflict), start=1

@@ -1,4 +1,4 @@
-"""ORF checks for protein-coding features (M3.3, P3-01).
+"""ORF checks for protein-coding features.
 
 The check answers one question per CDS — *does this annotation translate the way it says it
 does* — and answers it from the record's own declarations (``/transl_table``, ``/codon_start``),
@@ -64,7 +64,7 @@ STOP_CODONS: frozenset[str] = frozenset({"TAA", "TAG", "TGA"})
 CANONICAL_START = "ATG"
 
 # Translation tables this toolkit can translate: tables 1 and 11 share every amino-acid
-# assignment and differ only in initiation codons (D3-03), so one code table answers both.
+# assignment and differ only in initiation codons, so one code table answers both.
 # Any other table is refused — see OrfError.
 START_CODONS: dict[int, tuple[str, ...]] = {
     1: ("TTG", "CTG", "ATG"),  # NCBI table 1 (standard)
@@ -73,7 +73,7 @@ START_CODONS: dict[int, tuple[str, ...]] = {
 
 # ACG is NOT in NCBI table 11's initiator list, yet curated plastid records use it for rpl2
 # (monocots) and ndhD (dicots), where C-to-U RNA editing converts it to AUG in the transcript.
-# Measured 2026-10-03: 6 ACG starts across the project's panel, 2 of them in the golden genome.
+# Measured: 6 ACG starts across the project's panel, 2 of them in the golden genome.
 # Classing it "no_start" would be a false alarm on a published record, so it is accepted as a
 # start — and reported as non-canonical so nobody reads it as an ordinary one.
 NON_CANONICAL_STARTS: frozenset[str] = frozenset({"ACG"})
@@ -181,7 +181,7 @@ def annotated_not_coding(genome: Genome) -> tuple[Gene, ...]:
     """``gene`` features no same-named CDS/tRNA/rRNA implements — the truncated-ycf1 shape.
 
     A ``gene`` feature is a claim; the feature under it is what makes the claim real. Both
-    halves of the match matter, and the golden genome is why (measured 2026-10-03):
+    halves of the match matter, and the golden genome is why (measured):
 
     * by **name**, because the truncated ycf1 copy shares its name with the real ycf1 CDS
       elsewhere in the record — matching on position alone would report nothing, and a

@@ -19,9 +19,9 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "genome_stats"
-# 0.2.0 (28/10/2026): the genes table carries `segments` — every part of a feature, so a gene
-# annotated across the record origin is drawable where it is rather than as a whole-genome arc
-# (M11.7). The counts and every other cell are unchanged.
+# 0.2.0: the genes table carries `segments` — every part of a feature, so a gene
+# annotated across the record origin is drawable where it is rather than as a whole-genome arc.
+# The counts and every other cell are unchanged.
 MODULE_VERSION = "0.2.0"
 
 
@@ -144,7 +144,7 @@ def _gene_row(gene: Gene, ir: IRResult, names: GenomeNames) -> dict[str, Any]:
     start, end = gene.span
     return {
         # the label, not the raw name: `pafI (ycf3)` is this locus whichever dialect the
-        # record used (P3-02) — one name in every table of one run
+        # record used — one name in every table of one run
         "name": names.label(gene),
         "kind": gene.kind,
         "start_1b": start,
@@ -152,7 +152,7 @@ def _gene_row(gene: Gene, ir: IRResult, names: GenomeNames) -> dict[str, Any]:
         # A feature annotated across the record's origin has no single linear interval: its outer
         # bounds are 1..L, which on a circle is the *long* way round. `segments` states the parts
         # the annotation actually gives, so a figure can draw the feature where it is instead of
-        # filling the genome. Sorted, so the cell is stable between runs (M11.7).
+        # filling the genome. Sorted, so the cell is stable between runs.
         "segments": ";".join(
             f"{part.start + 1}-{part.end}"
             for part in sorted(gene.parts, key=lambda part: (part.start, part.end))

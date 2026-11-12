@@ -1,4 +1,4 @@
-"""Render a run's figures from the run's own tables (P5-01).
+"""Render a run's figures from the run's own tables.
 
 Figures are a **run-level** step, not a module step: two of them read tables from two different
 modules, and a module never sees another module's :class:`Result`. Rendering happens *after* the
@@ -39,7 +39,7 @@ class FigureOutcome:
     files: tuple[Path, ...]
     skipped: tuple[tuple[str, str], ...]  # (figure id, reason)
     # One record per catalogue entry the pass considered — both renderers report through the
-    # same shape so package/QC can list a run's whole catalogue (M11.18).
+    # same shape so package/QC can list a run's whole catalogue.
     records: tuple[FigureRecord, ...] = field(default_factory=tuple)
 
 
@@ -56,7 +56,7 @@ def stale_figure_files(target: Path, figure_id: str, formats: Sequence[str]) -> 
     """The files a previous pass left for one figure, so a refresh cannot keep them.
 
     A re-render replaces what it draws; a figure that can no longer be drawn must not leave a
-    stale image looking like a current result (M11.18).
+    stale image looking like a current result.
     """
     if not target.is_dir():
         return ()
@@ -134,7 +134,7 @@ def render_run_figures(
             drawn.append(path)
         # The caption is the image's provenance: the run's own label and the scope of every table
         # the figure read. It is written beside the image for the same reason the R pass writes
-        # one — a figure must not leave the run without saying what it measured (M11.18).
+        # one — a figure must not leave the run without saying what it measured.
         caption_lines = [figure.title, *provenance, *_scope_lines(spec, results)]
         caption = target / f"{figure.id}.caption.txt"
         caption.write_text("\n".join(caption_lines) + "\n", encoding="utf-8")

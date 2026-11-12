@@ -1,4 +1,4 @@
-"""Gene-name → functional group, for the publication gene table (P2-09).
+"""Gene-name → functional group, for the publication gene table.
 
 The grouping is external knowledge (the convention plastome papers use), so it lives in
 ``data/gene_groups.yaml``, not in code. This module only loads it, checks it, and applies it.
@@ -138,7 +138,7 @@ def assign(
 ) -> tuple[Assignment, ...]:
     """Every counted gene (both IR copies) with its group; unclassified comes back as None.
 
-    ``canonical_of`` is the gene-name normalizer's canonical form (P3-02): two dialects of one
+    ``canonical_of`` is the gene-name normalizer's canonical form: two dialects of one
     name must claim the same group, or the same locus lands in two rows of the same table. The
     shipped file lists both dialects, so a caller that does not normalize still gets one answer —
     the two paths agree by construction, not by luck.

@@ -1,4 +1,4 @@
-"""Figures: a pure function of a :class:`Result`, drawn through one theme (Phase 5, D5-01/D5-03).
+"""Figures: a pure function of a :class:`Result`, drawn through one theme.
 
 Three rules shape this module, and each is tested:
 
@@ -77,7 +77,7 @@ _THEMED_RCPARAMS = (
 
 @dataclass(frozen=True, slots=True)
 class Theme:
-    """One place for every font, colour and size a figure uses (D5-01)."""
+    """One place for every font, colour and size a figure uses."""
 
     font_family: str = "DejaVu Sans"  # bundled with matplotlib — the same face on every machine
     font_size: float = 9.0
@@ -112,7 +112,7 @@ class Figure:
 
     id: str
     title: str
-    source_tables: tuple[str, ...]  # "<module>.<table>" — the D5-03 audit trail
+    source_tables: tuple[str, ...]  # "<module>.<table>" — the cell each mark traces back to
     data: tuple[tuple[str, bytes], ...]
 
     def __post_init__(self) -> None:
@@ -157,7 +157,7 @@ def missing_tables(
 
 @dataclass(frozen=True, slots=True)
 class FigureRecord:
-    """One catalogue entry's outcome — what was drawn, or why nothing was (M11.18).
+    """One catalogue entry's outcome — what was drawn, or why nothing was.
 
     Both figure catalogues report through this one record, so ``plastid figures``, ``package``
     and ``qc`` can list the same set with the same statuses. ``renderer`` separates the two

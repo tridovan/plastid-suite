@@ -1,4 +1,4 @@
-"""Table cells a figure reads as coordinates rather than recomputing (D5-03).
+"""Table cells a figure reads as coordinates rather than recomputing.
 
 The one cell here is ``genome_stats.genes.segments``: every part of a feature as
 ``start-end`` in 1-based GenBank coordinates, semicolon-separated. It exists because a feature
@@ -20,7 +20,7 @@ def gene_segments(row: Mapping[str, Any]) -> tuple[tuple[int, int], ...]:
 
     Refused rather than guessed when the cell is absent. Falling back to ``start_1b``/``end_1b``
     would draw the feature as a whole-genome arc — the wrong picture this cell exists to prevent
-    (M11.7) — so the message says how to get a table that has it.
+    — so the message says how to get a table that has it.
     """
     raw = row.get("segments")
     if not raw:

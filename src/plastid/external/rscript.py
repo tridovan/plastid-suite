@@ -13,7 +13,7 @@ code.
 
 **The one change made to them.** ``init_script()`` ends with ``setwd(OUT_DIR)``, so a *relative*
 ``--inputdir``/``--input`` points into the output directory rather than at the caller's data, and
-every script fails to find its own input. Measured 17/10/2026: ``--inputdir sample_data`` fails, an
+every script fails to find its own input. Measured: ``--inputdir sample_data`` fails, an
 absolute path works. The fix is in ``00_common.R`` — the paths are made absolute before the
 working directory moves — and it changes no drawing.
 

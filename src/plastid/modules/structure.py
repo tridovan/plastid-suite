@@ -170,7 +170,7 @@ def _window_rows(region: Region, sequence: str, window: int, step: int) -> list[
     contains an undefined term is undefined). This is not a hypothetical: the last window of a
     region is ``region.length mod step`` bases long, so a genome whose LSC ends in three A/T
     bases produces exactly this, and it used to raise — failing the whole run for that genome
-    (measured 04/10/2026 on the corpus, 1 of 34: *Chasmanthe floribunda* NC_072562.1, LSC
+    (measured on the corpus, 1 of 34: *Chasmanthe floribunda* NC_072562.1, LSC
     81,003 bp, trailing window ``TTA``).
     """
     rows: list[dict[str, Any]] = []

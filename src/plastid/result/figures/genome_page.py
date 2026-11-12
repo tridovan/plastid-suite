@@ -1,4 +1,4 @@
-"""One page per genome — the sheet a supplementary file carries, PDF only (P5-04).
+"""One page per genome — the sheet a supplementary file carries, PDF only.
 
 A single portrait page: the accession and its summary numbers, the four regions drawn to scale,
 and the GC-skew profile. Every number on it is ``Column.format`` of the cell it comes from, so the
@@ -42,7 +42,7 @@ class SkewPoint:
 
 @dataclass(frozen=True, slots=True)
 class GenomePageSeries:
-    """Everything the page prints, read from the two tables — the D5-03 audit trail."""
+    """Everything the page prints, read from the two tables — each mark traces back to a cell."""
 
     accession: str
     organism: str

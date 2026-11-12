@@ -1,4 +1,4 @@
-"""Population genetics per gene and per group — DnaSP-style, pure Python (P4-03, M4.4; D4-03).
+"""Population genetics per gene and per group — DnaSP-style, pure Python.
 
 One gene at a time: the module aligns the CDS across every input genome that carries it, splits
 the alignment by the run's sample groups, and reports each group's statistics beside the pairwise
@@ -37,7 +37,7 @@ from plastid.result.result import Column, Result, Scope, Table
 from plastid.run.context import RunContext
 
 MODULE_ID = "popgen"
-MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs
+MODULE_VERSION = "0.2.0"  # behaviour changed after the first runs
 
 
 @module(

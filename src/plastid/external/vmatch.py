@@ -1,4 +1,4 @@
-"""Vmatch 2.3.1 — the independent second engine for the exact-repeat count (M2.12, D-f).
+"""Vmatch 2.3.1 — the independent second engine for the exact-repeat count.
 
 **Not a module's engine.** ``repeats`` runs on ``repeat-match``, which carries no licence
 constraint, so the minimum install keeps working without this. Vmatch is **academic-only**,

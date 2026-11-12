@@ -7,7 +7,8 @@ input's sha256, the query map, the source and date, and the raw bytes — with "
 different state from a measured count of zero.
 
 The static half of the first test is what keeps the rule true as adapters are added: `subprocess`
-may appear only in `run/tools.py`, or inside a function that probes a tool's version.
+may appear only in `run/tools.py`, where `run_tool()` runs a tool and `probe_output()` asks one
+for its version in a throwaway directory.
 """
 
 from __future__ import annotations
@@ -71,18 +72,13 @@ def _subprocess_uses() -> list[tuple[str, int, str]]:
 
 
 def test_external_tools_are_invoked_only_through_the_one_door() -> None:
-    """`subprocess` lives in `run/tools.py`; adapters may use it only to probe a version."""
-    violations = [
-        f"{path}:{line} in {function}()"
-        for path, line, function in _subprocess_uses()
-        if not function.endswith("_version")
-    ]
-    assert not violations, (
-        "subprocess outside run/tools.py must be a version probe; these calls are not: "
-        + ", ".join(violations)
-    )
-    # The check is not vacuous: version probes are a real, named exception.
-    assert any(function.endswith("_version") for _, _, function in _subprocess_uses())
+    """`subprocess` lives in `run/tools.py`; an adapter asks a version through `probe_output()`."""
+    violations = [f"{path}:{line} in {function}()" for path, line, function in _subprocess_uses()]
+    assert not violations, "subprocess outside run/tools.py: " + ", ".join(violations)
+    # The check is not vacuous: the same scan, pointed at the door itself, finds its calls.
+    door = _SubprocessVisitor("plastid/run/tools.py")
+    door.visit(ast.parse((SRC / "plastid" / "run" / "tools.py").read_text(encoding="utf-8")))
+    assert {"run_tool", "probe_output"} <= {function for _, _, function in door.uses}
 
 
 def test_a_tool_call_records_name_version_argv_exit_code_and_raw_output(tmp_path: Path) -> None:

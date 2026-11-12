@@ -1,4 +1,4 @@
-"""ORF checks — report, never repair (M3.3, P3-01).
+"""ORF checks — report, never repair.
 
 Every ``CDS`` feature is checked against its own declared translation table and reported with
 one headline status; ``gene`` features no CDS covers (the truncated-ycf1
@@ -151,7 +151,7 @@ def run(genome: Genome, params: dict[str, Any], ctx: RunContext) -> Result:
     # a record with no CDS is a legitimate input — an unannotated draft, or the target of an
     # annotation run. It gets a summary of zeros and the note below, and no per-CDS table: an
     # empty one cannot be built (Table refuses zero rows) and could not be read if it could.
-    # Measured 04/10/2026: constructing the table unconditionally made the module raise *before*
+    # Measured: constructing the table unconditionally made the module raise *before*
     # this branch, so the intended handling of a bare sequence had never actually run (P4a-04).
     if orphans:
         tables["annotated_not_coding"] = _orphan_table(orphans)
@@ -213,7 +213,7 @@ def _cds_ids(checks: Sequence[OrfCheck]) -> list[str]:
 
     A record can carry two CDS features that collapse to the same span — *Libertia pulchella*
     NC_072575.1 annotates ``rps16`` twice, at ``5741-5780,4684-4895`` and ``5737-5780,4684-4891``
-    (measured 04/10/2026, P4a-03). Keying on name and span alone made those two rows share an id,
+    (measured: P4a-03). Keying on name and span alone made those two rows share an id,
     and ``Table`` refuses a repeated key, so the whole run died on a defect that belongs to the
     record. Suffixing keeps both rows — a duplicated annotation is a finding to report, not to
     drop — and the notes name it.

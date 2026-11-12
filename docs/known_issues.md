@@ -120,7 +120,7 @@ outgroup is chosen unless the run names them, and the neutral default is a midpo
 (`--set root=none` keeps the tree's own root). Held by
 `tests/unit/test_known_issues.py::test_k06_the_tree_figure_forwards_its_options`.
 
-Sources: [CLI](../src/plastid/cli.py), [adapter](../src/plastid/external/rscript.py),
+Sources: [CLI](../src/plastid/cli/outputs.py), [adapter](../src/plastid/external/rscript.py),
 [script](../src/plastid/data/r_scripts/R_F9_phylogeny_tree.R).
 
 ## K-07 — One indel base inside an IR copy can halve the de-novo repeat and still pass the gate — **fixed (M11.8, 28/10/2026)**
@@ -707,7 +707,7 @@ The following require targeted regression/acceptance checks in the next coding s
 Sources for the observations above: [naming](../src/plastid/modules/gene_normalize.py),
 [group measurements](../src/plastid/modules/stats.py),
 [diversity](../src/plastid/modules/diversity.py), [barcodes](../src/plastid/modules/barcodes.py),
-[CLI output commands](../src/plastid/cli.py),
+[CLI output commands](../src/plastid/cli/outputs.py),
 [submission](../src/plastid/modules/submission.py).
 
 ## G-04 — a tool in an environment is not a feature — **closed (M11.19)**

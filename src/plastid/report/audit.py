@@ -1,4 +1,4 @@
-"""The queryable-number check over *generated* reports (Phase 5, M5.4).
+"""The queryable-number check over *generated* reports (Phase 5).
 
 A shipped template may not carry a digit — the engine's scan test enforces that — so every number
 a generated report shows came from a table cell, or entered through one of three spans that no

@@ -1,10 +1,10 @@
-"""ARAGORN adapter — the tRNA caller of the mito annotation (P3A-04, decision D3A-01).
+"""ARAGORN adapter — the tRNA caller of the mito annotation.
 
 The mito annotator takes its CDS from BLAST+ hits against a reference protein set and its tRNAs
 from here. ARAGORN searches both strands for the canonical tRNA cloverleaf and scores what it
 finds; it is also the caller the heavier annotators run inside, which is why it was chosen over a
 hand-written structural search — a caller written here and tuned until it returned the published
-count would be overfitting with a straight face (D3A-01).
+count would be overfitting with a straight face.
 
 Three things about its output are handled rather than discovered later:
 
@@ -22,7 +22,7 @@ Three things about its output are handled rather than discovered later:
   arrived.
 
 Version pinning: ARAGORN has no version flag. ``-V`` is not one — it exits **0** and prints "No
-sequence file specified" (measured 03/10/2026), which reads like a version in a manifest. So the
+sequence file specified" (measured), which reads like a version in a manifest. So the
 adapter verifies the release itself, from ``-h``'s banner, and passes the verified number to
 ``run_tool`` as the pinned version, so the run's provenance says 1.2.41 rather than a sentence.
 """
@@ -39,7 +39,7 @@ from plastid.core.model import Gene, Genome, Interval
 from plastid.core.spans import TRNA_INTRON_MAX_BP
 from plastid.core.submission import to_fasta
 from plastid.run.context import RunContext
-from plastid.run.tools import ToolError, which
+from plastid.run.tools import ToolError, probe_output, which
 
 __all__ = [
     "ARAGORN_VERSION",
@@ -60,9 +60,9 @@ ARAGORN_VERSION = "1.2.41"
 # What ARAGORN's own `-h` says about its intron search: "minimum intron length is 0 bases" and
 # the default maximum is 3,000 bases (`-i<min>,<max>` changes them). Declared here and carried
 # on the result, because a caller that searched 0–3,000 bp must not report "no intron" for a
-# locus whose intron is longer: it did not look there (H-22).
+# locus whose intron is longer: it did not look there.
 #
-# Measured 26/10/2026 on ARAGORN 1.2.41 with a golden trnK-UUU whose intron was lengthened in
+# Measured on ARAGORN 1.2.41 with a golden trnK-UUU whose intron was lengthened in
 # steps: 3,000 bp is found, 3,001 bp is not, and `-i0,4000`, `-i4000` and `-i0,6000` do not
 # change that — the documented switch does not lift the internal maximum. The minimum does work
 # (`-i2700,3000` drops a 2,618 bp intron). A request above this maximum is therefore refused by
@@ -118,7 +118,7 @@ class TrnaHit:
     line whose anticodon is one base off, or a ``tmRNA``. The coordinates, strand and intron are
     still real: a later step with locus evidence (``plastid_annotate`` against the reference set's
     own tRNAs) can name the gene, and dropping the line here would turn "unnameable" into
-    "absent" (H-24).
+    "absent".
     """
 
     name: str | None  # trnM-CAU — through the shared normalizer; None when unnameable
@@ -133,7 +133,7 @@ class TrnaHit:
     # own ``i(39,2618)``. Kept in gene coordinates rather than converted here because the
     # conversion depends on the strand and the origin: see `parts`.
     #
-    # The second field is the intron's **length, not its end**. Measured 10/10/2026: read
+    # The second field is the intron's **length, not its end**. Measured: read
     # as an end, the golden's eight intron tRNAs spliced into 104–134 nt, which no tRNA is, and
     # the corpus counted the difference as a wrong call on every one of them; read as a length they
     # come out 72–95 nt, and `trnL-UAA` (35 + 50 = 85) and `trnA-UGC` (38 + 35 = 73) land exactly
@@ -173,7 +173,7 @@ class TrnaHit:
         Two things split a hit, and both would otherwise be written as a claim the sequence does
         not support: an **intron** (ARAGORN's span covers it, and a feature written over the whole
         span would say the intron is coding) and **the origin** (a wrapped interval is not a
-        GenBank coordinate). Measured on the golden 09/10/2026: eight of its thirty-eight tRNAs
+        GenBank coordinate). Measured on the golden: eight of its thirty-eight tRNAs
         carry an intron — ``trnK-UUU``, ``trnL-UAA``, ``trnV-UAC``, one of the two ``trnG``, and
         both copies of ``trnI-GAU`` and ``trnA-UGC`` — and the published record writes every one
         of them as a two-part join.
@@ -214,7 +214,7 @@ class AragornResult:
     raw: str
     version: str
     # Every tRNA line with its coordinates, named or not. The plastid path names an unnameable
-    # intron tRNA from the reference set's own locus (H-24); the mito path ignores this.
+    # intron tRNA from the reference set's own locus; the mito path ignores this.
     calls: tuple[TrnaHit, ...] = ()
     # The intron length range this call searched, or None when intron detection was off. A
     # consumer must read it: absence of a tRNA intron is only a measurement inside this range.
@@ -248,15 +248,8 @@ def aragorn_version(binary: str, *, timeout: int = 60) -> str:
     ARAGORN has no usable version flag: ``-V`` exits 0 and prints an error sentence. ``-h`` is
     safe (no input file, exit 0) and names the release, so that is what is asked.
     """
-    import subprocess
-
-    try:
-        result = subprocess.run(
-            [binary, "-h"], capture_output=True, text=True, timeout=timeout, check=False
-        )
-    except OSError as error:
-        raise ToolError(f"aragorn: cannot run {binary}: {error}") from error
-    match = _VERSION.search(result.stdout or "")
+    stdout, _ = probe_output([binary, "-h"], label="aragorn", timeout=timeout)
+    match = _VERSION.search(stdout)
     if match is None:
         raise ToolError(
             f"{binary}: no 'ARAGORN v…' line in its help output — a step whose version nobody "
@@ -325,7 +318,7 @@ def _call_from_line(line: str) -> TrnaHit | None:
 
 
 def parse_calls(text: str) -> tuple[TrnaHit, ...]:
-    """Every tRNA gene line, named or not — the input locus evidence can act on (H-24)."""
+    """Every tRNA gene line, named or not — the input locus evidence can act on."""
     calls = (_call_from_line(line) for line in text.splitlines())
     return tuple(call for call in calls if call is not None)
 
@@ -341,7 +334,7 @@ def parse_batch(text: str) -> tuple[tuple[TrnaHit, ...], tuple[str, ...]]:
         if call is None or call.name is None:
             # A tmRNA, or a tRNA whose amino acid is not one of the twenty-two. Reported through
             # `others`, never dropped and never guessed at: an unparsed gene that vanished would
-            # look like a gene that is absent. Measured 09/10/2026 on the pinned corpus (with
+            # look like a gene that is absent. Measured on the pinned corpus (with
             # `-i`): two records (`NC_072561.1` · `NC_072580.1`) bring a `tRNA-Stop` line at the
             # `trnK-UUU` locus — ARAGORN reading the anticodon one base off, so that it spells a
             # stop codon. The gene is real; the *name* is what this adapter cannot supply.
@@ -367,7 +360,7 @@ def run_aragorn(
     ``intron_limits`` is ARAGORN's ``-i<min>,<max>`` range. The default (``introns=True``) is the
     caller's documented 0–3,000 bp. Passing an explicit range turns intron detection on: a caller
     that widens it says so, and :attr:`AragornResult.intron_search` carries what was searched so
-    downstream code cannot report a locus outside the range as "no intron" (H-22).
+    downstream code cannot report a locus outside the range as "no intron".
     """
     if intron_limits is not None:
         if not introns:
@@ -404,7 +397,7 @@ def run_aragorn(
                 # same silent-shortfall shape as the truncating `-max_target_seqs`.
                 #
                 # It is the caller's decision because each organelle path measures its own, and
-                # the two measurements disagree (09/10/2026, P3B-10): on the plastid golden the
+                # the two measurements disagree: on the plastid golden the
                 # flag turns **30 into 38, exactly the published record's thirty-eight** (eight of
                 # its tRNAs carry an intron), while on the mito answer key it turns 17 into 21,
                 # four of which the published record does not have. The plastid path passes it;

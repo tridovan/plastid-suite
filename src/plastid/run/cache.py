@@ -8,7 +8,7 @@ A cache entry carries the **provenance of the computation that produced it** (th
 made, when, and the key components), because a hit restores files, not a live computation. The
 runner revalidates the recorded tool versions before trusting a hit: a tool that moved, vanished
 or changed version since the payload was computed makes that payload stale, and it is recomputed
-rather than served under the current run's name (M11.12).
+rather than served under the current run's name.
 
 Text is stored as text and bytes as base64, so a cache hit restores byte-identical outputs of
 either kind.
@@ -30,7 +30,7 @@ __all__ = ["CACHE_SCHEMA_VERSION", "Cache", "CacheEntry"]
 
 # Bumped when an entry's on-disk shape changes. Entries written by an older schema are not read:
 # their provenance may be missing, and a payload whose provenance cannot be stated is not one this
-# runner should serve (M11.12). The key would normally differ anyway; this is the explicit guard.
+# runner should serve. The key would normally differ anyway; this is the explicit guard.
 CACHE_SCHEMA_VERSION = 2
 
 
@@ -65,14 +65,14 @@ class Cache:
         * ``inputs`` keeps its **order**. It used to be sorted, which made the corpus's own
           "one sequence, two annotations" pair share a key in either direction — while six
           modules take ``genomes[0]`` as their reference, so the second run was served the
-          first's tables (H-15, measured 05/10/2026).
+          first's tables (measured).
         * ``source`` and ``payload`` are in the key. The first catches a behaviour change that
-          never got a version bump (H-08); the second catches a run asking for an output the
-          cached payload does not have (H-14, the `--docx` case).
+          never got a version bump; the second catches a run asking for an output the
+          cached payload does not have (the `--docx` case).
         * ``shared_code`` covers what the module file alone cannot: ``core/``, ``result/``,
           ``run/`` and every packaged resource (``defaults.yaml``, templates, R scripts, the
           reference name lists) that can change what a module produces without its own file being
-          touched. Hashing only the module source was a narrower claim than the key made (M11.12).
+          touched. Hashing only the module source was a narrower claim than the key made.
         """
         payload = json.dumps(
             {

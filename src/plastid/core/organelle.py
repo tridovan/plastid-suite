@@ -1,14 +1,14 @@
-"""Which organelle a record is, and the rule that one run serves exactly one (D5-06, H-09).
+"""Which organelle a record is, and the rule that one run serves exactly one.
 
-The toolkit serves plastids and mitochondria, but **a run belongs to one organelle** (decided
-05/10/2026). The declaration is the record's own ``/organelle`` qualifier; a bare sequence —
+The toolkit serves plastids and mitochondria, but **a run belongs to one organelle**.
+The declaration is the record's own ``/organelle`` qualifier; a bare sequence —
 an assembler's output, which is what the annotate step takes — has no record to ask, so it
 declares itself **by the path it enters**: ``plastid annotate`` is the plastid path, ``plastid
 mito annotate`` the mitochondrial one.
 
-**Why this is a module and not a line in the CLI.** Until P3B-09 the only signal a module carried
+**Why this is a module and not a line in the CLI.** Without it the only signal a module carried
 was ``requires_ir``, which answers "does this need the inverted repeat" and *not* "which organelle
-does it serve" — measured 05/10/2026 (H-09): running ``mito_genes`` on a plastome was
+does it serve" — measured: running ``mito_genes`` on a plastome was
 stopped by nothing at all, because only one of the two mismatch directions had a gate. The two
 directions are the same question, so they are answered in one place, and the registry carries each
 module's group (:mod:`plastid.modules.registry`) so the answer does not depend on remembering.
@@ -52,12 +52,12 @@ GROUP_MITO = "mito"
 GROUPS = (GROUP_SHARED, GROUP_PLASTID, GROUP_MITO)
 
 # The command that serves each organelle — named in a refusal, because an error a user cannot act
-# on is a dead end (D5-08: ``file — reason``, and the reason has to be usable).
+# on is a dead end (``file — reason``, and the reason has to be usable).
 PLASTID_PATH = "plastid annotate"
 MITO_PATH = "plastid mito annotate"
 
-# How a record spells its own organelle. Both spellings are in the pinned sets, measured
-# 09/10/2026: the Iridaceae set carries 29 `plastid:chloroplast` and 5 `plastid`, the mito set 8
+# How a record spells its own organelle. Both spellings are in the pinned sets: the Iridaceae
+# set carries 29 `plastid:chloroplast` and 5 `plastid`, the mito set 8
 # `mitochondrion`. Matching is on the stem, the way `core/gene_names.aliases_for` already reads it,
 # so a record written `mitochondrion:mitochondrion` is not a third kind of thing.
 _PLASTID_WORDS = ("plastid", "chloroplast")
@@ -100,8 +100,8 @@ def check_set(genomes: Sequence[Genome], *, group: str, path: str) -> None:
 
     ``group`` is the module's declared group and ``path`` is the command the user typed; both go
     into the message, because "wrong organelle" without naming the right command leaves the user
-    to work out that a second path exists. A bare sequence passes: it declares nothing, and by
-    D5-06 the path is what declares for it.
+    to work out that a second path exists. A bare sequence passes: it declares nothing, and
+    the path is what declares for it.
     """
     if group not in GROUPS:
         raise ValueError(f"unknown module group {group!r} — one of {', '.join(GROUPS)}")
@@ -118,7 +118,7 @@ def check_set(genomes: Sequence[Genome], *, group: str, path: str) -> None:
 
     # A shared analysis runs on either organelle: the one set it may not receive is a mixed one,
     # which the check above has already refused. A set that declares nothing at all is served by
-    # whichever path it entered (D5-06), so there is nothing left to compare.
+    # whichever path it entered, so there is nothing left to compare.
     if group == GROUP_SHARED or not kinds:
         return
     kind = next(iter(kinds))

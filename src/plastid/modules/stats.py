@@ -1,4 +1,4 @@
-"""Group comparison statistics over per-locus measurements (P5-03).
+"""Group comparison statistics over per-locus measurements.
 
 The comparison this module exists to make: take every CDS locus, measure it in every genome, and
 ask whether the groups the run declared (``--groups``) differ at that locus — Mann–Whitney U for
@@ -93,7 +93,7 @@ def _sequence_of(genome: Genome, gene: Gene) -> str:
     """The CDS as its transcript reads it — per exon, 5'→3' on the exon's own strand.
 
     The forward slice is not the gene: on a minus-strand CDS it moves every codon position, so
-    GC3 and ENC would be read off the wrong bases (measured 27/10/2026: 20 % against 60 % GC3 on
+    GC3 and ENC would be read off the wrong bases (measured: 20 % against 60 % GC3 on
     one fixture). ``coding_sequence`` is the reading every other module uses — one reading, so two
     modules cannot disagree about one gene.
     """
@@ -504,7 +504,7 @@ def _correlations(
 def _with_sentences(result: Result) -> Result:
     """The interpretation, assembled from rendered cells — never from a number typed here.
 
-    D5-05 is still open with the PI, so the wording stays inside what the table's own columns
+    The wording stays inside what the table's own columns
     carry: the test is named, n and α are named, and nothing is called adaptive, selected or
     caused. Every value below is ``Table.format`` of the cell it speaks about.
     """

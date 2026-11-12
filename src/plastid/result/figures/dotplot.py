@@ -2,13 +2,13 @@
 
 Source: ``reference_audit.region_matches`` — every exact match the audit found between a record's
 region and the record the set agrees on, in **both** orientations. The figure reads those rows and
-draws them: it matches nothing itself, so the picture and the table cannot disagree (D5-03).
+draws them: it matches nothing itself, so the picture and the table cannot disagree.
 
 The two orientations are drawn in different colours on purpose. A region that runs the same way as
 the subject fills one diagonal; a region whose SSC is inverted fills the other, and that is what
 the eye is here to check. The audit reached the same verdict from the record's gene strands
 (:func:`plastid.core.reference_audit.ssc_orientation`); when a person has to confirm a flip-flop
-once and pin it (D5-08), this is the second thing they look at.
+once and pin it, this is the second thing they look at.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ class Panel:
 
 @dataclass(frozen=True, slots=True)
 class DotplotSeries:
-    """Everything the figure draws, read from the matches table — the D5-03 audit trail."""
+    """Everything the figure draws, read from the matches table — each mark traces to a cell."""
 
     panels: tuple[Panel, ...]
 
@@ -124,7 +124,7 @@ def _panel(axes: Any, panel: Panel) -> None:
     axes.set_xlabel(f"{panel.subject} position (bp, 1-based)")
     axes.set_ylabel(f"{panel.query} position (bp, 1-based)")
     axes.set_title(
-        panel.query if len(panel.dots) else panel.query,
+        panel.query,
         loc="left",
         fontsize=THEME.font_size - 1,
         color=THEME.muted,

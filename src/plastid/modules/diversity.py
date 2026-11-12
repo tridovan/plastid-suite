@@ -9,11 +9,11 @@ window must not pass for a well-supported one.
 
 The intron and spacer spans come from :mod:`plastid.core.spans`, the same derivation the
 ``introns`` module publishes, so the two tables join row for row and cannot disagree about where
-a boundary is (D-g). The spacer set is the single-copy regions only: the IR's two copies are one
-sequence annotated twice, and — measured on the golden 10/10/2026 — their *spacers* do not always
+a boundary is. The spacer set is the single-copy regions only: the IR's two copies are one
+sequence annotated twice, and — measured on the golden — their *spacers* do not always
 mirror exactly, so a spacer cannot be deduplicated the way a gene can.
 
-Window and step (decision D2-02, the mVISTA-style convention) come from params and are printed
+Window and step (the mVISTA-style convention) come from params and are printed
 with the result: a π curve without its window means nothing.
 """
 
@@ -42,9 +42,9 @@ from plastid.run.context import RunContext
 from plastid.run.params import check_window
 
 MODULE_ID = "diversity"
-MODULE_VERSION = "0.2.0"  # 0.2.0: π per intron and per intergenic spacer (P2B-01)
+MODULE_VERSION = "0.2.0"  # 0.2.0: π per intron and per intergenic spacer
 
-DEFAULT_WINDOW_BP = 600  # D2-02
+DEFAULT_WINDOW_BP = 600  # bp
 DEFAULT_STEP_BP = 200
 
 
@@ -72,7 +72,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     # The reference is aligned in its **normalized** frame, because every position this module
     # publishes is a normalized-frame position (regions, genes, introns, spacers). Aligning the
     # record as deposited put the annotation's cursor on a sequence that still had the record's
-    # origin: measured 28/10/2026, the same golden reference rotated by half produced a
+    # origin: measured: the same golden reference rotated by half produced a
     # 230,663-column alignment (154,827 unrotated) and π None on nearly every gene row. `barcodes`
     # already normalizes its reference for this reason; one frame for the alignment and the
     # annotation is the rule.
@@ -345,7 +345,7 @@ def _span_notes(introns: Sequence[IntronSpan], spacers: SpacerSet) -> tuple[str,
 
     Named rather than counted away: a reader has to be able to see which gap was left out and
     why, or two runs that disagree about the scope cannot be told apart from two that disagree
-    about the genome (the pitfall D-g exists for).
+    about the genome.
     """
     notes = [
         f"{len(introns)} introns and {len(spacers.igs)} intergenic spacers on the reference; "
@@ -373,10 +373,9 @@ def _region_name(frame: NormalizedFrame, position: int) -> str:
     """The reference's region at one of its positions, which are **already normalized**.
 
     The alignment's row 0 is the normalized reference (`run` normalizes it before aligning), so
-    ``positions`` are normalized-frame positions and no conversion applies. Until 28/10/2026 the
-    row was the record as deposited and this called ``region_at``, which subtracts the offset;
-    that was right for the deposited frame and would now subtract it twice. The golden's offset is
-    0, so both readings agree there and only a rotated record can tell them apart.
+    ``positions`` are normalized-frame positions and no conversion applies. ``region_at`` would
+    subtract the offset a second time; the golden's offset is 0, so both readings agree there and
+    only a rotated record can tell them apart.
     """
     region = frame.region_at_normalized(position)
     return region.name if region else ""
@@ -386,13 +385,11 @@ def _region_rows(
     alignment: Alignment, frame: NormalizedFrame, positions: tuple[int | None, ...]
 ) -> list[dict[str, Any]]:
     """π per normalized region, with each region's columns taken from the reference positions."""
+    # Each column's region, read once: asking per region re-read every column once per region.
+    names = [None if position is None else _region_name(frame, position) for position in positions]
     rows: list[dict[str, Any]] = []
     for region in frame.regions:
-        columns = tuple(
-            index
-            for index, position in enumerate(positions)
-            if position is not None and _region_name(frame, position) == region.name
-        )
+        columns = tuple(index for index, name in enumerate(names) if name == region.name)
         pi, usable = nucleotide_diversity(alignment, columns)
         rows.append(
             {"region": region.name, "columns": len(columns), "usable_columns": usable, "pi": pi}
@@ -404,7 +401,7 @@ def _gene_rows(reference: Genome, alignment: Alignment) -> list[dict[str, Any]]:
     """π per annotated feature, built from its **exons** — an intron is not part of its gene.
 
     One naming rule with the other per-gene modules (``kaks``, ``popgen``, ``substitutions``,
-    ``stats``): the canonical vocabulary, and no pseudogene. Measured 27/10/2026: this table
+    ``stats``): the canonical vocabulary, and no pseudogene. Measured: this table
     alone printed the record's raw spellings (``ndhI`` beside ``ndhL`` elsewhere) and scored
     pseudogenes as if they were expressed genes. The IR copies keep their ``.1``/``.2`` suffix
     because they are different sequence copies, not different loci.

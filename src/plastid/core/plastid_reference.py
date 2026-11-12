@@ -1,11 +1,11 @@
-"""The plastid reference set an annotation is transferred from (P3B-01, D-b).
+"""The plastid reference set an annotation is transferred from.
 
 A plastome is annotated by transferring a curated annotation from relatives — the method the
-mito path already uses (``core/mito_reference.py``) and the one D5-08 settles for the plastid
+mito path already uses (``core/mito_reference.py``) and the one chosen for the plastid
 path. This module owns the *set*: which records are in it, that it still is what was pinned,
 and — for validation — which records may annotate which target.
 
-**The set is chosen by the taxonomy rule** (D-b): same family first, the rule the Reference
+**The set is chosen by the taxonomy rule**: same family first, the rule the Reference
 Panel and the mito reference set already follow. The rule is applied when the set is *built*
 (a person pins a family's records, with the pin recording what was taken), not per run: a run
 takes 1..N reference records and the engine searches them.
@@ -19,19 +19,19 @@ in the corpus, the reference set that annotates it is **the same set minus itsel
 :func:`leave_one_out` is that rule as data: target → the records that may annotate it.
 
 **What this module does not do.** It does not select references per run, does not read the
-records' genes, and does not rename anything — the annotator (P3B-07) and the naming step
-(D5-09, P3B-04) do those. Here a reference set is its pin, its rule, and its integrity.
+records' genes, and does not rename anything — the annotator and the naming step
+ do those. Here a reference set is its pin, its rule, and its integrity.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from plastid.core.digest import sha256_file
 from plastid.core.panel import load_pinned
 from plastid.core.resources import data_file
 
@@ -166,7 +166,7 @@ def verify_pin(directory: str | Path) -> tuple[str, ...]:
         if path is None:
             problems.append(f"{Path(record.path).name} — in PINNED.json but not in the directory")
             continue
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest = sha256_file(path)
         if digest != record.sha256:
             problems.append(
                 f"{path.name} — sha256 {digest[:12]}… but the pin records {record.sha256[:12]}…"

@@ -5,7 +5,7 @@ and the IR verdict, so the methods section can be written from the output folder
 
 **The tool table comes from the manifest, not from one context.** Each module runs with its own
 `RunContext`, so a page rendered from a single context named only the tools of whichever module ran
-last — a run of `… ssr` said "no external tools ran" while MISA had run (K-08, M11.8). The
+last — a run of `… ssr` said "no external tools ran" while MISA had run (K-08). The
 manifest already records each module's calls; this page reads those records, so no ordering can
 hide a tool. A tool called by several modules appears once, because the question the table answers
 is "what ran", not "how many times".
@@ -146,7 +146,7 @@ def render_run_info(manifest: dict[str, Any], tools: Sequence[ToolRecord] = ()) 
         )
         # A cache hit is not a computation that ran now. The Tools table above lists only this
         # run's calls, so the original computation is named here — otherwise "no external tools
-        # ran" would read as "no tool was involved" (M11.12).
+        # ran" would read as "no tool was involved".
         provenance = entry.get("provenance") or {}
         if entry.get("status") == "cached" and provenance:
             when = provenance.get("computed_at") or "an earlier run"
@@ -159,5 +159,13 @@ def render_run_info(manifest: dict[str, Any], tools: Sequence[ToolRecord] = ()) 
                 or "no external tools"
             )
             line += f" — payload computed {when} by {who}"
+        # An output an earlier step of this run computed is named with that step, so a module
+        # that called no tool itself does not read as one that needed none.
+        reused = entry.get("reused_tools") or provenance.get("reused_tools") or []
+        if reused:
+            line += " — reused " + ", ".join(
+                f"{item.get('name')} output computed by {item.get('computed_by')}"
+                for item in reused
+            )
         lines.append(line)
     return "\n".join(lines) + "\n"

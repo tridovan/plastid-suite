@@ -1,4 +1,4 @@
-"""The one gene-name normalizer (M3.2, P3-02) — nothing else in the codebase renames a gene.
+"""The one gene-name normalizer — nothing else in the codebase renames a gene.
 
 Three different things look like "the same gene under another name", and they are not the same
 thing, so they are handled and reported separately:
@@ -6,11 +6,10 @@ thing, so they are handled and reported separately:
 * **syntax** — one name written differently: ``trnL(UAA)`` → ``trnL-UAA``, ``rrn16S`` → ``rrn16``,
   case and whitespace. This needs no external knowledge.
 * **semantics** — a different name for the same locus: ``pafI`` *is* ``ycf3``. That mapping is
-  external knowledge and lives in ``data/gene_aliases.yaml`` with the evidence it rests on; the
-  canonical direction was D3-02 and is **superseded 07/10/2026 by D5-09** — it
-  will follow the project's naming reference once the naming step is built, and the alias table
-  keeps D3-02's direction until then.
-* **sequence** — a bare tRNA name (``trnK``, no anticodon). Measured 2026-10-03: reading the
+  external knowledge and lives in ``data/gene_aliases.yaml`` with the evidence it rests on. The
+  table's canonical direction is the toolkit's own; the project's naming reference, which the
+  naming step applies, decides the spelling a run writes.
+* **sequence** — a bare tRNA name (``trnK``, no anticodon). Measured: reading the
   anticodon at a fixed offset matches only 106 of 293 named tRNAs in this dataset, so a bare name
   is resolved by 100 % sequence identity against named copies, and is *reported unresolved* when
   that fails. It is never guessed.
@@ -24,7 +23,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -77,6 +76,7 @@ __all__ = [
     "NormalizedName",
     "UnresolvedName",
     "load_gene_aliases",
+    "alias_chooser",
     "aliases_for",
     "cds_by_canonical_name",
     "load_mito_aliases",
@@ -94,18 +94,18 @@ SEQUENCE_RULE = "sequence"
 
 _ALIAS_KEYS = frozenset({"canonical", "synonyms", "evidence"})
 
-# trnL(UAA) → trnL-UAA. Measured 2026-10-03: 30 of the dataset's names use the bracket form,
-# all of them in one record (NC_058328.1). The space before the bracket is optional: measured
-# 29/10/2026, NC_020098.1 writes `trnN (GUU)`, which the older pattern left unfolded.
+# trnL(UAA) → trnL-UAA. Measured: 30 of the dataset's names use the bracket form,
+# all of them in one record (NC_058328.1). The space before the bracket is optional:
+# NC_020098.1 writes `trnN (GUU)`, which a pattern requiring no space left unfolded.
 _BRACKET_TRNA = re.compile(r"^(trn\w+)\s*\(([A-Za-z]{3})\)$")
 # A spelled-out amino-acid tRNA name: "tRNA-Ile", "TRNA-LEU". The word after the hyphen is the
 # amino acid, so the name maps to the bare `trn<letter>` form, which `normalize_genome` resolves
 # to a named tRNA by sequence. Without this rule the prefix fold below reads "tRNA-Ile" as a case
-# slip of "trnA-Ile" and silently relabels an isoleucine tRNA as alanine (measured 29/10/2026 on
+# slip of "trnA-Ile" and silently relabels an isoleucine tRNA as alanine (measured on
 # NC_008641.1, one of the panel's own records).
 _SPELLED_TRNA = re.compile(r"^tRNA-([A-Za-z]{3})$", re.IGNORECASE)
 # A spelled-out amino acid *with* the anticodon: "tRNA-H (GUG)", "tRNA-fM (CAU)". Measured
-# 29/10/2026 on NC_020098.1, where the gene table reported both as unclassified: `_BRACKET_TRNA`
+# on NC_020098.1, where the gene table reported both as unclassified: `_BRACKET_TRNA`
 # requires the `trn` prefix and `_SPELLED_TRNA` requires a bare three-letter amino acid, so this
 # shape matched neither and never reached the catalogue. The anticodon is kept, so the locus is
 # named exactly rather than resolved by sequence.
@@ -136,8 +136,8 @@ _AMINO_ACID_LETTER = {
 # trailing letter is the name, not a size class.
 _RRNA_SIZE_SUFFIX = re.compile(r"^(rrn\d+(?:\.\d+)?)[Ss]$")
 # "16S ribosomal RNA" → rrn16 — the same rule as the line above, for the record that carries no
-# /gene at all and reaches us through the reader's /product fallback. Measured 08/10/2026 on the
-# pinned plastid reference set while P3B-07 built its vocabulary: NC_042827.1 names all four rRNA
+# /gene at all and reaches us through the reader's /product fallback. Measured on the
+# pinned plastid reference set while its vocabulary was built: NC_042827.1 names all four rRNA
 # this way ("16S ribosomal RNA", {"locus_tag": …, "product": …}, no /gene), and the sentence was
 # reaching the caller as a gene name — four loci no run could ever name. The size class is in the
 # string, so this needs no external knowledge; the mito dialect is again untouched, because a
@@ -253,7 +253,7 @@ def _load_aliases(source: Path) -> AliasTable:
 def load_mito_aliases(path: str | Path | None = None) -> AliasTable:
     """Load ``data/mito_gene_names.yaml`` — the plant-mitochondrial product-text vocabulary.
 
-    A separate file on purpose: measured 2026-10-03, the same product string is a plastid CDS
+    A separate file on purpose: measured: the same product string is a plastid CDS
     product *and* a mitochondrial one ("ribosomal protein S3" in both), so a shared table could
     rename a plastid gene to a mitochondrial symbol. Only the mitochondrial path loads this one.
     """
@@ -400,7 +400,7 @@ def _normalize_syntax(name: str) -> tuple[str, bool]:
                 break
 
     # The amino-acid letter of trnX-YYY: `trnk-UUU` and `trnK-UUU` are one name written two ways,
-    # and a comparison that keeps them apart loses the locus in silence (measured 2026-10-04 on
+    # and a comparison that keeps them apart loses the locus in silence (measured on
     # the golden pair: NC_024936.1 spells trnK-UUU and trnI-GAU with lowercase letters —
     # `trnk-UUU`, `trnl-GUA` — and the two records' sequences at those loci are identical).
     # Only the single-letter-before-the-hyphen form is touched: trnfM-CAU's `f` is followed by
@@ -430,7 +430,7 @@ def normalize_genome(
     # A bare name is resolved from the *tRNA* feature, which is the one carrying the sequence.
     # The `gene` feature of the same name spans the whole locus including its intron, so
     # resolving per feature would compare an intron against a tRNA and report the name
-    # unresolved — measured 2026-10-03 on PX923121.1, whose trnK has both features.
+    # unresolved — measured on PX923121.1, whose trnK has both features.
     resolved: dict[str, NormalizedName] = {}
     unresolved_by_name: dict[str, UnresolvedName] = {}
     for gene in genome.genes:
@@ -496,14 +496,35 @@ def _resolve_bare_trna(
 def aliases_for(genome: Genome) -> AliasTable:
     """The name table this record needs: the mitochondrial vocabulary for a mitogenome.
 
-    Measured 2026-10-03: the same product string names a plastid gene and a mitochondrial one
+    Measured: the same product string names a plastid gene and a mitochondrial one
     ("ribosomal protein S3" in both), so there is one vocabulary per organelle and the record's
     own ``/organelle`` qualifier picks it. A record that declares no organelle gets the plastid
     table — and a mito record whose features already carry symbols (this project's own annotator
     writes them) is unaffected either way.
     """
-    organelle = str(genome.source.get("organelle", "")).lower()
-    return load_mito_aliases() if "mitochond" in organelle else load_gene_aliases()
+    return load_mito_aliases() if _is_mitochondrial(genome) else load_gene_aliases()
+
+
+def alias_chooser() -> Callable[[Genome], AliasTable]:
+    """:func:`aliases_for` for a run over many records: each table is read at most once.
+
+    The choice stays per record, by the record's own ``/organelle``; only the reading is shared.
+    A reference set asks for a table once per record and per feature kind, and parsing the YAML
+    file each time took longer than the rest of the naming.
+    """
+    loaded: dict[bool, AliasTable] = {}
+
+    def choose(genome: Genome) -> AliasTable:
+        mitochondrial = _is_mitochondrial(genome)
+        if mitochondrial not in loaded:
+            loaded[mitochondrial] = load_mito_aliases() if mitochondrial else load_gene_aliases()
+        return loaded[mitochondrial]
+
+    return choose
+
+
+def _is_mitochondrial(genome: Genome) -> bool:
+    return "mitochond" in str(genome.source.get("organelle", "")).lower()
 
 
 def cds_by_canonical_name(genome: Genome, aliases: AliasTable | None = None) -> dict[str, Gene]:
@@ -513,7 +534,7 @@ def cds_by_canonical_name(genome: Genome, aliases: AliasTable | None = None) -> 
     popgen): the gene set of a comparison is *names*, not features, and a name that appears twice
     (the inverted repeat) must be counted once — otherwise every ratio is weighted by whichever
     genes happen to sit in an IR. Without an explicit table the record's own organelle decides
-    which vocabulary applies (:func:`aliases_for`): measured 2026-10-04, the mito half of Phase 4
+    which vocabulary applies (:func:`aliases_for`): measured: the mito half of Phase 4
     found **no** shared gene between two mitogenomes because one record names its CDS by product
     sentence — the vocabulary that maps those sentences is the one the mito path already had.
     """
@@ -547,13 +568,13 @@ def references_from(
 
 
 # ---------------------------------------------------------------------------------------------
-# Reference-driven naming (D5-09, P3B-04): the name proposes, the sequence disposes.
+# Reference-driven naming: the name proposes, the sequence disposes.
 #
-# Four tests, in order, stopping at the first that decides (D5-09): the name (syntax, then the
+# Four tests, in order, stopping at the first that decides: the name (syntax, then the
 # alias table oriented by the naming reference), the sequence ranking, the margin between the best
 # and the runner-up, and the neighbours within one region. What is decided here is a *pairing*
 # between a gene of a record and a gene of the project's naming reference — the vocabulary the
-# whole project prints (D5-09, vocabulary A).
+# whole project prints (vocabulary A).
 #
 # The thresholds are measured, not chosen: on 2,838 cross-record CDS queries
 # the smallest true margin was 19.2 bits (median 298.0) and none fell under 5; with coverage ≥ 0.7
@@ -569,7 +590,7 @@ TEST_SEQUENCE = "sequence"
 TEST_MARGIN = "margin"
 TEST_NEIGHBOURS = "neighbours"
 
-# The status column (D5-09). Three values that must stay distinguishable, because a blank and
+# The status column. Three values that must stay distinguishable, because a blank and
 # a zero look alike in every aggregate: the check ran, it could not run, or it ran and found
 # nothing in the reference. See :class:`GeneDecision` for the exact definitions used here.
 STATUS_MEASURED = "measured"
@@ -581,7 +602,7 @@ OUTCOME_CONFIRMED = "confirmed"
 OUTCOME_RENAMED = "renamed"
 OUTCOME_CONFLICT = "conflict"
 # Nothing changes in the output, and nothing confirmed the pairing either: the gene is written
-# as it arrived and a person is told what could not be settled (D5-09's "reported" tier).
+# as it arrived and a person is told what could not be settled (the "reported" tier).
 OUTCOME_REPORTED = "reported"
 
 # The measured floors. Named here so a module never carries a bare number.
@@ -685,7 +706,7 @@ class Neighbours:
 def oriented_aliases(aliases: AliasTable, reference: Genome) -> AliasTable:
     """The alias table with each locus's canonical form set to the **reference's** spelling.
 
-    D5-09: the canonical direction stops being the group's dialect and becomes the naming
+    The canonical direction stops being the group's dialect and becomes the naming
     reference's. The file says which names are one locus (external knowledge, unaffected by who
     the reference is); the reference says which of them the project prints. A locus the reference
     does not use keeps the file's direction — a gene the reference has nothing to say about is not
@@ -732,7 +753,7 @@ def duplicate_names(genome: Genome, ir: IRResult | None = None) -> tuple[str, ..
 
     Two features of one name are one gene when they are the **inverted repeat's two copies** —
     every copy inside IRa/IRb, one per side — and that is a fact about the record's structure
-    rather than a similarity threshold. Measured 08/10/2026 on *Iris hermona*'s published record:
+    rather than a similarity threshold. Measured on *Iris hermona*'s published record:
     its two ``rrn23`` copies differ by a base or two (the gate needs ≥ 99.9 %, not 100 %), so a
     check comparing sequences called one gene two and raised a conflict where nothing was wrong.
     Where the frame cannot be established, exact sequence equality is the fallback.
@@ -771,7 +792,7 @@ def _regions_by_gene(genome: Genome, ir: IRResult) -> dict[Gene, str]:
     The frame is a pure rotation, so each feature's own midpoint is mapped through the rotation
     offset rather than looked up among the rotated copies — the rotated genome holds *new* Gene
     objects, and keying by identity there would silently place every gene in no region at all
-    (measured 08/10/2026, when it made one published record's two ``rrn23`` copies look like two
+    (measured: when it made one published record's two ``rrn23`` copies look like two
     different genes).
     """
     frame = normalize(genome, ir)
@@ -813,7 +834,7 @@ def protein_fasta_rows(genome: Genome, *, vocabulary: str) -> tuple[tuple[str, s
 
     The key is the three-field contract BLAST and the mito reference already share —
     ``accession|gene|vocabulary`` — with the record's own spelling and the vocabulary it is being
-    read as. The record's own ``/translation`` is used and never a self-translation (D5-08);
+    read as. The record's own ``/translation`` is used and never a self-translation;
     a CDS without one is left out here and reported by the caller, not translated by us.
     """
     accession = genome.accession or genome.name
@@ -834,7 +855,7 @@ def decide_gene(
     neighbours: Neighbours | None = None,
     reference_neighbours: Neighbours | None = None,
 ) -> GeneDecision:
-    """Run D5-09's four tests over one gene and say what they decided.
+    """Run the four naming tests over one gene and say what they decided.
 
     ``molecules`` is ``"protein"`` for a CDS and ``"nucleotide"`` for a tRNA or rRNA, and it
     changes which tests may decide — not as a shortcut, but because the measurement says so:
@@ -1106,14 +1127,14 @@ def neighbours_of(
 
 
 # ---------------------------------------------------------------------------------------------
-# The project's naming reference (D5-09): one record, chosen by the end user, recorded here.
+# The project's naming reference: one record, chosen by the end user, recorded here.
 # ---------------------------------------------------------------------------------------------
 
 RECORDED_REFERENCE_FILE = "naming_reference.json"
 
 
 class NamingConflictError(Exception):
-    """A naming conflict stopped the step — every case named with its coordinates (D5-09).
+    """A naming conflict stopped the step — every case named with its coordinates.
 
     Raised by the module and mapped to the project's conflict exit code by ``cli.py``. It is an
     exception rather than a return value because a half-normalized record is not a result: the
@@ -1126,7 +1147,7 @@ class RecordedReference:
     """The recorded standard: which file, which bytes, who recorded it, and whether it is final.
 
     ``provisional`` is the field that stops an override from quietly becoming the decision: a
-    provisional entry stands in until the end user picks from the audit report (D5-09), and
+    provisional entry stands in until the end user picks from the audit report, and
     every report that used it can say so.
     """
 
@@ -1155,7 +1176,7 @@ class RecordedReference:
                 f"--set naming_reference=<file>"
             )
         # Absolute, always: this path is written into the run's manifest and reference record, and
-        # a run has to be readable from anywhere afterwards. Measured 11/10/2026 — the first
+        # a run has to be readable from anywhere afterwards. Measured: the first
         # version of the no-checkout branch returned the path exactly as recorded, which the
         # regression test caught: a relative path that only resolves from the directory the run
         # happened to start in.
@@ -1169,11 +1190,10 @@ def checkout_root(start: Path | None = None) -> Path | None:
     so a run started in any subdirectory still finds it. Walking up rather than counting ``..``
     keeps it true when a loader moves.
 
-    **``None`` is a normal answer, not a failure** — and it was the failure until 11/10/2026: this
-    used to raise, and an **installed** package lives in ``site-packages`` with no
-    ``pyproject.toml`` anywhere above it, so ``gene_normalize`` could not run from the wheel at all
-    ("no pyproject.toml above …/site-packages/plastid/core/gene_names.py"). Found by the release's
-    Docker check — WSL and CI both run from a checkout and could never have seen it.
+    **``None`` is a normal answer, not a failure**: an **installed** package lives in
+    ``site-packages`` with no ``pyproject.toml`` anywhere above it, and raising there would stop
+    ``gene_normalize`` from running from the wheel at all. A check from a checkout cannot see this;
+    the release's Docker check runs the installed package.
     """
     here = (start or Path(__file__)).resolve()
     for candidate in (here, *here.parents):

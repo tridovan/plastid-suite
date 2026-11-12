@@ -1,4 +1,4 @@
-"""MACSE 2.07 — codon-aware CDS alignment, opt-in for the phylogeny module (M11.21).
+"""MACSE 2.07 — codon-aware CDS alignment, opt-in for the phylogeny module.
 
 **Why a second aligner.** MAFFT aligns nucleotides; a codon partition on that alignment is a
 partition of columns that *look* like codon positions until an indel shifts the frame. MACSE
@@ -27,7 +27,6 @@ what a gap means here. The substitution is stated in the run's scope and docs; i
 from __future__ import annotations
 
 import re
-import subprocess
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -36,8 +35,9 @@ from pathlib import Path
 from Bio import SeqIO
 
 from plastid.core.align import Alignment
+from plastid.core.genbank import fasta_text
 from plastid.run.context import RunContext
-from plastid.run.tools import ToolError, which
+from plastid.run.tools import ToolError, probe_output, which
 
 __all__ = [
     "MACSE_VERSION",
@@ -76,13 +76,8 @@ def parse_version(text: str) -> str:
 
 def macse_version(argv_prefix: Sequence[str]) -> str:
     """Run ``-help`` and check the banner against the pin."""
-    try:
-        result = subprocess.run(
-            [*argv_prefix, "-help"], capture_output=True, text=True, timeout=60, check=False
-        )
-    except OSError as error:
-        raise ToolError(f"macse: cannot run {argv_prefix[0]}: {error}") from error
-    version = parse_version((result.stdout or "") + (result.stderr or ""))
+    stdout, stderr = probe_output([*argv_prefix, "-help"], label="macse", timeout=60)
+    version = parse_version(stdout + stderr)
     if version != MACSE_VERSION:
         raise ToolError(
             f"macse: this is MACSE {version}, but the toolkit's numbers and its tests use "
@@ -146,7 +141,7 @@ def align_cds(
     with tempfile.TemporaryDirectory(prefix="macse_") as work:
         workdir = Path(work)
         fasta = workdir / "input.fasta"
-        fasta.write_text(_to_fasta(rows), encoding="utf-8")
+        fasta.write_text(fasta_text(rows), encoding="utf-8")
         through_java = binary.argv_prefix[0] != binary.argv_prefix[-1]
         ctx.tool(
             "macse",
@@ -181,11 +176,3 @@ def align_cds(
         names=tuple(name for name, _ in rows),
         sequences=tuple(aligned[name] for name, _ in rows),
     )
-
-
-def _to_fasta(rows: Sequence[tuple[str, str]], width: int = 60) -> str:
-    lines: list[str] = []
-    for name, sequence in rows:
-        lines.append(f">{name}")
-        lines.extend(sequence[i : i + width] for i in range(0, len(sequence), width))
-    return "\n".join(lines) + "\n"

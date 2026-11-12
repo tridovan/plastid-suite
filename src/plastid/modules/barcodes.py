@@ -1,4 +1,4 @@
-"""Barcode candidates and hypervariable regions (P4-04, M4.3).
+"""Barcode candidates and hypervariable regions.
 
 Three outputs, one π: the window series (the same quantity :mod:`plastid.modules.diversity`
 reports — ``core.align.window_diversity``, same window and step), the **hypervariable regions**
@@ -53,7 +53,7 @@ from plastid.run.defaults import load_defaults
 from plastid.run.params import check_window
 
 MODULE_ID = "barcodes"
-MODULE_VERSION = "0.2.0"  # behaviour changed 2026-10-04 after the first runs
+MODULE_VERSION = "0.2.0"  # behaviour changed after the first runs
 
 
 @module(
@@ -100,7 +100,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
 
     # One frame for the reference, its windows and its loci: the normalized record is row 0 of
     # the alignment, so ``reference_positions`` and the genes found below are the same
-    # coordinates. Measured 27/10/2026: aligning the raw record while locating genes on the
+    # coordinates. Measured: aligning the raw record while locating genes on the
     # normalized one put every candidate and window off by the rotation on a record that does
     # not start at the LSC.
     alignment = align(

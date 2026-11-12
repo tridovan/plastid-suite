@@ -1,4 +1,4 @@
-"""The plastid calling path — the plastid half of the shared core (P3B-07, D-e).
+"""The plastid calling path — the plastid half of the shared core.
 
 An assembled plastome arrives as a bare sequence, so its genes are called by **transfer** from
 curated relatives: `blastx` against the reference set's own published ``/translation`` for the
@@ -7,7 +7,7 @@ CDS, `blastn` against its rRNA sequences for the four rRNA loci, and — where t
 ``core/caller.py``; this module is what is **measured about this organelle**:
 
 * **the reference index.** A plastid reference record is a GenBank file, so a CDS entry is that
-  CDS's own ``/translation`` (never a self-translation — D5-08, and the mito measurement
+  CDS's own ``/translation`` (never a self-translation, and the mito measurement
   behind it: plant organellar CDS begin with codons no table accepts as an initiator) and an rRNA
   entry is the feature's own nucleotide sequence, read through ``coding_sequence`` so a spliced
   feature comes back in transcript order.
@@ -16,19 +16,19 @@ They are deliberately **not** the mito path's (50 % / 0.5): it was measured
   that a short plastid CDS walks through a 0.5 coverage floor (`psbJ` is 36 aa and reaches 52.38 %
   against `matK` over 21 aa), and each path states the pair it measured.
 * **the translation table** — 11, the plastid code, which is what every CDS in this project's
-  measured records declares (D3-03: 1,099 of 1,099).
+  measured records declares (1,099 of 1,099).
 
-**The vocabulary is the reference set's own.** D5-09 puts the naming step in front of the
+**The vocabulary is the reference set's own.** The naming step runs in front of the
 annotator, so the reference DB arrives already spelled in vocabulary A (the ★ record's spelling) —
 which makes the set's own names the only vocabulary a plastid call may print. A reference gene the
 set spells with a name outside the vocabulary is kept and **reported** rather than renamed
-(H-06's rule, the mito path's ``unnameable``).
+(the mito path's ``unnameable`` rule).
 
-**A locus a record annotated twice is searched once.** Measured 08/10/2026 on the pinned set:
+**A locus a record annotated twice is searched once.** Measured on the pinned set:
 24 of the 34 records carry **two** ``ycf1`` CDS features — a complete one (~1,800 aa) and a
 truncated copy of it (~300 aa, the part that sits inside the inverted repeat) — and the truncated
 one scored *higher* on identity, so an identity-first choice called the golden's 5,421 bp ``ycf1``
-as 900 bp. Structure decides first (D5-08): the truncated feature is not searched, and it is
+as 900 bp. Structure decides first: the truncated feature is not searched, and it is
 named (``truncated_annotations``) rather than dropped in silence.
 
 **The inverted repeat is read behind the structural gate, never instead of it.** The
@@ -52,7 +52,7 @@ from plastid.core.caller import (
     header_field,
 )
 from plastid.core.exon_structure import junctions as junctions_of
-from plastid.core.gene_names import AliasTable, aliases_for, normalize_name
+from plastid.core.gene_names import AliasTable, alias_chooser, normalize_name
 from plastid.core.ir import IRResult
 from plastid.core.model import Gene, Genome, coding_sequence
 
@@ -73,7 +73,7 @@ __all__ = [
     "repeat_agreement",
 ]
 
-# The plastid code. Every CDS in the records this project measured declares it (D3-03).
+# The plastid code. Every CDS in the records this project measured declares it.
 PLASTID_TRANSL_TABLE = 11
 
 # The floors, measured on the golden as the answer key — see the module docstring for why
@@ -82,7 +82,7 @@ DEFAULT_MIN_IDENTITY = 50.0
 DEFAULT_MIN_COVERAGE = 0.7
 
 # What a self-search must show before two spans are called one inverted repeat. 99 % is PGA's own
-# threshold (D5-08) and sits below the ≥ 99.9 % the structural gate asks of the copies
+# threshold and sits below the ≥ 99.9 % the structural gate asks of the copies
 # themselves: this reading proposes the frame, it never certifies it.
 IR_MIN_IDENTITY = 99.0
 # A plastid IR is ~10–30 kb; 1 kb keeps a short duplicated tRNA from being read as the repeat
@@ -98,7 +98,7 @@ IR_AGREEMENT_TOLERANCE = 0.01
 # and the short one is truncated — not a second locus.
 #
 # The comparison stops **at one record** because that is the only place the measurement separates
-# the two cases. Measured 08/10/2026 on the pinned Iridaceae set (34 records), CDS only: 243 loci
+# the two cases. Measured on the pinned Iridaceae set (34 records), CDS only: 243 loci
 # are annotated twice, **216 of them at 1.000** (the inverted repeat's two copies) and one at
 # 0.9927 — `rpl2`, 271 residues against 273, a real length difference that is **kept** — while
 # **26 sit below 0.30** (`ycf1` 0.16–0.30, `ycf4` 0.23: the truncated copies). Nothing at all sits
@@ -119,7 +119,7 @@ class TruncatedAnnotation:
     """One locus a record annotated twice, where the shorter feature is a truncated copy.
 
     The complete feature is what a call is transferred from; this row is the reason the other one
-    is not (D5-08 — structure decides before any score).
+    is not (structure decides before any score).
     """
 
     accession: str
@@ -129,14 +129,15 @@ class TruncatedAnnotation:
     ratio: float
 
 
-def _features_by_locus(genome: Genome, kind: str) -> dict[str, list[tuple[Gene, str]]]:
+def _features_by_locus(
+    genome: Genome, kind: str, table: AliasTable
+) -> dict[str, list[tuple[Gene, str]]]:
     """One record's genes of ``kind``, grouped by canonical locus, with the sequence to search.
 
     A CDS is its own ``/translation`` and an rRNA its own nucleotide sequence — the same rule
     :func:`reference_entries` writes down, kept in one place so the report and the index can never
     disagree about which feature a row is about.
     """
-    table = aliases_for(genome)
     grouped: dict[str, list[tuple[Gene, str]]] = {}
     for gene in genome.genes:
         if gene.kind != kind or gene.pseudo:
@@ -187,9 +188,10 @@ def truncated_annotations(
     path).
     """
     out: list[TruncatedAnnotation] = []
+    table_for = alias_chooser()
     for genome in records:
         _kept, truncated = _split_truncated(
-            genome.accession or genome.name, _features_by_locus(genome, kind)
+            genome.accession or genome.name, _features_by_locus(genome, kind, table_for(genome))
         )
         out.extend(truncated)
     return tuple(out)
@@ -200,13 +202,13 @@ def reference_entries(
 ) -> tuple[ReferenceEntry, ...]:
     """One record's genes of one ``kind`` as reference entries, with the sequence to search.
 
-    A CDS entry carries the record's own ``/translation`` — never a self-translation
-    (D5-08): no protein means no protein to search with, and the audit in front of every run
+    A CDS entry carries the record's own ``/translation`` — never a self-translation:
+    no protein means no protein to search with, and the audit in front of every run
     blocks such a record before it gets here. An rRNA or tRNA entry carries the feature's own
     nucleotide sequence, read through ``coding_sequence`` so a spliced feature comes back in
     transcript order. The tRNA half exists so a locus can be **named** from the reference's own
     annotation rather than from ARAGORN's anticodon reading, which is measurably wrong next to an
-    intron (H-24).
+    intron.
 
     ``vocabulary`` limits what a call may be *named*: a gene whose canonical name is not in it is
     kept with ``vocabulary=None``, which the caller reports as ``unnameable`` instead of printing
@@ -217,9 +219,12 @@ def reference_entries(
         raise ValueError(f"kind must be 'CDS', 'rRNA' or 'tRNA', got {kind!r}")
     allowed = None if vocabulary is None else frozenset(vocabulary)
     entries: list[ReferenceEntry] = []
+    table_for = alias_chooser()
     for genome in records:
         accession = genome.accession or genome.name
-        kept, _truncated = _split_truncated(accession, _features_by_locus(genome, kind))
+        kept, _truncated = _split_truncated(
+            accession, _features_by_locus(genome, kind, table_for(genome))
+        )
         for locus, gene, sequence in kept:
             entries.append(
                 ReferenceEntry(
@@ -250,11 +255,11 @@ def reference_index(
 
     The two are separate searches against separate databases because they are separate questions
     — a protein against proteins, a nucleotide against nucleotides — and pooling them would put a
-    ``blastn`` percentage and a ``blastx`` one on the same scale, which is the comparison D5-08
-    forbids.
+    ``blastn`` percentage and a ``blastx`` one on the same scale, and those two numbers do not
+    compare.
 
     tRNA entries are **not** a caller index: the annotator locates tRNAs with ARAGORN and searches
-    the reference's tRNAs only to name a locus (H-24), so a locus has to stay ARAGORN's. The
+    the reference's tRNAs only to name a locus, so a locus has to stay ARAGORN's. The
     entries are built by :func:`reference_entries` directly.
     """
     if kind not in ("CDS", "rRNA"):
@@ -267,8 +272,9 @@ def reference_index(
 def vocabulary_of(records: Iterable[Genome], *, kind: str) -> tuple[str, ...]:
     """The canonical names this set spells for one kind, in first-seen order, de-duplicated."""
     names: dict[str, None] = {}
+    table_for = alias_chooser()
     for genome in records:
-        table: AliasTable = aliases_for(genome)
+        table = table_for(genome)
         for gene in genome.genes:
             if gene.kind != kind or gene.pseudo:
                 continue
@@ -297,7 +303,7 @@ def call_cds(
         max_hsps_per_subject=max_hsps_per_subject,
         structure_first=True,  # measured on the golden's rps19 — see core/caller._choose
         # A plastid CDS whose alignment stops at codon 2 can still have its initiator in codon 1:
-        # measured 27/10/2026 on 39 Crataegus records, psbL is 114 bp starting ACA unless the
+        # measured on 39 Crataegus records, psbL is 114 bp starting ACA unless the
         # ACG one codon upstream is read (117 bp, complete ORF, the reference's own length).
         read_upstream_start=True,
         # Three of those 39 references carry models with extra residues before the start and
@@ -328,7 +334,7 @@ def call_rrna(
 
 
 # ---------------------------------------------------------------------------------------------
-# The inverted repeat, as a self-search reads it (D5-08 layer 1, behind core/ir.py's gate)
+# The inverted repeat, as a self-search reads it (a check behind core/ir.py's gate)
 # ---------------------------------------------------------------------------------------------
 
 

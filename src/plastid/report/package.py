@@ -4,7 +4,7 @@ A manuscript's supplement is a folder: the tables, the figures, the draft report
 saying what is in it. Every file here is written from the run's own stored results, so the
 package can be rebuilt at any time and cannot drift from the numbers the run produced.
 
-**The whole folder is replaced, not edited in place** (M11.18). A rebuild writes into a staging
+**The whole folder is replaced, not edited in place**. A rebuild writes into a staging
 directory beside the package and only then replaces the old one, so a table or a figure that the
 run no longer holds cannot survive as if it were current — and a failed rebuild leaves the old
 package in place rather than a half-written one. ``index.md`` lists each file with its row count
@@ -14,7 +14,6 @@ missing R) with the reason. A silent absence is what makes a supplement untrustw
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 from collections.abc import Mapping, Sequence
@@ -22,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from plastid.core.deps import ExportDependencyError
+from plastid.core.digest import sha256_file
 from plastid.report.citations import format_citation, load_citations
 from plastid.result.export import export_csv
 from plastid.result.figure import FigureRecord
@@ -71,7 +71,7 @@ class PackageResult:
                 {
                     "path": path.relative_to(self.directory).as_posix(),
                     "bytes": path.stat().st_size,
-                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "sha256": sha256_file(path),
                 }
                 for path in self.files
             ],
@@ -80,10 +80,6 @@ class PackageResult:
                 {"output": output, "reason": reason} for output, reason in self.skipped_outputs
             ],
         }
-
-
-def _digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _link(path: Path, base: Path) -> str:
@@ -133,7 +129,7 @@ def _index(
         "|---|---|---|---|---|",
     ]
     for module_id, table_id, path in table_files:
-        digest = _digest(path)
+        digest = sha256_file(path)
         rows = len(results[module_id].tables[table_id].rows)
         lines.append(
             f"| {module_id} | {table_id} | {rows} | {_link(path, base)} | `{digest[:16]}…` |"
@@ -148,7 +144,7 @@ def _index(
             for path in record.files:
                 lines.append(
                     f"- {_link(path, base)} — {path.stat().st_size} bytes, "
-                    f"sha256 `{_digest(path)[:16]}…`"
+                    f"sha256 `{sha256_file(path)[:16]}…`"
                 )
             lines += [f"  - {line}" for line in record.provenance]
             lines.append("")
@@ -171,7 +167,8 @@ def _index(
     if reports:
         lines += ["", "## Reports", ""]
         lines += [
-            f"- {_link(path, base)} — {path.stat().st_size} bytes, sha256 `{_digest(path)[:16]}…`"
+            f"- {_link(path, base)} — {path.stat().st_size} bytes, "
+            f"sha256 `{sha256_file(path)[:16]}…`"
             for _, path in reports
         ]
 
@@ -249,7 +246,7 @@ def build_package(
         workbook.write_bytes(export_xlsx(results))
     except ExportDependencyError as error:
         # The tables are text and remain the source of every number; the workbook is the
-        # convenience copy. Its absence is named, never silent (M11.18).
+        # convenience copy. Its absence is named, never silent.
         skipped_outputs.append((_WORKBOOK, str(error)))
     else:
         files.append(workbook)
@@ -309,7 +306,7 @@ def build_package(
                     {
                         "path": path.relative_to(staging).as_posix(),
                         "bytes": path.stat().st_size,
-                        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                        "sha256": sha256_file(path),
                     }
                     for path in files
                 ],

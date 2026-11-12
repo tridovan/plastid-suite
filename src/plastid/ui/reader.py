@@ -71,6 +71,12 @@ def _step(run_dir: Path, entry: dict[str, Any], root: Path) -> dict[str, Any]:
             }
             for tool in entry.get("tools") or []
         ],
+        # Outputs an earlier step of the same run computed and this step read (one MAFFT
+        # alignment serves several comparison modules); shown so the step does not read as toolless.
+        "reused_tools": [
+            {"name": item.get("name"), "computed_by": item.get("computed_by")}
+            for item in entry.get("reused_tools") or []
+        ],
     }
 
 

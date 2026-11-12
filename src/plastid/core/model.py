@@ -86,18 +86,18 @@ class Gene:
     # the record's own /trans_splicing qualifier — the annotation's word, not our inference
     trans_splicing: bool = False
     # the record's own /transl_table; None means the record declares none (fall back to defaults).
-    # Never assume a table: measured 2026-10-03, every CDS in the project's dataset declares 11,
-    # and P3-01 refuses a table it cannot translate rather than translating the wrong one.
+    # Never assume a table: every CDS in the project's dataset declares 11, and the ORF check
+    # refuses a table it cannot translate rather than translating the wrong one.
     transl_table: int | None = None
-    # the record's own /codon_start; anything but 1 shifts the reading frame (D3-03)
+    # the record's own /codon_start; anything but 1 shifts the reading frame
     codon_start: int = 1
     # the record's own /exception — a statement only the submitter can make ("RNA editing",
-    # "trans-splicing", …). Kept because dropping it is not neutral: measured 2026-10-03, a CDS
+    # "trans-splicing", …). Kept because dropping it is not neutral: measured: a CDS
     # whose start codon is created by RNA editing is rejected by NCBI's validator unless its
     # /exception travels with it.
     exception: str | None = None
     # the record's own /translation — the curator's protein, kept **because it is the thing an
-    # annotation is transferred from** (D5-08): the search layer aligns a query against
+    # annotation is transferred from**: the search layer aligns a query against
     # these, never against a translation this toolkit made. It is read, never written: /translation
     # is NCBI's to assign on a new record (see ``gene_qualifiers``).
     translation: str | None = None
@@ -130,7 +130,7 @@ class Gene:
         """Any part carries a partial coordinate — a truncated 5' or 3' end.
 
         The flag is on the part, not the gene, so any part order gives the same answer. Every CDS
-        analysis states whether such genes are included, and counts them (M11.17); silently
+        analysis states whether such genes are included, and counts them; silently
         merging a truncated gene into a measured value is what this property exists to stop.
         """
         return any(part.partial_start or part.partial_end for part in self.parts)
@@ -143,7 +143,7 @@ def gene_qualifiers(gene: Gene) -> dict[str, str | None]:
     differently in the two formats. Two of the choices here are decisions rather than formatting:
 
     * **``/gene`` is written only when it says something ``/product`` does not.** Measured
-      2026-10-03: the stand-in mitogenome ``OX459128.1`` carries no ``/gene`` on any feature, so
+      on the stand-in mitogenome ``OX459128.1``, which carries no ``/gene`` on any feature, so
       our reader names those features by their product sentence. Writing both would put a
       sentence where a gene *symbol* belongs; writing only the product reads back identically.
     * **``None`` means a bare qualifier** (``/pseudo``, ``/trans_splicing``). Every real record
@@ -177,8 +177,8 @@ class RepeatRegion:
     """One ``repeat_region`` feature: one copy, even when its location is a ``join``.
 
     A GenBank location that crosses the origin is written as ``join(m..L,1..k)``; BioPython
-    hands those over as separate parts. Keeping the parts together is what makes the copy whole
-    (M11.3): a copy one base short no longer pairs with the other, and a flattened list cannot say
+    hands those over as separate parts. Keeping the parts together is what makes the copy whole:
+    a copy one base short no longer pairs with the other, and a flattened list cannot say
     which piece belongs to which copy. ``parts`` is the one source; everything else is derived.
 
     ``start``/``end``/``length`` are the outer bounds in the record's frame. For a wrapped copy
@@ -276,7 +276,7 @@ class Genome:
     repeat_regions: tuple[RepeatRegion, ...] = ()
     # the record's own source qualifiers (organism · organelle · mol_type · cultivar · …). They
     # travel with the record for the same reason /transl_table does: a submission has to state
-    # them, and inventing an organism would be worse than refusing. Measured 2026-10-03 — a
+    # them, and inventing an organism would be worse than refusing. Measured: a
     # table without them fails NCBI's own validator twice.
     source: dict[str, str] = field(default_factory=dict)
 
@@ -324,7 +324,7 @@ class GeneCounts:
 def cds_features(genome: Genome) -> tuple[Gene, ...]:
     """The counted CDS set: every ``CDS`` feature, both IR copies, pseudogenes excluded.
 
-    One source of truth for the gene-based analyses (P2-03 codon usage, P2-04 composition) — the
+    One source of truth for the gene-based analyses (codon usage, composition) — the
     golden genome's set is 86, the number ``count_genes`` reports.
     """
     return tuple(gene for gene in genome.genes if gene.kind == "CDS" and not gene.pseudo)
@@ -335,7 +335,7 @@ def coding_sequence(genome: Genome, gene: Gene) -> str:
 
     A trans-spliced CDS may mix strands and GenBank writes a join() in transcript order, so
     neither re-sorting the parts nor reading them all on the gene's strand is safe. Measured on
-    both golden rps12 copies (2026-10-03): only this reading yields the canonical ``ATG…TAA``
+    both golden rps12 copies: only this reading yields the canonical ``ATG…TAA``
     ORF — re-sorting gives ``AAT…TAT``, reading everything forward gives ``ATA…ATT``.
     """
     chunks = [

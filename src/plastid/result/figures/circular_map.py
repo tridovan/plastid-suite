@@ -117,7 +117,7 @@ def series(results: Mapping[str, Result]) -> CircularMapSeries:
         )
         for row in typed_rows
         # One arc per part: a feature annotated across the record origin has no single linear
-        # interval, and its outer bounds would draw one arc the long way round (M11.7).
+        # interval, and its outer bounds would draw one arc the long way round.
         for start, end in gene_segments(row)
     ]
     regions: list[RegionArc] = []

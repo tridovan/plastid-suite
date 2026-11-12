@@ -1,4 +1,4 @@
-"""The reference's own exon structure, placed on the target by aligning its own DNA (P3B-10).
+"""The reference's own exon structure, placed on the target by aligning its own DNA.
 
 **Why this exists.** A call is transferred from a reference *protein*, and blastx seeds on
 amino-acid words: an exon shorter than a word is invisible to it, and so is any boundary the
@@ -27,7 +27,7 @@ never per gene: a *trans*-spliced gene's exons may lie on both strands of an inv
 junction while the pair that carries the 26 bp exon still does.
 
 A junction whose intron diverged in length can come back as **two** alignments, one exon each
-(measured 27/10/2026: ``MW201730``'s ``rps16``, 766 bp + 421 bp). Each exon is still mapped end to
+(measured: ``MW201730``'s ``rps16``, 766 bp + 421 bp). Each exon is still mapped end to
 end by an alignment of the junction's own DNA, so the pair is placed under the same rules as one.
 
 **What it refuses to do.** Place anything an alignment did not put there: a boundary is only moved
@@ -64,7 +64,7 @@ __all__ = [
     "render_junctions",
 ]
 
-# The longest intron a junction is built for. Measured 10/10/2026 over every multi-exon CDS of the
+# The longest intron a junction is built for. Measured over every multi-exon CDS of the
 # pinned set: the longest real intron is **2,815 bp** (``rpoC1``), and the one thing far above it
 # is ``rps12``'s **69,056 bp** gap between its LSC exon and its IR exons — which is not an intron
 # at all but the distance across the repeat between two transcripts that are spliced in *trans*.
@@ -146,7 +146,7 @@ def junctions(genome: Genome, gene: Gene, prefix: str) -> tuple[Junction, ...]:
     appends its own index, so a hit comes back naming the gene *and* the boundary it is about.
 
     **Per pair, never per gene.** A record may spell one gene's exons on more than one strand —
-    measured 10/10/2026, ``NC_072562.1`` and ``NC_072563.1`` write ``rps12`` as ``-1, +1, +1``,
+    measured: ``NC_072562.1`` and ``NC_072563.1`` write ``rps12`` as ``-1, +1, +1``,
     which is what a *trans*-spliced gene looks like when its halves come from opposite strands of
     an inverted repeat. Two exons of one pair are still colinear, and their junction is still the
     DNA between them; only the pair that spans the trans-splice is skipped, because the DNA
@@ -331,7 +331,7 @@ def _best(
 
     One alignment carrying both exons is the ordinary shape and is preferred. The search also
     splits a junction into two alignments where the intron's own length diverges — measured
-    27/10/2026, ``MW201730``'s ``rps16`` junction came back as 766 bp + 421 bp, one exon each —
+    on ``MW201730``, whose ``rps16`` junction came back as 766 bp + 421 bp, one exon each —
     and each exon is still mapped end to end by an alignment of the junction's own DNA. That pair
     is accepted under the same rules as one hit: the two exons must sit in gene order and at least
     one of them must land on the call.
@@ -393,8 +393,8 @@ def _anchored(span: tuple[int, int], parts: Sequence[tuple[int, int]]) -> int:
 
     The same rule the corpus measures a match by (half the shorter exon, never by envelope): a
     junction that aligns to a *homologous* place shares a few bases with the call by accident, and
-    a shared 26 bases of a 249 bp exon is not two annotations of one exon. Measured 10/10/2026:
-    without this, ``NC_072562.1``'s mixed-strand ``rps12`` junction anchored on 26 shared bases and
+    a shared 26 bases of a 249 bp exon is not two annotations of one exon. Measured: without this,
+    ``NC_072562.1``'s mixed-strand ``rps12`` junction anchored on 26 shared bases and
     would have moved the golden's call 700 bp.
     """
     shorter = span[1] - span[0] + 1

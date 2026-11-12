@@ -6,13 +6,13 @@ a record is what a run would say. The interface never measures anything of its o
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
 from typing import Any
 
+from plastid.core.digest import sha256_file
 from plastid.core.genbank import read_genbank, read_record
 from plastid.core.ir import IRDetectionError, IRResult, detect_ir, identity_percent
 from plastid.core.model import Genome, count_genes
@@ -131,7 +131,7 @@ class RecordBook:
         self._lock = Lock()
 
     def read(self, path: Path) -> dict[str, Any]:
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        digest = sha256_file(path)
         with self._lock:
             kept = self._seen.get(path)
         if kept is not None and kept.digest == digest:

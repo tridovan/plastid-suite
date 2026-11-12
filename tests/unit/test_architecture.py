@@ -2,7 +2,7 @@
 
 Each layer may import itself plus everything to its left:
 
-    core/     -> stdlib + {Bio, yaml} only
+    core/     -> stdlib + {Bio, yaml, numpy} only (numpy comes with Biopython)
     result/   -> core
     run/      -> core, result
     report/   -> core, result
@@ -10,7 +10,7 @@ Each layer may import itself plus everything to its left:
     modules/  -> core, result, run, external, and modules.registry ONLY
                  (a module never imports another module)
     ui/       -> core, result, run (it starts `plastid` for the work, so it needs no module)
-    cli.py, __main__.py, __init__.py -> exempt (process entry points)
+    cli/, __main__.py, __init__.py -> exempt (process entry points)
 
 A violation fails the build, so the dependency graph stays a DAG while ~20
 modules are added over the project's lifetime.
@@ -31,8 +31,11 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "plastid"
 # comes with matplotlib, for the interface's figure previews. They are imported inside functions,
 # never at module import time, so the minimum install still runs without them — the allowlist is
 # what says the dependency is deliberate rather than accidental.
+#
+# ``numpy`` is Biopython's own dependency, installed with it and already loaded by ``Bio.Align``,
+# so using it adds nothing to the minimum install; the IR scan reads its k-mer words with it.
 THIRD_PARTY_ALLOWED = frozenset(
-    {"Bio", "yaml", "docx", "lxml", "matplotlib", "openpyxl", "scipy", "PIL"}
+    {"Bio", "yaml", "numpy", "docx", "lxml", "matplotlib", "openpyxl", "scipy", "PIL"}
 )
 
 # layer -> allowed `plastid.*` import prefixes
@@ -52,6 +55,9 @@ LAYERS: dict[str, frozenset[str]] = {
         }
     ),
     "ui": frozenset({"plastid.core", "plastid.result", "plastid.run", "plastid.ui"}),
+    # The command line is a process entry point: it wires every layer together, so it may import
+    # any of them, and nothing below imports it.
+    "cli": frozenset({"plastid"}),
 }
 
 

@@ -3,12 +3,12 @@
 ``manifest.json`` records what ran, with what parameters, on what inputs, and where every
 file went. ``validate()`` is hand-written on purpose: no schema library for one dict.
 
-**Version 2** (08/10/2026, P3B-04) adds a per-module ``reference`` entry: the privileged record a
-step worked against (its path, accession and sha256 — the naming reference, D5-09). Version 1
+**Version 2** adds a per-module ``reference`` entry: the privileged record a
+step worked against (its path, accession and sha256 — the naming reference). Version 1
 manifests do not validate against this build, which is the point of a version number: a reader can
 tell which fields a file may be missing.
 
-**Version 3** (27/10/2026, M11.16) adds the two typed statements a downstream step needs before it
+**Version 3** adds the two typed statements a downstream step needs before it
 may read anything: ``artifacts`` (format, schema, sample, sha256, topology, frame, status and the
 reference-set digest each output was built against — :mod:`plastid.run.contract`) and
 ``reference_sets`` (every search directory, its record count and digest). A version-2 manifest has
@@ -72,7 +72,7 @@ def build_manifest(
     ``dataset`` is the run's label — the same string the run directory is slugged from. It is
     recorded here as well as in the path because a *batch* writes one run per sample into one
     output root, and a run that failed before it could write anything else has to say which sample
-    it was: measured 09/10/2026 (P3B-09), where a failed sample's manifest named the module and
+    it was: measured: where a failed sample's manifest named the module and
     the reason and nothing that identified the sample itself. Optional, so the manifests written
     before this key existed still validate (schema 2, unchanged — the key is additive).
 

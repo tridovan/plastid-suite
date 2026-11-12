@@ -8,6 +8,7 @@ gene, not a supermatrix: 78 genes would make every suite run wait minutes for a 
 
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 
 import pytest
@@ -38,17 +39,13 @@ def test_a_banner_that_never_names_a_release_is_refused() -> None:
         parse_version("usage: [-prog PROGRAM_NAME]")
 
 
-def test_a_different_release_is_refused_by_name(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_different_release_is_refused_by_name(tmp_path: Path) -> None:
     """The alignment algorithm and the output alphabet are part of the result."""
-
-    class Result:
-        returncode = 0
-        stdout = "This is MACSE V1.02\n"
-        stderr = ""
-
-    monkeypatch.setattr("plastid.external.macse.subprocess.run", lambda *a, **k: Result())
+    stub = tmp_path / "macse"
+    stub.write_text("#!/bin/sh\necho 'This is MACSE V1.02'\n", encoding="utf-8")
+    stub.chmod(stub.stat().st_mode | stat.S_IXUSR)
     with pytest.raises(ToolError, match="this is MACSE 1.02"):
-        macse_version(("macse",))
+        macse_version((str(stub),))
 
 
 def test_frameshift_and_stop_become_gaps() -> None:

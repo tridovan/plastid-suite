@@ -42,7 +42,7 @@ class RscuEntry:
 
 @dataclass(frozen=True, slots=True)
 class RscuHeatmapSeries:
-    """Everything the figure draws, read from the tables — the D5-03 audit trail."""
+    """Everything the figure draws, read from the tables — each mark traces back to a cell."""
 
     accession: str
     organism: str

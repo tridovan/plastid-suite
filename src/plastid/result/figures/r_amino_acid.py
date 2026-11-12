@@ -3,7 +3,7 @@
 The script reads a wide table: ``AA_Code`` (one-letter), ``Amino_Acid``, then one column per
 species of percentages. PTS's ``amino_acid.amino_acid_composition`` is already one row per residue
 (``residue, count, percent, hydropathy``) but holds **one genome**, so the pivot is a column rename
-plus the single species column. The script draws **every** species column in its input (M11.7), so
+plus the single species column. The script draws **every** species column in its input, so
 a wider table is a valid figure; this pivot supplies the one genome a run holds. The species column
 keeps its case, and ``Amino_Acid`` is written but the script overwrites it from ``AA_Code``; it is
 filled in anyway so the file says what it holds.

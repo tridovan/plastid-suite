@@ -120,7 +120,7 @@ class _Handler(BaseHTTPRequestHandler):
     app: App
     routes: list[tuple[str, re.Pattern[str], Route]]
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: Any) -> None:
         """Say nothing: a request line can carry the token, and a log outlives the session."""
 
     def _plain(self, status: HTTPStatus, words: str) -> None:
@@ -311,10 +311,10 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         self._dispatch("GET")
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:
         self._dispatch("POST")
 
 

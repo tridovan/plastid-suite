@@ -1,11 +1,11 @@
-"""The public reference set a mito annotation is transferred from (P3A-02).
+"""The public reference set a mito annotation is transferred from.
 
 A plant mitogenome cannot be annotated from nothing: its protein genes are conserved enough that
 the honest method is to transfer an annotation from curated relatives — the same rule the plastid
 Reference Panel uses, one family first. This module turns a handful of pinned RefSeq mitogenomes
 into that reference set, and reads the committed result back.
 
-**Why the record's own ``/translation`` and not our own translation.** Measured 2026-10-03 on the
+**Why the record's own ``/translation`` and not our own translation.** Measured on the
 eight references: all **530** CDS carry ``/translation`` and **none** declares a ``/transl_table``.
 Self-translating them is not merely less accurate, it does not work — plant mito CDS begin with
 codons like ``ACG`` that no table accepts as an initiator, so a CDS-mode translation raises before
@@ -44,7 +44,7 @@ __all__ = [
     "render_fasta",
 ]
 
-# Reference records spell the same locus several ways. Measured 2026-10-03 against the eight
+# Reference records spell the same locus several ways. Measured against the eight
 # references pinned in `.panel/mito-reference/`: everything else already agrees with our
 # vocabulary, so this table is the whole delta — and an entry is added only with the record that
 # shows it, never as a guess.

@@ -9,13 +9,14 @@ passing their tests, but do not extend them.
 
 ## Commands
 
-- `make test`: fast tests. Needs no external tool, no network and no `.panel/` (~5 min).
-- `make golden`: the golden-pair numbers and the pinned-tool checks, the set CI runs (~6 min). A
+- `make test`: fast tests. Needs no external tool, no network and no `.panel/` (~1 min on 6 cores;
+  `test` and `golden` run in parallel through pytest-xdist).
+- `make golden`: the golden-pair numbers and the pinned-tool checks, the set CI runs (~1.5 min). A
   test whose tool is missing skips with a printed reason; `PTS_REQUIRE_TOOLS=1` turns that skip
   into a failure. The tools are in `environment.yml` and `docs/tools/`.
 - `make acceptance`: every test marked `panel`, which reads the private `.panel/` data that CI never
-  has (~75 min). Run it when closing a milestone; a missing tool or panel fails it.
-- `make lint` and `make fmt`: ruff. `make check` runs lint, test and golden (~11 min).
+  has (~60 min, serial). Run it when closing a milestone; a missing tool or panel fails it.
+- `make lint` and `make fmt`: ruff. `make check` runs lint, test and golden (~3 min).
 
 ## Context and scope
 
@@ -43,7 +44,7 @@ passing their tests, but do not extend them.
 - `external/`: one adapter per tool.
 - `modules/`: the analyses.
 - `ui/`: the local interface. It starts `plastid` for every piece of work and reads run directories.
-- `cli.py`: the only place that exits.
+- `cli/`: the command line, the only place that exits.
 
 A module is a pure function `run(genome, params, ctx) -> Result` (`run(genomes, …)` when its arity is
 above 1). Each module is registered in `modules/registry.py` with its group: shared, plastid or mito.
@@ -87,7 +88,7 @@ tables. Convert only with `Interval.to_1based` / `Interval.from_1based`.
   corroborating annotation such as the gene pairs a real IR carries). "Data is wrong" and "tool is
   wrong" both need evidence, and an unexplained difference stays unexplained rather than being
   assigned to either side.
-- **Banned:** `sys.exit` outside `cli.py`; `shell=True`; hand-written FASTA/GenBank parsers (use
+- **Banned:** `sys.exit` outside `cli/`; `shell=True`; hand-written FASTA/GenBank parsers (use
   BioPython); hardcoded absolute paths; monkey-patching; hidden globals or cwd.
 - **Extend by adding.** A new analysis is a new file in `modules/` plus one registry line. Apply DRY
   after the second real copy, never before.

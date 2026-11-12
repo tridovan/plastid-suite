@@ -63,7 +63,7 @@ def frame(results: Mapping[str, Result]) -> DiversityFrame:
     genes = result.tables[_GENES]
     introns = result.tables[_INTRONS]
     spacers = result.tables[_IGS]
-    # The labels are the tables' own keys, never a name built from parts. Measured 17/10/2026:
+    # The labels are the tables' own keys, never a name built from parts. Measured:
     # a gene-name label collides, and the script's `factor(Region, levels = Region)` then halts
     # with "factor level [6] is duplicated" — the figure does not draw at all. Two different
     # collisions produce it, and neither is visible from the gene name alone: `rps12.1.2` and

@@ -106,8 +106,8 @@ class PinnedGenome:
     md5: str
     bytes: int
     # where the bytes came from: "ncbi" (fetched by accession) or "file" (produced elsewhere —
-    # a web service, a cluster, a colleague's machine). A heavy tool runs where it fits
-    # (P1-12); either way its answer arrives as a file, and a file that is not
+    # a web service, a cluster, a colleague's machine). A heavy tool runs where it fits;
+    # either way its answer arrives as a file, and a file that is not
     # pinned is a number nobody can reproduce.
     source: str = "ncbi"
     note: str | None = None  # which service/when, for a pinned file
@@ -251,7 +251,7 @@ def _measure_ir(genome: Genome) -> tuple[int | None, str | None, float | None, s
     are *recorded* here and only enforced later, at run time (code seam 4).
     """
     try:
-        ir = detect_ir(genome)
+        ir = detect_ir(genome, cross_check=False)
     except IRDetectionError as error:
         return None, None, None, f"{type(error).__name__}: {error}"
     try:
@@ -328,7 +328,7 @@ def _measured(
         cds, trna, rrna = counts.cds, counts.trna, counts.rrna
         topology = genome.topology
         ir_length, ir_source, ir_identity, ir_error = _measure_ir(genome)
-    except Exception as error:  # noqa: BLE001 — recorded, not swallowed
+    except Exception as error:  # recorded, not swallowed
         parse_error = f"{type(error).__name__}: {error}"
     return PinnedGenome(
         accession=accession,
@@ -360,7 +360,7 @@ def pin_files(
 ) -> tuple[PinnedGenome, ...]:
     """Pin records **produced somewhere else** — a web service, a cluster, another machine.
 
-    This is the other half of the plan's rule for a heavy tool (P1-12): it runs
+    This is the other half of the plan's rule for a heavy tool: it runs
     where it fits, on this machine when it can and elsewhere when it cannot, and its answer
     arrives as a *file*. Pinning that file is what makes the answer reproducible — the same
     bytes, sha256 and md5 as an NCBI download, the same re-read with our own reader, and the
@@ -427,7 +427,7 @@ def _record_id(path: Path) -> str:
     """
     try:
         genome = read_genbank(path)
-    except Exception:  # noqa: BLE001 — an unreadable file still gets pinned, and reported
+    except Exception:  # an unreadable file still gets pinned, and reported
         return path.stem
     return genome.accession or path.stem
 

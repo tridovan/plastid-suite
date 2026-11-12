@@ -18,12 +18,13 @@ not evidence about any other genome; the panel tier is.
 
 | Command | Selects | Needs | Cost | Runs |
 |---|---|---|---|---|
-| `make golden` | `tests/golden`, not marked `panel` | the pinned tools | 85 cases, 5 min 32 s | on every push in CI, and locally |
-| `make acceptance` | every test marked `panel`, unit and golden | `.panel/` and the pinned tools | 234 cases, ~40 min | locally, when closing a milestone |
+| `make golden` | `tests/golden`, not marked `panel` | the pinned tools | 100 cases, 1 min 28 s | on every push in CI, and locally |
+| `make acceptance` | every test marked `panel`, unit and golden | `.panel/` and the pinned tools | 291 cases, 58 min | locally, when closing a milestone |
 
-The 5 min 32 s was measured on the development machine (WSL2) on 29 October 2026, with every tool
-present. The ~40 min is an estimate: it is the 43-minute full golden of the same day minus the
-`make golden` share. The first `make acceptance` run prints its own durations.
+Both were measured on the development machine (WSL2, 6 cores) on 12 November 2026, with every tool
+present and `PTS_REQUIRE_TOOLS=1`. `make golden` runs in parallel (`-n auto`, pytest-xdist);
+`make acceptance` runs serially, because an assembly test holds several GB while its assembler runs.
+Both print their slowest durations.
 
 A test is marked `panel` when it reads `.panel/`: 80 RefSeq plastomes in 10 families, 30 PGA
 re-annotations, rotated FASTA and the pinned reference sets. The directory is gitignored, so a

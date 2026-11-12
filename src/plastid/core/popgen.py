@@ -1,4 +1,4 @@
-"""Population-genetic estimators — pure Python, one function per statistic (P4-03; decision D4-03).
+"""Population-genetic estimators — pure Python, one function per statistic.
 
 DnaSP is a Windows GUI (unscriptable, unusable in Docker) and the scriptable alternatives want
 VCF or read data this project does not have, so the estimators are written here from their
@@ -289,7 +289,7 @@ def fst_gst(groups: Sequence[Alignment]) -> float | None:
     # Every group needs at least two sequences: with one, the within-group diversity is zero by
     # construction, so the estimator returns exactly 1 for any two groups that differ — a number
     # that looks like complete differentiation and is an artefact of the sample size. Measured
-    # 04/10/2026 on the mito sketch (one genome per group).
+    # on the mito sketch (one genome per group).
     if any(group.n_rows < 2 for group in samples):
         return None
     pooled = Counter[str]()

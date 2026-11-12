@@ -1,4 +1,4 @@
-"""NCBI submission files — ``.fsa`` and the five-column ``.tbl`` (M3.4, P3-05, D3-04).
+"""NCBI submission files — ``.fsa`` and the five-column ``.tbl``.
 
 Written to NCBI's documented rules rather than from memory, because every one of them fails at
 *upload* time, after the work is done:
@@ -49,8 +49,7 @@ class SubmissionInputError(ValueError):
 
     A bare FASTA has a sequence and nothing else; writing an empty feature table from it would
     turn "this sequence was never annotated" into "this sequence has no genes". A submission is
-    made from the GenBank the annotation/verify steps produced, never from an analysis table
-    (M11.18).
+    made from the GenBank the annotation/verify steps produced, never from an analysis table.
     """
 
 
@@ -60,7 +59,7 @@ SUBMITTED_KINDS: tuple[str, ...] = ("gene", "CDS", "tRNA", "rRNA")
 
 _QUALIFIER_KEYS: tuple[str, ...] = ("gene", "product", "transl_table", "codon_start")
 
-# Source qualifiers that are not qualifiers *in this format*. Measured 2026-10-03:
+# Source qualifiers that are not qualifiers *in this format*. Measured:
 # table2asn calls both "Unrecognized qualifier name" and exits non-zero while still writing a
 # correct .sqn — a submission table carrying them is noisier than one that does not, and NCBI
 # derives both anyway (the molecule type from the submission, the taxon from the organism).
@@ -80,7 +79,7 @@ class TblFeature:
 class TblRecord:
     """One ``>Features <id>`` block. A table file may hold several — real ones do.
 
-    Measured 2026-10-03 on NCBI's own VADR output: one file carried eight records. Merging them
+    Measured on NCBI's own VADR output: one file carried eight records. Merging them
     into one feature list would silently attach every record's features to one sequence, so a
     record boundary is part of the model rather than something a reader is expected to notice.
     """
@@ -136,7 +135,7 @@ def to_tbl(genome: Genome, seq_id: str) -> str:
 def partial_start_genes(genome: Genome) -> tuple[Gene, ...]:
     """The CDS whose first codon their own translation table does not initiate.
 
-    Measured 2026-10-03 on the golden genome: ``rpl2`` starts with ACG — not an initiator in
+    Measured on the golden genome: ``rpl2`` starts with ACG — not an initiator in
     table 11, because C-to-U editing turns it into AUG in the transcript — and NCBI's validator
     rejects the feature as written. With the start marked partial the same CDS validates, which is
     also what the published *Dioscorea alata* plastome submission does for its ``rpl2`` and
@@ -158,7 +157,7 @@ def partial_start_genes(genome: Genome) -> tuple[Gene, ...]:
             continue
         if check.start_class in (START_CLASS_INVALID, START_CLASS_NON_CANONICAL):
             # both classes mean "not an initiator in this table": `invalid` is a codon no table
-            # uses, `non_canonical` is ACG — the RNA-edited start P3-01 already reports as such,
+            # uses, `non_canonical` is ACG — the RNA-edited start the ORF check already reports,
             # and the one NCBI's validator rejects here. The ORF module's judgement and NCBI's
             # agree on this feature, which is why the rule can reuse it rather than re-derive it.
             marked.append(gene)

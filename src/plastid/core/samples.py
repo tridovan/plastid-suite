@@ -1,7 +1,6 @@
 """Sample-group metadata — shared labels for every comparison figure and table.
 
-The loader ships in Phase 1; the comparison modules that consume it arrive in Phase 2, so
-ROADMAP M1.11 stays open until a real comparison table uses a group label.
+The comparison modules that compare groups read it, and every input of a run carries its label.
 """
 
 from __future__ import annotations

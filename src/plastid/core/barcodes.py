@@ -1,4 +1,4 @@
-"""Hypervariable-region calling over a π window series (P4-04, M4.3).
+"""Hypervariable-region calling over a π window series.
 
 The series itself is not computed here — it is :func:`plastid.core.align.window_diversity`, the
 same function :mod:`plastid.modules.diversity` reports, called with the same window and step. This

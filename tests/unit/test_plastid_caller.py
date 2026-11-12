@@ -130,6 +130,48 @@ def test_a_name_with_a_space_gets_a_header_a_blast_hit_can_come_back_as() -> Non
     assert " " not in entry.key
 
 
+def test_the_index_returns_the_entry_a_scan_of_the_entries_finds_first() -> None:
+    """The lookups answer what a scan of ``entries`` in order answers — duplicates included.
+
+    One key can stand for several sequences (two lengths, or two sequences of one length), and a
+    key or length the set does not hold has no entry. The index is a speed-up of the scan, so
+    it is checked against the scan itself rather than against a hand-picked answer.
+    """
+
+    def entry(accession: str, gene: str, sequence: str) -> ReferenceEntry:
+        return ReferenceEntry(
+            accession=accession,
+            organism="Testus testus",
+            source_gene=gene,
+            vocabulary=gene,
+            sequence=sequence,
+        )
+
+    entries = [
+        entry("NC_000002.1", "atp6", "M" * 385),
+        entry("NC_000002.1", "atp6", "M" * 349),
+        entry("NC_000002.1", "atp6", "A" * 349),  # same key and length, another sequence
+        entry("NC_000001.1", "cox2", "M" * 257),
+        entry("NC_000001.1", "cox2", "M" * 390),
+    ]
+    index = ReferenceIndex.from_entries(entries, vocabulary=["atp6", "cox2"])
+    keys = {item.key for item in entries} | {"NC_000003.1|nad1|nad1"}
+    for key in sorted(keys):
+        scanned = next((item for item in index.entries if item.key == key), None)
+        assert index.entry_for(key) is scanned
+        for length in (257, 349, 385, 390, 1):
+            scanned_at = next(
+                (
+                    item
+                    for item in index.entries
+                    if item.key == key and len(item.sequence) == length
+                ),
+                None,
+            )
+            assert index.entry_at(key, length) is scanned_at
+    assert index.entry_at("NC_000002.1|atp6|atp6", 349).sequence == "M" * 349
+
+
 # ---------------------------------------------------------------- one codon before the alignment
 
 

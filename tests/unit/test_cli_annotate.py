@@ -475,7 +475,7 @@ def test_the_run_records_the_artifact_and_the_reference_set_it_searched(
     a named reference set whose record count and digest are recorded — not inferred from the
     module's parameters or the directory's shape.
     """
-    from plastid.run.contract import sha256_file
+    from plastid.core.digest import sha256_file
 
     _stub(monkeypatch)
     sample = _write(tmp_path, "sample.fa", ">SYN.1\nACGTACGTACGTACGTACGT\n")

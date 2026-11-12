@@ -460,3 +460,10 @@ def test_the_tool_table_covers_every_tool_that_can_be_run() -> None:
             rf"^\| `{re.escape(check.name)}` \|[^|]*\|[^|]*\| ([^|]+) \|", table, re.M
         )
         assert pinned is not None and check.pinned in pinned.group(1), check.name
+
+
+def test_every_subcommand_has_a_handler_and_every_handler_a_subcommand() -> None:
+    """The dispatch table and the parser name the same commands, so none is parsed and dropped."""
+    from plastid.cli import _COMMANDS, _subcommands
+
+    assert set(_COMMANDS) == set(_subcommands(build_parser()))

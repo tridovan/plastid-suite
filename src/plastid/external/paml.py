@@ -1,4 +1,4 @@
-"""PAML's ``yn00`` — pairwise Ka/Ks by the Yang & Nielsen (2000) method (P4-02, decision D4-01).
+"""PAML's ``yn00`` — pairwise Ka/Ks by the Yang & Nielsen (2000) method.
 
 ``yn00`` is not a command-line tool in the usual sense: it takes **no arguments**, reads
 ``yn00.ctl`` from the working directory, and writes its answer into files whose names come from
@@ -6,7 +6,7 @@ that ctl. So the adapter's provenance is the ctl plus the input file, and both a
 run in a throwaway directory — the same pattern as MAFFT's adapter, for the same reason: a tool
 that reads its parameters from a file leaves no argv for the manifest otherwise.
 
-Three measured facts shape this module (2026-10-04, PAML 4.10.10):
+Three measured facts shape this module (PAML 4.10.10):
 
 * **the version is not a flag.** ``yn00 --version`` is not a thing; run with no ctl it prints
   ``YN00 in paml version 4.10.10, 29 Jan 2026`` on stdout and exits 1. That is the probe, and a
@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from plastid.run.context import RunContext
-from plastid.run.tools import ToolError, which
+from plastid.run.tools import ToolError, find_executable, probe_output
 
 __all__ = [
     "PAML_VERSION",
@@ -92,36 +92,26 @@ class Yn00Result:
 
 def resolve_binary(*, directory: str | Path | None = None) -> str:
     """Find ``yn00``: a given directory, then ``PATH``."""
-    if directory is not None:
-        candidate = Path(directory) / "yn00"
-        if not candidate.is_file():
-            raise ToolError(f"yn00 not found in {directory} — see docs/tools/paml.md")
-        return str(candidate)
-    found = which("yn00")
-    if found is None:
-        raise ToolError(
+    return find_executable(
+        "yn00",
+        ("yn00",),
+        directory=directory,
+        doc="docs/tools/paml.md",
+        missing=(
             f"yn00 not found — install the pinned PAML {PAML_VERSION}, or point the run at one "
             f"with --set paml=<directory>. See docs/tools/paml.md."
-        )
-    return found
+        ),
+    )
 
 
 def yn00_version(binary: str) -> str:
     """The PAML release this binary is, read from its no-ctl banner and checked against the pin."""
-    import subprocess
-
-    with tempfile.TemporaryDirectory(prefix="yn00_version_") as work:
-        try:
-            result = subprocess.run(
-                [binary], capture_output=True, text=True, timeout=30, check=False, cwd=work
-            )
-        except OSError as error:
-            raise ToolError(f"yn00: cannot run {binary}: {error}") from error
-    match = _BANNER.search(result.stdout or "")
+    stdout, _ = probe_output([binary], label="yn00", timeout=30)
+    match = _BANNER.search(stdout)
     if match is None:
         raise ToolError(
             f"{binary}: cannot read a version from its banner — a step whose version nobody can "
-            f"name is not part of the toolkit. Output was: {(result.stdout or '')[:200]!r}"
+            f"name is not part of the toolkit. Output was: {stdout[:200]!r}"
         )
     version = match.group(1)
     if version != PAML_VERSION:
@@ -264,7 +254,7 @@ def parse_yn00_output(text: str) -> Yn00Result:
 
 
 def _codons_from(text: str) -> int | None:
-    """``ls`` from yn00's own header — measured 04/10/2026: it counts **codons**, not bases
+    """``ls`` from yn00's own header — measured: it counts **codons**, not bases
     (the golden *rbcL* pair, 1,458 aligned bases, prints ``ls = 486``)."""
     match = re.search(r"^ns =\s*\d+\s+ls =\s*(\d+)", text, re.MULTILINE)
     return int(match.group(1)) if match else None

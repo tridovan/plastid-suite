@@ -5,16 +5,21 @@ UV ?= uv
 env:
 	$(UV) sync
 
+# `-n auto`: one pytest-xdist worker per core. Every test writes under its own tmp_path, binds port
+# 0 and changes directory through monkeypatch, so the workers share nothing; the passed and skipped
+# counts are the serial run's.
 test:
-	$(UV) run pytest -q -m "not tier_b and not panel"
+	$(UV) run pytest -q -n auto -m "not tier_b and not panel"
 
 # The golden numbers on the golden pair and the pinned-tool checks — the set CI runs on every push.
 golden:
-	$(UV) run pytest -q tests/golden -rs -m "not panel" --durations=25
+	$(UV) run pytest -q -n auto tests/golden -rs -m "not panel" --durations=25
 
 # Every test that reads `.panel/` — 80 RefSeq plastomes in 10 families, 30 PGA re-annotations,
 # rotated FASTA, the pinned reference sets, the assembly read sets. `.panel/` is gitignored, so CI never runs this tier;
 # run it when closing a milestone. A skip is not acceptance, so a missing panel or tool fails here.
+# Serial on purpose: an assembly test holds several GB while GetOrganelle or Oatk runs, and two at
+# once do not fit an 8 GB machine.
 acceptance:
 	@test -d .panel || { echo "make acceptance: .panel/ is not in this tree"; exit 1; }
 	PTS_REQUIRE_TOOLS=1 PTS_REQUIRE_PANEL=1 $(UV) run pytest -q -rs -m panel --durations=25

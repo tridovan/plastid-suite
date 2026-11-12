@@ -1,6 +1,6 @@
 """Canonical origin and the four-region split.
 
-Decision 2026-10-02: per-genome tables keep **GenBank
+Per-genome tables keep **GenBank
 coordinates**; cross-genome comparisons use the **normalized frame**; every table states
 which frame it uses, and the rotation offset is recorded in the run info.
 
@@ -117,7 +117,7 @@ def normalize(genome: Genome, ir: IRResult) -> NormalizedFrame:
     # ending at the origin — reorder so the names match the region labels.
     first, second = sorted((shifted_ira[0], shifted_irb[0]), key=lambda iv: iv.start)
     # `mirror_constant` is provenance for mapping a position between copies. That mapping is
-    # defined only for equal copies; unequal copies need the alignment-based mapping of M11.11.
+    # defined only for equal copies; unequal copies need the alignment-based mapping.
     # Normalization itself (origin, regions, sequence) does not need the constant, so it records 0
     # rather than refusing a record the audit must still be able to describe.
     constant = (
@@ -133,7 +133,7 @@ def normalize(genome: Genome, ir: IRResult) -> NormalizedFrame:
         frame_offset=0,
         # The alignment's cursor tables describe the frame it was measured in; this frame moved
         # both copies. A consumer that needs the mapping must rebuild it from the frame it uses,
-        # not read a stale one (M11.11).
+        # not read a stale one.
         mapping=None,
     )
     shifted_repeat_regions = tuple(
@@ -167,7 +167,7 @@ def rotate_genes(genes: Sequence[Gene], shift: int, length: int) -> tuple[Gene, 
 
     Public because a module can hold genes without holding the genome that carries them: the
     annotator receives its calls as :class:`Gene` objects and must move them into the IR's frame
-    before mapping a copy (M11.11), then move the result back. One implementation, so the two
+    before mapping a copy, then move the result back. One implementation, so the two
     directions cannot disagree about transcript order or partial flags.
     """
     shift %= length
@@ -192,7 +192,7 @@ def _shift_region(region: RepeatRegion, delta: int, length: int) -> RepeatRegion
 
     The parts are shifted independently (a part may itself cross the new origin and split), but
     they are collected back into one :class:`RepeatRegion`; flattening them would turn one copy
-    into several candidates again (M11.3). Order is not semantic for a repeat_region — an
+    into several candidates again. Order is not semantic for a repeat_region — an
     intergenic region has no transcript — so the parts are left in the order they came out.
     """
     return RepeatRegion(

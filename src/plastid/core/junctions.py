@@ -10,13 +10,13 @@ move every one of them.
 inverted repeat, well enough to analyse positions?" — and the IR gate is the guard that acts on the
 answer. This module answers a different question: "where does the record *say* the four regions
 are?" It reads the record's own ``repeat_region`` annotation as written. The two answers can
-disagree, and when they do the disagreement is reported rather than resolved here (H-25).
+disagree, and when they do the disagreement is reported rather than resolved here.
 
 **A copy that wraps the origin.** A ``repeat_region`` spanning position 1 is written in GenBank as a
 ``join()``, and the reader hands its pieces over one by one — so one copy can arrive as two
 intervals: the main run, plus a piece at the start of the record. Both belong to that copy. Dropping
 the small piece shortens the copy, and a copy one base short is a copy whose bases no longer pair
-with the other's: measured 17/10/2026 on Chasmanthe NC_072562, dropping a 1 bp piece turned an
+with the other's: measured on Chasmanthe NC_072562, dropping a 1 bp piece turned an
 identity of 1.0000 into 0.2924. So the piece is kept, and the region is reported as wrapping.
 """
 
@@ -121,7 +121,7 @@ def junction_regions(genome: Genome) -> JunctionRegions:
     """Cut one record into LSC/IRb/SSC/IRa from its own ``repeat_region`` annotation.
 
     Each ``repeat_region`` feature is one copy, read whole: a copy the record writes as
-    ``join(m..L,1..k)`` is one circular arc, not two candidates (M11.3, K-03). The two copies are
+    ``join(m..L,1..k)`` is one circular arc, not two candidates (K-03). The two copies are
     told apart by geometry, not by qualifier text: the larger of the two gaps between them is the
     LSC, and the copy that follows the LSC is IRb.
     """

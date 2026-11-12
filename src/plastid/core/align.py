@@ -1,4 +1,4 @@
-"""Multiple-alignment maths — pure functions over an alignment, no I/O (P2-07, P2-08).
+"""Multiple-alignment maths — pure functions over an alignment, no I/O.
 
 An alignment is a set of equal-length rows (gaps as ``-``) produced by an external aligner
 through the tool door. Everything here is deterministic and offline, so a manuscript number can
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 __all__ = [
     "SUBSTITUTION_TYPES",
@@ -36,7 +36,7 @@ _DNA = frozenset("ACGT")
 # The twelve **directed** changes, named ``<from>_to_<to>``. They are the primitive fact a
 # comparison of two rows produces; ``transitions`` and ``transversions`` are sums over them, and
 # the six *complementary* pairs a manuscript draws (A↔G, C↔T, A↔C, T↔G, C↔G, A↔T) are sums of two
-# directed ones each. Measured 17/10/2026: only the two aggregates existed, so the paper's Figure 7
+# directed ones each. Measured: only the two aggregates existed, so the paper's Figure 7
 # — substitution type × species — had no source in this toolkit at all.
 SUBSTITUTION_TYPES: tuple[str, ...] = (
     "A_to_G",
@@ -71,6 +71,20 @@ class Alignment:
 
     names: tuple[str, ...]
     sequences: tuple[str, ...]
+    # Read from ``sequences`` on first use and kept, because the rows never change: the columns as
+    # strings, each column's π term, the columns complete deletion keeps, and per row the column
+    # of each of its bases. A per-gene or per-window question then reads these instead of walking
+    # every column of a whole-plastome alignment again; the values are the ones the walk computed.
+    _columns: tuple[str, ...] | None = field(default=None, init=False, repr=False, compare=False)
+    _site_terms: tuple[float | None, ...] | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+    _usable_indices: tuple[int, ...] | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+    _base_columns: dict[int, tuple[int, ...]] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
 
     def __post_init__(self) -> None:
         if len(self.names) != len(self.sequences):
@@ -86,7 +100,7 @@ class Alignment:
             raise ValueError("alignment is empty")
         # Fail loud rather than count nothing: a column is classified by ``_DNA``, so a lowercase
         # row would have *every* column skipped and report zero comparable columns instead of an
-        # error. Measured 03/10/2026 — MAFFT 7.526 prints lowercase, and the adapters are the
+        # error. Measured: MAFFT 7.526 prints lowercase, and the adapters are the
         # boundary that upper-cases it (external/mafft.py).
         if any(character.islower() for sequence in self.sequences for character in sequence):
             raise ValueError(
@@ -103,7 +117,47 @@ class Alignment:
         return len(self.sequences[0])
 
     def column(self, index: int) -> str:
-        return "".join(sequence[index] for sequence in self.sequences)
+        return self._column_strings()[index]
+
+    def _column_strings(self) -> tuple[str, ...]:
+        if self._columns is None:
+            columns = tuple("".join(bases) for bases in zip(*self.sequences, strict=True))
+            object.__setattr__(self, "_columns", columns)
+        return self._columns
+
+    def _terms(self) -> tuple[float | None, ...]:
+        """Each column's π term, ``None`` where complete deletion drops it; needs two rows."""
+        if self._site_terms is None:
+            n = self.n_rows
+            terms: list[float | None] = []
+            for column in self._column_strings():
+                if not _usable(column):
+                    terms.append(None)
+                elif column.count(column[0]) == n:
+                    # One base in every row: Σp² is exactly 1, so the term is exactly 0.0.
+                    terms.append(0.0)
+                else:
+                    counts = Counter(column)
+                    homozygosity = sum((count / n) ** 2 for count in counts.values())
+                    terms.append(n / (n - 1) * (1 - homozygosity))
+            object.__setattr__(self, "_site_terms", tuple(terms))
+        return self._site_terms
+
+    def _usable_columns(self) -> tuple[int, ...]:
+        if self._usable_indices is None:
+            usable = tuple(
+                index for index, column in enumerate(self._column_strings()) if _usable(column)
+            )
+            object.__setattr__(self, "_usable_indices", usable)
+        return self._usable_indices
+
+    def _columns_of_bases(self, row: int) -> tuple[int, ...]:
+        """For one row, the alignment column of each of its own bases, in order (gaps skipped)."""
+        if row not in self._base_columns:
+            self._base_columns[row] = tuple(
+                index for index, base in enumerate(self.sequences[row]) if base != "-"
+            )
+        return self._base_columns[row]
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,11 +178,11 @@ def _usable(column: str) -> bool:
 def usable_columns(alignment: Alignment) -> tuple[int, ...]:
     """The columns complete deletion keeps: every row carries an unambiguous base.
 
-    Public because the population-genetic estimators (P4-03) need the same column set as π —
+    Public because the population-genetic estimators need the same column set as π —
     a statistic computed over a different set of columns than the one beside it is a table
     nobody can reconcile.
     """
-    return tuple(index for index in range(alignment.length) if _usable(alignment.column(index)))
+    return alignment._usable_columns()
 
 
 def nucleotide_diversity(alignment: Alignment, columns: Iterable[int]) -> tuple[float | None, int]:
@@ -137,16 +191,15 @@ def nucleotide_diversity(alignment: Alignment, columns: Iterable[int]) -> tuple[
     ``π = mean over sites of (n/(n−1)) · (1 − Σ p²)``, the Nei & Li (1979) estimator, with
     ``p`` the base frequencies at that site. Gapped columns are dropped, not scored.
     """
-    indices = list(columns)
-    usable = [index for index in indices if _usable(alignment.column(index))]
-    if not usable or alignment.n_rows < 2:
+    if alignment.n_rows < 2:
         return None, 0
-    n = alignment.n_rows
+    terms = alignment._terms()
+    usable = [term for term in (terms[index] for index in columns) if term is not None]
+    if not usable:
+        return None, 0
     total = 0.0
-    for index in usable:
-        counts = Counter(alignment.column(index))
-        homozygosity = sum((count / n) ** 2 for count in counts.values())
-        total += n / (n - 1) * (1 - homozygosity)
+    for term in usable:
+        total += term
     return total / len(usable), len(usable)
 
 
@@ -182,15 +235,7 @@ def columns_for_span(alignment: Alignment, row: int, span: Sequence[int]) -> tup
     start, end = int(span[0]), int(span[1])
     if start < 0 or end < start:
         raise ValueError(f"bad span {span!r}")
-    columns: list[int] = []
-    position = 0
-    for index, base in enumerate(alignment.sequences[row]):
-        if base == "-":
-            continue
-        if start <= position < end:
-            columns.append(index)
-        position += 1
-    return tuple(columns)
+    return alignment._columns_of_bases(row)[start:end]
 
 
 def reference_positions(alignment: Alignment, row: int = 0) -> tuple[int | None, ...]:
@@ -227,7 +272,7 @@ def codon_frame_breaks(alignment: Alignment) -> tuple[str, ...]:
 
     A codon model (PAML's ``yn00``) reads every row three bases at a time and has no idea what a
     gap means: a gap that is not a whole codon, or that starts mid-codon, silently shifts the
-    frame of that row and every codon after it is read wrong. Measured 04/10/2026 on a synthetic
+    frame of that row and every codon after it is read wrong. Measured on a synthetic
     pair: a one-base gap made yn00 report a spurious stop codon and exit 255 — a lucky frame, not
     a check. So the check is ours, and it names the row and the position rather than a verdict.
     """

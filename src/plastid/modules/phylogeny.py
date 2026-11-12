@@ -1,4 +1,4 @@
-"""Phylogeny — per-gene alignment, concatenated supermatrix, maximum-likelihood tree (M11.21).
+"""Phylogeny — per-gene alignment, concatenated supermatrix, maximum-likelihood tree.
 
 **The route is CGAS's, named rather than implied.** `cgas_module14.py` aligns each protein-coding
 gene with MAFFT, concatenates the alignments into one matrix, and infers a tree with IQ-TREE
@@ -68,6 +68,7 @@ from pathlib import Path
 from typing import Any
 
 from plastid.core.align import Alignment
+from plastid.core.genbank import fasta_text
 from plastid.core.gene_names import aliases_for, cds_by_canonical_name, normalize_name
 from plastid.core.ir import IRGateError, detect_ir, enforce_ir_gate
 from plastid.core.model import Genome, Interval, coding_sequence
@@ -82,7 +83,7 @@ from plastid.run.context import RunContext
 from plastid.run.params import ParamValueError
 
 MODULE_ID = "phylogeny"
-# 0.6.0 (29/10/2026): `matrix=all` — the complete matrix CGAS module 14 recommends, one tree from
+# 0.6.0: `matrix=all` — the complete matrix CGAS module 14 recommends, one tree from
 # CDS + intron + intergenic-spacer blocks. 0.5.0 added `macse_timeout` (the 34-genome measurement
 # found one gene over the old fixed 600 s). 0.4.0 added `matrix=cds|introns|igs`; the default is
 # the CDS supermatrix and every earlier number is unchanged.
@@ -93,7 +94,7 @@ DEFAULT_SEED = 1
 PARTITION_MODES = ("none", "gene", "codon")
 MATRIX_MODES = ("cds", "introns", "igs", "all")
 DEFAULT_MATRIX = "cds"
-# Seconds allowed for one MACSE call. Measured 28/10/2026 on 34 genomes: 62 genes finished at
+# Seconds allowed for one MACSE call. Measured on 34 genomes: 62 genes finished at
 # ~63 s each, then one gene exceeded 600 s and the run failed — the default is enough for a panel
 # of four, not for a full family, so it is a parameter and the failure names the value.
 MACSE_TIMEOUT = 600
@@ -318,7 +319,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     # The matrix is written to a throwaway path for the tool to read; the *artifact* carries the
     # text, so the module never names a path in the run directory (seam 2: only write_payload
     # writes). `supermatrix.fasta` in the run directory is that artifact, not a side effect.
-    matrix_text = _to_fasta(matrix)
+    matrix_text = fasta_text(zip(matrix.names, matrix.sequences, strict=True))
     with tempfile.TemporaryDirectory(prefix="phylo_matrix_") as work:
         path = Path(work) / "supermatrix.fasta"
         path.write_text(matrix_text, encoding="utf-8")
@@ -499,7 +500,7 @@ def _span_loci(
     label = genome.accession or genome.name
     matrix_label = "all" if len(modes) == 2 else modes[0]
     try:
-        ir = enforce_ir_gate(detect_ir(genome, source=source))
+        ir = enforce_ir_gate(detect_ir(genome, source=source, cross_check=False))
     except IRGateError as error:
         raise IRGateError(
             f"phylogeny: matrix={matrix_label} needs an IR on {label}: {error}"
@@ -609,11 +610,3 @@ def _flag(value: object) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _to_fasta(alignment: Alignment, width: int = 60) -> str:
-    lines: list[str] = []
-    for name, sequence in zip(alignment.names, alignment.sequences, strict=True):
-        lines.append(f">{name}")
-        lines.extend(sequence[i : i + width] for i in range(0, len(sequence), width))
-    return "\n".join(lines) + "\n"

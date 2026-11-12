@@ -1,10 +1,10 @@
-"""Ka/Ks selection pressure — pairwise dN/dS per shared CDS (P4-02, M4.1; decision D4-01).
+"""Ka/Ks selection pressure — pairwise dN/dS per shared CDS.
 
 The estimator is PAML's **yn00**, the Yang & Nielsen (2000) method, run on a **codon alignment**
 of each gene: MAFFT aligns the two CDS as nucleotides, the terminal stop codon is trimmed (yn00's
 poison), and the alignment must be codon-aligned before yn00 ever sees it — yn00 reads three
 bases at a time and does not check the frame, so a one-base gap is scored as if it were real
-(measured 04/10/2026; ``core.align.codon_frame_breaks``).
+(measured; ``core.align.codon_frame_breaks``).
 
 Every gene gets a row, including the ones that could not be scored: a gene one genome does not
 carry, a gene whose annotation is not whole codons, an alignment that breaks the frame, a run
@@ -13,7 +13,7 @@ unstated subset — which is the failure this project exists to avoid. ``Ks = 0`
 the ratio is undefined there, never zero and never one.
 
 This module deliberately does **not** require the IR gate: it is gene-based, not position-based,
-and the mito half of Phase 4 (D4-05) has no inverted repeat to gate on.
+and the mito half of Phase 4 has no inverted repeat to gate on.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ from plastid.run.context import RunContext
 from plastid.run.tools import ToolError
 
 MODULE_ID = "kaks"
-MODULE_VERSION = "0.4.0"  # 0.4.0: yn00 icode/weighting are parameters (M11.20)
+MODULE_VERSION = "0.4.0"  # 0.4.0: yn00 icode/weighting are parameters
 
 ESTIMATOR = "Yang & Nielsen 2000 (yn00)"
 STOPS = ("TAA", "TAG", "TGA")
@@ -108,7 +108,7 @@ def run(genomes: Sequence[Genome], params: dict[str, Any], ctx: RunContext) -> R
     }
     names = sorted(set(reference_genes) | {name for genes in per_genome.values() for name in genes})
     # "Shared" means carried by the reference AND by the genome it is compared with — not "carried
-    # by the reference". Measured 04/10/2026 on the mito sketch: the reference carries 27 named
+    # by the reference". Measured on the mito sketch: the reference carries 27 named
     # CDS and the query 23, and labelling the reference's own count "shared with every genome"
     # put a wrong claim on the summary row. The true intersection is computed per genome, and the
     # summary counts the stricter set — genes no annotated genome is missing.

@@ -1,4 +1,4 @@
-"""Synteny and % identity along the reference — the mVISTA-style comparison (P4-01, M4.2).
+"""Synteny and % identity along the reference — the mVISTA-style comparison.
 
 Two products, one alignment: a **block table** (one row per alignment, with the tool's own
 ``%IDY``) and an **% identity series** along the reference, windowed. The series is computed from

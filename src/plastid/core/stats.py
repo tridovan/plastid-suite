@@ -1,8 +1,8 @@
 """Statistics that name their test, state their n, and refuse when the data cannot support them.
 
-Decision D5-02: the tests are scipy's, not hand-written. Writing Mann–Whitney's tie correction by
+The tests are scipy's, not hand-written. Writing Mann–Whitney's tie correction by
 hand is exactly how a plausible wrong p-value gets into a table, and the reason ``popgen`` was
-hand-written (D4-03) was that its *alternatives* were a Windows GUI and a VCF-only CLI — a reason
+hand-written was that its *alternatives* were a Windows GUI and a VCF-only CLI — a reason
 that does not carry here. What is ours is the discipline around it:
 
 * every result carries the **test's name**, the **n** it used and the **assumption** it rests on;
@@ -107,7 +107,7 @@ def _is_finite(*values: float) -> bool:
 def _no_answer(test: str, assumption: str, n: tuple[int, ...]) -> TestResult:
     """What scipy's ``nan`` becomes: a row that says so, never a number.
 
-    Measured 10/10/2026 (P8-05): ``kruskal`` answers ``nan`` for both statistic and p when every
+    Measured: ``kruskal`` answers ``nan`` for both statistic and p when every
     observation is identical (it warns, and a warning nobody reads is the failure mode this
     project keeps meeting), and scipy **1.18** silently changed ``mannwhitneyu`` on the same data
     from ``p=1.0`` to ``p=nan`` while the 1.17 build still says 1.0. Left alone, the nan reached

@@ -39,7 +39,7 @@ def test_the_pinned_build_is_the_one_the_table_was_written_for(
 ) -> None:
     """The banner MAFFT prints is `v7.526 (2024/Apr/26)`; the pin is the `7.526` in it."""
     require_tools(tools, "mafft")
-    from plastid.external.mafft import tool_version
+    from plastid.run.tools import tool_version
 
     banner, _source = tool_version("mafft", "binary", tools["mafft"])
     assert banner is not None and MAFFT_VERSION in banner, banner

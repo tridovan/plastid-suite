@@ -11,7 +11,7 @@ Two things about that shape are load-bearing and neither is obvious from the scr
 * ``Amino_Acid`` is the **full** name (``Alanine``), which the script maps to a three-letter code
   for the facet labels.
 
-The script draws **every** species column in its input (M11.7), so a wider table — one column per
+The script draws **every** species column in its input, so a wider table — one column per
 sample — is a valid figure with no list to intersect; `plastid figures` supplies the one genome a
 run holds until the batch path does the joining.
 

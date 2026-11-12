@@ -1,6 +1,6 @@
 """MISA adapter — the external MISA 2.1 (docs/tools/misa.md).
 
-**MISA is not bundled** (D-q, 11/10/2026): its source zip states no licence, and shipping the
+**MISA is not bundled**: its source zip states no licence, and shipping the
 script in a wheel is the one act a missing licence forbids. It is obtained instead — download
 line and both hashes in ``docs/tools/misa.md`` — and found on ``PATH`` or passed as
 ``--set misa=/path/to/misa.pl``. The release is **checked, not assumed**: MISA has no version
@@ -8,7 +8,7 @@ flag, so it is read out of the script's own header and anything but the pinned 2
 
 The ``misa.ini`` it runs with **is** the toolkit's own file (``data/misa.ini``): MISA's default
 unit/repeat definitions written down rather than copied, because the project uses MISA's defaults
-and nothing else — re-measured 10/10/2026, the defaults are what reproduces the published table.
+and nothing else — re-measured: the defaults are what reproduces the published table.
 
 MISA writes its outputs next to its input, so every invocation runs in an isolated
 temporary directory.
@@ -26,6 +26,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from plastid.core.genbank import fasta_text
 from plastid.core.model import Genome
 from plastid.core.resources import data_file
 from plastid.run.context import RunContext
@@ -90,7 +91,7 @@ class MisaResult:
     compound: int
     features: tuple[SsrFeature, ...]
     # The thresholds this run actually used, read back from the ini MISA was handed. Reported
-    # rather than assumed, so a user-supplied value and the summary cannot disagree (M11.20).
+    # rather than assumed, so a user-supplied value and the summary cannot disagree.
     unit_repeats: dict[int, int]
 
 
@@ -175,7 +176,7 @@ def misa_ini_text(unit_repeats: Mapping[int, int] | None = None) -> str:
 def misa_script(explicit: str | Path | None = None) -> Path:
     """The ``misa.pl`` to run: an explicit path, else ``misa.pl`` on ``PATH``.
 
-    MISA ships with no licence, so the toolkit does not redistribute it (D-q). The message names
+    MISA ships with no licence, so the toolkit does not redistribute it. The message names
     the one thing that helps — the download line in the docs — instead of reporting a missing
     file the user cannot act on.
     """
@@ -229,7 +230,7 @@ def run_misa(
 ) -> MisaResult:
     """Run MISA on one genome; returns counts and per-SSR positions.
 
-    ``unit_repeats`` replaces the shipped ``misa.ini``'s definition line (M11.20); ``None`` uses
+    ``unit_repeats`` replaces the shipped ``misa.ini``'s definition line; ``None`` uses
     the shipped defaults. The ini written for this run is the only source of the thresholds the
     result reports, so a value the module accepted cannot be dropped between here and MISA.
     """
@@ -250,7 +251,9 @@ def run_misa(
         shutil.copy(script_path, workdir / _SCRIPT_NAME)
         (workdir / "misa.ini").write_text(misa_ini_text(chosen), encoding="utf-8")
         fasta = workdir / "input.fasta"
-        fasta.write_text(_to_fasta(genome), encoding="utf-8")
+        fasta.write_text(
+            fasta_text([(genome.accession or genome.name, genome.sequence)]), encoding="utf-8"
+        )
 
         ctx.tool(
             "misa",
@@ -277,13 +280,6 @@ def run_misa(
         )
 
 
-def _to_fasta(genome: Genome, width: int = 60) -> str:
-    header = genome.accession or genome.name
-    sequence = genome.sequence
-    body = "\n".join(sequence[i : i + width] for i in range(0, len(sequence), width))
-    return f">{header}\n{body}\n"
-
-
 def _parse_statistics(text: str) -> tuple[int, dict[int, int], int]:
     total = _int_after(text, "Total number of identified SSRs:")
     compound = _int_after(text, "Number of SSRs present in compound formation:")
@@ -302,7 +298,7 @@ def _parse_gff(text: str) -> tuple[SsrFeature, ...]:
     ``microsatellite``, with the class only inside the Note; a compound cluster is one
     ``repeat_region`` line whose Note lists all of its components. Reading the type column
     alone therefore drops **every** di/tri/… SSR and one component of every cluster — measured
-    2026-10-03 on the golden genome: only 30 of the 37 SSRs survived, silently (found by P2-06's
+    on the golden genome: only 30 of the 37 SSRs survived, silently (found by the
     reconciliation against MISA's own statistics).
     """
     features: list[SsrFeature] = []
@@ -316,7 +312,7 @@ def _parse_gff(text: str) -> tuple[SsrFeature, ...]:
         # MISA marks a compound cluster **two** ways, and one file can carry both: a
         # ``repeat_region`` line listing the cluster's components, or one line per component
         # prefixed ``compound_repeat``. Reading only the first marked every row of the second
-        # kind "no" — measured 10/10/2026 (P8B-01): 0 of PX413282's 16 components flagged while
+        # kind "no" — measured: 0 of PX413282's 16 components flagged while
         # MISA's own statistics said 8, and the golden's table flagged 2 of its 6.
         compound = len(components) > 1 or "compound_repeat" in fields[8]
         start, end = int(fields[3]), int(fields[4])
@@ -366,6 +362,6 @@ def threshold_text(path: str | Path | None = None) -> str:
 
     The summary used to carry this string hardcoded beside a run that reads the same values from
     the ini; the two could drift. Reading the file makes the reported thresholds the ones MISA
-    actually used (M11.17). ``path`` exists for tests and for a caller that supplies the ini.
+    actually used. ``path`` exists for tests and for a caller that supplies the ini.
     """
     return format_thresholds(unit_repeats_from_ini(path))

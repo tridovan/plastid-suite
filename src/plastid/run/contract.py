@@ -21,6 +21,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from plastid.core.digest import sha256_file
 from plastid.core.genbank import read_genbank
 from plastid.core.plastid_reference import excluded_by, exclusion_names, record_files
 
@@ -31,7 +32,6 @@ __all__ = [
     "describe_artifact",
     "describe_external_result",
     "describe_reference_set",
-    "sha256_file",
     "validate_artifact",
     "validate_external_result",
 ]
@@ -46,14 +46,6 @@ ARTIFACT_STATUSES = ("ok", "cached")
 
 class ContractError(Exception):
     """An artifact or reference set cannot be described as the contract requires."""
-
-
-def sha256_file(path: str | Path) -> str:
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for block in iter(lambda: handle.read(1 << 20), b""):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def _own_accession(record: Path) -> str | None:
@@ -80,7 +72,7 @@ def describe_reference_set(
 
     ``exclude`` are the names the run was told to drop (``--exclude``: a file's stem or its whole
     name, a value possibly holding several separated by commas) and ``leave_out`` is the target's
-    own accession, which the annotator never searches (leave-one-out, D5-08). Both are
+    own accession, which the annotator never searches (leave-one-out). Both are
     recorded so the digest names the set that was used, not every file that happened to sit in
     the directory. A path alone cannot say whether the set changed; raises
     :class:`ContractError` when nothing is left to search rather than writing an empty contract a
@@ -208,7 +200,7 @@ def describe_external_result(
 
     A result that does not exist yet is ``status="no_result"`` with ``count=None`` — never 0,
     which reads as "measured, and nothing was found". A measured zero is ``status="ok"`` with
-    ``count=0``, and the two are different states everywhere this contract is used (M11.16).
+    ``count=0``, and the two are different states everywhere this contract is used.
     """
     input_file, raw_file = Path(input_path), Path(raw_path)
     if not input_file.is_file():

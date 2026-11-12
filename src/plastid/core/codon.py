@@ -1,6 +1,6 @@
 """The genetic code and codon-usage measures — pure functions, no I/O.
 
-Compiled table: **NCBI table 1 (standard)** — decision D2-03. Plastid CDS declare **table 11**,
+Compiled table: **NCBI table 1 (standard)**. Plastid CDS declare **table 11**,
 whose amino-acid assignments are identical (the two tables differ only in initiation codons), so
 one code table answers both — and :func:`translate` renders every codon, the initiator included,
 as its own amino acid. Measured on the golden genome: 5 of its 86 CDS start with GTG/ACG/ATC,
@@ -65,14 +65,14 @@ SINGLE_CODON_AMINO = frozenset(
 )
 
 
-# What a report's "translation table" column says the toolkit used (D2-03). It is not the whole
+# What a report's "translation table" column says the toolkit used. It is not the whole
 # truth about a record: plastid CDS declare table 11 — same amino acids, different initiators —
 # which is why the column is built by translation_table_label() and not by this constant alone.
 TABLE_LABEL = "NCBI table 1 (standard)"
 
 
 def translation_table_label(genes: Iterable[Gene]) -> str:
-    """``TABLE_LABEL`` plus the table(s) the record's own CDS declare (D3-03).
+    """``TABLE_LABEL`` plus the table(s) the record's own CDS declare.
 
     A module that compiles one code table still has to name the record's, or the column reads as
     if the two were the same table. A record whose CDS declare nothing (silence is not a value)
@@ -160,7 +160,7 @@ def rscu(counts: Mapping[str, int]) -> dict[str, float]:
     """Relative synonymous codon usage: observed / expected-if-uniform within the family.
 
     ``sum(rscu[codon] for codon in family) == family size`` for every amino acid — the check
-    P2-03 asserts. A family with no observations yields ``0.0`` for all of its codons.
+    the tests assert. A family with no observations yields ``0.0`` for all of its codons.
     """
     values: dict[str, float] = {}
     for members in SENSE_FAMILIES.values():

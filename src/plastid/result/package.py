@@ -3,7 +3,7 @@
 Both are zip packages whose entries carry the wall-clock time, so the same content written twice
 would differ. Rebuilding the archive here — entries sorted, timestamps fixed, attributes pinned —
 is what makes "regenerating the document produces an identical file" true rather than aspirational.
-The policy is the one the Word export measured first (Phase 2, M2.2); the Excel export is its
+The policy is the one the Word export measured first (Phase 2); the Excel export is its
 second real user, which is when it becomes a function instead of a private helper.
 """
 

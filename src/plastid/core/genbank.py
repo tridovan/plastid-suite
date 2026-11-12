@@ -6,6 +6,7 @@ handles ``join()``, ``complement()``, trans-splicing, and partial positions.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
@@ -24,9 +25,38 @@ from Bio.SeqRecord import SeqRecord
 
 from plastid.core.model import Gene, Genome, Interval, RepeatRegion, gene_qualifiers
 
-__all__ = ["read_fasta", "read_genbank", "read_genbank_records", "read_record", "to_genbank"]
+__all__ = [
+    "fasta_text",
+    "read_fasta",
+    "read_fasta_text",
+    "read_genbank",
+    "read_genbank_records",
+    "read_record",
+    "to_genbank",
+]
 
 _GENE_FEATURE_TYPES = frozenset({"gene", "CDS", "tRNA", "rRNA"})
+
+
+def fasta_text(rows: Iterable[tuple[str, str]], width: int = 60) -> str:
+    """``(name, sequence)`` rows as FASTA: ``width`` characters per line, a newline at the end.
+
+    The input every aligner and repeat finder here reads; one writer, so two tools are never fed
+    the same rows in two spellings.
+    """
+    lines: list[str] = []
+    for name, sequence in rows:
+        lines.append(f">{name}")
+        lines.extend(sequence[start : start + width] for start in range(0, len(sequence), width))
+    return "\n".join(lines) + "\n"
+
+
+def read_fasta_text(text: str) -> list[tuple[str, str]]:
+    """FASTA text as ``(name, sequence)`` pairs in file order, read by BioPython.
+
+    ``name`` is the header's first word, which is what an aligner keeps of a name.
+    """
+    return [(record.id, str(record.seq)) for record in SeqIO.parse(StringIO(text), "fasta")]
 
 
 def read_genbank(path: str | Path) -> Genome:
@@ -94,7 +124,7 @@ def _to_genome(record: SeqRecord) -> Genome:
         _to_gene(feature) for feature in record.features if feature.type in _GENE_FEATURE_TYPES
     )
     # One feature is one copy. A join that crosses the origin arrives as several parts; keeping
-    # them in one RepeatRegion is what makes a wrapped copy whole (M11.3, K-03).
+    # them in one RepeatRegion is what makes a wrapped copy whole (K-03).
     repeat_regions = tuple(
         RepeatRegion(
             tuple(
@@ -155,7 +185,7 @@ def _translation(feature: SeqFeature) -> str | None:
 
     GenBank wraps a long translation across lines and our reader gets the joined value from
     BioPython; the internal spaces some records carry are removed here so the sequence is what
-    the record means. Never reconstructed by translating the CDS (D5-08).
+    the record means. Never reconstructed by translating the CDS.
     """
     raw = _first_qualifier(feature, "translation")
     if raw is None:
@@ -219,8 +249,8 @@ def to_genbank(genome: Genome, *, translations: bool = False) -> str:
     ``translations=True`` adds the record's own ``/translation`` back for every CDS that carries
     one. Off by default, and the split is a decision rather than a default: ``/translation`` is
     NCBI's to assign on a record this toolkit *annotates*, but a curated record being
-    re-normalized is a different thing — that protein is exactly what the annotator searches
-    (D5-08), and a normalization that dropped it would silently disarm the step behind it
+    re-normalized is a different thing — that protein is exactly what the annotator searches,
+    and a normalization that dropped it would silently disarm the step behind it
     (``gene_normalize``'s artifact is the worked example).
     """
     handle = StringIO()

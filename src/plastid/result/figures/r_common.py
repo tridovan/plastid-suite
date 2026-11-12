@@ -1,7 +1,7 @@
 """Shared pieces of the R figures' pivots: column names, amino-acid names, text rendering.
 
-The scripts are the manuscript's own and are **not** edited (M10.2 changed exactly one thing in
-them, the input path). So the shape they read is a fixed contract, and every figure that has to
+The scripts are the manuscript's own and are **not** edited (only their input path
+was changed). So the shape they read is a fixed contract, and every figure that has to
 meet it meets it here — one place to read when a script changes.
 """
 

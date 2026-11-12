@@ -22,7 +22,6 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-import subprocess
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -45,8 +44,9 @@ from plastid.core.assembly_graph import (
     read_selected_graph,
     spell,
 )
+from plastid.core.digest import sha256_file
 from plastid.run.context import RunContext
-from plastid.run.tools import ToolError, tool_version, which
+from plastid.run.tools import ToolError, probe_output, tool_version, which
 
 __all__ = [
     "DATABASE_RELEASE",
@@ -104,8 +104,8 @@ def _find(name: str, directory: str | Path | None) -> str:
 
 def hmmer_version(binary: str) -> str:
     """The release this nhmmscan is. HMMER has no version flag, so its help header is read."""
-    result = subprocess.run([binary, "-h"], capture_output=True, text=True, timeout=10, check=False)
-    match = _HMMER.search(result.stdout)
+    stdout, _ = probe_output([binary, "-h"], label="nhmmscan", timeout=10)
+    match = _HMMER.search(stdout)
     return match.group(1) if match else "not stated"
 
 
@@ -143,7 +143,7 @@ def resolve_database(directory: str | Path | None = None) -> dict[str, Any]:
         missing = [file for file in missing if not (root / file).is_file()]
         if missing:
             raise ToolError(f"{root}: no {', '.join(missing)} — see {OATK_DOC}")
-        digest = hashlib.sha256(profile.read_bytes()).hexdigest()
+        digest = sha256_file(profile)
         entries.append({"database": name, "version": DATABASE_RELEASE, "sha256": digest})
     listing = "".join(f"{e['database']}\t{e['version']}\t{e['sha256']}\n" for e in entries)
     return {

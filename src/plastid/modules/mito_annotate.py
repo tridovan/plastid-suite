@@ -1,4 +1,4 @@
-"""Annotating a plant mitogenome from a curated reference set (P3A-03, prototype).
+"""Annotating a plant mitogenome from a curated reference set (prototype).
 
 The module is wiring, not algorithm: it resolves parameters, runs the two BLAST searches through
 ``external/blast.py``, hands the hits to ``core/mito_caller.py``, and turns the result into the
@@ -16,17 +16,17 @@ Four things this module refuses to do, each for a measured reason:
 * **report success on nothing.** A search that finds no hit at all is a failed run, not an
   annotation of a genome with no genes (the rule the plastid path states the same way).
 * **let the artifact go out unread.** The GenBank text is read back with our own reader before it
-  is returned; a file that does not re-read is not a result (P3A-01's rule).
+  is returned; a file that does not re-read is not a result.
 
 The output enters the same pipeline as a downloaded record, with no second code path: the calls
 become a ``Genome``, and the ORF profile in the tables is ``core/orf.check_genome``'s — the same
 function that scores the answer key.
 
-**Scope (D3A-05), stated because a paper has to:** annotation and submission only. No de-novo gene
+**Scope, stated because a paper has to:** annotation and submission only. No de-novo gene
 discovery, no intron model, no RNA-editing prediction, no repeats. Multi-exon calls report the
-exons the alignment supports and never claim a join they cannot show (D3A-04). tRNA is P3A-04's
-job (ARAGORN) and is not in this module's output. A reference gene this toolkit has no symbol for
-appears in ``unnamed_hits`` — reported, never renamed (H-06).
+exons the alignment supports and never claim a join they cannot show. tRNA is ARAGORN's
+job and is not in this module's output. A reference gene this toolkit has no symbol for
+appears in ``unnamed_hits`` — reported, never renamed.
 """
 
 from __future__ import annotations
@@ -96,7 +96,7 @@ class _Reference:
 def _reference_set(params: dict[str, Any], vocabulary: Sequence[str]) -> Iterator[_Reference]:
     """The packaged reference set, or one rebuilt from a directory of GenBank records.
 
-    A caller-supplied directory goes through P3A-02's own builders, and **what they exclude is
+    A caller-supplied directory goes through the same builders, and **what they exclude is
     printed** (``ReferenceBuild.excluded``): a reference set that quietly dropped half its genes
     would make every "not called" row a lie.
     """

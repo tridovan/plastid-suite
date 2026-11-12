@@ -1,7 +1,7 @@
-"""IQ-TREE adapter — maximum-likelihood tree inference (M11.21; docs/tools/iqtree.md).
+"""IQ-TREE adapter — maximum-likelihood tree inference (docs/tools/iqtree.md).
 
 The CGAS route this module follows is MAFFT per gene → concatenated supermatrix → IQ-TREE
-(`cgas_module14.py`, read 28/10/2026). This adapter owns only the last step: it takes an aligned
+(`cgas_module14.py`). This adapter owns only the last step: it takes an aligned
 FASTA and returns the tree, with the tool's version and argv recorded like every other call.
 
 **Why the version is read from a banner and checked against a pin.** `iqtree2 --version` prints
@@ -18,7 +18,7 @@ They are module parameters, not adapter constants, so a run can change them and 
 what it changed — but the defaults do not move.
 
 **A seed and one thread, both on purpose.** ``-seed 1`` fixes the bootstrap's random stream, and
-``-nt 1`` makes the run reproducible. Measured 28/10/2026 on the 4-record matrix: with ``-nt AUTO``
+``-nt 1`` makes the run reproducible. Measured on the 4-record matrix: with ``-nt AUTO``
 two runs of the same input gave **different topologies and support values** (99.5 vs 99.7 on an
 internal node); with ``-nt 1`` three runs gave byte-identical support and one topology. IQ-TREE's
 parallel reductions are not associative, so the default is **one thread** — a tree that changes
@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from plastid.run.context import RunContext
-from plastid.run.tools import ToolError, which
+from plastid.run.tools import ToolError, find_executable, probe_output
 
 __all__ = ["IQTREE_VERSION", "IqtreeResult", "iqtree_version", "resolve_binary", "run_iqtree"]
 
@@ -61,41 +61,29 @@ class IqtreeResult:
 
 def resolve_binary(directory: str | Path | None = None) -> str:
     """Find the IQ-TREE executable: a given directory, then ``PATH``."""
-    if directory is not None:
-        candidate_dir = Path(directory)
-        for name in _CANDIDATES:
-            candidate = candidate_dir / name
-            if candidate.is_file():
-                return str(candidate)
-        raise ToolError(f"iqtree not found in {directory} — see {IQTREE_DOC}")
-    for name in _CANDIDATES:
-        found = which(name)
-        if found is not None:
-            return found
-    raise ToolError(
-        f"iqtree not found — tree inference needs the pinned IQ-TREE {IQTREE_VERSION}. "
-        f"Install it (conda: `micromamba create -p <dir> -c bioconda iqtree="
-        f"{IQTREE_VERSION}`), or point the run at one with --set iqtree=<directory>. "
-        f"See {IQTREE_DOC}. The tree figure still draws a tree you supply yourself."
+    return find_executable(
+        "iqtree",
+        _CANDIDATES,
+        directory=directory,
+        doc=IQTREE_DOC,
+        missing=(
+            f"iqtree not found — tree inference needs the pinned IQ-TREE {IQTREE_VERSION}. "
+            f"Install it (conda: `micromamba create -p <dir> -c bioconda iqtree="
+            f"{IQTREE_VERSION}`), or point the run at one with --set iqtree=<directory>. "
+            f"See {IQTREE_DOC}. The tree figure still draws a tree you supply yourself."
+        ),
     )
 
 
 def iqtree_version(binary: str) -> str:
     """The IQ-TREE release, read from ``--version`` and checked against the pin."""
-    import subprocess
-
-    try:
-        result = subprocess.run(
-            [binary, "--version"], capture_output=True, text=True, timeout=60, check=False
-        )
-    except OSError as error:
-        raise ToolError(f"iqtree: cannot run {binary}: {error}") from error
-    match = _VERSION.search((result.stdout or "") + (result.stderr or ""))
+    stdout, stderr = probe_output([binary, "--version"], label="iqtree", timeout=60)
+    match = _VERSION.search(stdout + stderr)
     if match is None:
         raise ToolError(
             f"{binary}: no 'IQ-TREE ... version x.y.z' line in its output — a step whose "
             f"version nobody can name is not part of the toolkit. Output was: "
-            f"{((result.stdout or '') + (result.stderr or ''))[:200]!r}"
+            f"{(stdout + stderr)[:200]!r}"
         )
     version = match.group(1)
     if version != IQTREE_VERSION:

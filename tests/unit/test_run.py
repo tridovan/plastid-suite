@@ -933,10 +933,10 @@ def test_the_ir_manifest_names_the_sequence_path_and_a_refused_annotation_differ
         "exact_core": 1,
         "mirror_constant": 29,
     }
-    assert _ir_status(IRResult(source="annotation", **base), "annotation") == "annotation"
-    assert _ir_status(IRResult(source="manual", **base), "annotation") == "manual"
+    assert _ir_status(IRResult(source="annotation", **base)) == "annotation"
+    assert _ir_status(IRResult(source="manual", **base)) == "manual"
     assert (
-        _ir_status(IRResult(source="denovo_diag", annotated_lengths=(10, 10), **base), "sequence")
+        _ir_status(IRResult(source="denovo_diag", annotated_lengths=(10, 10), **base))
         == "sequence_annotation_present"
     )
     assert (
@@ -946,10 +946,7 @@ def test_the_ir_manifest_names_the_sequence_path_and_a_refused_annotation_differ
                 annotation_note="expected exactly two repeat_region copies",
                 **base,
             ),
-            "sequence",
         )
         == "sequence_annotation_refused"
     )
-    assert (
-        _ir_status(IRResult(source="denovo_diag", **base), "annotation") == "sequence_no_annotation"
-    )
+    assert _ir_status(IRResult(source="denovo_diag", **base)) == "sequence_no_annotation"

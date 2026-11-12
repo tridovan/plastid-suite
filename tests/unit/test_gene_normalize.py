@@ -799,7 +799,7 @@ def test_the_recorded_reference_resolves_without_a_checkout(
         recorded_by="the dev",
         why="a regression test for the installed-package path",
     )
-    monkeypatch.setattr("plastid.cli.checkout_root", lambda *args, **kwargs: None)
+    monkeypatch.setattr("plastid.cli.run.checkout_root", lambda *args, **kwargs: None)
     monkeypatch.chdir(tmp_path)
 
     assert _resolve_recorded_reference(recorded) == reference

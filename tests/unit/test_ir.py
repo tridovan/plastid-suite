@@ -10,10 +10,12 @@ The measured failure modes this file guards (each one stays forever):
 from __future__ import annotations
 
 import random
+from collections import Counter
 from dataclasses import replace
 
 import pytest
 
+from plastid.core import ir
 from plastid.core.ir import (
     IRGateError,
     align_copies,
@@ -283,6 +285,23 @@ def test_detect_ir_records_the_de_novo_disagreement(
     assert agrees.denovo_length == 26_161 and agrees.denovo_delta == 0
 
 
+def test_skipping_the_cross_check_changes_nothing_but_the_recorded_de_novo_length(
+    edge_genomes: dict[str, Genome], golden_genome: Genome
+) -> None:
+    """``cross_check=False`` spares the scan beside an annotation that was read, and only that.
+
+    The copies, their measurement and the gate's verdict are the annotation's either way, on a
+    record where the two paths agree and on the one where they disagree by 9,986 bp; only the
+    recorded ``denovo_length`` is left unmeasured.
+    """
+    for genome in (golden_genome, edge_genomes["NC_063920.1"], edge_genomes["NC_063921.1"]):
+        checked = detect_ir(genome)
+        spared = detect_ir(genome, cross_check=False)
+        assert spared.denovo_length is None and spared.denovo_delta is None
+        assert spared == replace(checked, denovo_length=None)
+        assert spared.gate_passed == checked.gate_passed
+
+
 def test_de_novo_agrees_with_annotation_on_the_golden(golden_genome: Genome) -> None:
     ir = detect_ir(golden_genome)
     assert ir.denovo_length == 26_214
@@ -362,3 +381,220 @@ def test_a_refused_identity_never_reads_as_the_threshold(golden_genome: Genome) 
     below = replace(detect_ir(golden_genome), identity=0.9989644)
     with pytest.raises(IRGateError, match=r"99\.89 % identity"):
         enforce_ir_gate(below)
+
+
+# ------------------------------------------------ the vectorized scan equals the word-by-word walk
+#
+# The two functions below are the scan as it was written word by word, kept here as the oracle:
+# the vectorized scan in core/ir.py is a speed-up of exactly this code and must return the same
+# chains, run for run, including the order of diagonals with equal hit counts.
+
+
+def _reference_index(sequence: str, kmer: int) -> dict[str, list[int]]:
+    index: dict[str, list[int]] = {}
+    for position in range(len(sequence) - kmer + 1):
+        word = sequence[position : position + kmer]
+        if ir._KNOWN.issuperset(word):
+            index.setdefault(word, []).append(position)
+    return {
+        word: positions
+        for word, positions in index.items()
+        if len(positions) <= ir._MAX_KMER_OCCURRENCES
+    }
+
+
+def _reference_anchor_chain(a: str, b: str) -> list[tuple[int, int, int]]:
+    kmer = ir.IR_ALIGN_KMER
+    index = _reference_index(b, kmer)
+
+    hits_by_diagonal: dict[int, list[tuple[int, int]]] = {}
+    for i in range(len(a) - kmer + 1):
+        word = a[i : i + kmer]
+        if not ir._KNOWN.issuperset(word):
+            continue
+        for j in index.get(word, ()):
+            diagonal = j - i
+            if abs(diagonal) <= ir.IR_ALIGN_MAX_DIAGONAL:
+                hits_by_diagonal.setdefault(diagonal, []).append((i, j))
+
+    anchors: list[tuple[int, int, int]] = []
+    for hits in hits_by_diagonal.values():
+        hits.sort()
+        start_i = start_j = previous_i = previous_j = None
+        for i, j in hits:
+            if start_i is None:
+                start_i, start_j = i, j
+            elif (i, j) != (previous_i + 1, previous_j + 1):
+                length = previous_i - start_i + kmer
+                if length >= kmer:
+                    anchors.append((start_i, start_j, length))
+                start_i, start_j = i, j
+            previous_i, previous_j = i, j
+        if start_i is not None:
+            length = previous_i - start_i + kmer
+            if length >= kmer:
+                anchors.append((start_i, start_j, length))
+
+    anchors.sort()
+    if not anchors:
+        return []
+    n = len(anchors)
+    best = [anchor[2] for anchor in anchors]
+    previous: list[int] = [-1] * n
+    for i, (ai, bi, li) in enumerate(anchors):
+        for j in range(i):
+            aj, bj, _ = anchors[j]
+            if aj < ai and bj < bi and best[j] + li > best[i]:
+                best[i] = best[j] + li
+                previous[i] = j
+    end = max(range(n), key=lambda idx: best[idx])
+    chain: list[tuple[int, int, int]] = []
+    while end != -1:
+        chain.append(anchors[end])
+        end = previous[end]
+    chain.reverse()
+    kept: list[tuple[int, int, int]] = []
+    for anchor in chain:
+        if kept:
+            last = kept[-1]
+            if (
+                anchor[0] + anchor[2] <= last[0] + last[2]
+                and anchor[1] + anchor[2] <= last[1] + last[2]
+            ):
+                continue
+        kept.append(anchor)
+    return kept
+
+
+def _reference_mirror_chains(sequence: str, mirror: str) -> list[tuple[int, int, int]]:
+    length = len(sequence)
+    index = _reference_index(sequence, ir._KMER)
+
+    diagonals: Counter[int] = Counter()
+    hits_by_diagonal: dict[int, list[tuple[int, int]]] = {}
+    for position in range(length - ir._KMER + 1):
+        word = mirror[position : position + ir._KMER]
+        if not ir._KNOWN.issuperset(word):
+            continue
+        for mate in index.get(word, ()):
+            diagonal = mate - position
+            hits_by_diagonal.setdefault(diagonal, []).append((mate, position))
+            diagonals[diagonal] += 1
+    if not diagonals:
+        return []
+
+    runs: list[tuple[int, int, int]] = []
+    for diagonal, _ in diagonals.most_common(ir._DIAGONALS_CONSIDERED):
+        hits = sorted(hits_by_diagonal[diagonal])
+        start = previous = None
+        for position, mate in hits:
+            if start is None:
+                start = previous = (position, mate)
+            elif (position, mate) == (previous[0] + 1, previous[1] + 1):
+                previous = (position, mate)
+            else:
+                run_length = previous[0] - start[0] + ir._KMER
+                if run_length >= ir._KMER:
+                    runs.append((start[0], start[1], run_length))
+                start = previous = (position, mate)
+        if start is not None:
+            run_length = previous[0] - start[0] + ir._KMER
+            if run_length >= ir._KMER:
+                runs.append((start[0], start[1], run_length))
+
+    runs.sort()
+    if not runs:
+        return []
+    count = len(runs)
+    score = [run[2] for run in runs]
+    covered_a = [run[2] for run in runs]
+    covered_b = [run[2] for run in runs]
+    previous_run: list[int] = [-1] * count
+    for i, (ai, bi, li) in enumerate(runs):
+        for j in range(i):
+            aj, bj, lj = runs[j]
+            a_gap = ai - (aj + lj)
+            b_gap = bi - (bj + lj)
+            if a_gap <= -li or a_gap <= -lj or b_gap <= -li or b_gap <= -lj:
+                continue
+            if a_gap > ir.IR_ALIGN_GAP_BP or b_gap > ir.IR_ALIGN_GAP_BP:
+                continue
+            new_a = covered_a[j] + li - max(0, -a_gap)
+            new_b = covered_b[j] + li - max(0, -b_gap)
+            new_score = min(new_a, new_b)
+            if new_score > score[i]:
+                score[i] = new_score
+                covered_a[i], covered_b[i] = new_a, new_b
+                previous_run[i] = j
+    end = max(range(count), key=lambda index: score[index])
+    chain: list[tuple[int, int, int]] = []
+    while end != -1:
+        chain.append(runs[end])
+        end = previous_run[end]
+    chain.reverse()
+    return chain
+
+
+def _scan_shapes() -> list[tuple[str, str]]:
+    """Sequences that exercise every branch of the scan: SNPs, indels, N, a word seen > 32 times."""
+    generator = random.Random(20261112)
+
+    def random_bases(length: int) -> str:
+        return "".join(generator.choice("ACGT") for _ in range(length))
+
+    def mutate(sequence: str, snps: int, indels: int) -> str:
+        bases = list(sequence)
+        for _ in range(snps):
+            index = generator.randrange(len(bases))
+            bases[index] = generator.choice("ACGT".replace(bases[index], ""))
+        for _ in range(indels):
+            index = generator.randrange(1, len(bases) - 1)
+            if generator.random() < 0.5:
+                del bases[index]
+            else:
+                bases.insert(index, generator.choice("ACGT"))
+        return "".join(bases)
+
+    repeat = random_bases(6_000)
+    plastome = (
+        random_bases(9_000)
+        + repeat
+        + random_bases(2_500)
+        + reverse_complement(mutate(repeat, 6, 3))
+    )
+    with_unknowns = (
+        plastome[:3_000] + "N" * 40 + plastome[3_040:12_000] + "nnRY" + plastome[12_004:]
+    )
+    homopolymer = random_bases(4_000) + "A" * 90 + repeat[:3_000] + "T" * 90 + random_bases(1_500)
+    homopolymer += reverse_complement(repeat[:3_000])
+    lowercase = plastome[:8_000] + plastome[8_000:9_500].lower() + plastome[9_500:]
+    return [
+        ("plastome-like", plastome),
+        ("unknown bases", with_unknowns),
+        ("homopolymers", homopolymer),
+        ("lower-case run", lowercase),
+        ("shorter than a word", "ACGTACGTAC"),
+        ("exactly one word", random_bases(ir.IR_ALIGN_KMER)),
+        ("empty", ""),
+    ]
+
+
+@pytest.mark.parametrize("shape", _scan_shapes(), ids=lambda shape: shape[0])
+def test_the_vectorized_scan_returns_the_walk_s_chains(shape: tuple[str, str]) -> None:
+    _name, sequence = shape
+    mirror = reverse_complement(sequence)
+    assert ir._mirror_chains(sequence, mirror) == _reference_mirror_chains(sequence, mirror)
+    half = len(sequence) // 2
+    first, second = sequence[:half], reverse_complement(sequence[half:])
+    assert ir._anchor_chain(first, second) == _reference_anchor_chain(first, second)
+
+
+def test_the_vectorized_scan_returns_the_walk_s_chains_on_the_golden(golden_genome: Genome) -> None:
+    sequence = golden_genome.sequence
+    mirror = reverse_complement(sequence)
+    assert ir._mirror_chains(sequence, mirror) == _reference_mirror_chains(sequence, mirror)
+    annotated = ir_from_annotation(golden_genome)
+    assert annotated is not None
+    copy_a = sequence[annotated.ira.start : annotated.ira.end]
+    copy_b = reverse_complement(sequence[annotated.irb.start : annotated.irb.end])
+    assert ir._anchor_chain(copy_a, copy_b) == _reference_anchor_chain(copy_a, copy_b)

@@ -415,7 +415,7 @@ def test_a_figure_refresh_drops_a_manifest_entry_whose_file_is_gone(
     write_manifest(run / "manifest.json", manifest)
 
     monkeypatch.setattr(
-        cli,
+        cli.outputs,
         "_render_output_figures",
         lambda *args, **kwargs: cli.OutputFigures((), (), (), ()),
     )
@@ -470,7 +470,7 @@ def test_a_figure_refresh_updates_the_manifest_digest_of_a_rewritten_file(
     write_manifest(run / "manifest.json", manifest)
 
     monkeypatch.setattr(
-        cli,
+        cli.outputs,
         "_render_output_figures",
         lambda *args, **kwargs: cli.OutputFigures((figure,), (), (), ()),
     )

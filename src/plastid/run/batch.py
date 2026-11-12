@@ -4,7 +4,7 @@ The batch is an **orchestrator**, not a second engine. Every sample is analysed 
 the single-sample command runs, in its own run directory with its own manifest; this module reads
 the stored results and copies each cell, tagging it with the sample and the scope the module
 declared. Nothing is recomputed, averaged or filled in: a failed or not-measured cell is a status,
-never a zero (M11.6).
+never a zero.
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ AGGREGATE_COLUMNS = (
 
 # The aggregate's per-sample provenance columns. They repeat on every long-format row so that a
 # table lifted out of the file still says which accession, whose data label and which IR path
-# produced the cell (M11.18); a figure pivot must not mistake them for measured columns.
+# produced the cell; a figure pivot must not mistake them for measured columns.
 AGGREGATE_METADATA_COLUMNS = (
     "sample_accession",
     "sample_data_label",
@@ -110,7 +110,7 @@ class SampleRecord:
     scoring_policy: str = ""
     scoring_policy_version: int | None = None
     ir_gate: str = ""
-    # The IR path's structured evidence (M11.16): which result a status describes, the annotated
+    # The IR path's structured evidence: which result a status describes, the annotated
     # lengths even when they were not used, the four column classes, and the independent de-novo
     # check. They are copied from the sample's own manifest, never re-derived.
     ir_status: str = ""

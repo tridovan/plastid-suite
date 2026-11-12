@@ -1,4 +1,4 @@
-"""RNA editing — predicted C-to-U sites, PREP-Cp-compatible (M4.5).
+"""RNA editing — predicted C-to-U sites, PREP-Cp-compatible.
 
 The published PREP method (Mower 2005) run by this toolkit against reference B′, its rebuild of
 the PREP-Cp training reference (Mower 2009): each supported CDS is translated with the standard

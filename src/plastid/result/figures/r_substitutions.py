@@ -5,7 +5,7 @@ rows with ``Category`` ``Substitution``, then one ``Ts/Tv Ratio`` row with ``Cat
 It sums the complementary pairs itself, so the twelve **directed** changes are what this pivot
 supplies.
 
-**This figure had no source until now.** Measured 17/10/2026: ``core/align.py`` counted only
+**This figure had no source until now.** Measured: ``core/align.py`` counted only
 transitions and transversions, so the toolkit did not hold the six types the manuscript draws.
 ``substitutions.substitutions_by_type`` is that table, added in the same change as this figure.
 
