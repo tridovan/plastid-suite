@@ -243,13 +243,15 @@ def test_a_figure_refuses_an_unknown_format_and_an_empty_payload() -> None:
 
 def test_a_missing_figures_extra_is_a_named_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """The minimum install must stay pure Python — and say so, not raise ImportError."""
-    monkeypatch.setitem(sys.modules, "matplotlib.pyplot", None)
+    # The extra absent: neither matplotlib nor the module the export draws with can be imported.
+    monkeypatch.setitem(sys.modules, "matplotlib", None)
+    monkeypatch.setitem(sys.modules, "matplotlib.figure", None)
     with pytest.raises(ExportDependencyError, match="plastid-suite\\[figures\\]"):
         export_figure(
             figure_id="probe",
             title="Probe",
             source_tables=(),
-            build=lambda axes: axes.plot([0, 1], [0, 1]),
+            build=lambda figure: figure.subplots().plot([0, 1], [0, 1]),
             figsize=(2, 2),
         )
 
@@ -404,3 +406,46 @@ def test_the_catalogue_registers_every_spec_by_its_own_id() -> None:
         assert get(spec.id) is spec
     with pytest.raises(KeyError, match="unknown figure"):
         get("no_such_figure")
+
+
+@requires_figures
+def test_writing_a_figure_never_asks_the_session_for_a_window(tmp_path: Path) -> None:
+    """K-36: a figure file is drawn without the session's interactive backend.
+
+    On a desktop session matplotlib picks an interactive backend (TkAgg on WSLg), and drawing
+    through ``pyplot`` asked it for a window per figure. Where Wayland answered and the X display
+    did not (reproduced on WSLg with ``DISPLAY=:99``), that window was a ``TclError`` and the run
+    died with its manifest still saying ``running``. The backend here refuses any window, so the
+    check holds on every machine, display or none; it runs in a fresh interpreter because a
+    backend chosen earlier in the test process would mask it.
+    """
+    import os
+    import subprocess
+
+    (tmp_path / "refusing_backend.py").write_text(
+        "from matplotlib.backend_bases import FigureCanvasBase, FigureManagerBase\n"
+        "class FigureManager(FigureManagerBase):\n"
+        "    def __init__(self, *args, **kwargs):\n"
+        "        raise RuntimeError('a window was asked for')\n"
+        "class FigureCanvas(FigureCanvasBase):\n"
+        "    manager_class = FigureManager\n",
+        encoding="utf-8",
+    )
+    script = (
+        "from plastid.result.figure import export_figure\n"
+        "figure = export_figure(figure_id='probe', title='probe', source_tables=('m.t',),\n"
+        "    build=lambda fig: fig.subplots().plot([0, 1], [0, 1]), figsize=(2, 2))\n"
+        "assert all(data for _, data in figure.data) and figure.formats\n"
+        "print('drawn')\n"
+    )
+    environment = {**os.environ, "MPLBACKEND": "module://refusing_backend"}
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        env=environment,
+        cwd=tmp_path,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr[-600:]
+    assert result.stdout.strip() == "drawn"

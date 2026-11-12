@@ -613,6 +613,21 @@ is left out now stops before the run starts, exit 2, and names them. Regression:
 `test_the_run_records_the_sample_s_own_record_left_out_whatever_its_file_is_called` in
 `tests/unit/test_cli_annotate.py`.
 
+## K-36 — Drawing a figure asked the desktop for a window, and died where the X display was gone — **fixed (12/11/2026)**
+
+**Symptom.** Figures were drawn through `pyplot.figure()`, so on a desktop session matplotlib chose an
+interactive backend (TkAgg on WSLg) and opened a Tk window per figure only to write a file. Measured
+on WSLg with Wayland answering and `DISPLAY=:99` (an X display nothing serves): `plastid run … --figures`
+ended with `_tkinter.TclError: couldn't connect to display ":99"`, exit 1, and the manifest still
+said `running`. With no Wayland session matplotlib tests the X display and falls back to drawing
+off-screen, so a stale `DISPLAY` over SSH alone did not trigger it.
+
+**Fix.** A figure is drawn on a bare `matplotlib.figure.Figure`, which writes each format through its
+own canvas and never asks the session's backend for a window. Every matplotlib figure of a run is
+byte-identical to before. Regression:
+`test_writing_a_figure_never_asks_the_session_for_a_window` in `tests/unit/test_figure.py`, which
+runs the export under a backend that refuses any window.
+
 ## Other current limitations
 
 The RSCU and amino-acid R figures draw every species column in their input (M11.7); the tool's

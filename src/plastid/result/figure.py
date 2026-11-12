@@ -216,13 +216,12 @@ class FigureSpec:
 
 
 @contextmanager
-def themed(theme: Theme = THEME) -> Iterator[Any]:
+def themed(theme: Theme = THEME) -> Iterator[None]:
     """Apply the theme to matplotlib's global state and put it back — no hidden globals.
 
     ``svg.hashsalt`` is what makes the SVG's element ids stable: without it matplotlib salts them
     with a per-process random value and two runs of the same input differ (measured).
     """
-    pyplot = require_module("matplotlib.pyplot", extra="figures", purpose="Figure export")
     matplotlib = require_module("matplotlib", extra="figures", purpose="Figure export")
     previous = {key: matplotlib.rcParams[key] for key in _THEMED_RCPARAMS}
     matplotlib.rcParams.update(
@@ -253,7 +252,7 @@ def themed(theme: Theme = THEME) -> Iterator[Any]:
         }
     )
     try:
-        yield pyplot
+        yield
     finally:
         matplotlib.rcParams.update(previous)
 
@@ -291,11 +290,11 @@ def export_figure(
     ``build`` is handed the figure and makes its own axes — ``figure.subplots()`` for one panel,
     ``figure.subplots(1, 2)`` for two, ``figure.add_subplot(projection="polar")`` for a circle.
     """
-    with themed() as pyplot:
-        fig = pyplot.figure(figsize=figsize)
-        try:
-            build(fig)
-            data = tuple((fmt, _save(fig, fmt)) for fmt in formats)
-        finally:
-            pyplot.close(fig)
+    # A bare ``Figure``, not ``pyplot.figure()``: writing a file needs no window, and pyplot would
+    # ask the session's interactive backend for one (K-36). Each format is drawn by its own canvas.
+    figure_module = require_module("matplotlib.figure", extra="figures", purpose="Figure export")
+    with themed():
+        fig = figure_module.Figure(figsize=figsize)
+        build(fig)
+        data = tuple((fmt, _save(fig, fmt)) for fmt in formats)
     return Figure(id=figure_id, title=title, source_tables=tuple(source_tables), data=data)

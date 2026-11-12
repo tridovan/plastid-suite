@@ -128,7 +128,9 @@ def test_a_missing_plotting_extra_is_not_the_last_analysis_failing(
     tmp_path: Path, data_dir: Path, monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:
     """The analyses finished. Their record says so, and the figures say what stopped them."""
-    monkeypatch.setitem(sys.modules, "matplotlib.pyplot", None)
+    # The extra absent: neither matplotlib nor the module the export draws with can be imported.
+    monkeypatch.setitem(sys.modules, "matplotlib", None)
+    monkeypatch.setitem(sys.modules, "matplotlib.figure", None)
     out = tmp_path / "runs"
     record = str(data_dir / "NC_050833.1.gb")
     code = main(["run", "-m", "codon_usage", "-i", record, "-o", str(out), "--figures"])
